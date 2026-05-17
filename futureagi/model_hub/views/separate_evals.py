@@ -38,6 +38,7 @@ from model_hub.serializers.develop_dataset import (
     EvalPlayGroundFeedbackSerializer,
 )
 from model_hub.serializers.contracts import (
+    CellErrorLocalizerResponseSerializer,
     CompositeEvalAdhocExecuteRequestSerializer,
     CompositeEvalCreateRequestSerializer,
     CompositeEvalExecuteRequestSerializer,
@@ -667,14 +668,16 @@ class CellErrorLocalizerView(APIView):
 
     @swagger_auto_schema(
         request_body=ModelHubEmptyRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: CellErrorLocalizerResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, cell_id=None, *args, **kwargs):
         try:
             from model_hub.models.develop_dataset import Cell
             from model_hub.models.error_localizer_model import (
                 ErrorLocalizerSource,
-                ErrorLocalizerStatus,
                 ErrorLocalizerTask,
             )
             from model_hub.models.evals_metric import UserEvalMetric
@@ -832,7 +835,10 @@ class CellErrorLocalizerView(APIView):
             return self._gm.bad_request(f"Failed to start error localization: {str(e)}")
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: CellErrorLocalizerResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, cell_id=None, *args, **kwargs):
         """

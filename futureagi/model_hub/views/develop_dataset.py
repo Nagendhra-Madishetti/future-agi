@@ -123,6 +123,7 @@ from model_hub.serializers.contracts import (
     AddAsNewDatasetRequestSerializer,
     AddRowsFromFileRequestSerializer,
     CloneDatasetRequestSerializer,
+    ColumnConfigResponseSerializer,
     CompareDatasetStatsRequestSerializer,
     CompareEvalsListRequestSerializer,
     ComparePreviewRunEvalRequestSerializer,
@@ -1338,7 +1339,7 @@ class ColumnConfigView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={200: ColumnConfigResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
     )
     def get(self, request, column_id):
         column = get_object_or_404(

@@ -622,10 +622,10 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "RerunOperationResponse"
         ),
         ("GET", "/model-hub/cells/{cell_id}/run-error-localizer/"): (
-            "ModelHubJSONResponse"
+            "CellErrorLocalizerResponse"
         ),
         ("POST", "/model-hub/cells/{cell_id}/run-error-localizer/"): (
-            "ModelHubJSONResponse"
+            "CellErrorLocalizerResponse"
         ),
         ("GET", "/model-hub/custom-models/"): "ModelHubPaginatedResponse",
         ("GET", "/model-hub/custom-models/list/"): "ModelHubPaginatedResponse",
@@ -655,7 +655,7 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/custom-metric/test/"): "CustomMetricTestResponse",
         ("POST", "/model-hub/custom-metric/update/"): "ModelHubStatusResponse",
         ("GET", "/model-hub/custom-metric/{model_id}/"): "ModelHubPaginatedResponse",
-        ("GET", "/model-hub/column-config/{column_id}/"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/column-config/{column_id}/"): "ColumnConfigResponse",
         ("GET", "/model-hub/dataset/columns/{dataset_id}/"): (
             "ModelHubJSONResponse"
         ),

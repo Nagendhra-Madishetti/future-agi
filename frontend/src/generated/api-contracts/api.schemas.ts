@@ -4821,26 +4821,84 @@ export interface ModelHubPaginatedResponseApi {
   results: ModelHubPaginatedResponseApiResultsItem[];
 }
 
-export type ModelHubJSONResponseApiStatus = { [key: string]: unknown };
+export type CellErrorLocalizerResultApiErrorAnalysis = { [key: string]: unknown };
 
-export type ModelHubJSONResponseApiResult = { [key: string]: unknown };
+export type CellErrorLocalizerResultApiInputData = { [key: string]: unknown };
 
-export type ModelHubJSONResponseApiData = { [key: string]: unknown };
+export type CellErrorLocalizerResultApiInputTypes = { [key: string]: unknown };
 
-export type ModelHubJSONResponseApiError = { [key: string]: unknown };
+export interface CellErrorLocalizerResultApi {
+  task_id?: string;
+  cell_id: string;
+  status?: string;
+  error_analysis?: CellErrorLocalizerResultApiErrorAnalysis;
+  selected_input_key?: string;
+  input_data?: CellErrorLocalizerResultApiInputData;
+  input_types?: CellErrorLocalizerResultApiInputTypes;
+  error_message?: string;
+}
 
-export type ModelHubJSONResponseApiDetail = { [key: string]: unknown };
-
-export interface ModelHubJSONResponseApi {
-  status?: ModelHubJSONResponseApiStatus;
-  message?: string;
-  result?: ModelHubJSONResponseApiResult;
-  data?: ModelHubJSONResponseApiData;
-  error?: ModelHubJSONResponseApiError;
-  detail?: ModelHubJSONResponseApiDetail;
+export interface CellErrorLocalizerResponseApi {
+  status: boolean;
+  result: CellErrorLocalizerResultApi;
 }
 
 export interface ModelHubEmptyRequestApi { [key: string]: unknown }
+
+export type ColumnConfigResultApiTemplateConfig = { [key: string]: unknown };
+
+export type ColumnConfigResultApiConfig = { [key: string]: unknown };
+
+export type ColumnConfigResultApiPromptConfig = { [key: string]: unknown };
+
+export type ColumnConfigResultApiMessages = { [key: string]: unknown };
+
+export type ColumnConfigResultApiResponseFormat = { [key: string]: unknown };
+
+export type ColumnConfigResultApiOptimizedKPrompts = { [key: string]: unknown };
+
+export type ColumnConfigResultApiModelConfig = { [key: string]: unknown };
+
+export type ColumnConfigResultApiUserEvalTemplateIdsItem = { [key: string]: unknown };
+
+export type ColumnConfigResultApiOptimisationConfig = { [key: string]: unknown };
+
+export type ColumnConfigResultApiExperimentDatasetConfig = { [key: string]: unknown };
+
+export interface ColumnConfigResultApi {
+  /** @minLength 1 */
+  name: string;
+  template?: string;
+  template_config?: ColumnConfigResultApiTemplateConfig;
+  description?: string;
+  config?: ColumnConfigResultApiConfig;
+  status?: string;
+  prompt_config?: ColumnConfigResultApiPromptConfig;
+  model?: string;
+  messages?: ColumnConfigResultApiMessages;
+  output_format?: string;
+  temperature?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
+  max_tokens?: number;
+  top_p?: number;
+  response_format?: ColumnConfigResultApiResponseFormat;
+  tool_choice?: string;
+  tools?: string[];
+  optimize_type?: string;
+  optimized_k_prompts?: ColumnConfigResultApiOptimizedKPrompts;
+  model_config?: ColumnConfigResultApiModelConfig;
+  user_eval_template_ids?: ColumnConfigResultApiUserEvalTemplateIdsItem[];
+  optimisation_name?: string;
+  optimisation_config?: ColumnConfigResultApiOptimisationConfig;
+  experiment_dataset?: string;
+  experiment_dataset_config?: ColumnConfigResultApiExperimentDatasetConfig;
+}
+
+export interface ColumnConfigResponseApi {
+  status: boolean;
+  result: ColumnConfigResultApi;
+}
 
 export type OperationConfigResultApiMetadata = { [key: string]: unknown };
 
@@ -4916,6 +4974,25 @@ export interface CustomEvalTemplateCreateApi {
   multi_choice?: boolean;
   /** @maxLength 500 */
   template_id?: string;
+}
+
+export type ModelHubJSONResponseApiStatus = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiResult = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiData = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiError = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiDetail = { [key: string]: unknown };
+
+export interface ModelHubJSONResponseApi {
+  status?: ModelHubJSONResponseApiStatus;
+  message?: string;
+  result?: ModelHubJSONResponseApiResult;
+  data?: ModelHubJSONResponseApiData;
+  error?: ModelHubJSONResponseApiError;
+  detail?: ModelHubJSONResponseApiDetail;
 }
 
 export interface CustomMetricListItemApi {

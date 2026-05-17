@@ -525,6 +525,77 @@ class RerunOperationResponseSerializer(serializers.Serializer):
     result = RerunOperationResultSerializer()
 
 
+class CellErrorLocalizerResultSerializer(serializers.Serializer):
+    task_id = serializers.UUIDField(required=False)
+    cell_id = serializers.UUIDField()
+    status = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    error_analysis = serializers.JSONField(required=False, allow_null=True)
+    selected_input_key = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    input_data = serializers.JSONField(required=False, allow_null=True)
+    input_types = serializers.JSONField(required=False, allow_null=True)
+    error_message = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+
+class CellErrorLocalizerResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = CellErrorLocalizerResultSerializer()
+
+
+class ColumnConfigResultSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    template = serializers.UUIDField(required=False)
+    template_config = serializers.JSONField(required=False)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    config = serializers.JSONField(required=False)
+    status = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    prompt_config = serializers.JSONField(required=False)
+    model = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    messages = serializers.JSONField(required=False)
+    output_format = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    temperature = serializers.FloatField(required=False, allow_null=True)
+    frequency_penalty = serializers.FloatField(required=False, allow_null=True)
+    presence_penalty = serializers.FloatField(required=False, allow_null=True)
+    max_tokens = serializers.IntegerField(required=False, allow_null=True)
+    top_p = serializers.FloatField(required=False, allow_null=True)
+    response_format = serializers.JSONField(required=False)
+    tool_choice = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    tools = serializers.ListField(child=serializers.CharField(), required=False)
+
+    optimize_type = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    optimized_k_prompts = serializers.JSONField(required=False)
+    model_config = serializers.JSONField(required=False)
+    user_eval_template_ids = serializers.ListField(
+        child=serializers.JSONField(),
+        required=False,
+    )
+    optimisation_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    optimisation_config = serializers.JSONField(required=False)
+    experiment_dataset = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    experiment_dataset_config = serializers.JSONField(required=False)
+
+
+class ColumnConfigResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = ColumnConfigResultSerializer()
+
+
 class PreviewDatasetOperationRequestSerializer(serializers.Serializer):
     column_id = serializers.UUIDField(required=False)
     json_key = serializers.CharField(required=False, allow_blank=True)

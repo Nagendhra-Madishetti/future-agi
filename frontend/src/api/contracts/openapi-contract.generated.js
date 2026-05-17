@@ -9954,7 +9954,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/CellErrorLocalizerResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -9981,7 +9981,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/CellErrorLocalizerResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -10008,7 +10008,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/ColumnConfigResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -38398,6 +38398,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CellErrorLocalizerResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/CellErrorLocalizerResult"
+        }
+      }
+    },
     "CellUpdate": {
       "type": "object",
       "properties": {
@@ -38560,6 +38576,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "new_dataset_name": {
           "title": "New dataset name",
           "type": "string"
+        }
+      }
+    },
+    "ColumnConfigResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/ColumnConfigResult"
         }
       }
     },
@@ -59221,6 +59253,54 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CellErrorLocalizerResult": {
+      "required": [
+        "cell_id"
+      ],
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "title": "Task id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "cell_id": {
+          "title": "Cell id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "error_analysis": {
+          "title": "Error analysis",
+          "type": "object",
+          "x-nullable": true
+        },
+        "selected_input_key": {
+          "title": "Selected input key",
+          "type": "string",
+          "x-nullable": true
+        },
+        "input_data": {
+          "title": "Input data",
+          "type": "object",
+          "x-nullable": true
+        },
+        "input_types": {
+          "title": "Input types",
+          "type": "object",
+          "x-nullable": true
+        },
+        "error_message": {
+          "title": "Error message",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
     "ChatSDKCodeResult": {
       "required": [
         "installation_guide",
@@ -59308,6 +59388,138 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Message",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "ColumnConfigResult": {
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "template": {
+          "title": "Template",
+          "type": "string",
+          "format": "uuid"
+        },
+        "template_config": {
+          "title": "Template config",
+          "type": "object"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "x-nullable": true
+        },
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "prompt_config": {
+          "title": "Prompt config",
+          "type": "object"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "x-nullable": true
+        },
+        "messages": {
+          "title": "Messages",
+          "type": "object"
+        },
+        "output_format": {
+          "title": "Output format",
+          "type": "string",
+          "x-nullable": true
+        },
+        "temperature": {
+          "title": "Temperature",
+          "type": "number",
+          "x-nullable": true
+        },
+        "frequency_penalty": {
+          "title": "Frequency penalty",
+          "type": "number",
+          "x-nullable": true
+        },
+        "presence_penalty": {
+          "title": "Presence penalty",
+          "type": "number",
+          "x-nullable": true
+        },
+        "max_tokens": {
+          "title": "Max tokens",
+          "type": "integer",
+          "x-nullable": true
+        },
+        "top_p": {
+          "title": "Top p",
+          "type": "number",
+          "x-nullable": true
+        },
+        "response_format": {
+          "title": "Response format",
+          "type": "object"
+        },
+        "tool_choice": {
+          "title": "Tool choice",
+          "type": "string",
+          "x-nullable": true
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "optimize_type": {
+          "title": "Optimize type",
+          "type": "string",
+          "x-nullable": true
+        },
+        "optimized_k_prompts": {
+          "title": "Optimized k prompts",
+          "type": "object"
+        },
+        "model_config": {
+          "title": "Model config",
+          "type": "object"
+        },
+        "user_eval_template_ids": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "optimisation_name": {
+          "title": "Optimisation name",
+          "type": "string",
+          "x-nullable": true
+        },
+        "optimisation_config": {
+          "title": "Optimisation config",
+          "type": "object"
+        },
+        "experiment_dataset": {
+          "title": "Experiment dataset",
+          "type": "string",
+          "x-nullable": true
+        },
+        "experiment_dataset_config": {
+          "title": "Experiment dataset config",
+          "type": "object"
         }
       }
     },

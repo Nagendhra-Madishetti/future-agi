@@ -14375,22 +14375,23 @@ export const ModelHubCellsRunErrorLocalizerListParams = zod.object({
 })
 
 export const ModelHubCellsRunErrorLocalizerListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "task_id": zod.string().uuid().optional(),
+  "cell_id": zod.string().uuid(),
+  "status": zod.string().optional(),
+  "error_analysis": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
+  "selected_input_key": zod.string().optional(),
+  "input_data": zod.object({
 
 }).passthrough().optional(),
-  "error": zod.object({
+  "input_types": zod.object({
 
 }).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "error_message": zod.string().optional()
+})
 })
 
 
@@ -14426,22 +14427,23 @@ export const ModelHubCellsRunErrorLocalizerCreateBody = zod.object({
 }).passthrough()
 
 export const ModelHubCellsRunErrorLocalizerCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "task_id": zod.string().uuid().optional(),
+  "cell_id": zod.string().uuid(),
+  "status": zod.string().optional(),
+  "error_analysis": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
+  "selected_input_key": zod.string().optional(),
+  "input_data": zod.object({
 
 }).passthrough().optional(),
-  "error": zod.object({
+  "input_types": zod.object({
 
 }).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "error_message": zod.string().optional()
+})
 })
 
 
@@ -14449,23 +14451,60 @@ export const ModelHubColumnConfigReadParams = zod.object({
   "column_id": zod.string()
 })
 
+
+
+
+
 export const ModelHubColumnConfigReadResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "name": zod.string().min(1),
+  "template": zod.string().uuid().optional(),
+  "template_config": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
+  "description": zod.string().optional(),
+  "config": zod.object({
 
 }).passthrough().optional(),
-  "error": zod.object({
+  "status": zod.string().optional(),
+  "prompt_config": zod.object({
 
 }).passthrough().optional(),
-  "detail": zod.object({
+  "model": zod.string().optional(),
+  "messages": zod.object({
+
+}).passthrough().optional(),
+  "output_format": zod.string().optional(),
+  "temperature": zod.number().optional(),
+  "frequency_penalty": zod.number().optional(),
+  "presence_penalty": zod.number().optional(),
+  "max_tokens": zod.number().optional(),
+  "top_p": zod.number().optional(),
+  "response_format": zod.object({
+
+}).passthrough().optional(),
+  "tool_choice": zod.string().optional(),
+  "tools": zod.array(zod.string().min(1)).optional(),
+  "optimize_type": zod.string().optional(),
+  "optimized_k_prompts": zod.object({
+
+}).passthrough().optional(),
+  "model_config": zod.object({
+
+}).passthrough().optional(),
+  "user_eval_template_ids": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "optimisation_name": zod.string().optional(),
+  "optimisation_config": zod.object({
+
+}).passthrough().optional(),
+  "experiment_dataset": zod.string().optional(),
+  "experiment_dataset_config": zod.object({
 
 }).passthrough().optional()
+})
 })
 
 

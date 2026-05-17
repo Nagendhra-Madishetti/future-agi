@@ -202,6 +202,7 @@ import type {
   CallWebsocketRequestApi,
   CallWebsocketResponseApi,
   CancelTestExecutionResponseApi,
+  CellErrorLocalizerResponseApi,
   CellUpdateApi,
   ChatSDKCodeResponseApi,
   ChatSendMessageResponseApi,
@@ -210,6 +211,7 @@ import type {
   ClassifyColumnRequestApi,
   ClickHouseHealthResponseApi,
   CloneDatasetRequestApi,
+  ColumnConfigResponseApi,
   ColumnValuesRequestApi,
   CompareDatasetApi,
   CompareDatasetStatsRequestApi,
@@ -21472,7 +21474,7 @@ export const modelHubApiModelsListList = async ( options?: RequestInit): Promise
 
 
 export type modelHubCellsRunErrorLocalizerListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: CellErrorLocalizerResponseApi
   status: 200
 }
 
@@ -21536,7 +21538,7 @@ export const modelHubCellsRunErrorLocalizerList = async (cellId: string, options
 
 
 export type modelHubCellsRunErrorLocalizerCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: CellErrorLocalizerResponseApi
   status: 200
 }
 
@@ -21621,7 +21623,7 @@ export const modelHubCellsRunErrorLocalizerCreate = async (cellId: string,
 
 
 export type modelHubColumnConfigReadResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: ColumnConfigResponseApi
   status: 200
 }
 
