@@ -18297,22 +18297,29 @@ export const ModelHubEvalPlaygroundCreateBody = zod.object({
 })
 
 export const ModelHubEvalPlaygroundCreateResponse = zod.object({
-  "status": zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "output": zod.object({
 
 }).passthrough().optional(),
-  "message": zod.string().optional(),
   "result": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
+  "reason": zod.string().optional(),
+  "score": zod.object({
 
 }).passthrough().optional(),
-  "error": zod.object({
+  "metadata": zod.object({
 
 }).passthrough().optional(),
-  "detail": zod.object({
+  "log_id": zod.string().uuid().optional(),
+  "error_localizer": zod.object({
+
+}).passthrough().optional(),
+  "error_details": zod.object({
 
 }).passthrough().optional()
+})
 })
 
 
@@ -18328,43 +18335,30 @@ export const ModelHubEvalPlaygroundFeedbackCreateBody = zod.object({
   "explanation": zod.string().min(1).optional()
 })
 
+
+
+
 export const ModelHubEvalPlaygroundFeedbackCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "message": zod.string().min(1),
+  "feedback_id": zod.string().uuid()
+})
 })
 
 
+
+
+
+
+
 export const ModelHubEvalSdkCodeListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "python": zod.string().min(1),
+  "curl": zod.string().min(1),
+  "javascript": zod.string().min(1)
+})
 })
 
 
@@ -19101,23 +19095,27 @@ export const ModelHubEvalTemplatesFeedbackListListParams = zod.object({
   "template_id": zod.string()
 })
 
+
+
+
 export const ModelHubEvalTemplatesFeedbackListListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "template_id": zod.string().uuid(),
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "value": zod.string(),
+  "explanation": zod.string(),
+  "source": zod.string(),
+  "source_id": zod.string(),
+  "action_type": zod.string(),
+  "user_name": zod.string(),
+  "created_at": zod.string().min(1)
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "page_size": zod.number()
+})
 })
 
 
@@ -19361,23 +19359,62 @@ export const ModelHubEvalTemplatesUsageListParams = zod.object({
   "template_id": zod.string()
 })
 
+
+
+
+
+
 export const ModelHubEvalTemplatesUsageListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
+  "template_id": zod.string().uuid(),
+  "is_composite": zod.boolean(),
+  "stats": zod.object({
+  "total_runs": zod.number(),
+  "runs_period": zod.number(),
+  "success_count": zod.number(),
+  "error_count": zod.number(),
+  "pass_rate": zod.number()
+}),
+  "chart": zod.array(zod.object({
+  "timestamp": zod.string().min(1),
+  "calls": zod.number().optional(),
+  "avg_latency_ms": zod.number().optional(),
+  "avg_score": zod.number().optional(),
+  "pass_count": zod.number().optional(),
+  "fail_count": zod.number().optional()
+})),
+  "logs": zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "input": zod.string(),
+  "result": zod.string().optional(),
+  "score": zod.number().optional(),
+  "reason": zod.string().optional(),
+  "status": zod.string().min(1),
+  "source": zod.string().optional(),
+  "created_at": zod.string().min(1),
   "detail": zod.object({
 
-}).passthrough().optional()
+}).passthrough(),
+  "feedback": zod.object({
+  "id": zod.string().uuid(),
+  "value": zod.object({
+
+}).passthrough().optional(),
+  "explanation": zod.string().optional(),
+  "action_type": zod.string().optional(),
+  "created_at": zod.string().optional(),
+  "user": zod.string().optional()
+}).optional(),
+  "composite": zod.boolean().optional(),
+  "aggregate_pass": zod.boolean().optional()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "page_size": zod.number()
+})
+})
 })
 
 
@@ -19523,23 +19560,14 @@ export const ModelHubEvaluateRowsCreateBody = zod.object({
   "selected_all_rows": zod.boolean().default(modelHubEvaluateRowsCreateBodySelectedAllRowsDefault)
 })
 
+
+
+
 export const ModelHubEvaluateRowsCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "success": zod.string().min(1)
+})
 })
 
 
@@ -21073,43 +21101,122 @@ export const ModelHubGetColumnValuesCreateResponse = zod.object({
 })
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 export const ModelHubGetEvalConfigListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "eval": zod.object({
+  "id": zod.string().uuid(),
+  "template_id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "owner": zod.string().min(1).optional(),
+  "type": zod.string().min(1).optional(),
+  "eval_type": zod.string().min(1).optional(),
+  "eval_type_id": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
+  "function_eval": zod.boolean().optional(),
+  "reason_column": zod.object({
 
 }).passthrough().optional(),
-  "error": zod.object({
+  "eval_tags": zod.array(zod.string().min(1)).optional(),
+  "description": zod.string().optional(),
+  "criteria": zod.string().optional(),
+  "model": zod.string().optional(),
+  "models": zod.object({
 
 }).passthrough().optional(),
-  "detail": zod.object({
+  "selected_model": zod.string().optional(),
+  "required_keys": zod.array(zod.string().min(1)),
+  "optional_keys": zod.array(zod.string().min(1)).optional(),
+  "variable_keys": zod.array(zod.string().min(1)).optional(),
+  "run_prompt_column": zod.boolean().optional(),
+  "template_name": zod.string().min(1),
+  "mapping": zod.object({
+
+}).passthrough(),
+  "config": zod.object({
+
+}).passthrough(),
+  "params": zod.object({
+
+}).passthrough().optional(),
+  "function_params_schema": zod.object({
+
+}).passthrough().optional(),
+  "output": zod.string().optional(),
+  "config_params_desc": zod.object({
+
+}).passthrough().optional(),
+  "config_params_option": zod.object({
+
+}).passthrough().optional(),
+  "param_modalities": zod.object({
+
+}).passthrough().optional(),
+  "choices": zod.object({
+
+}).passthrough().optional(),
+  "check_internet": zod.boolean().optional(),
+  "kb_id": zod.object({
+
+}).passthrough().optional(),
+  "error_localizer": zod.boolean().optional(),
+  "api_key_available": zod.boolean().optional(),
+  "run_config": zod.object({
 
 }).passthrough().optional()
+}),
+  "owner": zod.string().min(1).optional(),
+  "type": zod.string().min(1).optional()
+})
 })
 
 
+
+
+
 export const ModelHubGetEvalLogsListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "log_id": zod.string().uuid(),
+  "created_at": zod.string().datetime({"offset":true}),
+  "evaluation_id": zod.string().uuid(),
+  "source": zod.string().optional(),
+  "required_keys": zod.array(zod.string().min(1)),
+  "values": zod.object({
+
+}).passthrough(),
+  "output": zod.object({
+
+}).passthrough(),
+  "input_data_types": zod.object({
+
+}).passthrough(),
+  "error_details": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "error_localizer_status": zod.string().optional(),
+  "error_localizer_message": zod.string().optional(),
+  "dataset_id": zod.string().uuid().optional(),
+  "span_id": zod.string().uuid().optional(),
+  "trace_id": zod.string().uuid().optional(),
+  "prompt_id": zod.string().uuid().optional(),
+  "optimization_id": zod.string().uuid().optional(),
+  "experiment_id": zod.string().uuid().optional()
+})
 })
 
 
@@ -21123,63 +21230,54 @@ export const ModelHubGetEvalLogsPartialUpdateBody = zod.object({
   "source": zod.string().min(1).max(modelHubGetEvalLogsPartialUpdateBodySourceMax).optional()
 })
 
+
+
+
 export const ModelHubGetEvalLogsPartialUpdateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
-  "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "status": zod.boolean(),
+  "result": zod.string().min(1)
 })
 
 
 export const ModelHubGetEvalLogsDetailsListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "table": zod.array(zod.object({
 
-}).passthrough().optional(),
-  "data": zod.object({
+}).passthrough()),
+  "column_config": zod.array(zod.object({
 
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+}).passthrough()),
+  "metadata": zod.object({
+  "total_rows": zod.number(),
+  "total_pages": zod.number()
+}).optional()
+})
 })
 
 
 export const ModelHubGetEvalMetricsListResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
+  "base_eval_template_id": zod.string().uuid(),
+  "api_call_count": zod.object({
+  "api_call_count": zod.number(),
+  "count_graph_data": zod.object({
 
 }).passthrough().optional()
+}),
+  "average": zod.object({
+  "average": zod.object({
+
+}).passthrough(),
+  "avg_graph_data": zod.object({
+
+}).passthrough().optional()
+}),
+  "error_rate": zod.object({
+
+}).passthrough().optional()
+})
 })
 
 
@@ -21193,22 +21291,27 @@ export const ModelHubGetEvalMetricsCreateBody = zod.object({
 })
 
 export const ModelHubGetEvalMetricsCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
+  "base_eval_template_id": zod.string().uuid(),
+  "api_call_count": zod.object({
+  "api_call_count": zod.number(),
+  "count_graph_data": zod.object({
 
 }).passthrough().optional()
+}),
+  "average": zod.object({
+  "average": zod.object({
+
+}).passthrough(),
+  "avg_graph_data": zod.object({
+
+}).passthrough().optional()
+}),
+  "error_rate": zod.object({
+
+}).passthrough().optional()
+})
 })
 
 
@@ -21218,23 +21321,16 @@ export const ModelHubGetEvalTemplateNamesCreateBody = zod.object({
   "search_text": zod.string().default(modelHubGetEvalTemplateNamesCreateBodySearchTextDefault)
 })
 
+
+
+
 export const ModelHubGetEvalTemplateNamesCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
-  "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "description": zod.string().optional()
+}))
 })
 
 
@@ -21252,23 +21348,34 @@ export const ModelHubGetEvalTemplatesCreateBody = zod.object({
 }).passthrough()).default(modelHubGetEvalTemplatesCreateBodySortDefault)
 })
 
+
+
+
+
 export const ModelHubGetEvalTemplatesCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
+  "row_data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "max_axis": zod.number().optional(),
+  "eval_template_name": zod.string().min(1),
+  "average": zod.object({
+  "average": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
+  "avg_graph_data": zod.array(zod.object({
 
-}).passthrough().optional(),
-  "error": zod.object({
+}).passthrough())
+}),
+  "error_rate": zod.array(zod.object({
 
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+}).passthrough()),
+  "last30_run": zod.number(),
+  "updated_at": zod.string().min(1)
+})),
+  "total_rows": zod.number(),
+  "data_available": zod.boolean()
+})
 })
 
 
@@ -25639,22 +25746,29 @@ export const ModelHubTestEvaluationCreateBody = zod.object({
 })
 
 export const ModelHubTestEvaluationCreateResponse = zod.object({
-  "status": zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "output": zod.object({
 
 }).passthrough().optional(),
-  "message": zod.string().optional(),
   "result": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
+  "reason": zod.string().optional(),
+  "score": zod.object({
 
 }).passthrough().optional(),
-  "error": zod.object({
+  "metadata": zod.object({
 
 }).passthrough().optional(),
-  "detail": zod.object({
+  "log_id": zod.string().uuid().optional(),
+  "error_localizer": zod.object({
+
+}).passthrough().optional(),
+  "error_details": zod.object({
 
 }).passthrough().optional()
+})
 })
 
 
@@ -26024,23 +26138,12 @@ export const ModelHubUpdateEvalTemplateCreateBody = zod.object({
   "required_keys": zod.array(zod.string().min(1)).default(modelHubUpdateEvalTemplateCreateBodyRequiredKeysDefault)
 })
 
+
+
+
 export const ModelHubUpdateEvalTemplateCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
-  "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "status": zod.boolean(),
+  "result": zod.string().min(1)
 })
 
 

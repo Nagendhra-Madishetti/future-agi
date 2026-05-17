@@ -966,6 +966,292 @@ class EvalTemplateUpdateResponseSerializer(serializers.Serializer):
     result = EvalTemplateUpdateResponseResultSerializer()
 
 
+class EvalUsageChartPointSerializer(serializers.Serializer):
+    timestamp = serializers.CharField()
+    calls = serializers.IntegerField(required=False)
+    avg_latency_ms = serializers.IntegerField(required=False)
+    avg_score = serializers.FloatField(required=False, allow_null=True)
+    pass_count = serializers.IntegerField(required=False)
+    fail_count = serializers.IntegerField(required=False)
+
+
+class EvalUsageStatsSerializer(serializers.Serializer):
+    total_runs = serializers.IntegerField()
+    runs_period = serializers.IntegerField()
+    success_count = serializers.IntegerField()
+    error_count = serializers.IntegerField()
+    pass_rate = serializers.FloatField()
+
+
+class EvalUsageFeedbackSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    value = serializers.JSONField(required=False, allow_null=True)
+    explanation = serializers.CharField(required=False, allow_blank=True)
+    action_type = serializers.CharField(required=False, allow_blank=True)
+    created_at = serializers.CharField(required=False, allow_blank=True)
+    user = serializers.CharField(required=False, allow_blank=True)
+
+
+class EvalUsageLogItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    input = serializers.CharField(allow_blank=True)
+    result = serializers.CharField(required=False, allow_blank=True)
+    score = serializers.FloatField(required=False, allow_null=True)
+    reason = serializers.CharField(required=False, allow_blank=True)
+    status = serializers.CharField()
+    source = serializers.CharField(required=False, allow_blank=True)
+    created_at = serializers.CharField()
+    detail = serializers.JSONField()
+    feedback = EvalUsageFeedbackSerializer(required=False, allow_null=True)
+    composite = serializers.BooleanField(required=False)
+    aggregate_pass = serializers.BooleanField(required=False, allow_null=True)
+
+
+class EvalUsageLogsSerializer(serializers.Serializer):
+    items = EvalUsageLogItemSerializer(many=True)
+    total = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+
+
+class EvalUsageStatsResponseResultSerializer(serializers.Serializer):
+    template_id = serializers.UUIDField()
+    is_composite = serializers.BooleanField()
+    stats = EvalUsageStatsSerializer()
+    chart = EvalUsageChartPointSerializer(many=True)
+    logs = EvalUsageLogsSerializer()
+
+
+class EvalUsageStatsResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalUsageStatsResponseResultSerializer()
+
+
+class EvalFeedbackListItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    value = serializers.CharField(allow_blank=True)
+    explanation = serializers.CharField(allow_blank=True)
+    source = serializers.CharField(allow_blank=True)
+    source_id = serializers.CharField(allow_blank=True)
+    action_type = serializers.CharField(allow_blank=True)
+    user_name = serializers.CharField(allow_blank=True)
+    created_at = serializers.CharField()
+
+
+class EvalFeedbackListResponseResultSerializer(serializers.Serializer):
+    template_id = serializers.UUIDField()
+    items = EvalFeedbackListItemSerializer(many=True)
+    total = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+
+
+class EvalFeedbackListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalFeedbackListResponseResultSerializer()
+
+
+class EvalApiLogRowResponseResultSerializer(serializers.Serializer):
+    log_id = serializers.UUIDField()
+    created_at = serializers.DateTimeField()
+    evaluation_id = serializers.UUIDField()
+    source = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    required_keys = serializers.ListField(child=serializers.CharField())
+    values = serializers.JSONField()
+    output = serializers.JSONField()
+    input_data_types = serializers.JSONField()
+    error_details = serializers.JSONField(required=False)
+    error_localizer_status = serializers.CharField(required=False, allow_blank=True)
+    error_localizer_message = serializers.CharField(required=False, allow_blank=True)
+    dataset_id = serializers.UUIDField(required=False, allow_null=True)
+    span_id = serializers.UUIDField(required=False, allow_null=True)
+    trace_id = serializers.UUIDField(required=False, allow_null=True)
+    prompt_id = serializers.UUIDField(required=False, allow_null=True)
+    optimization_id = serializers.UUIDField(required=False, allow_null=True)
+    experiment_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class EvalApiLogRowResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalApiLogRowResponseResultSerializer()
+
+
+class EvalApiLogTableMetadataSerializer(serializers.Serializer):
+    total_rows = serializers.IntegerField()
+    total_pages = serializers.IntegerField()
+
+
+class EvalApiLogTableResponseResultSerializer(serializers.Serializer):
+    table = serializers.ListField(child=serializers.JSONField())
+    column_config = serializers.ListField(child=serializers.JSONField())
+    metadata = EvalApiLogTableMetadataSerializer(required=False)
+
+
+class EvalApiLogTableResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalApiLogTableResponseResultSerializer()
+
+
+class EvalMetricCountSerializer(serializers.Serializer):
+    api_call_count = serializers.IntegerField()
+    count_graph_data = serializers.JSONField(required=False, allow_null=True)
+
+
+class EvalMetricAverageSerializer(serializers.Serializer):
+    average = serializers.JSONField()
+    avg_graph_data = serializers.JSONField(required=False, allow_null=True)
+
+
+class EvalMetricResponseResultSerializer(serializers.Serializer):
+    base_eval_template_id = serializers.UUIDField()
+    api_call_count = EvalMetricCountSerializer()
+    average = EvalMetricAverageSerializer()
+    error_rate = serializers.JSONField(required=False, allow_null=True)
+
+
+class EvalMetricResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalMetricResponseResultSerializer()
+
+
+class EvalTemplateNameItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    description = serializers.CharField(required=False, allow_blank=True)
+
+
+class EvalTemplateNamesResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalTemplateNameItemSerializer(many=True)
+
+
+class LegacyEvalTemplateAverageSerializer(serializers.Serializer):
+    average = serializers.JSONField(required=False)
+    avg_graph_data = serializers.ListField(child=serializers.JSONField())
+
+
+class LegacyEvalTemplateItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    max_axis = serializers.IntegerField(required=False, allow_null=True)
+    eval_template_name = serializers.CharField()
+    average = LegacyEvalTemplateAverageSerializer()
+    error_rate = serializers.ListField(child=serializers.JSONField())
+    last30_run = serializers.IntegerField()
+    updated_at = serializers.CharField()
+
+
+class LegacyEvalTemplatesResponseResultSerializer(serializers.Serializer):
+    row_data = LegacyEvalTemplateItemSerializer(many=True)
+    total_rows = serializers.IntegerField()
+    data_available = serializers.BooleanField()
+
+
+class LegacyEvalTemplatesResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = LegacyEvalTemplatesResponseResultSerializer()
+
+
+class EvalConfigSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    template_id = serializers.UUIDField()
+    name = serializers.CharField()
+    owner = serializers.CharField(required=False)
+    type = serializers.CharField(required=False)
+    eval_type = serializers.CharField(required=False)
+    eval_type_id = serializers.JSONField(required=False)
+    function_eval = serializers.BooleanField(required=False)
+    reason_column = serializers.JSONField(required=False)
+    eval_tags = serializers.ListField(child=serializers.CharField(), required=False)
+    description = serializers.CharField(required=False, allow_blank=True)
+    criteria = serializers.CharField(required=False, allow_blank=True)
+    model = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    models = serializers.JSONField(required=False)
+    selected_model = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True
+    )
+    required_keys = serializers.ListField(child=serializers.CharField())
+    optional_keys = serializers.ListField(child=serializers.CharField(), required=False)
+    variable_keys = serializers.ListField(child=serializers.CharField(), required=False)
+    run_prompt_column = serializers.BooleanField(required=False)
+    template_name = serializers.CharField()
+    mapping = serializers.JSONField()
+    config = serializers.JSONField()
+    params = serializers.JSONField(required=False)
+    function_params_schema = serializers.JSONField(required=False)
+    output = serializers.CharField(required=False, allow_blank=True)
+    config_params_desc = serializers.JSONField(required=False)
+    config_params_option = serializers.JSONField(required=False)
+    param_modalities = serializers.JSONField(required=False)
+    choices = serializers.JSONField(required=False)
+    check_internet = serializers.BooleanField(required=False)
+    kb_id = serializers.JSONField(required=False, allow_null=True)
+    error_localizer = serializers.BooleanField(required=False)
+    api_key_available = serializers.BooleanField(required=False)
+    run_config = serializers.JSONField(required=False)
+
+
+class ModelHubEvalConfigResponseResultSerializer(serializers.Serializer):
+    eval = EvalConfigSerializer()
+    owner = serializers.CharField(required=False)
+    type = serializers.CharField(required=False)
+
+
+class ModelHubEvalConfigResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = ModelHubEvalConfigResponseResultSerializer()
+
+
+class EvalCodeSnippetResponseResultSerializer(serializers.Serializer):
+    python = serializers.CharField()
+    curl = serializers.CharField()
+    javascript = serializers.CharField()
+
+
+class EvalCodeSnippetResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalCodeSnippetResponseResultSerializer()
+
+
+class EvalExecutionResponseResultSerializer(serializers.Serializer):
+    output = serializers.JSONField(required=False)
+    result = serializers.JSONField(required=False)
+    reason = serializers.CharField(required=False, allow_blank=True)
+    score = serializers.JSONField(required=False, allow_null=True)
+    metadata = serializers.JSONField(required=False)
+    log_id = serializers.UUIDField(required=False)
+    error_localizer = serializers.JSONField(required=False)
+    error_details = serializers.JSONField(required=False)
+
+
+class EvalExecutionResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalExecutionResponseResultSerializer()
+
+
+class EvalPlaygroundFeedbackResponseResultSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    feedback_id = serializers.UUIDField()
+
+
+class EvalPlaygroundFeedbackResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = EvalPlaygroundFeedbackResponseResultSerializer()
+
+
+class LegacyEvalTemplateUpdateResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = serializers.CharField()
+
+
+class SingleRowEvaluationResponseResultSerializer(serializers.Serializer):
+    success = serializers.CharField()
+
+
+class SingleRowEvaluationResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = SingleRowEvaluationResponseResultSerializer()
+
+
 class EvalTemplateCreateV2RequestSerializer(serializers.Serializer):
     name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     is_draft = serializers.BooleanField(required=False, default=False)

@@ -6264,6 +6264,34 @@ export interface EvalPlayGroundApi {
   call_id?: string;
 }
 
+export type EvalExecutionResponseResultApiOutput = { [key: string]: unknown };
+
+export type EvalExecutionResponseResultApiResult = { [key: string]: unknown };
+
+export type EvalExecutionResponseResultApiScore = { [key: string]: unknown };
+
+export type EvalExecutionResponseResultApiMetadata = { [key: string]: unknown };
+
+export type EvalExecutionResponseResultApiErrorLocalizer = { [key: string]: unknown };
+
+export type EvalExecutionResponseResultApiErrorDetails = { [key: string]: unknown };
+
+export interface EvalExecutionResponseResultApi {
+  output?: EvalExecutionResponseResultApiOutput;
+  result?: EvalExecutionResponseResultApiResult;
+  reason?: string;
+  score?: EvalExecutionResponseResultApiScore;
+  metadata?: EvalExecutionResponseResultApiMetadata;
+  log_id?: string;
+  error_localizer?: EvalExecutionResponseResultApiErrorLocalizer;
+  error_details?: EvalExecutionResponseResultApiErrorDetails;
+}
+
+export interface EvalExecutionResponseApi {
+  status: boolean;
+  result: EvalExecutionResponseResultApi;
+}
+
 export interface EvalPlayGroundFeedbackApi {
   log_id: string;
   /** @minLength 1 */
@@ -6272,6 +6300,31 @@ export interface EvalPlayGroundFeedbackApi {
   value: string;
   /** @minLength 1 */
   explanation?: string;
+}
+
+export interface EvalPlaygroundFeedbackResponseResultApi {
+  /** @minLength 1 */
+  message: string;
+  feedback_id: string;
+}
+
+export interface EvalPlaygroundFeedbackResponseApi {
+  status: boolean;
+  result: EvalPlaygroundFeedbackResponseResultApi;
+}
+
+export interface EvalCodeSnippetResponseResultApi {
+  /** @minLength 1 */
+  python: string;
+  /** @minLength 1 */
+  curl: string;
+  /** @minLength 1 */
+  javascript: string;
+}
+
+export interface EvalCodeSnippetResponseApi {
+  status: boolean;
+  result: EvalCodeSnippetResponseResultApi;
 }
 
 export interface EvalSummaryTemplateApi {
@@ -6902,6 +6955,31 @@ export interface EvalTemplateDetailResponseApi {
   result: EvalTemplateDetailResponseResultApi;
 }
 
+export interface EvalFeedbackListItemApi {
+  id: string;
+  value: string;
+  explanation: string;
+  source: string;
+  source_id: string;
+  action_type: string;
+  user_name: string;
+  /** @minLength 1 */
+  created_at: string;
+}
+
+export interface EvalFeedbackListResponseResultApi {
+  template_id: string;
+  items: EvalFeedbackListItemApi[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface EvalFeedbackListResponseApi {
+  status: boolean;
+  result: EvalFeedbackListResponseResultApi;
+}
+
 export interface GroundTruthConfigApi {
   enabled?: boolean;
   ground_truth_id?: string;
@@ -7128,6 +7206,74 @@ export interface EvalTemplateUpdateResponseApi {
   result: EvalTemplateUpdateResponseResultApi;
 }
 
+export interface EvalUsageStatsApi {
+  total_runs: number;
+  runs_period: number;
+  success_count: number;
+  error_count: number;
+  pass_rate: number;
+}
+
+export interface EvalUsageChartPointApi {
+  /** @minLength 1 */
+  timestamp: string;
+  calls?: number;
+  avg_latency_ms?: number;
+  avg_score?: number;
+  pass_count?: number;
+  fail_count?: number;
+}
+
+export type EvalUsageFeedbackApiValue = { [key: string]: unknown };
+
+export interface EvalUsageFeedbackApi {
+  id: string;
+  value?: EvalUsageFeedbackApiValue;
+  explanation?: string;
+  action_type?: string;
+  created_at?: string;
+  user?: string;
+}
+
+export type EvalUsageLogItemApiDetail = { [key: string]: unknown };
+
+export interface EvalUsageLogItemApi {
+  id: string;
+  input: string;
+  result?: string;
+  score?: number;
+  reason?: string;
+  /** @minLength 1 */
+  status: string;
+  source?: string;
+  /** @minLength 1 */
+  created_at: string;
+  detail: EvalUsageLogItemApiDetail;
+  feedback?: EvalUsageFeedbackApi;
+  composite?: boolean;
+  aggregate_pass?: boolean;
+}
+
+export interface EvalUsageLogsApi {
+  items: EvalUsageLogItemApi[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface EvalUsageStatsResponseResultApi {
+  template_id: string;
+  is_composite: boolean;
+  stats: EvalUsageStatsApi;
+  chart: EvalUsageChartPointApi[];
+  logs: EvalUsageLogsApi;
+}
+
+export interface EvalUsageStatsResponseApi {
+  status: boolean;
+  result: EvalUsageStatsResponseResultApi;
+}
+
 export type EvalTemplateVersionItemApiConfigSnapshot = { [key: string]: unknown };
 
 export interface EvalTemplateVersionItemApi {
@@ -7213,6 +7359,16 @@ export interface SingleRowEvaluationRequestApi {
   user_eval_metric_ids?: string[];
   row_ids?: string[];
   selected_all_rows?: boolean;
+}
+
+export interface SingleRowEvaluationResponseResultApi {
+  /** @minLength 1 */
+  success: string;
+}
+
+export interface SingleRowEvaluationResponseApi {
+  status: boolean;
+  result: SingleRowEvaluationResponseResultApi;
 }
 
 export interface ExperimentsTableGetApi {
@@ -7491,6 +7647,120 @@ export interface ColumnValuesRequestApi {
   column_placeholders: ColumnValuesRequestApiColumnPlaceholders;
 }
 
+export type EvalConfigApiEvalTypeId = { [key: string]: unknown };
+
+export type EvalConfigApiReasonColumn = { [key: string]: unknown };
+
+export type EvalConfigApiModels = { [key: string]: unknown };
+
+export type EvalConfigApiMapping = { [key: string]: unknown };
+
+export type EvalConfigApiConfig = { [key: string]: unknown };
+
+export type EvalConfigApiParams = { [key: string]: unknown };
+
+export type EvalConfigApiFunctionParamsSchema = { [key: string]: unknown };
+
+export type EvalConfigApiConfigParamsDesc = { [key: string]: unknown };
+
+export type EvalConfigApiConfigParamsOption = { [key: string]: unknown };
+
+export type EvalConfigApiParamModalities = { [key: string]: unknown };
+
+export type EvalConfigApiChoices = { [key: string]: unknown };
+
+export type EvalConfigApiKbId = { [key: string]: unknown };
+
+export type EvalConfigApiRunConfig = { [key: string]: unknown };
+
+export interface EvalConfigApi {
+  id: string;
+  template_id: string;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  owner?: string;
+  /** @minLength 1 */
+  type?: string;
+  /** @minLength 1 */
+  eval_type?: string;
+  eval_type_id?: EvalConfigApiEvalTypeId;
+  function_eval?: boolean;
+  reason_column?: EvalConfigApiReasonColumn;
+  eval_tags?: string[];
+  description?: string;
+  criteria?: string;
+  model?: string;
+  models?: EvalConfigApiModels;
+  selected_model?: string;
+  required_keys: string[];
+  optional_keys?: string[];
+  variable_keys?: string[];
+  run_prompt_column?: boolean;
+  /** @minLength 1 */
+  template_name: string;
+  mapping: EvalConfigApiMapping;
+  config: EvalConfigApiConfig;
+  params?: EvalConfigApiParams;
+  function_params_schema?: EvalConfigApiFunctionParamsSchema;
+  output?: string;
+  config_params_desc?: EvalConfigApiConfigParamsDesc;
+  config_params_option?: EvalConfigApiConfigParamsOption;
+  param_modalities?: EvalConfigApiParamModalities;
+  choices?: EvalConfigApiChoices;
+  check_internet?: boolean;
+  kb_id?: EvalConfigApiKbId;
+  error_localizer?: boolean;
+  api_key_available?: boolean;
+  run_config?: EvalConfigApiRunConfig;
+}
+
+export interface ModelHubEvalConfigResponseResultApi {
+  eval: EvalConfigApi;
+  /** @minLength 1 */
+  owner?: string;
+  /** @minLength 1 */
+  type?: string;
+}
+
+export interface ModelHubEvalConfigResponseApi {
+  status: boolean;
+  result: ModelHubEvalConfigResponseResultApi;
+}
+
+export type EvalApiLogRowResponseResultApiValues = { [key: string]: unknown };
+
+export type EvalApiLogRowResponseResultApiOutput = { [key: string]: unknown };
+
+export type EvalApiLogRowResponseResultApiInputDataTypes = { [key: string]: unknown };
+
+export type EvalApiLogRowResponseResultApiErrorDetails = { [key: string]: unknown };
+
+export interface EvalApiLogRowResponseResultApi {
+  log_id: string;
+  created_at: string;
+  evaluation_id: string;
+  source?: string;
+  required_keys: string[];
+  values: EvalApiLogRowResponseResultApiValues;
+  output: EvalApiLogRowResponseResultApiOutput;
+  input_data_types: EvalApiLogRowResponseResultApiInputDataTypes;
+  error_details?: EvalApiLogRowResponseResultApiErrorDetails;
+  error_localizer_status?: string;
+  error_localizer_message?: string;
+  dataset_id?: string;
+  span_id?: string;
+  trace_id?: string;
+  prompt_id?: string;
+  optimization_id?: string;
+  experiment_id?: string;
+}
+
+export interface EvalApiLogRowResponseApi {
+  status: boolean;
+  result: EvalApiLogRowResponseResultApi;
+}
+
 export type UpdateColumnConfigApiColumnConfigItem = {[key: string]: string};
 
 export interface UpdateColumnConfigApi {
@@ -7501,6 +7771,56 @@ export interface UpdateColumnConfigApi {
      * @maxLength 50
      */
   source?: string;
+}
+
+export interface EvalApiLogTableMetadataApi {
+  total_rows: number;
+  total_pages: number;
+}
+
+export type EvalApiLogTableResponseResultApiTableItem = { [key: string]: unknown };
+
+export type EvalApiLogTableResponseResultApiColumnConfigItem = { [key: string]: unknown };
+
+export interface EvalApiLogTableResponseResultApi {
+  table: EvalApiLogTableResponseResultApiTableItem[];
+  column_config: EvalApiLogTableResponseResultApiColumnConfigItem[];
+  metadata?: EvalApiLogTableMetadataApi;
+}
+
+export interface EvalApiLogTableResponseApi {
+  status: boolean;
+  result: EvalApiLogTableResponseResultApi;
+}
+
+export type EvalMetricCountApiCountGraphData = { [key: string]: unknown };
+
+export interface EvalMetricCountApi {
+  api_call_count: number;
+  count_graph_data?: EvalMetricCountApiCountGraphData;
+}
+
+export type EvalMetricAverageApiAverage = { [key: string]: unknown };
+
+export type EvalMetricAverageApiAvgGraphData = { [key: string]: unknown };
+
+export interface EvalMetricAverageApi {
+  average: EvalMetricAverageApiAverage;
+  avg_graph_data?: EvalMetricAverageApiAvgGraphData;
+}
+
+export type EvalMetricResponseResultApiErrorRate = { [key: string]: unknown };
+
+export interface EvalMetricResponseResultApi {
+  base_eval_template_id: string;
+  api_call_count: EvalMetricCountApi;
+  average: EvalMetricAverageApi;
+  error_rate?: EvalMetricResponseResultApiErrorRate;
+}
+
+export interface EvalMetricResponseApi {
+  status: boolean;
+  result: EvalMetricResponseResultApi;
 }
 
 export type EvalMetricRequestApiFiltersItem = { [key: string]: unknown };
@@ -7514,6 +7834,18 @@ export interface EvalTemplateNamesRequestApi {
   search_text?: string;
 }
 
+export interface EvalTemplateNameItemApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+}
+
+export interface EvalTemplateNamesResponseApi {
+  status: boolean;
+  result: EvalTemplateNameItemApi[];
+}
+
 export type LegacyEvalTemplatesRequestApiSortItem = { [key: string]: unknown };
 
 export interface LegacyEvalTemplatesRequestApi {
@@ -7521,6 +7853,40 @@ export interface LegacyEvalTemplatesRequestApi {
   current_page_index?: number;
   search_text?: string;
   sort?: LegacyEvalTemplatesRequestApiSortItem[];
+}
+
+export type LegacyEvalTemplateAverageApiAverage = { [key: string]: unknown };
+
+export type LegacyEvalTemplateAverageApiAvgGraphDataItem = { [key: string]: unknown };
+
+export interface LegacyEvalTemplateAverageApi {
+  average?: LegacyEvalTemplateAverageApiAverage;
+  avg_graph_data: LegacyEvalTemplateAverageApiAvgGraphDataItem[];
+}
+
+export type LegacyEvalTemplateItemApiErrorRateItem = { [key: string]: unknown };
+
+export interface LegacyEvalTemplateItemApi {
+  id: string;
+  max_axis?: number;
+  /** @minLength 1 */
+  eval_template_name: string;
+  average: LegacyEvalTemplateAverageApi;
+  error_rate: LegacyEvalTemplateItemApiErrorRateItem[];
+  last30_run: number;
+  /** @minLength 1 */
+  updated_at: string;
+}
+
+export interface LegacyEvalTemplatesResponseResultApi {
+  row_data: LegacyEvalTemplateItemApi[];
+  total_rows: number;
+  data_available: boolean;
+}
+
+export interface LegacyEvalTemplatesResponseApi {
+  status: boolean;
+  result: LegacyEvalTemplatesResponseResultApi;
 }
 
 export interface GroundTruthDeleteResponseResultApi {
@@ -8601,6 +8967,12 @@ export interface UpdateEvalTemplateApi {
      */
   name?: string;
   required_keys?: string[];
+}
+
+export interface LegacyEvalTemplateUpdateResponseApi {
+  status: boolean;
+  /** @minLength 1 */
+  result: string;
 }
 
 export type UploadFileApiType = typeof UploadFileApiType[keyof typeof UploadFileApiType];

@@ -156,10 +156,12 @@ from model_hub.serializers.contracts import (
     ManualDatasetCreateRequestSerializer,
     MergeDatasetRequestSerializer,
     MODEL_HUB_ERROR_RESPONSES,
+    ModelHubEvalConfigResponseSerializer,
     ModelHubEmptyRequestSerializer,
     ModelHubJSONResponseSerializer,
     PreviewRunEvalRequestSerializer,
     SingleRowEvaluationRequestSerializer,
+    SingleRowEvaluationResponseSerializer,
     StartEvalsProcessRequestSerializer,
     StopUserEvalRequestSerializer,
     UserEvalMutationRequestSerializer,
@@ -6875,7 +6877,10 @@ class GetEvalConfigView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: ModelHubEvalConfigResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, *args, **kwargs):
         try:
@@ -10956,7 +10961,10 @@ class SingleRowEvaluationView(APIView):
 
     @swagger_auto_schema(
         request_body=SingleRowEvaluationRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: SingleRowEvaluationResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request):
         try:

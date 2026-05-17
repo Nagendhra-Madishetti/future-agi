@@ -762,10 +762,12 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/duplicate-eval-template/"): (
             "DuplicateEvalTemplateResponse"
         ),
-        ("POST", "/model-hub/evaluate-rows/"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/eval-playground/"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/eval-playground/feedback/"): "ModelHubJSONResponse",
-        ("GET", "/model-hub/eval-sdk-code/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/evaluate-rows/"): "SingleRowEvaluationResponse",
+        ("POST", "/model-hub/eval-playground/"): "EvalExecutionResponse",
+        ("POST", "/model-hub/eval-playground/feedback/"): (
+            "EvalPlaygroundFeedbackResponse"
+        ),
+        ("GET", "/model-hub/eval-sdk-code/"): "EvalCodeSnippetResponse",
         ("GET", "/model-hub/eval-summary-templates/"): (
             "EvalSummaryTemplateListResponse"
         ),
@@ -821,6 +823,12 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("PUT", "/model-hub/eval-templates/{template_id}/update/"): (
             "EvalTemplateUpdateResponse"
         ),
+        ("GET", "/model-hub/eval-templates/{template_id}/feedback-list/"): (
+            "EvalFeedbackListResponse"
+        ),
+        ("GET", "/model-hub/eval-templates/{template_id}/usage/"): (
+            "EvalUsageStatsResponse"
+        ),
         ("GET", "/model-hub/eval-templates/{template_id}/versions/"): (
             "EvalTemplateVersionListResponse"
         ),
@@ -858,14 +866,16 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "/model-hub/experiments/v2/{experiment_id}/feedback/submit-feedback/",
         ): "ModelHubJSONResponse",
         ("POST", "/model-hub/get-column-values/"): "ModelHubJSONResponse",
-        ("GET", "/model-hub/get-eval-config"): "ModelHubJSONResponse",
-        ("GET", "/model-hub/get-eval-logs"): "ModelHubJSONResponse",
-        ("PATCH", "/model-hub/get-eval-logs"): "ModelHubJSONResponse",
-        ("GET", "/model-hub/get-eval-logs-details"): "ModelHubJSONResponse",
-        ("GET", "/model-hub/get-eval-metrics"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/get-eval-metrics"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/get-eval-template-names"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/get-eval-templates"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/get-eval-config"): "ModelHubEvalConfigResponse",
+        ("GET", "/model-hub/get-eval-logs"): "EvalApiLogRowResponse",
+        ("PATCH", "/model-hub/get-eval-logs"): "ModelHubStringResultResponse",
+        ("GET", "/model-hub/get-eval-logs-details"): "EvalApiLogTableResponse",
+        ("GET", "/model-hub/get-eval-metrics"): "EvalMetricResponse",
+        ("POST", "/model-hub/get-eval-metrics"): "EvalMetricResponse",
+        ("POST", "/model-hub/get-eval-template-names"): (
+            "EvalTemplateNamesResponse"
+        ),
+        ("POST", "/model-hub/get-eval-templates"): "LegacyEvalTemplatesResponse",
         ("DELETE", "/model-hub/ground-truth/{ground_truth_id}/"): (
             "GroundTruthDeleteResponse"
         ),
@@ -992,8 +1002,10 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ): "ModelHubJSONResponse",
         ("POST", "/model-hub/run-prompt-for-rows/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/run-prompt/"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/test-evaluation/"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/update-eval-template/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/test-evaluation/"): "EvalExecutionResponse",
+        ("POST", "/model-hub/update-eval-template/"): (
+            "LegacyEvalTemplateUpdateResponse"
+        ),
         ("POST", "/model-hub/upload-file/"): "ModelHubJSONResponse",
     }
 

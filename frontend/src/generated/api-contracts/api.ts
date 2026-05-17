@@ -318,15 +318,22 @@ import type {
   EditRunPromptColumnApi,
   EmptyRequestApi,
   ErrorResponseApi,
+  EvalApiLogRowResponseApi,
+  EvalApiLogTableResponseApi,
+  EvalCodeSnippetResponseApi,
   EvalConfigStructureResponseApi,
   EvalConfigUpdateRequestApi,
   EvalConfigUpdateResponseApi,
   EvalErrorResponseApi,
+  EvalExecutionResponseApi,
+  EvalFeedbackListResponseApi,
   EvalGroupApi,
   EvalListRequestApi,
   EvalMetricRequestApi,
+  EvalMetricResponseApi,
   EvalPlayGroundApi,
   EvalPlayGroundFeedbackApi,
+  EvalPlaygroundFeedbackResponseApi,
   EvalSummaryComparisonResponseApi,
   EvalSummaryResponseApi,
   EvalSummaryTemplateDeleteResponseApi,
@@ -344,12 +351,14 @@ import type {
   EvalTemplateListChartsResponseApi,
   EvalTemplateListResponseApi,
   EvalTemplateNamesRequestApi,
+  EvalTemplateNamesResponseApi,
   EvalTemplateUpdateResponseApi,
   EvalTemplateUpdateV2RequestApi,
   EvalTemplateVersionCreateRequestApi,
   EvalTemplateVersionListResponseApi,
   EvalTemplateVersionResponseApi,
   EvalTemplateVersionRestoreResponseApi,
+  EvalUsageStatsResponseApi,
   EvalUserTemplateApi,
   ExecutePromptSimulationRequestApi,
   ExecutePromptSimulationResponseApi,
@@ -452,7 +461,9 @@ import type {
   LangfuseIngestionRequestApi,
   LangfuseIngestionResponseApi,
   LangfuseTracesResponseApi,
+  LegacyEvalTemplateUpdateResponseApi,
   LegacyEvalTemplatesRequestApi,
+  LegacyEvalTemplatesResponseApi,
   LegacyKnowledgeBaseFilesRequestApi,
   LegacyKnowledgeBaseMutationRequestApi,
   LinearTeamsResponseApi,
@@ -525,6 +536,7 @@ import type {
   ModelHubDatasetOptimizationListParams,
   ModelHubEmptyRequestApi,
   ModelHubErrorResponseApi,
+  ModelHubEvalConfigResponseApi,
   ModelHubEvalGroupsList200,
   ModelHubEvalGroupsListParams,
   ModelHubExperimentDetailList200,
@@ -829,6 +841,7 @@ import type {
   SimulatorAgentListResponseApi,
   SimulatorAgentValidationErrorResponseApi,
   SingleRowEvaluationRequestApi,
+  SingleRowEvaluationResponseApi,
   SkillCreateApi,
   SkillDetailResponseApi,
   SkillListResponseApi,
@@ -29163,7 +29176,7 @@ export const modelHubEvalGroupsDelete = async (id: string, options?: RequestInit
 
 
 export type modelHubEvalPlaygroundCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalExecutionResponseApi
   status: 200
 }
 
@@ -29224,7 +29237,7 @@ export const modelHubEvalPlaygroundCreate = async (evalPlayGroundApi: EvalPlayGr
 
 
 export type modelHubEvalPlaygroundFeedbackCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalPlaygroundFeedbackResponseApi
   status: 200
 }
 
@@ -29285,7 +29298,7 @@ export const modelHubEvalPlaygroundFeedbackCreate = async (evalPlayGroundFeedbac
 
 
 export type modelHubEvalSdkCodeListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalCodeSnippetResponseApi
   status: 200
 }
 
@@ -30314,7 +30327,7 @@ export const modelHubEvalTemplatesDetailList = async (templateId: string, option
 
 
 export type modelHubEvalTemplatesFeedbackListListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalFeedbackListResponseApi
   status: 200
 }
 
@@ -30706,7 +30719,7 @@ export const modelHubEvalTemplatesUpdateUpdate = async (templateId: string,
 
 
 export type modelHubEvalTemplatesUsageListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalUsageStatsResponseApi
   status: 200
 }
 
@@ -31099,7 +31112,7 @@ export const modelHubEvalUserTemplateCreateCreate = async (evalUserTemplateApi: 
 
 
 export type modelHubEvaluateRowsCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: SingleRowEvaluationResponseApi
   status: 200
 }
 
@@ -33928,7 +33941,7 @@ export const modelHubGetColumnValuesCreate = async (columnValuesRequestApi: Colu
 
 
 export type modelHubGetEvalConfigListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: ModelHubEvalConfigResponseApi
   status: 200
 }
 
@@ -33988,7 +34001,7 @@ export const modelHubGetEvalConfigList = async ( options?: RequestInit): Promise
 
 
 export type modelHubGetEvalLogsListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalApiLogRowResponseApi
   status: 200
 }
 
@@ -34048,7 +34061,7 @@ export const modelHubGetEvalLogsList = async ( options?: RequestInit): Promise<m
 
 
 export type modelHubGetEvalLogsPartialUpdateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: ModelHubStringResultResponseApi
   status: 200
 }
 
@@ -34142,7 +34155,7 @@ export const modelHubGetEvalLogsDelete = async ( options?: RequestInit): Promise
 
 
 export type modelHubGetEvalLogsDetailsListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalApiLogTableResponseApi
   status: 200
 }
 
@@ -34202,7 +34215,7 @@ export const modelHubGetEvalLogsDetailsList = async ( options?: RequestInit): Pr
 
 
 export type modelHubGetEvalMetricsListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalMetricResponseApi
   status: 200
 }
 
@@ -34262,7 +34275,7 @@ export const modelHubGetEvalMetricsList = async ( options?: RequestInit): Promis
 
 
 export type modelHubGetEvalMetricsCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalMetricResponseApi
   status: 200
 }
 
@@ -34323,7 +34336,7 @@ export const modelHubGetEvalMetricsCreate = async (evalMetricRequestApi: EvalMet
 
 
 export type modelHubGetEvalTemplateNamesCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalTemplateNamesResponseApi
   status: 200
 }
 
@@ -34384,7 +34397,7 @@ export const modelHubGetEvalTemplateNamesCreate = async (evalTemplateNamesReques
 
 
 export type modelHubGetEvalTemplatesCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: LegacyEvalTemplatesResponseApi
   status: 200
 }
 
@@ -41573,7 +41586,7 @@ export const modelHubSecretsDelete = async (id: string, options?: RequestInit): 
 
 
 export type modelHubTestEvaluationCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: EvalExecutionResponseApi
   status: 200
 }
 
@@ -42054,7 +42067,7 @@ export const modelHubTtsVoicesDelete = async (id: string, options?: RequestInit)
 
 
 export type modelHubUpdateEvalTemplateCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: LegacyEvalTemplateUpdateResponseApi
   status: 200
 }
 

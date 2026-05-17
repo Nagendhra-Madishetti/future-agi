@@ -14,7 +14,6 @@ Also tests key helper functions:
 """
 
 import uuid
-from unittest.mock import MagicMock, patch
 
 import pytest
 from rest_framework import status
@@ -30,7 +29,6 @@ from model_hub.models.choices import (
     ModelTypes,
     OwnerChoices,
     SourceChoices,
-    StatusType,
 )
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
 from model_hub.models.evals_metric import EvalTemplate, UserEvalMetric
@@ -1140,7 +1138,7 @@ class TestTestEvaluationTemplateAPIView(EvalRunnerBaseTestCase):
         with pytest.raises(ValueError, match="k must be an integer"):
             normalize_eval_runtime_config(template_config, {"params": {"k": "--5"}})
 
-    def test_function_eval_params_normalization_rejects_whitespace_only_string(self):
+    def test_function_eval_params_normalization_treats_whitespace_only_as_empty(self):
         template_config = {
             "function_params_schema": {
                 "k": {
@@ -1151,8 +1149,11 @@ class TestTestEvaluationTemplateAPIView(EvalRunnerBaseTestCase):
             }
         }
 
-        with pytest.raises(ValueError, match="k must be an integer"):
-            normalize_eval_runtime_config(template_config, {"params": {"k": "   "}})
+        normalized = normalize_eval_runtime_config(
+            template_config, {"params": {"k": "   "}}
+        )
+
+        assert normalized["params"]["k"] is None
 
     def test_function_eval_schema_fallback_from_evals_source_of_truth(self):
         """If template row lacks schema, fallback should resolve from evals.py."""
