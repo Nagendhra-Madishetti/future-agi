@@ -133,12 +133,6 @@ export const LEGACY_API_SURFACE = Object.freeze({
       "Legacy model dataset summary endpoint is still used by old model dataset screens.",
     next: "Contract the old model dataset API or retire the legacy model dataset screens.",
   },
-  "/model-hub/get-eval-feedback": {
-    group: "evals",
-    status: LEGACY_API_STATUSES.DEPRECATED_DEAD_REFERENCE,
-    reason: "Old eval feedback route is no longer registered in backend URLs.",
-    next: "Remove the old eval feedback call site or use the contracted feedback endpoints.",
-  },
   "/model-hub/get-model-details/": {
     group: "model-management",
     status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,

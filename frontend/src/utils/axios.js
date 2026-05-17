@@ -1028,7 +1028,6 @@ export const endpoints = {
         }),
       getEvalsLogs: apiPath("/model-hub/get-eval-logs-details"),
       getEvalMetrics: apiPath("/model-hub/get-eval-metrics"),
-      getEvalFeedbacks: legacyApiPath("/model-hub/get-eval-feedback"),
       getEvalTemplates: apiPath("/model-hub/get-eval-templates"),
       listEvalTemplates: apiPath("/model-hub/eval-templates/list/"),
       listEvalTemplateCharts: apiPath("/model-hub/eval-templates/list-charts/"),
