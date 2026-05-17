@@ -13373,13 +13373,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_call-executions_branch-analysis_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CallBranchAnalysisResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "simulate_call-executions_branch-analysis_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CallBranchDeviationCreateResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
       }
     },
     "/simulate/call-executions/{call_execution_id}/chat/send-message/": {
@@ -13447,7 +13469,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_call-executions_transcripts_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CallTranscriptResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
       }
     },
     "/simulate/export/{item_id}/": {
@@ -14553,7 +14585,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_test-executions_transcripts_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/TestExecutionTranscriptsResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ErrorResponse"
+          }
+        }
       }
     },
     "/tracer/bulk-annotation/": {
@@ -24944,6 +24986,78 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CallBranchAnalysisResponse": {
+      "type": "object",
+      "properties": {
+        "call_execution_id": {
+          "title": "Call execution id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "scenario_id": {
+          "title": "Scenario id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "scenario_name": {
+          "title": "Scenario name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "analysis": {
+          "title": "Analysis",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "readOnly": true
+        },
+        "analyzed_at": {
+          "title": "Analyzed at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "CallBranchDeviationCreateResponse": {
+      "type": "object",
+      "properties": {
+        "call_execution_id": {
+          "title": "Call execution id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "scenario_graph_id": {
+          "title": "Scenario graph id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "deviation_data": {
+          "title": "Deviation data",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "readOnly": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        }
+      }
+    },
     "CallExecution": {
       "type": "object",
       "properties": {
@@ -25716,6 +25830,42 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Ended reason",
           "type": "string",
           "x-nullable": true
+        }
+      }
+    },
+    "CallTranscriptResponse": {
+      "type": "object",
+      "properties": {
+        "call_execution_id": {
+          "title": "Call execution id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "phone_number": {
+          "title": "Phone number",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "transcripts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CallTranscript"
+          },
+          "readOnly": true
+        },
+        "total_transcripts": {
+          "title": "Total transcripts",
+          "type": "integer",
+          "readOnly": true
         }
       }
     },
@@ -34694,6 +34844,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "TestExecutionTranscriptsResponse": {
+      "type": "object",
+      "properties": {
+        "test_execution_id": {
+          "title": "Test execution id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "calls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TestExecutionTranscriptCall"
+          },
+          "readOnly": true
+        },
+        "total_calls": {
+          "title": "Total calls",
+          "type": "integer",
+          "readOnly": true
+        },
+        "total_transcripts": {
+          "title": "Total transcripts",
+          "type": "integer",
+          "readOnly": true
+        }
+      }
+    },
     "TokenObtainPair": {
       "required": [
         "email",
@@ -36264,6 +36442,74 @@ export const OPENAPI_CONTRACT = Object.freeze({
           },
           "readOnly": true,
           "x-nullable": true
+        }
+      }
+    },
+    "CallTranscript": {
+      "required": [
+        "content"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "speaker_role": {
+          "title": "Speaker role",
+          "description": "Role of the speaker (user or assistant)",
+          "type": "string",
+          "enum": [
+            "user",
+            "assistant",
+            "system",
+            "tool_calls",
+            "tool_call_result",
+            "unknown"
+          ]
+        },
+        "content": {
+          "title": "Content",
+          "description": "Transcript content",
+          "type": "string",
+          "minLength": 1
+        },
+        "start_time_ms": {
+          "title": "Start time ms",
+          "description": "Start time of this transcript segment in milliseconds",
+          "type": "integer",
+          "maximum": 9223372036854776000,
+          "minimum": -9223372036854776000
+        },
+        "start_time_seconds": {
+          "title": "Start time seconds",
+          "type": "string",
+          "readOnly": true
+        },
+        "end_time_ms": {
+          "title": "End time ms",
+          "description": "End time of this transcript segment in milliseconds",
+          "type": "integer",
+          "maximum": 9223372036854776000,
+          "minimum": -9223372036854776000
+        },
+        "end_time_seconds": {
+          "title": "End time seconds",
+          "type": "string",
+          "readOnly": true
+        },
+        "confidence_score": {
+          "title": "Confidence score",
+          "description": "Confidence score for this transcript segment",
+          "type": "number"
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
         }
       }
     },
@@ -38195,6 +38441,49 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "readOnly": true,
           "minLength": 1
+        }
+      }
+    },
+    "TestExecutionTranscriptCall": {
+      "type": "object",
+      "properties": {
+        "call_execution_id": {
+          "title": "Call execution id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "phone_number": {
+          "title": "Phone number",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "transcripts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CallTranscript"
+          },
+          "readOnly": true
+        },
+        "total_transcripts": {
+          "title": "Total transcripts",
+          "type": "integer",
+          "readOnly": true
+        },
+        "scenario_name": {
+          "title": "Scenario name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
         }
       }
     },

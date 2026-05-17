@@ -3,8 +3,8 @@
   "summary": {
     "paths": 964,
     "operations": 1326,
-    "mutation_endpoints_without_body_schema": 316,
-    "operations_without_response_schema": 545
+    "mutation_endpoints_without_body_schema": 315,
+    "operations_without_response_schema": 541
   },
   "by_group": {
     "accounts": {
@@ -88,8 +88,8 @@
     "simulate": {
       "paths": 105,
       "operations": 125,
-      "mutation_endpoints_without_body_schema": 8,
-      "operations_without_response_schema": 22
+      "mutation_endpoints_without_body_schema": 7,
+      "operations_without_response_schema": 18
     },
     "tracer": {
       "paths": 159,
@@ -2377,15 +2377,6 @@
       "operation_id": "sdk_api_v1_new-eval_create",
       "tags": [
         "sdk"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/call-executions/{call_execution_id}/branch-analysis/",
-      "operation_id": "simulate_call-executions_branch-analysis_create",
-      "tags": [
-        "simulate"
       ]
     },
     {
@@ -6874,24 +6865,6 @@
     },
     {
       "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/call-executions/{call_execution_id}/branch-analysis/",
-      "operation_id": "simulate_call-executions_branch-analysis_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/call-executions/{call_execution_id}/branch-analysis/",
-      "operation_id": "simulate_call-executions_branch-analysis_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
       "method": "POST",
       "path": "/simulate/call-executions/{call_execution_id}/chat/send-message/",
       "operation_id": "simulate_call-executions_chat_send-message_create",
@@ -6913,15 +6886,6 @@
       "method": "GET",
       "path": "/simulate/call-executions/{call_execution_id}/session-comparison/",
       "operation_id": "simulate_call-executions_session-comparison_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/call-executions/{call_execution_id}/transcripts/",
-      "operation_id": "simulate_call-executions_transcripts_list",
       "tags": [
         "simulate"
       ]
@@ -7048,15 +7012,6 @@
       "method": "POST",
       "path": "/simulate/test-executions/{test_execution_id}/chat/call-executions/batch/",
       "operation_id": "simulate_test-executions_chat_call-executions_batch_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/test-executions/{test_execution_id}/transcripts/",
-      "operation_id": "simulate_test-executions_transcripts_list",
       "tags": [
         "simulate"
       ]

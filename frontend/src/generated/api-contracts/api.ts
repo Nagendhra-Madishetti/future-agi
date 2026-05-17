@@ -141,6 +141,8 @@ import type {
   BulkCreateScoresApi,
   BulkCreateScoresResponseApi,
   BulkRemoveItemsApi,
+  CallBranchAnalysisResponseApi,
+  CallBranchDeviationCreateResponseApi,
   CallExecutionApi,
   CallExecutionDeleteResponseApi,
   CallExecutionDetailApi,
@@ -148,6 +150,7 @@ import type {
   CallExecutionLogsResponseApi,
   CallExecutionRerunApi,
   CallExecutionStatusUpdateApi,
+  CallTranscriptResponseApi,
   CallWebsocketRequestApi,
   CallWebsocketResponseApi,
   CancelTestExecutionResponseApi,
@@ -442,6 +445,7 @@ import type {
   TestExecutionRerunApi,
   TestExecutionRerunResponseApi,
   TestExecutionStatusApi,
+  TestExecutionTranscriptsResponseApi,
   TokenObtainPairApi,
   ToolsApi,
   TraceApi,
@@ -34754,16 +34758,28 @@ export const simulateCallExecutionsPartialUpdate = async (callExecutionId: strin
 
 
 export type simulateCallExecutionsBranchAnalysisListResponse200 = {
-  data: void
+  data: CallBranchAnalysisResponseApi
   status: 200
+}
+
+export type simulateCallExecutionsBranchAnalysisListResponse404 = {
+  data: ErrorResponseApi
+  status: 404
+}
+
+export type simulateCallExecutionsBranchAnalysisListResponse500 = {
+  data: ErrorResponseApi
+  status: 500
 }
 
 export type simulateCallExecutionsBranchAnalysisListResponseSuccess = (simulateCallExecutionsBranchAnalysisListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateCallExecutionsBranchAnalysisListResponseError = (simulateCallExecutionsBranchAnalysisListResponse404 | simulateCallExecutionsBranchAnalysisListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateCallExecutionsBranchAnalysisListResponse = (simulateCallExecutionsBranchAnalysisListResponseSuccess)
+export type simulateCallExecutionsBranchAnalysisListResponse = (simulateCallExecutionsBranchAnalysisListResponseSuccess | simulateCallExecutionsBranchAnalysisListResponseError)
 
 export const getSimulateCallExecutionsBranchAnalysisListUrl = (callExecutionId: string,) => {
 
@@ -34789,17 +34805,29 @@ export const simulateCallExecutionsBranchAnalysisList = async (callExecutionId: 
 
 
 
-export type simulateCallExecutionsBranchAnalysisCreateResponse201 = {
-  data: void
-  status: 201
+export type simulateCallExecutionsBranchAnalysisCreateResponse200 = {
+  data: CallBranchDeviationCreateResponseApi
+  status: 200
 }
 
-export type simulateCallExecutionsBranchAnalysisCreateResponseSuccess = (simulateCallExecutionsBranchAnalysisCreateResponse201) & {
+export type simulateCallExecutionsBranchAnalysisCreateResponse404 = {
+  data: ErrorResponseApi
+  status: 404
+}
+
+export type simulateCallExecutionsBranchAnalysisCreateResponse500 = {
+  data: ErrorResponseApi
+  status: 500
+}
+
+export type simulateCallExecutionsBranchAnalysisCreateResponseSuccess = (simulateCallExecutionsBranchAnalysisCreateResponse200) & {
   headers: Headers;
 };
-;
+export type simulateCallExecutionsBranchAnalysisCreateResponseError = (simulateCallExecutionsBranchAnalysisCreateResponse404 | simulateCallExecutionsBranchAnalysisCreateResponse500) & {
+  headers: Headers;
+};
 
-export type simulateCallExecutionsBranchAnalysisCreateResponse = (simulateCallExecutionsBranchAnalysisCreateResponseSuccess)
+export type simulateCallExecutionsBranchAnalysisCreateResponse = (simulateCallExecutionsBranchAnalysisCreateResponseSuccess | simulateCallExecutionsBranchAnalysisCreateResponseError)
 
 export const getSimulateCallExecutionsBranchAnalysisCreateUrl = (callExecutionId: string,) => {
 
@@ -34812,14 +34840,16 @@ export const getSimulateCallExecutionsBranchAnalysisCreateUrl = (callExecutionId
 /**
  * Create deviation nodes and edges for a call execution
  */
-export const simulateCallExecutionsBranchAnalysisCreate = async (callExecutionId: string, options?: RequestInit): Promise<simulateCallExecutionsBranchAnalysisCreateResponse> => {
+export const simulateCallExecutionsBranchAnalysisCreate = async (callExecutionId: string,
+    emptyRequestApi: EmptyRequestApi, options?: RequestInit): Promise<simulateCallExecutionsBranchAnalysisCreateResponse> => {
 
   return apiMutator<simulateCallExecutionsBranchAnalysisCreateResponse>(getSimulateCallExecutionsBranchAnalysisCreateUrl(callExecutionId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      emptyRequestApi,)
   }
 );}
 
@@ -35030,16 +35060,28 @@ export const simulateCallExecutionsSessionComparisonList = async (callExecutionI
 
 
 export type simulateCallExecutionsTranscriptsListResponse200 = {
-  data: void
+  data: CallTranscriptResponseApi
   status: 200
+}
+
+export type simulateCallExecutionsTranscriptsListResponse404 = {
+  data: ErrorResponseApi
+  status: 404
+}
+
+export type simulateCallExecutionsTranscriptsListResponse500 = {
+  data: ErrorResponseApi
+  status: 500
 }
 
 export type simulateCallExecutionsTranscriptsListResponseSuccess = (simulateCallExecutionsTranscriptsListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateCallExecutionsTranscriptsListResponseError = (simulateCallExecutionsTranscriptsListResponse404 | simulateCallExecutionsTranscriptsListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateCallExecutionsTranscriptsListResponse = (simulateCallExecutionsTranscriptsListResponseSuccess)
+export type simulateCallExecutionsTranscriptsListResponse = (simulateCallExecutionsTranscriptsListResponseSuccess | simulateCallExecutionsTranscriptsListResponseError)
 
 export const getSimulateCallExecutionsTranscriptsListUrl = (callExecutionId: string,) => {
 
@@ -37973,16 +38015,28 @@ export const simulateTestExecutionsRerunCallsCreate = async (testExecutionId: st
 
 
 export type simulateTestExecutionsTranscriptsListResponse200 = {
-  data: void
+  data: TestExecutionTranscriptsResponseApi
   status: 200
+}
+
+export type simulateTestExecutionsTranscriptsListResponse404 = {
+  data: ErrorResponseApi
+  status: 404
+}
+
+export type simulateTestExecutionsTranscriptsListResponse500 = {
+  data: ErrorResponseApi
+  status: 500
 }
 
 export type simulateTestExecutionsTranscriptsListResponseSuccess = (simulateTestExecutionsTranscriptsListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateTestExecutionsTranscriptsListResponseError = (simulateTestExecutionsTranscriptsListResponse404 | simulateTestExecutionsTranscriptsListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateTestExecutionsTranscriptsListResponse = (simulateTestExecutionsTranscriptsListResponseSuccess)
+export type simulateTestExecutionsTranscriptsListResponse = (simulateTestExecutionsTranscriptsListResponseSuccess | simulateTestExecutionsTranscriptsListResponseError)
 
 export const getSimulateTestExecutionsTranscriptsListUrl = (testExecutionId: string,) => {
 

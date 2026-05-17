@@ -59,6 +59,50 @@ class CallTranscriptSerializer(serializers.ModelSerializer):
         return None
 
 
+class CallTranscriptResponseSerializer(serializers.Serializer):
+    """Response serializer for transcripts under one call execution."""
+
+    call_execution_id = serializers.UUIDField(read_only=True)
+    phone_number = serializers.CharField(read_only=True, allow_null=True)
+    status = serializers.CharField(read_only=True)
+    transcripts = CallTranscriptSerializer(many=True, read_only=True)
+    total_transcripts = serializers.IntegerField(read_only=True)
+
+
+class TestExecutionTranscriptCallSerializer(CallTranscriptResponseSerializer):
+    """Transcript bundle for one call inside a test execution."""
+
+    scenario_name = serializers.CharField(read_only=True, allow_null=True)
+
+
+class TestExecutionTranscriptsResponseSerializer(serializers.Serializer):
+    """Response serializer for all transcripts inside a test execution."""
+
+    test_execution_id = serializers.UUIDField(read_only=True)
+    calls = TestExecutionTranscriptCallSerializer(many=True, read_only=True)
+    total_calls = serializers.IntegerField(read_only=True)
+    total_transcripts = serializers.IntegerField(read_only=True)
+
+
+class CallBranchAnalysisResponseSerializer(serializers.Serializer):
+    """Response serializer for branch-analysis inspection."""
+
+    call_execution_id = serializers.UUIDField(read_only=True)
+    scenario_id = serializers.UUIDField(read_only=True, allow_null=True)
+    scenario_name = serializers.CharField(read_only=True, allow_null=True)
+    analysis = serializers.DictField(read_only=True)
+    analyzed_at = serializers.DateTimeField(read_only=True)
+
+
+class CallBranchDeviationCreateResponseSerializer(serializers.Serializer):
+    """Response serializer for creating branch deviation graph objects."""
+
+    call_execution_id = serializers.UUIDField(read_only=True)
+    scenario_graph_id = serializers.UUIDField(read_only=True)
+    deviation_data = serializers.DictField(read_only=True)
+    message = serializers.CharField(read_only=True)
+
+
 class CallExecutionSnapshotSerializer(serializers.ModelSerializer):
     """Serializer for CallExecutionSnapshot model"""
 

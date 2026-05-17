@@ -2,6 +2,7 @@ import traceback
 
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,9 +10,17 @@ from rest_framework.views import APIView
 
 from accounts.utils import get_request_organization
 from simulate.models import CallExecution, CallTranscript
-from simulate.serializers.test_execution import CallTranscriptSerializer
+from simulate.serializers.response.test_execution import ErrorResponseSerializer
+from simulate.serializers.test_execution import (
+    CallBranchAnalysisResponseSerializer,
+    CallBranchDeviationCreateResponseSerializer,
+    CallTranscriptResponseSerializer,
+    CallTranscriptSerializer,
+    TestExecutionTranscriptsResponseSerializer,
+)
 from simulate.services.branch_deviation_analyzer import BranchDeviationAnalyzer
 from simulate.utils.stored_transcript_roles import get_displayable_transcript_roles
+from tfc.utils.api_serializers import EmptyRequestSerializer
 
 
 class CallTranscriptView(APIView):
@@ -21,6 +30,13 @@ class CallTranscriptView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={
+            200: CallTranscriptResponseSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
     def get(self, request, call_execution_id, *args, **kwargs):
         """Get transcripts for a specific call execution"""
         try:
@@ -74,6 +90,13 @@ class TestExecutionTranscriptsView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={
+            200: TestExecutionTranscriptsResponseSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
     def get(self, request, test_execution_id, *args, **kwargs):
         """Get all transcripts for a test execution"""
         try:
@@ -146,6 +169,13 @@ class CallBranchAnalysisView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={
+            200: CallBranchAnalysisResponseSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
     def get(self, request, call_execution_id, *args, **kwargs):
         """Analyze a call execution against graph branches and identify deviations"""
         try:
@@ -230,6 +260,14 @@ class CallBranchAnalysisView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+    @swagger_auto_schema(
+        request_body=EmptyRequestSerializer,
+        responses={
+            200: CallBranchDeviationCreateResponseSerializer,
+            404: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+    )
     def post(self, request, call_execution_id, *args, **kwargs):
         """Create deviation nodes and edges for a call execution"""
         try:

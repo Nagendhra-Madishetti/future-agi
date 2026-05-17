@@ -17848,11 +17848,36 @@ export const SimulateCallExecutionsBranchAnalysisListParams = zod.object({
 })
 
 
+
+
+export const SimulateCallExecutionsBranchAnalysisListResponse = zod.object({
+  "call_execution_id": zod.string().uuid().optional(),
+  "scenario_id": zod.string().uuid().optional(),
+  "scenario_name": zod.string().min(1).optional(),
+  "analysis": zod.record(zod.string(), zod.string()).optional(),
+  "analyzed_at": zod.string().datetime({"offset":true}).optional()
+})
+
+
 /**
  * Create deviation nodes and edges for a call execution
  */
 export const SimulateCallExecutionsBranchAnalysisCreateParams = zod.object({
   "call_execution_id": zod.string()
+})
+
+export const SimulateCallExecutionsBranchAnalysisCreateBody = zod.object({
+
+})
+
+
+
+
+export const SimulateCallExecutionsBranchAnalysisCreateResponse = zod.object({
+  "call_execution_id": zod.string().uuid().optional(),
+  "scenario_graph_id": zod.string().uuid().optional(),
+  "deviation_data": zod.record(zod.string(), zod.string()).optional(),
+  "message": zod.string().min(1).optional()
 })
 
 
@@ -17925,6 +17950,35 @@ export const SimulateCallExecutionsSessionComparisonListParams = zod.object({
  */
 export const SimulateCallExecutionsTranscriptsListParams = zod.object({
   "call_execution_id": zod.string()
+})
+
+
+
+
+export const simulateCallExecutionsTranscriptsListResponseTranscriptsItemStartTimeMsMin = -9223372036854776000;
+export const simulateCallExecutionsTranscriptsListResponseTranscriptsItemStartTimeMsMax = 9223372036854776000;
+
+export const simulateCallExecutionsTranscriptsListResponseTranscriptsItemEndTimeMsMin = -9223372036854776000;
+export const simulateCallExecutionsTranscriptsListResponseTranscriptsItemEndTimeMsMax = 9223372036854776000;
+
+
+
+export const SimulateCallExecutionsTranscriptsListResponse = zod.object({
+  "call_execution_id": zod.string().uuid().optional(),
+  "phone_number": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "transcripts": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "speaker_role": zod.enum(['user', 'assistant', 'system', 'tool_calls', 'tool_call_result', 'unknown']).optional().describe('Role of the speaker (user or assistant)'),
+  "content": zod.string().min(1).describe('Transcript content'),
+  "start_time_ms": zod.number().min(simulateCallExecutionsTranscriptsListResponseTranscriptsItemStartTimeMsMin).max(simulateCallExecutionsTranscriptsListResponseTranscriptsItemStartTimeMsMax).optional().describe('Start time of this transcript segment in milliseconds'),
+  "start_time_seconds": zod.string().optional(),
+  "end_time_ms": zod.number().min(simulateCallExecutionsTranscriptsListResponseTranscriptsItemEndTimeMsMin).max(simulateCallExecutionsTranscriptsListResponseTranscriptsItemEndTimeMsMax).optional().describe('End time of this transcript segment in milliseconds'),
+  "end_time_seconds": zod.string().optional(),
+  "confidence_score": zod.number().optional().describe('Confidence score for this transcript segment'),
+  "created_at": zod.string().datetime({"offset":true}).optional()
+})).optional(),
+  "total_transcripts": zod.number().optional()
 })
 
 
@@ -19628,6 +19682,42 @@ export const SimulateTestExecutionsRerunCallsCreateResponse = zod.object({
  */
 export const SimulateTestExecutionsTranscriptsListParams = zod.object({
   "test_execution_id": zod.string()
+})
+
+
+
+
+export const simulateTestExecutionsTranscriptsListResponseCallsItemTranscriptsItemStartTimeMsMin = -9223372036854776000;
+export const simulateTestExecutionsTranscriptsListResponseCallsItemTranscriptsItemStartTimeMsMax = 9223372036854776000;
+
+export const simulateTestExecutionsTranscriptsListResponseCallsItemTranscriptsItemEndTimeMsMin = -9223372036854776000;
+export const simulateTestExecutionsTranscriptsListResponseCallsItemTranscriptsItemEndTimeMsMax = 9223372036854776000;
+
+
+
+
+export const SimulateTestExecutionsTranscriptsListResponse = zod.object({
+  "test_execution_id": zod.string().uuid().optional(),
+  "calls": zod.array(zod.object({
+  "call_execution_id": zod.string().uuid().optional(),
+  "phone_number": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "transcripts": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "speaker_role": zod.enum(['user', 'assistant', 'system', 'tool_calls', 'tool_call_result', 'unknown']).optional().describe('Role of the speaker (user or assistant)'),
+  "content": zod.string().min(1).describe('Transcript content'),
+  "start_time_ms": zod.number().min(simulateTestExecutionsTranscriptsListResponseCallsItemTranscriptsItemStartTimeMsMin).max(simulateTestExecutionsTranscriptsListResponseCallsItemTranscriptsItemStartTimeMsMax).optional().describe('Start time of this transcript segment in milliseconds'),
+  "start_time_seconds": zod.string().optional(),
+  "end_time_ms": zod.number().min(simulateTestExecutionsTranscriptsListResponseCallsItemTranscriptsItemEndTimeMsMin).max(simulateTestExecutionsTranscriptsListResponseCallsItemTranscriptsItemEndTimeMsMax).optional().describe('End time of this transcript segment in milliseconds'),
+  "end_time_seconds": zod.string().optional(),
+  "confidence_score": zod.number().optional().describe('Confidence score for this transcript segment'),
+  "created_at": zod.string().datetime({"offset":true}).optional()
+})).optional(),
+  "total_transcripts": zod.number().optional(),
+  "scenario_name": zod.string().min(1).optional()
+})).optional(),
+  "total_calls": zod.number().optional(),
+  "total_transcripts": zod.number().optional()
 })
 
 

@@ -5434,6 +5434,32 @@ export interface CallExecutionStatusUpdateApi {
   ended_reason?: string;
 }
 
+export type CallBranchAnalysisResponseApiAnalysis = {[key: string]: string};
+
+export interface CallBranchAnalysisResponseApi {
+  readonly call_execution_id?: string;
+  readonly scenario_id?: string;
+  /** @minLength 1 */
+  readonly scenario_name?: string;
+  readonly analysis?: CallBranchAnalysisResponseApiAnalysis;
+  readonly analyzed_at?: string;
+}
+
+export interface ErrorResponseApi {
+  /** @minLength 1 */
+  error: string;
+}
+
+export type CallBranchDeviationCreateResponseApiDeviationData = {[key: string]: string};
+
+export interface CallBranchDeviationCreateResponseApi {
+  readonly call_execution_id?: string;
+  readonly scenario_graph_id?: string;
+  readonly deviation_data?: CallBranchDeviationCreateResponseApiDeviationData;
+  /** @minLength 1 */
+  readonly message?: string;
+}
+
 export interface CallExecutionDeleteResponseApi {
   /** @minLength 1 */
   readonly message?: string;
@@ -5467,16 +5493,64 @@ export interface CallExecutionLogsResponseApi {
   readonly ingestion_pending?: boolean;
 }
 
+/**
+ * Role of the speaker (user or assistant)
+ */
+export type CallTranscriptApiSpeakerRole = typeof CallTranscriptApiSpeakerRole[keyof typeof CallTranscriptApiSpeakerRole];
+
+
+export const CallTranscriptApiSpeakerRole = {
+  user: 'user',
+  assistant: 'assistant',
+  system: 'system',
+  tool_calls: 'tool_calls',
+  tool_call_result: 'tool_call_result',
+  unknown: 'unknown',
+} as const;
+
+export interface CallTranscriptApi {
+  readonly id?: string;
+  /** Role of the speaker (user or assistant) */
+  speaker_role?: CallTranscriptApiSpeakerRole;
+  /**
+     * Transcript content
+     * @minLength 1
+     */
+  content: string;
+  /**
+     * Start time of this transcript segment in milliseconds
+     * @minimum -9223372036854776000
+     * @maximum 9223372036854776000
+     */
+  start_time_ms?: number;
+  readonly start_time_seconds?: string;
+  /**
+     * End time of this transcript segment in milliseconds
+     * @minimum -9223372036854776000
+     * @maximum 9223372036854776000
+     */
+  end_time_ms?: number;
+  readonly end_time_seconds?: string;
+  /** Confidence score for this transcript segment */
+  confidence_score?: number;
+  readonly created_at?: string;
+}
+
+export interface CallTranscriptResponseApi {
+  readonly call_execution_id?: string;
+  /** @minLength 1 */
+  readonly phone_number?: string;
+  /** @minLength 1 */
+  readonly status?: string;
+  readonly transcripts?: readonly CallTranscriptApi[];
+  readonly total_transcripts?: number;
+}
+
 export type AllActiveTestsApiActiveTests = {[key: string]: string};
 
 export interface AllActiveTestsApi {
   active_tests: AllActiveTestsApiActiveTests;
   total_active: number;
-}
-
-export interface ErrorResponseApi {
-  /** @minLength 1 */
-  error: string;
 }
 
 export type CreateRunTestApiEvaluationsConfigItem = {[key: string]: string};
@@ -6439,6 +6513,25 @@ export interface RerunCallsResponseApi {
   failed_reruns: FailedRerunItemApi[];
   success_count: number;
   failure_count: number;
+}
+
+export interface TestExecutionTranscriptCallApi {
+  readonly call_execution_id?: string;
+  /** @minLength 1 */
+  readonly phone_number?: string;
+  /** @minLength 1 */
+  readonly status?: string;
+  readonly transcripts?: readonly CallTranscriptApi[];
+  readonly total_transcripts?: number;
+  /** @minLength 1 */
+  readonly scenario_name?: string;
+}
+
+export interface TestExecutionTranscriptsResponseApi {
+  readonly test_execution_id?: string;
+  readonly calls?: readonly TestExecutionTranscriptCallApi[];
+  readonly total_calls?: number;
+  readonly total_transcripts?: number;
 }
 
 export interface BulkAnnotationAnnotationRequestApi {

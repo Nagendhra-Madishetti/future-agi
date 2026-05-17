@@ -25821,7 +25821,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallBranchAnalysisResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -25831,10 +25846,34 @@
             "post": {
                 "operationId": "simulate_call-executions_branch-analysis_create",
                 "description": "Create deviation nodes and edges for a call execution",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallBranchDeviationCreateResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26002,7 +26041,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallTranscriptResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -28369,7 +28423,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/TestExecutionTranscriptsResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -50795,6 +50864,91 @@
                 }
             }
         },
+        "CallBranchAnalysisResponse": {
+            "type": "object",
+            "properties": {
+                "call_execution_id": {
+                    "title": "Call execution id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "scenario_id": {
+                    "title": "Scenario id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "scenario_name": {
+                    "title": "Scenario name",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "analysis": {
+                    "title": "Analysis",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    },
+                    "readOnly": true
+                },
+                "analyzed_at": {
+                    "title": "Analyzed at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                }
+            }
+        },
+        "ErrorResponse": {
+            "required": [
+                "error"
+            ],
+            "type": "object",
+            "properties": {
+                "error": {
+                    "title": "Error",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "CallBranchDeviationCreateResponse": {
+            "type": "object",
+            "properties": {
+                "call_execution_id": {
+                    "title": "Call execution id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "scenario_graph_id": {
+                    "title": "Scenario graph id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "deviation_data": {
+                    "title": "Deviation data",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    },
+                    "readOnly": true
+                },
+                "message": {
+                    "title": "Message",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                }
+            }
+        },
         "CallExecutionDeleteResponse": {
             "type": "object",
             "properties": {
@@ -50895,6 +51049,110 @@
                 }
             }
         },
+        "CallTranscript": {
+            "required": [
+                "content"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "speaker_role": {
+                    "title": "Speaker role",
+                    "description": "Role of the speaker (user or assistant)",
+                    "type": "string",
+                    "enum": [
+                        "user",
+                        "assistant",
+                        "system",
+                        "tool_calls",
+                        "tool_call_result",
+                        "unknown"
+                    ]
+                },
+                "content": {
+                    "title": "Content",
+                    "description": "Transcript content",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "start_time_ms": {
+                    "title": "Start time ms",
+                    "description": "Start time of this transcript segment in milliseconds",
+                    "type": "integer",
+                    "maximum": 9223372036854775807,
+                    "minimum": -9223372036854775808
+                },
+                "start_time_seconds": {
+                    "title": "Start time seconds",
+                    "type": "string",
+                    "readOnly": true
+                },
+                "end_time_ms": {
+                    "title": "End time ms",
+                    "description": "End time of this transcript segment in milliseconds",
+                    "type": "integer",
+                    "maximum": 9223372036854775807,
+                    "minimum": -9223372036854775808
+                },
+                "end_time_seconds": {
+                    "title": "End time seconds",
+                    "type": "string",
+                    "readOnly": true
+                },
+                "confidence_score": {
+                    "title": "Confidence score",
+                    "description": "Confidence score for this transcript segment",
+                    "type": "number"
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                }
+            }
+        },
+        "CallTranscriptResponse": {
+            "type": "object",
+            "properties": {
+                "call_execution_id": {
+                    "title": "Call execution id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "phone_number": {
+                    "title": "Phone number",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                },
+                "transcripts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CallTranscript"
+                    },
+                    "readOnly": true
+                },
+                "total_transcripts": {
+                    "title": "Total transcripts",
+                    "type": "integer",
+                    "readOnly": true
+                }
+            }
+        },
         "AllActiveTests": {
             "required": [
                 "active_tests",
@@ -50913,19 +51171,6 @@
                 "total_active": {
                     "title": "Total active",
                     "type": "integer"
-                }
-            }
-        },
-        "ErrorResponse": {
-            "required": [
-                "error"
-            ],
-            "type": "object",
-            "properties": {
-                "error": {
-                    "title": "Error",
-                    "type": "string",
-                    "minLength": 1
                 }
             }
         },
@@ -53190,6 +53435,77 @@
                 "failure_count": {
                     "title": "Failure count",
                     "type": "integer"
+                }
+            }
+        },
+        "TestExecutionTranscriptCall": {
+            "type": "object",
+            "properties": {
+                "call_execution_id": {
+                    "title": "Call execution id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "phone_number": {
+                    "title": "Phone number",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                },
+                "transcripts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CallTranscript"
+                    },
+                    "readOnly": true
+                },
+                "total_transcripts": {
+                    "title": "Total transcripts",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "scenario_name": {
+                    "title": "Scenario name",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                }
+            }
+        },
+        "TestExecutionTranscriptsResponse": {
+            "type": "object",
+            "properties": {
+                "test_execution_id": {
+                    "title": "Test execution id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "calls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/TestExecutionTranscriptCall"
+                    },
+                    "readOnly": true
+                },
+                "total_calls": {
+                    "title": "Total calls",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "total_transcripts": {
+                    "title": "Total transcripts",
+                    "type": "integer",
+                    "readOnly": true
                 }
             }
         },
