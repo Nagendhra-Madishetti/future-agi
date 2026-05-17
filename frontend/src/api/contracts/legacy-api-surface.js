@@ -7,13 +7,6 @@ export const LEGACY_API_STATUSES = Object.freeze({
 // Central allowlist for pre-contract Management API paths. New frontend API
 // calls should use apiPath(...) against the generated Swagger surface instead.
 export const LEGACY_API_SURFACE = Object.freeze({
-  "/falcon-ai/conversations/{id}/messages/": {
-    group: "falcon-ai",
-    status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,
-    reason:
-      "Falcon conversation messages are still used by the Falcon UI but are not exposed in Swagger.",
-    next: "Add serializers/OpenAPI coverage for Falcon messages, then move this path to apiPath(...).",
-  },
   "/model-hub/ai_models/create/": {
     group: "model-management",
     status: LEGACY_API_STATUSES.ACTIVE_UNCONTRACTED,

@@ -2308,8 +2308,6 @@ export const endpoints = {
       apiPath("/falcon-ai/conversations/{conversation_id}/", {
         conversation_id: id,
       }),
-    messages: (id) =>
-      legacyApiPath("/falcon-ai/conversations/{id}/messages/", { id }),
     feedback: (id) =>
       apiPath("/falcon-ai/messages/{message_id}/feedback/", { message_id: id }),
     connectors: apiPath("/falcon-ai/mcp-connectors/"),
