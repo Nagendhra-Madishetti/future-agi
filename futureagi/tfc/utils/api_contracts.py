@@ -53,9 +53,9 @@ def validated_request(
 ):
     """Document and validate a DRF view method from the same serializers.
 
-    This mirrors the PostHog pattern: the serializer declared for Swagger is
-    also the runtime validator. New endpoints should prefer this over a
-    doc-only ``swagger_auto_schema`` plus ad-hoc ``request.data`` parsing.
+    The serializer declared for Swagger is also the runtime validator. New
+    endpoints should prefer this over a doc-only ``swagger_auto_schema`` plus
+    ad-hoc ``request.data`` parsing.
     """
 
     def decorator(view_func):
