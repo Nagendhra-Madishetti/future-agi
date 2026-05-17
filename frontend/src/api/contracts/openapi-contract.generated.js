@@ -10759,7 +10759,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/DatasetColumnDetailResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -10807,7 +10807,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/DatasetEvalStatsResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -40578,6 +40578,41 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "DatasetColumnDetailResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/DatasetColumnDetailResult"
+        }
+      }
+    },
+    "DatasetEvalStatsResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DatasetEvalStatsItem"
+          }
+        }
+      }
+    },
     "DatasetMultipleStaticColumnsRequest": {
       "required": [
         "columns"
@@ -59957,6 +59992,75 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "DatasetColumnDetailResult": {
+      "required": [
+        "columns"
+      ],
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DatasetColumnDetailItem"
+          }
+        }
+      }
+    },
+    "DatasetEvalStatsItem": {
+      "required": [
+        "id",
+        "name",
+        "output_type",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "output_type": {
+          "title": "Output type",
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DatasetEvalStatsMetric"
+          }
+        },
+        "total_pass_rate": {
+          "title": "Total pass rate",
+          "type": "number",
+          "x-nullable": true
+        },
+        "total_avg": {
+          "title": "Total avg",
+          "type": "object",
+          "x-nullable": true
+        },
+        "total_choices_avg": {
+          "title": "Total choices avg",
+          "type": "object",
+          "x-nullable": true
+        },
+        "is_numeric_eval": {
+          "title": "Is numeric eval",
+          "type": "boolean"
+        },
+        "is_numeric_eval_percentage": {
+          "title": "Is numeric eval percentage",
+          "type": "boolean"
+        }
+      }
+    },
     "DatasetOptimizationStep": {
       "required": [
         "name",
@@ -66178,6 +66282,58 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Payment type",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "DatasetColumnDetailItem": {
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "title": "Data type",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "DatasetEvalStatsMetric": {
+      "required": [
+        "name",
+        "output"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "total_cells": {
+          "title": "Total cells",
+          "type": "integer",
+          "x-nullable": true
+        },
+        "output": {
+          "title": "Output",
+          "type": "object"
         }
       }
     },

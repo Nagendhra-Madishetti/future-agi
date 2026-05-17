@@ -657,7 +657,10 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("GET", "/model-hub/custom-metric/{model_id}/"): "ModelHubPaginatedResponse",
         ("GET", "/model-hub/column-config/{column_id}/"): "ColumnConfigResponse",
         ("GET", "/model-hub/dataset/columns/{dataset_id}/"): (
-            "ModelHubJSONResponse"
+            "DatasetColumnDetailResponse"
+        ),
+        ("GET", "/model-hub/dataset/{dataset_id}/eval-stats/"): (
+            "DatasetEvalStatsResponse"
         ),
         ("GET", "/model-hub/dataset/{dataset_id}/json-schema/"): (
             "ModelHubJSONResponse"

@@ -15359,23 +15359,18 @@ export const ModelHubDatasetColumnsReadParams = zod.object({
   "dataset_id": zod.string()
 })
 
+
+
+
 export const ModelHubDatasetColumnsReadResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "columns": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "data_type": zod.string().optional()
+}))
+})
 })
 
 
@@ -15409,23 +15404,35 @@ export const ModelHubDatasetEvalStatsListParams = zod.object({
   "dataset_id": zod.string()
 })
 
+
+
+
+
+
 export const ModelHubDatasetEvalStatsListResponse = zod.object({
-  "status": zod.object({
+  "status": zod.boolean(),
+  "result": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "output_type": zod.string().min(1),
+  "result": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1),
+  "total_cells": zod.number().optional(),
+  "output": zod.object({
+
+}).passthrough()
+})),
+  "total_pass_rate": zod.number().optional(),
+  "total_avg": zod.object({
 
 }).passthrough().optional(),
-  "message": zod.string().optional(),
-  "result": zod.object({
+  "total_choices_avg": zod.object({
 
 }).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "is_numeric_eval": zod.boolean().optional(),
+  "is_numeric_eval_percentage": zod.boolean().optional()
+}))
 })
 
 

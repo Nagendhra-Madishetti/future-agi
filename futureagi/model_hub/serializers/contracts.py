@@ -596,6 +596,45 @@ class ColumnConfigResponseSerializer(serializers.Serializer):
     result = ColumnConfigResultSerializer()
 
 
+class DatasetColumnDetailItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    data_type = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class DatasetColumnDetailResultSerializer(serializers.Serializer):
+    columns = DatasetColumnDetailItemSerializer(many=True)
+
+
+class DatasetColumnDetailResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = DatasetColumnDetailResultSerializer()
+
+
+class DatasetEvalStatsMetricSerializer(serializers.Serializer):
+    id = serializers.UUIDField(required=False)
+    name = serializers.CharField()
+    total_cells = serializers.IntegerField(required=False, allow_null=True)
+    output = serializers.JSONField()
+
+
+class DatasetEvalStatsItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    output_type = serializers.CharField()
+    result = DatasetEvalStatsMetricSerializer(many=True)
+    total_pass_rate = serializers.FloatField(required=False, allow_null=True)
+    total_avg = serializers.JSONField(required=False, allow_null=True)
+    total_choices_avg = serializers.JSONField(required=False, allow_null=True)
+    is_numeric_eval = serializers.BooleanField(required=False)
+    is_numeric_eval_percentage = serializers.BooleanField(required=False)
+
+
+class DatasetEvalStatsResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = DatasetEvalStatsItemSerializer(many=True)
+
+
 class PreviewDatasetOperationRequestSerializer(serializers.Serializer):
     column_id = serializers.UUIDField(required=False)
     json_key = serializers.CharField(required=False, allow_blank=True)

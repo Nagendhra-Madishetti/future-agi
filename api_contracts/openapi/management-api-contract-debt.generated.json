@@ -5,7 +5,7 @@
     "operations": 1336,
     "mutation_endpoints_without_body_schema": 0,
     "operations_without_response_schema": 0,
-    "broad_success_response_schemas": 341
+    "broad_success_response_schemas": 339
   },
   "by_group": {
     "accounts": {
@@ -83,7 +83,7 @@
       "operations": 473,
       "mutation_endpoints_without_body_schema": 0,
       "operations_without_response_schema": 0,
-      "broad_success_response_schemas": 211
+      "broad_success_response_schemas": 209
     },
     "saml2_auth": {
       "paths": 12,
@@ -1216,30 +1216,6 @@
       "method": "POST",
       "path": "/model-hub/create_custom_evals/",
       "operation_id": "model-hub_create_custom_evals_create",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "200",
-      "schema": "ModelHubJSONResponse",
-      "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/dataset/columns/{dataset_id}/",
-      "operation_id": "model-hub_dataset_columns_read",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "200",
-      "schema": "ModelHubJSONResponse",
-      "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/dataset/{dataset_id}/eval-stats/",
-      "operation_id": "model-hub_dataset_eval-stats_list",
       "tags": [
         "model-hub"
       ],

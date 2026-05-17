@@ -120,6 +120,51 @@ def run_prompt_column(db, dataset):
     return col
 
 
+@pytest.mark.django_db
+class TestGetColumnDetailView:
+    """Tests for GET /model-hub/dataset/columns/{dataset_id}/."""
+
+    def test_get_column_details_excludes_prompt_columns_by_default(
+        self, auth_client, dataset, input_column, run_prompt_column
+    ):
+        response = auth_client.get(f"/model-hub/dataset/columns/{dataset.id}/")
+
+        assert response.status_code == status.HTTP_200_OK
+        result = response.json()["result"]
+
+        assert result["columns"] == [
+            {
+                "id": str(input_column.id),
+                "name": input_column.name,
+                "data_type": input_column.data_type,
+            }
+        ]
+
+    def test_get_column_details_can_include_prompt_columns(
+        self, auth_client, dataset, input_column, run_prompt_column
+    ):
+        response = auth_client.get(
+            f"/model-hub/dataset/columns/{dataset.id}/",
+            {"include_prompt": "true"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        result = response.json()["result"]
+
+        assert result["columns"] == [
+            {
+                "id": str(input_column.id),
+                "name": input_column.name,
+                "data_type": input_column.data_type,
+            },
+            {
+                "id": str(run_prompt_column.id),
+                "name": run_prompt_column.name,
+                "data_type": run_prompt_column.data_type,
+            },
+        ]
+
+
 @pytest.fixture
 def run_prompter(db, dataset, organization, workspace):
     return RunPrompter.objects.create(

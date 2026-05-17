@@ -269,6 +269,8 @@ import type {
   DatasetApi,
   DatasetBehaviorRequestApi,
   DatasetCellDataRequestApi,
+  DatasetColumnDetailResponseApi,
+  DatasetEvalStatsResponseApi,
   DatasetMultipleStaticColumnsRequestApi,
   DatasetOptimizationApi,
   DatasetOptimizationCreateApi,
@@ -23348,7 +23350,7 @@ export const modelHubDatasetOptimizationTrialTrialScenarios = async (id: string,
 
 
 export type modelHubDatasetColumnsReadResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: DatasetColumnDetailResponseApi
   status: 200
 }
 
@@ -23458,7 +23460,7 @@ export const modelHubDatasetAnnotationSummaryList = async (datasetId: string, op
 
 
 export type modelHubDatasetEvalStatsListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: DatasetEvalStatsResponseApi
   status: 200
 }
 

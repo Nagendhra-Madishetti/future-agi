@@ -5380,6 +5380,22 @@ export interface DatasetOptimizationApi {
   readonly created_at?: string;
 }
 
+export interface DatasetColumnDetailItemApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  data_type?: string;
+}
+
+export interface DatasetColumnDetailResultApi {
+  columns: DatasetColumnDetailItemApi[];
+}
+
+export interface DatasetColumnDetailResponseApi {
+  status: boolean;
+  result: DatasetColumnDetailResultApi;
+}
+
 export interface AnnotationSummaryHeaderApi {
   dataset_coverage?: number;
   completion_eta?: number;
@@ -5399,6 +5415,39 @@ export interface AnnotationSummaryResultApi {
 export interface AnnotationSummaryResponseApi {
   status?: boolean;
   result: AnnotationSummaryResultApi;
+}
+
+export type DatasetEvalStatsMetricApiOutput = { [key: string]: unknown };
+
+export interface DatasetEvalStatsMetricApi {
+  id?: string;
+  /** @minLength 1 */
+  name: string;
+  total_cells?: number;
+  output: DatasetEvalStatsMetricApiOutput;
+}
+
+export type DatasetEvalStatsItemApiTotalAvg = { [key: string]: unknown };
+
+export type DatasetEvalStatsItemApiTotalChoicesAvg = { [key: string]: unknown };
+
+export interface DatasetEvalStatsItemApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  output_type: string;
+  result: DatasetEvalStatsMetricApi[];
+  total_pass_rate?: number;
+  total_avg?: DatasetEvalStatsItemApiTotalAvg;
+  total_choices_avg?: DatasetEvalStatsItemApiTotalChoicesAvg;
+  is_numeric_eval?: boolean;
+  is_numeric_eval_percentage?: boolean;
+}
+
+export interface DatasetEvalStatsResponseApi {
+  status: boolean;
+  result: DatasetEvalStatsItemApi[];
 }
 
 export interface DatasetRunPromptStatsPromptApi {

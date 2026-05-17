@@ -53,6 +53,7 @@ from model_hub.models.develop_dataset import (
 from model_hub.models.evals_metric import EvalTemplate, UserEvalMetric
 from model_hub.models.run_prompt import RunPrompter
 from model_hub.serializers.contracts import (
+    DatasetEvalStatsResponseSerializer,
     MODEL_HUB_ERROR_RESPONSES,
     ModelHubJSONResponseSerializer,
 )
@@ -3343,7 +3344,7 @@ class DatasetEvalStatsView(APIView):
         ]
 
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={200: DatasetEvalStatsResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
     )
     def get(self, request, dataset_id):
         try:
