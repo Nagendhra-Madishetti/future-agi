@@ -23,8 +23,8 @@ const endpointRegistryPath = path.join(
   "axios.js",
 );
 const MAX_UNMARKED_UNCONTRACTED_REGISTRY_PATHS = 0;
-const MAX_RAW_REGISTRY_PATHS = 315;
-const MAX_LEGACY_REGISTRY_PATHS = 51;
+const MAX_RAW_REGISTRY_PATHS = 0;
+const MAX_LEGACY_REGISTRY_PATHS = 55;
 const MANAGEMENT_API_GROUPS = Object.keys(API_SURFACE_CONTRACT.groups)
   .filter((groupName) => groupName !== "root")
   .sort();
@@ -86,6 +86,9 @@ function matchedContractTemplate(rawValue) {
   if (Object.prototype.hasOwnProperty.call(API_SURFACE_PATHS, rawValue)) {
     return rawValue;
   }
+  const hasPlaceholder =
+    rawValue.includes("${}") || /\{[^}]+\}/.test(rawValue.split("?")[0]);
+  if (!hasPlaceholder) return null;
   const withoutQuery = rawValue.split("?")[0];
   const concretePath = withoutQuery.replace(/\$\{\}/g, "placeholder");
   return (

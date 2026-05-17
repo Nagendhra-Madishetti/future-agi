@@ -246,7 +246,7 @@ const Performance = () => {
       dateFilter,
     ],
     queryFn: ({ pageParam }) => {
-      return axios.post(`${endpoints.performance.tableData}${id}/`, {
+      return axios.post(endpoints.performance.tableData(id), {
         startDate: dateFilter[0],
         endDate: dateFilter[1],
         aggBy: selectedAggregation,
@@ -309,7 +309,7 @@ const Performance = () => {
 
   const { mutate: generateExport } = useMutation({
     mutationFn: () => {
-      return axios.post(`${endpoints.performance.tableExport}${id}/`, {
+      return axios.post(endpoints.performance.tableExport(id), {
         dataset: {
           startDate: dateFilter[0],
           endDate: dateFilter[1],
