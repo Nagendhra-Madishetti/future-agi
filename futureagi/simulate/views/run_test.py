@@ -85,6 +85,7 @@ from simulate.serializers.requests.call_execution import (
 )
 from simulate.serializers.requests.run_test import (
     CreateRunTestSerializer,
+    RunTestComponentsUpdateSerializer,
     RunTestFilterSerializer,
     UpdateRunTestSerializer,
 )
@@ -99,12 +100,14 @@ from simulate.serializers.requests.test_execution import (
     CallExecutionRerunSerializer,
 )
 from simulate.serializers.response.call_execution import (
+    CallExecutionErrorLocalizerTasksResponseSerializer,
     CallExecutionDeleteResponseSerializer,
     CallExecutionErrorResponseSerializer,
     CallExecutionLogsResponseSerializer,
 )
 from simulate.serializers.response.run_test import (
     AddEvalConfigResponseSerializer,
+    RunTestCallExecutionsResponseSerializer,
     RunTestErrorResponseSerializer,
     RunTestExecutionsResponseSerializer,
     RunTestMessageResponseSerializer,
@@ -115,6 +118,7 @@ from simulate.serializers.response.run_test import (
 from simulate.serializers.response.run_test_evals import (
     AddEvalConfigsResponseSerializer,
     DeleteEvalConfigResponseSerializer,
+    EvalConfigStructureResponseSerializer,
     EvalConfigResponseSerializer,
     EvalConfigUpdateResponseSerializer,
     EvalErrorResponseSerializer,
@@ -1660,6 +1664,13 @@ class RunTestCallExecutionsView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={
+            200: RunTestCallExecutionsResponseSerializer,
+            404: CallExecutionErrorResponseSerializer,
+            500: CallExecutionErrorResponseSerializer,
+        },
+    )
     def get(self, request, run_test_id, *args, **kwargs):
         """
         Get all call executions for a specific run test with pagination and search
@@ -3985,6 +3996,15 @@ class RunTestComponentsUpdateView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=RunTestComponentsUpdateSerializer,
+        responses={
+            200: RunTestResponseSerializer,
+            400: RunTestErrorResponseSerializer,
+            404: RunTestErrorResponseSerializer,
+            500: RunTestErrorResponseSerializer,
+        },
+    )
     def patch(self, request, run_test_id, *args, **kwargs):
         """Update components of a specific RunTest"""
         try:
@@ -4167,6 +4187,13 @@ class CallExecutionErrorLocalizerTasksView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={
+            200: CallExecutionErrorLocalizerTasksResponseSerializer,
+            404: CallExecutionErrorResponseSerializer,
+            500: CallExecutionErrorResponseSerializer,
+        },
+    )
     def get(self, request, call_execution_id, *args, **kwargs):
         """Get error localizer tasks for a specific call execution"""
         try:
@@ -4605,6 +4632,13 @@ class GetEvalConfigStructureView(APIView):
         super().__init__(**kwargs)
         self._gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        responses={
+            200: EvalConfigStructureResponseSerializer,
+            404: EvalErrorResponseSerializer,
+            500: EvalErrorResponseSerializer,
+        },
+    )
     def get(self, request, run_test_id, eval_config_id, *args, **kwargs):
         """
         Get the structure of an evaluation config
@@ -5295,6 +5329,41 @@ class CSVExportView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                "type",
+                openapi.IN_QUERY,
+                description="Export source type.",
+                type=openapi.TYPE_STRING,
+                enum=["runtest", "testexecution"],
+                required=True,
+            ),
+            openapi.Parameter(
+                "search",
+                openapi.IN_QUERY,
+                description="Optional call-execution search term.",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "status",
+                openapi.IN_QUERY,
+                description="Optional call-execution status filter.",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                "CSV export",
+                schema=openapi.Schema(type=openapi.TYPE_FILE),
+            ),
+            400: ApiErrorResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def get(self, request, item_id, *args, **kwargs):
         """
         Export data as CSV based on type parameter
@@ -5556,7 +5625,7 @@ class RunTestEvalSummaryView(APIView):
             eval_configs = _get_eval_configs_with_template(run_test)
 
             if not eval_configs:
-                return Response([], status=status.HTTP_200_OK)
+                return self._gm.success_response([])
 
             call_executions = _get_completed_call_executions(run_test, execution_id)
             template_stats = _build_template_statistics(eval_configs, call_executions)

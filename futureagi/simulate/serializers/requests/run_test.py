@@ -130,6 +130,18 @@ class UpdateRunTestSerializer(serializers.Serializer):
     )
 
 
+class RunTestComponentsUpdateSerializer(serializers.Serializer):
+    """Serializer for updating run-test component references."""
+
+    agent_definition_id = serializers.UUIDField(required=False)
+    version = serializers.UUIDField(required=False)
+    simulator_agent_id = serializers.UUIDField(required=False)
+    scenarios = serializers.ListField(
+        child=serializers.UUIDField(), allow_empty=True, required=False
+    )
+    enable_tool_evaluation = serializers.BooleanField(required=False)
+
+
 class CreatePromptSimulationSerializer(serializers.Serializer):
     """Serializer for creating a new prompt-based simulation run"""
 

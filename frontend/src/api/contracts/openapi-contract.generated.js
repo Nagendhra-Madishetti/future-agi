@@ -12455,7 +12455,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_agent-definitions_versions_eval-summary_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/EvalSummaryResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/EvalErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/EvalErrorResponse"
+          }
+        }
       }
     },
     "/simulate/agent-definitions/{agent_id}/versions/{version_id}/restore/": {
@@ -13447,7 +13457,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_call-executions_error-localizer-tasks_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CallExecutionErrorLocalizerTasksResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/CallExecutionErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/CallExecutionErrorResponse"
+          }
+        }
       }
     },
     "/simulate/call-executions/{call_execution_id}/logs/": {
@@ -13473,7 +13493,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_call-executions_session-comparison_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SessionComparisonResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/CallExecutionErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/CallExecutionErrorResponse"
+          }
+        }
       }
     },
     "/simulate/call-executions/{call_execution_id}/transcripts/": {
@@ -13498,8 +13528,44 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "simulate_export_read",
         "requestBody": null,
-        "queryParameters": {},
-        "responses": {}
+        "queryParameters": {
+          "type": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "runtest",
+                "testexecution"
+              ]
+            }
+          },
+          "search": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "type": "file"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       }
     },
     "/simulate/prompt-simulations/scenarios/": {
@@ -13507,7 +13573,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_prompt-simulations_scenarios_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PromptSimulationScenariosResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       }
     },
     "/simulate/prompt-templates/{prompt_template_id}/simulations/": {
@@ -13515,13 +13591,41 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_prompt-templates_simulations_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PromptSimulationListResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "simulate_prompt-templates_simulations_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CreatePromptSimulation"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "201": {
+            "$ref": "#/definitions/PromptSimulationRunResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       }
     },
     "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/": {
@@ -13529,13 +13633,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_prompt-templates_simulations_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PromptSimulationRunResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "simulate_prompt-templates_simulations_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/PromptSimulationUpdateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/PromptSimulationRunResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       },
       "delete": {
         "operationId": "simulate_prompt-templates_simulations_delete",
@@ -13547,9 +13676,24 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/execute/": {
       "post": {
         "operationId": "simulate_prompt-templates_simulations_execute_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ExecutePromptSimulationRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ExecutePromptSimulationResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          }
+        }
       }
     },
     "/simulate/run-tests/": {
@@ -13748,7 +13892,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_run-tests_call-executions_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/RunTestCallExecutionsResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/CallExecutionErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/CallExecutionErrorResponse"
+          }
+        }
       }
     },
     "/simulate/run-tests/{run_test_id}/chat-execute/": {
@@ -13777,9 +13931,24 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/run-tests/{run_test_id}/components/": {
       "patch": {
         "operationId": "simulate_run-tests_components_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/RunTestComponentsUpdate"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/RunTestResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/RunTestErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/RunTestErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/RunTestErrorResponse"
+          }
+        }
       }
     },
     "/simulate/run-tests/{run_test_id}/delete-test-executions/": {
@@ -13862,7 +14031,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_run-tests_eval-configs_get-structure_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/EvalConfigStructureResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/EvalErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/EvalErrorResponse"
+          }
+        }
       }
     },
     "/simulate/run-tests/{run_test_id}/eval-configs/{eval_config_id}/update/": {
@@ -25792,6 +25971,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CallExecutionErrorLocalizerTasksResponse": {
+      "type": "object",
+      "properties": {
+        "call_execution_id": {
+          "title": "Call execution id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "error_localizer_tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ErrorLocalizerTaskResponse"
+          },
+          "readOnly": true
+        },
+        "total_tasks": {
+          "title": "Total tasks",
+          "type": "integer",
+          "readOnly": true
+        }
+      }
+    },
     "CallExecutionErrorResponse": {
       "type": "object",
       "properties": {
@@ -26172,6 +26374,73 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Target node id",
           "type": "string",
           "format": "uuid"
+        }
+      }
+    },
+    "CreatePromptSimulation": {
+      "required": [
+        "name",
+        "prompt_template_id",
+        "prompt_version_id",
+        "scenario_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "prompt_template_id": {
+          "title": "Prompt template id",
+          "description": "Prompt template to use as the agent source",
+          "type": "string",
+          "format": "uuid"
+        },
+        "prompt_version_id": {
+          "title": "Prompt version id",
+          "description": "Prompt version ID (UUID) or template_version string",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "scenario_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "dataset_row_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          }
+        },
+        "evaluations_config": {
+          "description": "Evaluation configurations to create",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "x-nullable": true
+            }
+          },
+          "default": []
+        },
+        "enable_tool_evaluation": {
+          "title": "Enable tool evaluation",
+          "description": "Enable automatic tool evaluation for this simulation run",
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -27339,6 +27608,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalConfigStructureResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/EvalConfigStructureResult"
+        }
+      }
+    },
     "EvalConfigUpdateRequest": {
       "type": "object",
       "properties": {
@@ -27531,11 +27816,16 @@ export const OPENAPI_CONTRACT = Object.freeze({
     },
     "EvalSummaryResponse": {
       "required": [
-        "evaluations"
+        "result"
       ],
       "type": "object",
       "properties": {
-        "evaluations": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/EvalTemplateSummary"
@@ -27751,6 +28041,40 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Progress",
           "type": "string",
           "readOnly": true
+        }
+      }
+    },
+    "ExecutePromptSimulationRequest": {
+      "type": "object",
+      "properties": {
+        "scenario_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "default": []
+        },
+        "select_all": {
+          "title": "Select all",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "ExecutePromptSimulationResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/ExecutePromptSimulationResult"
         }
       }
     },
@@ -31454,6 +31778,86 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "PromptSimulationListResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/PromptSimulationListResult"
+        }
+      }
+    },
+    "PromptSimulationRunResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/RunTestResponse"
+        }
+      }
+    },
+    "PromptSimulationScenariosResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/PromptSimulationScenariosResult"
+        }
+      }
+    },
+    "PromptSimulationUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "prompt_version_id": {
+          "title": "Prompt version id",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "scenario_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "enable_tool_evaluation": {
+          "title": "Enable tool evaluation",
+          "type": "boolean"
+        }
+      }
+    },
     "PromptTemplate": {
       "required": [
         "name"
@@ -32456,6 +32860,51 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "RunTestCallExecutionsResponse": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "next": {
+          "title": "Next",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "previous": {
+          "title": "Previous",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "x-nullable": true
+            }
+          },
+          "readOnly": true
+        },
+        "total_pages": {
+          "title": "Total pages",
+          "type": "integer",
+          "readOnly": true
+        },
+        "current_page": {
+          "title": "Current page",
+          "type": "integer",
+          "readOnly": true
+        }
+      }
+    },
     "RunTestChatExecutionResponse": {
       "required": [
         "result"
@@ -32469,6 +32918,37 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/RunTestChatExecutionResult"
+        }
+      }
+    },
+    "RunTestComponentsUpdate": {
+      "type": "object",
+      "properties": {
+        "agent_definition_id": {
+          "title": "Agent definition id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string",
+          "format": "uuid"
+        },
+        "simulator_agent_id": {
+          "title": "Simulator agent id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "scenarios": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "enable_tool_evaluation": {
+          "title": "Enable tool evaluation",
+          "type": "boolean"
         }
       }
     },
@@ -33774,6 +34254,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Initiate chat",
           "type": "boolean",
           "default": false
+        }
+      }
+    },
+    "SessionComparisonResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/SessionComparisonResult"
         }
       }
     },
@@ -36544,6 +37040,115 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "ErrorLocalizerTaskResponse": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "title": "Task id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "eval_config_id": {
+          "title": "Eval config id",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "readOnly": true
+        },
+        "eval_result": {
+          "title": "Eval result",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "eval_explanation": {
+          "title": "Eval explanation",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "input_data": {
+          "title": "Input data",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "input_keys": {
+          "title": "Input keys",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "input_types": {
+          "title": "Input types",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "rule_prompt": {
+          "title": "Rule prompt",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "error_analysis": {
+          "title": "Error analysis",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "selected_input_key": {
+          "title": "Selected input key",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "error_message": {
+          "title": "Error message",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "eval_template_name": {
+          "title": "Eval template name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "eval_template_id": {
+          "title": "Eval template id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        }
+      }
+    },
     "CallLogEntryResponse": {
       "type": "object",
       "properties": {
@@ -37220,13 +37825,23 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalConfigStructureResult": {
+      "required": [
+        "eval"
+      ],
+      "type": "object",
+      "properties": {
+        "eval": {
+          "$ref": "#/definitions/EvalConfigStructure"
+        }
+      }
+    },
     "EvalTemplateSummary": {
       "required": [
         "name",
-        "average_score",
-        "total_runs",
-        "passed",
-        "failed"
+        "id",
+        "total_cells",
+        "output"
       ],
       "type": "object",
       "properties": {
@@ -37235,22 +37850,67 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "minLength": 1
         },
-        "average_score": {
-          "title": "Average score",
-          "type": "number",
-          "x-nullable": true
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "minLength": 1
         },
-        "total_runs": {
-          "title": "Total runs",
+        "total_cells": {
+          "title": "Total cells",
           "type": "integer"
         },
-        "passed": {
-          "title": "Passed",
-          "type": "integer"
+        "output": {
+          "title": "Output",
+          "type": "object"
+        }
+      }
+    },
+    "ExecutePromptSimulationResult": {
+      "required": [
+        "scenario_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
         },
-        "failed": {
-          "title": "Failed",
-          "type": "integer"
+        "execution_id": {
+          "title": "Execution id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "run_test_id": {
+          "title": "Run test id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "total_scenarios": {
+          "title": "Total scenarios",
+          "type": "integer",
+          "readOnly": true
+        },
+        "total_calls": {
+          "title": "Total calls",
+          "type": "integer",
+          "readOnly": true
+        },
+        "scenario_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
         }
       }
     },
@@ -37666,6 +38326,63 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "$ref": "#/definitions/RepresentativeTrace"
           }
+        }
+      }
+    },
+    "PromptSimulationListResult": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer",
+          "readOnly": true
+        },
+        "limit": {
+          "title": "Limit",
+          "type": "integer",
+          "readOnly": true
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RunTestResponse"
+          },
+          "readOnly": true
+        },
+        "prompt_template": {
+          "$ref": "#/definitions/PromptSimulationTemplateSummary"
+        }
+      }
+    },
+    "PromptSimulationScenariosResult": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer",
+          "readOnly": true
+        },
+        "limit": {
+          "title": "Limit",
+          "type": "integer",
+          "readOnly": true
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PromptSimulationScenarioItem"
+          },
+          "readOnly": true
         }
       }
     },
@@ -38596,6 +39313,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       },
       "x-nullable": true
+    },
+    "SessionComparisonResult": {
+      "type": "object",
+      "properties": {
+        "comparison_metrics": {
+          "title": "Comparison metrics",
+          "type": "object",
+          "readOnly": true
+        },
+        "comparison_transcripts": {
+          "title": "Comparison transcripts",
+          "type": "object",
+          "readOnly": true
+        },
+        "comparison_recordings": {
+          "title": "Comparison recordings",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        }
+      }
     },
     "SharedLinkAccess": {
       "required": [
@@ -39569,6 +40307,166 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalConfigStructure": {
+      "required": [
+        "required_keys",
+        "optional_keys",
+        "variable_keys"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "reason_column": {
+          "title": "Reason column",
+          "type": "boolean",
+          "readOnly": true
+        },
+        "eval_tags": {
+          "title": "Eval tags",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "readOnly": true
+        },
+        "required_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "optional_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "variable_keys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "run_prompt_column": {
+          "title": "Run prompt column",
+          "type": "boolean",
+          "readOnly": true
+        },
+        "template_name": {
+          "title": "Template name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "mapping": {
+          "title": "Mapping",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "readOnly": true
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "readOnly": true
+        },
+        "params": {
+          "title": "Params",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "function_params_schema": {
+          "title": "Function params schema",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "models": {
+          "title": "Models",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "selected_model": {
+          "title": "Selected model",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "error_localizer": {
+          "title": "Error localizer",
+          "type": "boolean",
+          "readOnly": true
+        },
+        "kb_id": {
+          "title": "Kb id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "output": {
+          "title": "Output",
+          "type": "object",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "config_params_desc": {
+          "title": "Config params desc",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "readOnly": true
+        },
+        "config_params_option": {
+          "title": "Config params option",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "readOnly": true
+        },
+        "api_key_available": {
+          "title": "Api key available",
+          "type": "boolean",
+          "readOnly": true
+        }
+      }
+    },
     "FeedListRow": {
       "required": [
         "cluster_id",
@@ -40077,6 +40975,64 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "x-nullable": true
           },
           "x-nullable": true
+        }
+      }
+    },
+    "PromptSimulationTemplateSummary": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        }
+      }
+    },
+    "PromptSimulationScenarioItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "readOnly": true
+        },
+        "scenario_type": {
+          "title": "Scenario type",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "dataset_id": {
+          "title": "Dataset id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
         }
       }
     },

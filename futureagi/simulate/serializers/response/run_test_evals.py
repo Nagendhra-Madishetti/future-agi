@@ -50,10 +50,9 @@ class EvalTemplateSummarySerializer(serializers.Serializer):
     """Single evaluation template summary entry within EvalSummaryResponseSerializer."""
 
     name = serializers.CharField()
-    average_score = serializers.FloatField(allow_null=True)
-    total_runs = serializers.IntegerField()
-    passed = serializers.IntegerField()
-    failed = serializers.IntegerField()
+    id = serializers.CharField()
+    total_cells = serializers.IntegerField()
+    output = serializers.JSONField()
 
 
 class EvalSummaryResponseSerializer(serializers.Serializer):
@@ -62,7 +61,8 @@ class EvalSummaryResponseSerializer(serializers.Serializer):
     Returns an array of per-eval-config summary objects.
     """
 
-    evaluations = EvalTemplateSummarySerializer(many=True)
+    status = serializers.BooleanField(default=True)
+    result = EvalTemplateSummarySerializer(many=True)
 
 
 class EvalSummaryComparisonResponseSerializer(serializers.Serializer):
@@ -73,6 +73,41 @@ class EvalSummaryComparisonResponseSerializer(serializers.Serializer):
     """
 
     pass  # Dynamic dict — documented in the MDX response section
+
+
+class EvalConfigStructureSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    template_id = serializers.UUIDField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    reason_column = serializers.BooleanField(read_only=True)
+    eval_tags = serializers.JSONField(read_only=True, allow_null=True)
+    description = serializers.CharField(read_only=True, allow_blank=True)
+    required_keys = serializers.ListField(child=serializers.CharField())
+    optional_keys = serializers.ListField(child=serializers.CharField())
+    variable_keys = serializers.ListField(child=serializers.CharField())
+    run_prompt_column = serializers.BooleanField(read_only=True)
+    template_name = serializers.CharField(read_only=True)
+    mapping = serializers.DictField(read_only=True)
+    config = serializers.DictField(read_only=True)
+    params = serializers.JSONField(read_only=True, allow_null=True)
+    function_params_schema = serializers.JSONField(read_only=True, allow_null=True)
+    models = serializers.JSONField(read_only=True, allow_null=True)
+    selected_model = serializers.CharField(read_only=True, allow_null=True)
+    error_localizer = serializers.BooleanField(read_only=True)
+    kb_id = serializers.UUIDField(read_only=True, allow_null=True)
+    output = serializers.JSONField(read_only=True, allow_null=True)
+    config_params_desc = serializers.DictField(read_only=True)
+    config_params_option = serializers.DictField(read_only=True)
+    api_key_available = serializers.BooleanField(read_only=True)
+
+
+class EvalConfigStructureResultSerializer(serializers.Serializer):
+    eval = EvalConfigStructureSerializer()
+
+
+class EvalConfigStructureResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = EvalConfigStructureResultSerializer()
 
 
 class RunNewEvalsResponseSerializer(serializers.Serializer):

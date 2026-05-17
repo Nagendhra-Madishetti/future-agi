@@ -21,6 +21,10 @@ from simulate.serializers.response.agent_version import (
     AgentVersionResponseSerializer,
     AgentVersionRestoreResponseSerializer,
 )
+from simulate.serializers.response.run_test_evals import (
+    EvalErrorResponseSerializer,
+    EvalSummaryResponseSerializer,
+)
 from simulate.serializers.test_execution import CallExecutionSerializer
 from simulate.utils.eval_summary import (
     _build_template_statistics,
@@ -454,7 +458,11 @@ class AgentVersionEvalSummaryView(APIView):
     _gm = GeneralMethods()
 
     @swagger_auto_schema(
-        responses={200: "Evaluation summary for the agent version"},
+        responses={
+            200: EvalSummaryResponseSerializer,
+            404: EvalErrorResponseSerializer,
+            500: EvalErrorResponseSerializer,
+        },
     )
     def get(self, request, agent_id, version_id, *args, **kwargs):
         """
@@ -472,7 +480,7 @@ class AgentVersionEvalSummaryView(APIView):
             eval_configs = _get_eval_config_for_agent_version(version)
 
             if not eval_configs:
-                return Response([], status=status.HTTP_200_OK)
+                return self._gm.success_response([])
 
             call_executions = _get_completed_call_executions_for_agent_version(version)
             template_stats = _build_template_statistics(eval_configs, call_executions)

@@ -3,8 +3,8 @@
   "summary": {
     "paths": 964,
     "operations": 1326,
-    "mutation_endpoints_without_body_schema": 312,
-    "operations_without_response_schema": 536
+    "mutation_endpoints_without_body_schema": 308,
+    "operations_without_response_schema": 523
   },
   "by_group": {
     "accounts": {
@@ -88,8 +88,8 @@
     "simulate": {
       "paths": 105,
       "operations": 125,
-      "mutation_endpoints_without_body_schema": 4,
-      "operations_without_response_schema": 13
+      "mutation_endpoints_without_body_schema": 0,
+      "operations_without_response_schema": 0
     },
     "tracer": {
       "paths": 159,
@@ -2377,42 +2377,6 @@
       "operation_id": "sdk_api_v1_new-eval_create",
       "tags": [
         "sdk"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/prompt-templates/{prompt_template_id}/simulations/",
-      "operation_id": "simulate_prompt-templates_simulations_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "PATCH",
-      "path": "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/",
-      "operation_id": "simulate_prompt-templates_simulations_partial_update",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/execute/",
-      "operation_id": "simulate_prompt-templates_simulations_execute_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "PATCH",
-      "path": "/simulate/run-tests/{run_test_id}/components/",
-      "operation_id": "simulate_run-tests_components_partial_update",
-      "tags": [
-        "simulate"
       ]
     },
     {
@@ -6825,123 +6789,6 @@
       "operation_id": "sdk_api_v1_simulation_runs_list",
       "tags": [
         "sdk"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/agent-definitions/{agent_id}/versions/{version_id}/eval-summary/",
-      "operation_id": "simulate_agent-definitions_versions_eval-summary_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/call-executions/{call_execution_id}/error-localizer-tasks/",
-      "operation_id": "simulate_call-executions_error-localizer-tasks_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/call-executions/{call_execution_id}/session-comparison/",
-      "operation_id": "simulate_call-executions_session-comparison_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/export/{item_id}/",
-      "operation_id": "simulate_export_read",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/prompt-simulations/scenarios/",
-      "operation_id": "simulate_prompt-simulations_scenarios_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/prompt-templates/{prompt_template_id}/simulations/",
-      "operation_id": "simulate_prompt-templates_simulations_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/prompt-templates/{prompt_template_id}/simulations/",
-      "operation_id": "simulate_prompt-templates_simulations_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/",
-      "operation_id": "simulate_prompt-templates_simulations_read",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "PATCH",
-      "path": "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/",
-      "operation_id": "simulate_prompt-templates_simulations_partial_update",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/execute/",
-      "operation_id": "simulate_prompt-templates_simulations_execute_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/run-tests/{run_test_id}/call-executions/",
-      "operation_id": "simulate_run-tests_call-executions_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "PATCH",
-      "path": "/simulate/run-tests/{run_test_id}/components/",
-      "operation_id": "simulate_run-tests_components_partial_update",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/run-tests/{run_test_id}/eval-configs/{eval_config_id}/get-structure/",
-      "operation_id": "simulate_run-tests_eval-configs_get-structure_list",
-      "tags": [
-        "simulate"
       ]
     },
     {

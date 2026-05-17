@@ -9,6 +9,7 @@ import structlog
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -17,10 +18,19 @@ from accounts.utils import get_request_organization
 from model_hub.models.evals_metric import EvalTemplate
 from model_hub.models.run_prompt import PromptTemplate, PromptVersion
 from simulate.models import RunTest, Scenarios, SimulateEvalConfig
+from simulate.serializers.prompt_simulation import (
+    ExecutePromptSimulationRequestSerializer,
+    ExecutePromptSimulationResponseSerializer,
+    PromptSimulationListResponseSerializer,
+    PromptSimulationRunResponseSerializer,
+    PromptSimulationScenariosResponseSerializer,
+    PromptSimulationUpdateRequestSerializer,
+)
 from simulate.serializers.requests.run_test import CreatePromptSimulationSerializer
 from simulate.serializers.run_test import RunTestSerializer
 from simulate.services.test_executor import TestExecutor
 from simulate.utils.scenario_completeness import check_scenarios_incomplete
+from tfc.utils.api_serializers import ApiErrorResponseSerializer
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
@@ -40,6 +50,14 @@ class PromptSimulationListCreateView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        responses={
+            200: PromptSimulationListResponseSerializer,
+            400: ApiErrorResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def get(self, request, prompt_template_id, *args, **kwargs):
         """
         Get paginated list of simulation runs for a specific prompt template.
@@ -111,6 +129,15 @@ class PromptSimulationListCreateView(APIView):
             logger.exception("Error listing prompt simulations", error=str(e))
             return self.gm.internal_server_error_response("Failed to list simulations")
 
+    @swagger_auto_schema(
+        request_body=CreatePromptSimulationSerializer,
+        responses={
+            201: PromptSimulationRunResponseSerializer,
+            400: ApiErrorResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def post(self, request, prompt_template_id, *args, **kwargs):
         """
         Create a new prompt-based simulation run.
@@ -262,6 +289,13 @@ class PromptSimulationDetailView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        responses={
+            200: PromptSimulationRunResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def get(self, request, prompt_template_id, run_test_id, *args, **kwargs):
         """Retrieve a specific prompt simulation run."""
         try:
@@ -296,6 +330,15 @@ class PromptSimulationDetailView(APIView):
                 "Failed to retrieve simulation"
             )
 
+    @swagger_auto_schema(
+        request_body=PromptSimulationUpdateRequestSerializer,
+        responses={
+            200: PromptSimulationRunResponseSerializer,
+            400: ApiErrorResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def patch(self, request, prompt_template_id, run_test_id, *args, **kwargs):
         """Update a prompt simulation run (version, scenarios, etc.)."""
         try:
@@ -423,6 +466,15 @@ class ExecutePromptSimulationView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=ExecutePromptSimulationRequestSerializer,
+        responses={
+            200: ExecutePromptSimulationResponseSerializer,
+            400: ApiErrorResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def post(self, request, prompt_template_id, run_test_id, *args, **kwargs):
         """
         Execute a prompt-based simulation run.
@@ -550,6 +602,13 @@ class PromptSimulationScenariosView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        responses={
+            200: PromptSimulationScenariosResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            500: ApiErrorResponseSerializer,
+        },
+    )
     def get(self, request, *args, **kwargs):
         """
         Get list of scenarios available for prompt simulations.

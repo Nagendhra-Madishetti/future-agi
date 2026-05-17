@@ -15614,6 +15614,22 @@ export const SimulateAgentDefinitionsVersionsEvalSummaryListParams = zod.object(
   "version_id": zod.string()
 })
 
+export const simulateAgentDefinitionsVersionsEvalSummaryListResponseStatusDefault = true;
+
+
+
+export const SimulateAgentDefinitionsVersionsEvalSummaryListResponse = zod.object({
+  "status": zod.boolean().default(simulateAgentDefinitionsVersionsEvalSummaryListResponseStatusDefault),
+  "result": zod.array(zod.object({
+  "name": zod.string().min(1),
+  "id": zod.string().min(1),
+  "total_cells": zod.number(),
+  "output": zod.object({
+
+}).passthrough()
+}))
+})
+
 
 /**
  * Restore agent definition from a specific version.
@@ -17997,6 +18013,47 @@ export const SimulateCallExecutionsErrorLocalizerTasksListParams = zod.object({
 })
 
 
+
+
+
+
+
+
+
+export const SimulateCallExecutionsErrorLocalizerTasksListResponse = zod.object({
+  "call_execution_id": zod.string().uuid().optional(),
+  "error_localizer_tasks": zod.array(zod.object({
+  "task_id": zod.string().uuid().optional(),
+  "eval_config_id": zod.string().min(1).optional(),
+  "status": zod.string().optional(),
+  "eval_result": zod.object({
+
+}).passthrough().optional(),
+  "eval_explanation": zod.string().min(1).optional(),
+  "input_data": zod.object({
+
+}).passthrough().optional(),
+  "input_keys": zod.object({
+
+}).passthrough().optional(),
+  "input_types": zod.object({
+
+}).passthrough().optional(),
+  "rule_prompt": zod.string().min(1).optional(),
+  "error_analysis": zod.object({
+
+}).passthrough().optional(),
+  "selected_input_key": zod.string().min(1).optional(),
+  "error_message": zod.string().min(1).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "eval_template_name": zod.string().min(1).optional(),
+  "eval_template_id": zod.string().uuid().optional()
+})).optional(),
+  "total_tasks": zod.number().optional()
+})
+
+
 /**
  * Paginated API to retrieve stored log entries for a call execution.
  */
@@ -18034,6 +18091,23 @@ export const SimulateCallExecutionsLogsListResponse = zod.object({
  */
 export const SimulateCallExecutionsSessionComparisonListParams = zod.object({
   "call_execution_id": zod.string()
+})
+
+export const simulateCallExecutionsSessionComparisonListResponseStatusDefault = true;
+
+export const SimulateCallExecutionsSessionComparisonListResponse = zod.object({
+  "status": zod.boolean().default(simulateCallExecutionsSessionComparisonListResponseStatusDefault),
+  "result": zod.object({
+  "comparison_metrics": zod.object({
+
+}).passthrough().optional(),
+  "comparison_transcripts": zod.object({
+
+}).passthrough().optional(),
+  "comparison_recordings": zod.object({
+
+}).passthrough().optional()
+})
 })
 
 
@@ -18085,6 +18159,43 @@ export const SimulateExportReadParams = zod.object({
   "item_id": zod.string()
 })
 
+export const SimulateExportReadQueryParams = zod.object({
+  "type": zod.enum(['runtest', 'testexecution']).describe('Export source type.'),
+  "search": zod.string().optional().describe('Optional call-execution search term.'),
+  "status": zod.string().optional().describe('Optional call-execution status filter.')
+})
+
+export const SimulateExportReadResponse = zod.instanceof(File)
+
+
+/**
+ * Query Parameters:
+- limit: number of items per page (default: 20)
+- page: page number (default: 1)
+- search: search string to filter scenarios by name
+ * @summary Get list of scenarios available for prompt simulations.
+ */
+export const simulatePromptSimulationsScenariosListResponseStatusDefault = true;
+
+
+
+export const SimulatePromptSimulationsScenariosListResponse = zod.object({
+  "status": zod.boolean().default(simulatePromptSimulationsScenariosListResponseStatusDefault),
+  "result": zod.object({
+  "count": zod.number().optional(),
+  "page": zod.number().optional(),
+  "limit": zod.number().optional(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "description": zod.string().optional(),
+  "scenario_type": zod.string().min(1).optional(),
+  "dataset_id": zod.string().uuid().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional()
+})).optional()
+})
+})
+
 
 /**
  * Query Parameters:
@@ -18095,6 +18206,86 @@ export const SimulateExportReadParams = zod.object({
  */
 export const SimulatePromptTemplatesSimulationsListParams = zod.object({
   "prompt_template_id": zod.string()
+})
+
+export const simulatePromptTemplatesSimulationsListResponseStatusDefault = true;
+
+
+export const simulatePromptTemplatesSimulationsListResponseResultResultsItemDatasetRowIdsItemMax = 255;
+
+
+
+
+
+
+
+
+
+
+
+
+export const SimulatePromptTemplatesSimulationsListResponse = zod.object({
+  "status": zod.boolean().default(simulatePromptTemplatesSimulationsListResponseStatusDefault),
+  "result": zod.object({
+  "count": zod.number().optional(),
+  "page": zod.number().optional(),
+  "limit": zod.number().optional(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional().describe('Name of the test run'),
+  "description": zod.string().min(1).optional().describe('Description of the test run'),
+  "agent_definition": zod.string().uuid().optional().describe('Agent definition for this test run'),
+  "agent_version": zod.record(zod.string(), zod.string()).optional(),
+  "agent_definition_detail": zod.record(zod.string(), zod.string()).optional(),
+  "source_type": zod.enum(['agent_definition', 'prompt']).optional().describe('Source type for the test run: agent_definition or prompt'),
+  "source_type_display": zod.string().min(1).optional(),
+  "prompt_template": zod.string().uuid().optional().describe('Prompt template for this test run (only for prompt source type)'),
+  "prompt_template_detail": zod.record(zod.string(), zod.string()).optional(),
+  "prompt_version": zod.string().uuid().optional().describe('Prompt version for this test run (only for prompt source type)'),
+  "prompt_version_detail": zod.record(zod.string(), zod.string()).optional(),
+  "scenarios": zod.array(zod.string().uuid().describe('Scenarios to run in this test')).optional().describe('Scenarios to run in this test'),
+  "scenarios_detail": zod.array(zod.record(zod.string(), zod.string())).optional(),
+  "dataset_row_ids": zod.array(zod.string().min(1).max(simulatePromptTemplatesSimulationsListResponseResultResultsItemDatasetRowIdsItemMax)).optional().describe('IDs of dataset rows to run evaluations on'),
+  "simulator_agent": zod.string().uuid().optional().describe('Simulator agent for this test run (derived from scenarios)'),
+  "simulator_agent_detail": zod.record(zod.string(), zod.string()).optional(),
+  "simulate_eval_configs": zod.array(zod.string().uuid()).optional(),
+  "simulate_eval_configs_detail": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "config": zod.record(zod.string(), zod.string()).optional(),
+  "mapping": zod.record(zod.string(), zod.string()).optional(),
+  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "error_localizer": zod.boolean().optional(),
+  "model": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "eval_group": zod.string().min(1).optional(),
+  "template_id": zod.string().uuid().optional()
+})).optional(),
+  "evals_detail": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "config": zod.record(zod.string(), zod.string()).optional(),
+  "mapping": zod.record(zod.string(), zod.string()).optional(),
+  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "error_localizer": zod.boolean().optional(),
+  "model": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "eval_group": zod.string().min(1).optional(),
+  "template_id": zod.string().uuid().optional()
+})).optional(),
+  "organization": zod.string().uuid().optional().describe('Organization this test run belongs to'),
+  "enable_tool_evaluation": zod.boolean().optional().describe('Enable automatic tool evaluation for this test run'),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "last_run_at": zod.string().datetime({"offset":true}).optional(),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional()
+})).optional(),
+  "prompt_template": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional()
+}).optional()
+})
 })
 
 
@@ -18113,6 +18304,26 @@ export const SimulatePromptTemplatesSimulationsCreateParams = zod.object({
   "prompt_template_id": zod.string()
 })
 
+export const simulatePromptTemplatesSimulationsCreateBodyNameMax = 255;
+
+export const simulatePromptTemplatesSimulationsCreateBodyPromptVersionIdMax = 255;
+
+export const simulatePromptTemplatesSimulationsCreateBodyDatasetRowIdsItemMax = 255;
+
+export const simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigDefault = [];
+export const simulatePromptTemplatesSimulationsCreateBodyEnableToolEvaluationDefault = false;
+
+export const SimulatePromptTemplatesSimulationsCreateBody = zod.object({
+  "name": zod.string().min(1).max(simulatePromptTemplatesSimulationsCreateBodyNameMax),
+  "description": zod.string().optional(),
+  "prompt_template_id": zod.string().uuid().describe('Prompt template to use as the agent source'),
+  "prompt_version_id": zod.string().min(1).max(simulatePromptTemplatesSimulationsCreateBodyPromptVersionIdMax).describe('Prompt version ID (UUID) or template_version string'),
+  "scenario_ids": zod.array(zod.string().uuid()),
+  "dataset_row_ids": zod.array(zod.string().min(1).max(simulatePromptTemplatesSimulationsCreateBodyDatasetRowIdsItemMax)).optional(),
+  "evaluations_config": zod.array(zod.record(zod.string(), zod.string())).default(simulatePromptTemplatesSimulationsCreateBodyEvaluationsConfigDefault).describe('Evaluation configurations to create'),
+  "enable_tool_evaluation": zod.boolean().default(simulatePromptTemplatesSimulationsCreateBodyEnableToolEvaluationDefault).describe('Enable automatic tool evaluation for this simulation run')
+})
+
 
 /**
  * Retrieve a specific prompt simulation run.
@@ -18122,6 +18333,76 @@ export const SimulatePromptTemplatesSimulationsReadParams = zod.object({
   "run_test_id": zod.string()
 })
 
+export const simulatePromptTemplatesSimulationsReadResponseStatusDefault = true;
+
+
+export const simulatePromptTemplatesSimulationsReadResponseResultDatasetRowIdsItemMax = 255;
+
+
+
+
+
+
+
+
+
+
+
+export const SimulatePromptTemplatesSimulationsReadResponse = zod.object({
+  "status": zod.boolean().default(simulatePromptTemplatesSimulationsReadResponseStatusDefault),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional().describe('Name of the test run'),
+  "description": zod.string().min(1).optional().describe('Description of the test run'),
+  "agent_definition": zod.string().uuid().optional().describe('Agent definition for this test run'),
+  "agent_version": zod.record(zod.string(), zod.string()).optional(),
+  "agent_definition_detail": zod.record(zod.string(), zod.string()).optional(),
+  "source_type": zod.enum(['agent_definition', 'prompt']).optional().describe('Source type for the test run: agent_definition or prompt'),
+  "source_type_display": zod.string().min(1).optional(),
+  "prompt_template": zod.string().uuid().optional().describe('Prompt template for this test run (only for prompt source type)'),
+  "prompt_template_detail": zod.record(zod.string(), zod.string()).optional(),
+  "prompt_version": zod.string().uuid().optional().describe('Prompt version for this test run (only for prompt source type)'),
+  "prompt_version_detail": zod.record(zod.string(), zod.string()).optional(),
+  "scenarios": zod.array(zod.string().uuid().describe('Scenarios to run in this test')).optional().describe('Scenarios to run in this test'),
+  "scenarios_detail": zod.array(zod.record(zod.string(), zod.string())).optional(),
+  "dataset_row_ids": zod.array(zod.string().min(1).max(simulatePromptTemplatesSimulationsReadResponseResultDatasetRowIdsItemMax)).optional().describe('IDs of dataset rows to run evaluations on'),
+  "simulator_agent": zod.string().uuid().optional().describe('Simulator agent for this test run (derived from scenarios)'),
+  "simulator_agent_detail": zod.record(zod.string(), zod.string()).optional(),
+  "simulate_eval_configs": zod.array(zod.string().uuid()).optional(),
+  "simulate_eval_configs_detail": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "config": zod.record(zod.string(), zod.string()).optional(),
+  "mapping": zod.record(zod.string(), zod.string()).optional(),
+  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "error_localizer": zod.boolean().optional(),
+  "model": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "eval_group": zod.string().min(1).optional(),
+  "template_id": zod.string().uuid().optional()
+})).optional(),
+  "evals_detail": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "config": zod.record(zod.string(), zod.string()).optional(),
+  "mapping": zod.record(zod.string(), zod.string()).optional(),
+  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "error_localizer": zod.boolean().optional(),
+  "model": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "eval_group": zod.string().min(1).optional(),
+  "template_id": zod.string().uuid().optional()
+})).optional(),
+  "organization": zod.string().uuid().optional().describe('Organization this test run belongs to'),
+  "enable_tool_evaluation": zod.boolean().optional().describe('Enable automatic tool evaluation for this test run'),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "last_run_at": zod.string().datetime({"offset":true}).optional(),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional()
+})
+})
+
 
 /**
  * Update a prompt simulation run (version, scenarios, etc.).
@@ -18129,6 +18410,90 @@ export const SimulatePromptTemplatesSimulationsReadParams = zod.object({
 export const SimulatePromptTemplatesSimulationsPartialUpdateParams = zod.object({
   "prompt_template_id": zod.string(),
   "run_test_id": zod.string()
+})
+
+export const simulatePromptTemplatesSimulationsPartialUpdateBodyPromptVersionIdMax = 255;
+
+export const simulatePromptTemplatesSimulationsPartialUpdateBodyNameMax = 255;
+
+
+
+export const SimulatePromptTemplatesSimulationsPartialUpdateBody = zod.object({
+  "prompt_version_id": zod.string().min(1).max(simulatePromptTemplatesSimulationsPartialUpdateBodyPromptVersionIdMax).optional(),
+  "scenario_ids": zod.array(zod.string().uuid()).optional(),
+  "name": zod.string().min(1).max(simulatePromptTemplatesSimulationsPartialUpdateBodyNameMax).optional(),
+  "description": zod.string().optional(),
+  "enable_tool_evaluation": zod.boolean().optional()
+})
+
+export const simulatePromptTemplatesSimulationsPartialUpdateResponseStatusDefault = true;
+
+
+export const simulatePromptTemplatesSimulationsPartialUpdateResponseResultDatasetRowIdsItemMax = 255;
+
+
+
+
+
+
+
+
+
+
+
+export const SimulatePromptTemplatesSimulationsPartialUpdateResponse = zod.object({
+  "status": zod.boolean().default(simulatePromptTemplatesSimulationsPartialUpdateResponseStatusDefault),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional().describe('Name of the test run'),
+  "description": zod.string().min(1).optional().describe('Description of the test run'),
+  "agent_definition": zod.string().uuid().optional().describe('Agent definition for this test run'),
+  "agent_version": zod.record(zod.string(), zod.string()).optional(),
+  "agent_definition_detail": zod.record(zod.string(), zod.string()).optional(),
+  "source_type": zod.enum(['agent_definition', 'prompt']).optional().describe('Source type for the test run: agent_definition or prompt'),
+  "source_type_display": zod.string().min(1).optional(),
+  "prompt_template": zod.string().uuid().optional().describe('Prompt template for this test run (only for prompt source type)'),
+  "prompt_template_detail": zod.record(zod.string(), zod.string()).optional(),
+  "prompt_version": zod.string().uuid().optional().describe('Prompt version for this test run (only for prompt source type)'),
+  "prompt_version_detail": zod.record(zod.string(), zod.string()).optional(),
+  "scenarios": zod.array(zod.string().uuid().describe('Scenarios to run in this test')).optional().describe('Scenarios to run in this test'),
+  "scenarios_detail": zod.array(zod.record(zod.string(), zod.string())).optional(),
+  "dataset_row_ids": zod.array(zod.string().min(1).max(simulatePromptTemplatesSimulationsPartialUpdateResponseResultDatasetRowIdsItemMax)).optional().describe('IDs of dataset rows to run evaluations on'),
+  "simulator_agent": zod.string().uuid().optional().describe('Simulator agent for this test run (derived from scenarios)'),
+  "simulator_agent_detail": zod.record(zod.string(), zod.string()).optional(),
+  "simulate_eval_configs": zod.array(zod.string().uuid()).optional(),
+  "simulate_eval_configs_detail": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "config": zod.record(zod.string(), zod.string()).optional(),
+  "mapping": zod.record(zod.string(), zod.string()).optional(),
+  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "error_localizer": zod.boolean().optional(),
+  "model": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "eval_group": zod.string().min(1).optional(),
+  "template_id": zod.string().uuid().optional()
+})).optional(),
+  "evals_detail": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "config": zod.record(zod.string(), zod.string()).optional(),
+  "mapping": zod.record(zod.string(), zod.string()).optional(),
+  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "error_localizer": zod.boolean().optional(),
+  "model": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "eval_group": zod.string().min(1).optional(),
+  "template_id": zod.string().uuid().optional()
+})).optional(),
+  "organization": zod.string().uuid().optional().describe('Organization this test run belongs to'),
+  "enable_tool_evaluation": zod.boolean().optional().describe('Enable automatic tool evaluation for this test run'),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "last_run_at": zod.string().datetime({"offset":true}).optional(),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional()
+})
 })
 
 
@@ -18150,6 +18515,31 @@ export const SimulatePromptTemplatesSimulationsDeleteParams = zod.object({
 export const SimulatePromptTemplatesSimulationsExecuteCreateParams = zod.object({
   "prompt_template_id": zod.string(),
   "run_test_id": zod.string()
+})
+
+export const simulatePromptTemplatesSimulationsExecuteCreateBodyScenarioIdsDefault = [];
+export const simulatePromptTemplatesSimulationsExecuteCreateBodySelectAllDefault = false;
+
+export const SimulatePromptTemplatesSimulationsExecuteCreateBody = zod.object({
+  "scenario_ids": zod.array(zod.string().uuid()).default(simulatePromptTemplatesSimulationsExecuteCreateBodyScenarioIdsDefault),
+  "select_all": zod.boolean().default(simulatePromptTemplatesSimulationsExecuteCreateBodySelectAllDefault)
+})
+
+export const simulatePromptTemplatesSimulationsExecuteCreateResponseStatusDefault = true;
+
+
+
+export const SimulatePromptTemplatesSimulationsExecuteCreateResponse = zod.object({
+  "status": zod.boolean().default(simulatePromptTemplatesSimulationsExecuteCreateResponseStatusDefault),
+  "result": zod.object({
+  "message": zod.string().min(1).optional(),
+  "execution_id": zod.string().uuid().optional(),
+  "run_test_id": zod.string().uuid().optional(),
+  "status": zod.string().min(1).optional(),
+  "total_scenarios": zod.number().optional(),
+  "total_calls": zod.number().optional(),
+  "scenario_ids": zod.array(zod.string().uuid())
+})
 })
 
 
@@ -18509,6 +18899,19 @@ export const SimulateRunTestsCallExecutionsListParams = zod.object({
 })
 
 
+
+
+
+export const SimulateRunTestsCallExecutionsListResponse = zod.object({
+  "count": zod.number().optional(),
+  "next": zod.string().min(1).optional(),
+  "previous": zod.string().min(1).optional(),
+  "results": zod.array(zod.record(zod.string(), zod.string())).optional(),
+  "total_pages": zod.number().optional(),
+  "current_page": zod.number().optional()
+})
+
+
 /**
  * Execute a test run
  */
@@ -18541,6 +18944,81 @@ export const SimulateRunTestsChatExecuteCreateResponse = zod.object({
  */
 export const SimulateRunTestsComponentsPartialUpdateParams = zod.object({
   "run_test_id": zod.string()
+})
+
+export const SimulateRunTestsComponentsPartialUpdateBody = zod.object({
+  "agent_definition_id": zod.string().uuid().optional(),
+  "version": zod.string().uuid().optional(),
+  "simulator_agent_id": zod.string().uuid().optional(),
+  "scenarios": zod.array(zod.string().uuid()).optional(),
+  "enable_tool_evaluation": zod.boolean().optional()
+})
+
+
+
+
+export const simulateRunTestsComponentsPartialUpdateResponseDatasetRowIdsItemMax = 255;
+
+
+
+
+
+
+
+
+
+
+
+export const SimulateRunTestsComponentsPartialUpdateResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional().describe('Name of the test run'),
+  "description": zod.string().min(1).optional().describe('Description of the test run'),
+  "agent_definition": zod.string().uuid().optional().describe('Agent definition for this test run'),
+  "agent_version": zod.record(zod.string(), zod.string()).optional(),
+  "agent_definition_detail": zod.record(zod.string(), zod.string()).optional(),
+  "source_type": zod.enum(['agent_definition', 'prompt']).optional().describe('Source type for the test run: agent_definition or prompt'),
+  "source_type_display": zod.string().min(1).optional(),
+  "prompt_template": zod.string().uuid().optional().describe('Prompt template for this test run (only for prompt source type)'),
+  "prompt_template_detail": zod.record(zod.string(), zod.string()).optional(),
+  "prompt_version": zod.string().uuid().optional().describe('Prompt version for this test run (only for prompt source type)'),
+  "prompt_version_detail": zod.record(zod.string(), zod.string()).optional(),
+  "scenarios": zod.array(zod.string().uuid().describe('Scenarios to run in this test')).optional().describe('Scenarios to run in this test'),
+  "scenarios_detail": zod.array(zod.record(zod.string(), zod.string())).optional(),
+  "dataset_row_ids": zod.array(zod.string().min(1).max(simulateRunTestsComponentsPartialUpdateResponseDatasetRowIdsItemMax)).optional().describe('IDs of dataset rows to run evaluations on'),
+  "simulator_agent": zod.string().uuid().optional().describe('Simulator agent for this test run (derived from scenarios)'),
+  "simulator_agent_detail": zod.record(zod.string(), zod.string()).optional(),
+  "simulate_eval_configs": zod.array(zod.string().uuid()).optional(),
+  "simulate_eval_configs_detail": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "config": zod.record(zod.string(), zod.string()).optional(),
+  "mapping": zod.record(zod.string(), zod.string()).optional(),
+  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "error_localizer": zod.boolean().optional(),
+  "model": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "eval_group": zod.string().min(1).optional(),
+  "template_id": zod.string().uuid().optional()
+})).optional(),
+  "evals_detail": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "config": zod.record(zod.string(), zod.string()).optional(),
+  "mapping": zod.record(zod.string(), zod.string()).optional(),
+  "filters": zod.record(zod.string(), zod.string()).optional(),
+  "error_localizer": zod.boolean().optional(),
+  "model": zod.string().min(1).optional(),
+  "status": zod.string().min(1).optional(),
+  "eval_group": zod.string().min(1).optional(),
+  "template_id": zod.string().uuid().optional()
+})).optional(),
+  "organization": zod.string().uuid().optional().describe('Organization this test run belongs to'),
+  "enable_tool_evaluation": zod.boolean().optional().describe('Enable automatic tool evaluation for this test run'),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "last_run_at": zod.string().datetime({"offset":true}).optional(),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional()
 })
 
 
@@ -18630,6 +19108,55 @@ export const SimulateRunTestsEvalConfigsGetStructureListParams = zod.object({
   "eval_config_id": zod.string()
 })
 
+export const simulateRunTestsEvalConfigsGetStructureListResponseStatusDefault = true;
+
+
+
+
+
+
+
+export const SimulateRunTestsEvalConfigsGetStructureListResponse = zod.object({
+  "status": zod.boolean().default(simulateRunTestsEvalConfigsGetStructureListResponseStatusDefault),
+  "result": zod.object({
+  "eval": zod.object({
+  "id": zod.string().uuid().optional(),
+  "template_id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).optional(),
+  "reason_column": zod.boolean().optional(),
+  "eval_tags": zod.object({
+
+}).passthrough().optional(),
+  "description": zod.string().optional(),
+  "required_keys": zod.array(zod.string().min(1)),
+  "optional_keys": zod.array(zod.string().min(1)),
+  "variable_keys": zod.array(zod.string().min(1)),
+  "run_prompt_column": zod.boolean().optional(),
+  "template_name": zod.string().min(1).optional(),
+  "mapping": zod.record(zod.string(), zod.string()).optional(),
+  "config": zod.record(zod.string(), zod.string()).optional(),
+  "params": zod.object({
+
+}).passthrough().optional(),
+  "function_params_schema": zod.object({
+
+}).passthrough().optional(),
+  "models": zod.object({
+
+}).passthrough().optional(),
+  "selected_model": zod.string().min(1).optional(),
+  "error_localizer": zod.boolean().optional(),
+  "kb_id": zod.string().uuid().optional(),
+  "output": zod.object({
+
+}).passthrough().optional(),
+  "config_params_desc": zod.record(zod.string(), zod.string()).optional(),
+  "config_params_option": zod.record(zod.string(), zod.string()).optional(),
+  "api_key_available": zod.boolean().optional()
+})
+})
+})
+
 
 /**
  * Updates an evaluation configuration and optionally triggers a rerun. When run=true, test_execution_id is required.
@@ -18701,16 +19228,19 @@ export const SimulateRunTestsEvalSummaryListQueryParams = zod.object({
   "execution_id": zod.string().uuid().optional().describe('UUID of a specific test execution to scope the summary to. If omitted, aggregates across all executions.')
 })
 
+export const simulateRunTestsEvalSummaryListResponseStatusDefault = true;
 
 
 
 export const SimulateRunTestsEvalSummaryListResponse = zod.object({
-  "evaluations": zod.array(zod.object({
+  "status": zod.boolean().default(simulateRunTestsEvalSummaryListResponseStatusDefault),
+  "result": zod.array(zod.object({
   "name": zod.string().min(1),
-  "average_score": zod.number(),
-  "total_runs": zod.number(),
-  "passed": zod.number(),
-  "failed": zod.number()
+  "id": zod.string().min(1),
+  "total_cells": zod.number(),
+  "output": zod.object({
+
+}).passthrough()
 }))
 })
 

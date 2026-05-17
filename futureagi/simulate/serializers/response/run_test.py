@@ -162,6 +162,17 @@ class RunTestMessageResponseSerializer(serializers.Serializer):
     message = serializers.CharField(read_only=True)
 
 
+class RunTestCallExecutionsResponseSerializer(serializers.Serializer):
+    """Paginated response for call executions attached to a run test."""
+
+    count = serializers.IntegerField(read_only=True)
+    next = serializers.CharField(read_only=True, allow_null=True)
+    previous = serializers.CharField(read_only=True, allow_null=True)
+    results = serializers.ListField(child=serializers.DictField(), read_only=True)
+    total_pages = serializers.IntegerField(read_only=True)
+    current_page = serializers.IntegerField(read_only=True)
+
+
 class RunTestErrorResponseSerializer(serializers.Serializer):
     """
     Standard error response shape for all run-test endpoints.

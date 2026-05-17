@@ -146,6 +146,7 @@ import type {
   CallExecutionApi,
   CallExecutionDeleteResponseApi,
   CallExecutionDetailApi,
+  CallExecutionErrorLocalizerTasksResponseApi,
   CallExecutionErrorResponseApi,
   CallExecutionLogsResponseApi,
   CallExecutionRerunApi,
@@ -161,6 +162,7 @@ import type {
   CreateLinearIssueResponseApi,
   CreateNodeApi,
   CreateNodeConnectionApi,
+  CreatePromptSimulationApi,
   CreateReplaySessionApi,
   CreateRunTestApi,
   CreateScoreApi,
@@ -189,6 +191,7 @@ import type {
   EELicenseRevokeResponseApi,
   EmptyRequestApi,
   ErrorResponseApi,
+  EvalConfigStructureResponseApi,
   EvalConfigUpdateRequestApi,
   EvalConfigUpdateResponseApi,
   EvalErrorResponseApi,
@@ -196,6 +199,8 @@ import type {
   EvalSummaryComparisonResponseApi,
   EvalSummaryResponseApi,
   EvalTaskApi,
+  ExecutePromptSimulationRequestApi,
+  ExecutePromptSimulationResponseApi,
   ExecuteRequestApi,
   FeedDetailApiResponseApi,
   FeedListApiResponseApi,
@@ -333,6 +338,10 @@ import type {
   PromptFolderApi,
   PromptHistoryExecutionApi,
   PromptLabelApi,
+  PromptSimulationListResponseApi,
+  PromptSimulationRunResponseApi,
+  PromptSimulationScenariosResponseApi,
+  PromptSimulationUpdateRequestApi,
   PromptTemplateApi,
   QueueAddItemsResponseApi,
   QueueAddLabelResponseApi,
@@ -369,7 +378,9 @@ import type {
   RunNewEvalsOnTestExecutionApi,
   RunNewEvalsResponseApi,
   RunTestAnalyticsApi,
+  RunTestCallExecutionsResponseApi,
   RunTestChatExecutionResponseApi,
+  RunTestComponentsUpdateApi,
   RunTestErrorResponseApi,
   RunTestMessageResponseApi,
   RunTestNameResponseApi,
@@ -400,6 +411,7 @@ import type {
   ScoreResponseApi,
   SecretApi,
   SendChatRequestApi,
+  SessionComparisonResponseApi,
   SharedLinkDetailApi,
   SharedLinkListApi,
   SharedLinkResolveErrorApi,
@@ -423,6 +435,7 @@ import type {
   SimulateApiPersonasWorkspacePersonas200,
   SimulateApiPersonasWorkspacePersonasParams,
   SimulateApiRunTestsListParams,
+  SimulateExportReadParams,
   SimulateRunTestsEvalSummaryComparisonListParams,
   SimulateRunTestsEvalSummaryListParams,
   SimulateRunTestsListParams,
@@ -32918,16 +32931,28 @@ export const simulateAgentDefinitionsVersionsDeleteDelete = async (agentId: stri
 
 
 export type simulateAgentDefinitionsVersionsEvalSummaryListResponse200 = {
-  data: void
+  data: EvalSummaryResponseApi
   status: 200
+}
+
+export type simulateAgentDefinitionsVersionsEvalSummaryListResponse404 = {
+  data: EvalErrorResponseApi
+  status: 404
+}
+
+export type simulateAgentDefinitionsVersionsEvalSummaryListResponse500 = {
+  data: EvalErrorResponseApi
+  status: 500
 }
 
 export type simulateAgentDefinitionsVersionsEvalSummaryListResponseSuccess = (simulateAgentDefinitionsVersionsEvalSummaryListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateAgentDefinitionsVersionsEvalSummaryListResponseError = (simulateAgentDefinitionsVersionsEvalSummaryListResponse404 | simulateAgentDefinitionsVersionsEvalSummaryListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateAgentDefinitionsVersionsEvalSummaryListResponse = (simulateAgentDefinitionsVersionsEvalSummaryListResponseSuccess)
+export type simulateAgentDefinitionsVersionsEvalSummaryListResponse = (simulateAgentDefinitionsVersionsEvalSummaryListResponseSuccess | simulateAgentDefinitionsVersionsEvalSummaryListResponseError)
 
 export const getSimulateAgentDefinitionsVersionsEvalSummaryListUrl = (agentId: string,
     versionId: string,) => {
@@ -34960,16 +34985,28 @@ export const simulateCallExecutionsDeleteDelete = async (callExecutionId: string
 
 
 export type simulateCallExecutionsErrorLocalizerTasksListResponse200 = {
-  data: void
+  data: CallExecutionErrorLocalizerTasksResponseApi
   status: 200
+}
+
+export type simulateCallExecutionsErrorLocalizerTasksListResponse404 = {
+  data: CallExecutionErrorResponseApi
+  status: 404
+}
+
+export type simulateCallExecutionsErrorLocalizerTasksListResponse500 = {
+  data: CallExecutionErrorResponseApi
+  status: 500
 }
 
 export type simulateCallExecutionsErrorLocalizerTasksListResponseSuccess = (simulateCallExecutionsErrorLocalizerTasksListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateCallExecutionsErrorLocalizerTasksListResponseError = (simulateCallExecutionsErrorLocalizerTasksListResponse404 | simulateCallExecutionsErrorLocalizerTasksListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateCallExecutionsErrorLocalizerTasksListResponse = (simulateCallExecutionsErrorLocalizerTasksListResponseSuccess)
+export type simulateCallExecutionsErrorLocalizerTasksListResponse = (simulateCallExecutionsErrorLocalizerTasksListResponseSuccess | simulateCallExecutionsErrorLocalizerTasksListResponseError)
 
 export const getSimulateCallExecutionsErrorLocalizerTasksListUrl = (callExecutionId: string,) => {
 
@@ -35044,16 +35081,28 @@ export const simulateCallExecutionsLogsList = async (callExecutionId: string, op
 
 
 export type simulateCallExecutionsSessionComparisonListResponse200 = {
-  data: void
+  data: SessionComparisonResponseApi
   status: 200
+}
+
+export type simulateCallExecutionsSessionComparisonListResponse400 = {
+  data: CallExecutionErrorResponseApi
+  status: 400
+}
+
+export type simulateCallExecutionsSessionComparisonListResponse500 = {
+  data: CallExecutionErrorResponseApi
+  status: 500
 }
 
 export type simulateCallExecutionsSessionComparisonListResponseSuccess = (simulateCallExecutionsSessionComparisonListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateCallExecutionsSessionComparisonListResponseError = (simulateCallExecutionsSessionComparisonListResponse400 | simulateCallExecutionsSessionComparisonListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateCallExecutionsSessionComparisonListResponse = (simulateCallExecutionsSessionComparisonListResponseSuccess)
+export type simulateCallExecutionsSessionComparisonListResponse = (simulateCallExecutionsSessionComparisonListResponseSuccess | simulateCallExecutionsSessionComparisonListResponseError)
 
 export const getSimulateCallExecutionsSessionComparisonListUrl = (callExecutionId: string,) => {
 
@@ -35128,23 +35177,48 @@ export const simulateCallExecutionsTranscriptsList = async (callExecutionId: str
 
 
 export type simulateExportReadResponse200 = {
-  data: void
+  data: Blob
   status: 200
+}
+
+export type simulateExportReadResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type simulateExportReadResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulateExportReadResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
 }
 
 export type simulateExportReadResponseSuccess = (simulateExportReadResponse200) & {
   headers: Headers;
 };
-;
+export type simulateExportReadResponseError = (simulateExportReadResponse400 | simulateExportReadResponse404 | simulateExportReadResponse500) & {
+  headers: Headers;
+};
 
-export type simulateExportReadResponse = (simulateExportReadResponseSuccess)
+export type simulateExportReadResponse = (simulateExportReadResponseSuccess | simulateExportReadResponseError)
 
-export const getSimulateExportReadUrl = (itemId: string,) => {
+export const getSimulateExportReadUrl = (itemId: string,
+    params: SimulateExportReadParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/simulate/export/${itemId}/`
+  return stringifiedParams.length > 0 ? `/simulate/export/${itemId}/?${stringifiedParams}` : `/simulate/export/${itemId}/`
 }
 
 /**
@@ -35154,9 +35228,10 @@ Query Parameters:
 - search: search string to filter call executions by phone number or scenario name
 - status: filter by call execution status
  */
-export const simulateExportRead = async (itemId: string, options?: RequestInit): Promise<simulateExportReadResponse> => {
+export const simulateExportRead = async (itemId: string,
+    params: SimulateExportReadParams, options?: RequestInit): Promise<simulateExportReadResponse> => {
 
-  return apiMutator<simulateExportReadResponse>(getSimulateExportReadUrl(itemId),
+  return apiMutator<simulateExportReadResponse>(getSimulateExportReadUrl(itemId,params),
   {
     ...options,
     method: 'GET'
@@ -35168,16 +35243,28 @@ export const simulateExportRead = async (itemId: string, options?: RequestInit):
 
 
 export type simulatePromptSimulationsScenariosListResponse200 = {
-  data: void
+  data: PromptSimulationScenariosResponseApi
   status: 200
+}
+
+export type simulatePromptSimulationsScenariosListResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulatePromptSimulationsScenariosListResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
 }
 
 export type simulatePromptSimulationsScenariosListResponseSuccess = (simulatePromptSimulationsScenariosListResponse200) & {
   headers: Headers;
 };
-;
+export type simulatePromptSimulationsScenariosListResponseError = (simulatePromptSimulationsScenariosListResponse404 | simulatePromptSimulationsScenariosListResponse500) & {
+  headers: Headers;
+};
 
-export type simulatePromptSimulationsScenariosListResponse = (simulatePromptSimulationsScenariosListResponseSuccess)
+export type simulatePromptSimulationsScenariosListResponse = (simulatePromptSimulationsScenariosListResponseSuccess | simulatePromptSimulationsScenariosListResponseError)
 
 export const getSimulatePromptSimulationsScenariosListUrl = () => {
 
@@ -35208,16 +35295,33 @@ export const simulatePromptSimulationsScenariosList = async ( options?: RequestI
 
 
 export type simulatePromptTemplatesSimulationsListResponse200 = {
-  data: void
+  data: PromptSimulationListResponseApi
   status: 200
+}
+
+export type simulatePromptTemplatesSimulationsListResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type simulatePromptTemplatesSimulationsListResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulatePromptTemplatesSimulationsListResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
 }
 
 export type simulatePromptTemplatesSimulationsListResponseSuccess = (simulatePromptTemplatesSimulationsListResponse200) & {
   headers: Headers;
 };
-;
+export type simulatePromptTemplatesSimulationsListResponseError = (simulatePromptTemplatesSimulationsListResponse400 | simulatePromptTemplatesSimulationsListResponse404 | simulatePromptTemplatesSimulationsListResponse500) & {
+  headers: Headers;
+};
 
-export type simulatePromptTemplatesSimulationsListResponse = (simulatePromptTemplatesSimulationsListResponseSuccess)
+export type simulatePromptTemplatesSimulationsListResponse = (simulatePromptTemplatesSimulationsListResponseSuccess | simulatePromptTemplatesSimulationsListResponseError)
 
 export const getSimulatePromptTemplatesSimulationsListUrl = (promptTemplateId: string,) => {
 
@@ -35248,16 +35352,33 @@ export const simulatePromptTemplatesSimulationsList = async (promptTemplateId: s
 
 
 export type simulatePromptTemplatesSimulationsCreateResponse201 = {
-  data: void
+  data: PromptSimulationRunResponseApi
   status: 201
+}
+
+export type simulatePromptTemplatesSimulationsCreateResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type simulatePromptTemplatesSimulationsCreateResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulatePromptTemplatesSimulationsCreateResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
 }
 
 export type simulatePromptTemplatesSimulationsCreateResponseSuccess = (simulatePromptTemplatesSimulationsCreateResponse201) & {
   headers: Headers;
 };
-;
+export type simulatePromptTemplatesSimulationsCreateResponseError = (simulatePromptTemplatesSimulationsCreateResponse400 | simulatePromptTemplatesSimulationsCreateResponse404 | simulatePromptTemplatesSimulationsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type simulatePromptTemplatesSimulationsCreateResponse = (simulatePromptTemplatesSimulationsCreateResponseSuccess)
+export type simulatePromptTemplatesSimulationsCreateResponse = (simulatePromptTemplatesSimulationsCreateResponseSuccess | simulatePromptTemplatesSimulationsCreateResponseError)
 
 export const getSimulatePromptTemplatesSimulationsCreateUrl = (promptTemplateId: string,) => {
 
@@ -35278,30 +35399,44 @@ export const getSimulatePromptTemplatesSimulationsCreateUrl = (promptTemplateId:
 - enable_tool_evaluation: Optional boolean to enable tool evaluation
  * @summary Create a new prompt-based simulation run.
  */
-export const simulatePromptTemplatesSimulationsCreate = async (promptTemplateId: string, options?: RequestInit): Promise<simulatePromptTemplatesSimulationsCreateResponse> => {
+export const simulatePromptTemplatesSimulationsCreate = async (promptTemplateId: string,
+    createPromptSimulationApi: CreatePromptSimulationApi, options?: RequestInit): Promise<simulatePromptTemplatesSimulationsCreateResponse> => {
 
   return apiMutator<simulatePromptTemplatesSimulationsCreateResponse>(getSimulatePromptTemplatesSimulationsCreateUrl(promptTemplateId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createPromptSimulationApi,)
   }
 );}
 
 
 
 export type simulatePromptTemplatesSimulationsReadResponse200 = {
-  data: void
+  data: PromptSimulationRunResponseApi
   status: 200
+}
+
+export type simulatePromptTemplatesSimulationsReadResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulatePromptTemplatesSimulationsReadResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
 }
 
 export type simulatePromptTemplatesSimulationsReadResponseSuccess = (simulatePromptTemplatesSimulationsReadResponse200) & {
   headers: Headers;
 };
-;
+export type simulatePromptTemplatesSimulationsReadResponseError = (simulatePromptTemplatesSimulationsReadResponse404 | simulatePromptTemplatesSimulationsReadResponse500) & {
+  headers: Headers;
+};
 
-export type simulatePromptTemplatesSimulationsReadResponse = (simulatePromptTemplatesSimulationsReadResponseSuccess)
+export type simulatePromptTemplatesSimulationsReadResponse = (simulatePromptTemplatesSimulationsReadResponseSuccess | simulatePromptTemplatesSimulationsReadResponseError)
 
 export const getSimulatePromptTemplatesSimulationsReadUrl = (promptTemplateId: string,
     runTestId: string,) => {
@@ -35330,16 +35465,33 @@ export const simulatePromptTemplatesSimulationsRead = async (promptTemplateId: s
 
 
 export type simulatePromptTemplatesSimulationsPartialUpdateResponse200 = {
-  data: void
+  data: PromptSimulationRunResponseApi
   status: 200
+}
+
+export type simulatePromptTemplatesSimulationsPartialUpdateResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type simulatePromptTemplatesSimulationsPartialUpdateResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulatePromptTemplatesSimulationsPartialUpdateResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
 }
 
 export type simulatePromptTemplatesSimulationsPartialUpdateResponseSuccess = (simulatePromptTemplatesSimulationsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type simulatePromptTemplatesSimulationsPartialUpdateResponseError = (simulatePromptTemplatesSimulationsPartialUpdateResponse400 | simulatePromptTemplatesSimulationsPartialUpdateResponse404 | simulatePromptTemplatesSimulationsPartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type simulatePromptTemplatesSimulationsPartialUpdateResponse = (simulatePromptTemplatesSimulationsPartialUpdateResponseSuccess)
+export type simulatePromptTemplatesSimulationsPartialUpdateResponse = (simulatePromptTemplatesSimulationsPartialUpdateResponseSuccess | simulatePromptTemplatesSimulationsPartialUpdateResponseError)
 
 export const getSimulatePromptTemplatesSimulationsPartialUpdateUrl = (promptTemplateId: string,
     runTestId: string,) => {
@@ -35354,14 +35506,16 @@ export const getSimulatePromptTemplatesSimulationsPartialUpdateUrl = (promptTemp
  * Update a prompt simulation run (version, scenarios, etc.).
  */
 export const simulatePromptTemplatesSimulationsPartialUpdate = async (promptTemplateId: string,
-    runTestId: string, options?: RequestInit): Promise<simulatePromptTemplatesSimulationsPartialUpdateResponse> => {
+    runTestId: string,
+    promptSimulationUpdateRequestApi: PromptSimulationUpdateRequestApi, options?: RequestInit): Promise<simulatePromptTemplatesSimulationsPartialUpdateResponse> => {
 
   return apiMutator<simulatePromptTemplatesSimulationsPartialUpdateResponse>(getSimulatePromptTemplatesSimulationsPartialUpdateUrl(promptTemplateId,runTestId),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      promptSimulationUpdateRequestApi,)
   }
 );}
 
@@ -35405,17 +35559,34 @@ export const simulatePromptTemplatesSimulationsDelete = async (promptTemplateId:
 
 
 
-export type simulatePromptTemplatesSimulationsExecuteCreateResponse201 = {
-  data: void
-  status: 201
+export type simulatePromptTemplatesSimulationsExecuteCreateResponse200 = {
+  data: ExecutePromptSimulationResponseApi
+  status: 200
 }
 
-export type simulatePromptTemplatesSimulationsExecuteCreateResponseSuccess = (simulatePromptTemplatesSimulationsExecuteCreateResponse201) & {
+export type simulatePromptTemplatesSimulationsExecuteCreateResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type simulatePromptTemplatesSimulationsExecuteCreateResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type simulatePromptTemplatesSimulationsExecuteCreateResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type simulatePromptTemplatesSimulationsExecuteCreateResponseSuccess = (simulatePromptTemplatesSimulationsExecuteCreateResponse200) & {
   headers: Headers;
 };
-;
+export type simulatePromptTemplatesSimulationsExecuteCreateResponseError = (simulatePromptTemplatesSimulationsExecuteCreateResponse400 | simulatePromptTemplatesSimulationsExecuteCreateResponse404 | simulatePromptTemplatesSimulationsExecuteCreateResponse500) & {
+  headers: Headers;
+};
 
-export type simulatePromptTemplatesSimulationsExecuteCreateResponse = (simulatePromptTemplatesSimulationsExecuteCreateResponseSuccess)
+export type simulatePromptTemplatesSimulationsExecuteCreateResponse = (simulatePromptTemplatesSimulationsExecuteCreateResponseSuccess | simulatePromptTemplatesSimulationsExecuteCreateResponseError)
 
 export const getSimulatePromptTemplatesSimulationsExecuteCreateUrl = (promptTemplateId: string,
     runTestId: string,) => {
@@ -35433,14 +35604,16 @@ export const getSimulatePromptTemplatesSimulationsExecuteCreateUrl = (promptTemp
  * @summary Execute a prompt-based simulation run.
  */
 export const simulatePromptTemplatesSimulationsExecuteCreate = async (promptTemplateId: string,
-    runTestId: string, options?: RequestInit): Promise<simulatePromptTemplatesSimulationsExecuteCreateResponse> => {
+    runTestId: string,
+    executePromptSimulationRequestApi: ExecutePromptSimulationRequestApi, options?: RequestInit): Promise<simulatePromptTemplatesSimulationsExecuteCreateResponse> => {
 
   return apiMutator<simulatePromptTemplatesSimulationsExecuteCreateResponse>(getSimulatePromptTemplatesSimulationsExecuteCreateUrl(promptTemplateId,runTestId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      executePromptSimulationRequestApi,)
   }
 );}
 
@@ -35854,16 +36027,28 @@ export const simulateRunTestsAnalyticsList = async (runTestId: string, options?:
 
 
 export type simulateRunTestsCallExecutionsListResponse200 = {
-  data: void
+  data: RunTestCallExecutionsResponseApi
   status: 200
+}
+
+export type simulateRunTestsCallExecutionsListResponse404 = {
+  data: CallExecutionErrorResponseApi
+  status: 404
+}
+
+export type simulateRunTestsCallExecutionsListResponse500 = {
+  data: CallExecutionErrorResponseApi
+  status: 500
 }
 
 export type simulateRunTestsCallExecutionsListResponseSuccess = (simulateRunTestsCallExecutionsListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateRunTestsCallExecutionsListResponseError = (simulateRunTestsCallExecutionsListResponse404 | simulateRunTestsCallExecutionsListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateRunTestsCallExecutionsListResponse = (simulateRunTestsCallExecutionsListResponseSuccess)
+export type simulateRunTestsCallExecutionsListResponse = (simulateRunTestsCallExecutionsListResponseSuccess | simulateRunTestsCallExecutionsListResponseError)
 
 export const getSimulateRunTestsCallExecutionsListUrl = (runTestId: string,) => {
 
@@ -35950,16 +36135,33 @@ export const simulateRunTestsChatExecuteCreate = async (runTestId: string,
 
 
 export type simulateRunTestsComponentsPartialUpdateResponse200 = {
-  data: void
+  data: RunTestResponseApi
   status: 200
+}
+
+export type simulateRunTestsComponentsPartialUpdateResponse400 = {
+  data: RunTestErrorResponseApi
+  status: 400
+}
+
+export type simulateRunTestsComponentsPartialUpdateResponse404 = {
+  data: RunTestErrorResponseApi
+  status: 404
+}
+
+export type simulateRunTestsComponentsPartialUpdateResponse500 = {
+  data: RunTestErrorResponseApi
+  status: 500
 }
 
 export type simulateRunTestsComponentsPartialUpdateResponseSuccess = (simulateRunTestsComponentsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type simulateRunTestsComponentsPartialUpdateResponseError = (simulateRunTestsComponentsPartialUpdateResponse400 | simulateRunTestsComponentsPartialUpdateResponse404 | simulateRunTestsComponentsPartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type simulateRunTestsComponentsPartialUpdateResponse = (simulateRunTestsComponentsPartialUpdateResponseSuccess)
+export type simulateRunTestsComponentsPartialUpdateResponse = (simulateRunTestsComponentsPartialUpdateResponseSuccess | simulateRunTestsComponentsPartialUpdateResponseError)
 
 export const getSimulateRunTestsComponentsPartialUpdateUrl = (runTestId: string,) => {
 
@@ -35972,14 +36174,16 @@ export const getSimulateRunTestsComponentsPartialUpdateUrl = (runTestId: string,
 /**
  * Update components of a specific RunTest
  */
-export const simulateRunTestsComponentsPartialUpdate = async (runTestId: string, options?: RequestInit): Promise<simulateRunTestsComponentsPartialUpdateResponse> => {
+export const simulateRunTestsComponentsPartialUpdate = async (runTestId: string,
+    runTestComponentsUpdateApi: RunTestComponentsUpdateApi, options?: RequestInit): Promise<simulateRunTestsComponentsPartialUpdateResponse> => {
 
   return apiMutator<simulateRunTestsComponentsPartialUpdateResponse>(getSimulateRunTestsComponentsPartialUpdateUrl(runTestId),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      runTestComponentsUpdateApi,)
   }
 );}
 
@@ -36199,16 +36403,28 @@ export const simulateRunTestsEvalConfigsDelete = async (runTestId: string,
 
 
 export type simulateRunTestsEvalConfigsGetStructureListResponse200 = {
-  data: void
+  data: EvalConfigStructureResponseApi
   status: 200
+}
+
+export type simulateRunTestsEvalConfigsGetStructureListResponse404 = {
+  data: EvalErrorResponseApi
+  status: 404
+}
+
+export type simulateRunTestsEvalConfigsGetStructureListResponse500 = {
+  data: EvalErrorResponseApi
+  status: 500
 }
 
 export type simulateRunTestsEvalConfigsGetStructureListResponseSuccess = (simulateRunTestsEvalConfigsGetStructureListResponse200) & {
   headers: Headers;
 };
-;
+export type simulateRunTestsEvalConfigsGetStructureListResponseError = (simulateRunTestsEvalConfigsGetStructureListResponse404 | simulateRunTestsEvalConfigsGetStructureListResponse500) & {
+  headers: Headers;
+};
 
-export type simulateRunTestsEvalConfigsGetStructureListResponse = (simulateRunTestsEvalConfigsGetStructureListResponseSuccess)
+export type simulateRunTestsEvalConfigsGetStructureListResponse = (simulateRunTestsEvalConfigsGetStructureListResponseSuccess | simulateRunTestsEvalConfigsGetStructureListResponseError)
 
 export const getSimulateRunTestsEvalConfigsGetStructureListUrl = (runTestId: string,
     evalConfigId: string,) => {

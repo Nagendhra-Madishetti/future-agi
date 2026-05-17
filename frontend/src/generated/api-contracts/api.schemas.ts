@@ -4249,6 +4249,30 @@ export interface AgentVersionDeleteResponseApi {
   readonly message?: string;
 }
 
+export type EvalTemplateSummaryApiOutput = { [key: string]: unknown };
+
+export interface EvalTemplateSummaryApi {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  id: string;
+  total_cells: number;
+  output: EvalTemplateSummaryApiOutput;
+}
+
+export interface EvalSummaryResponseApi {
+  status?: boolean;
+  result: EvalTemplateSummaryApi[];
+}
+
+export type EvalErrorResponseApiDetails = {[key: string]: string};
+
+export interface EvalErrorResponseApi {
+  /** @minLength 1 */
+  error: string;
+  details?: EvalErrorResponseApiDetails;
+}
+
 export type AgentVersionRestoreResponseApiAgent = {[key: string]: string};
 
 export interface AgentVersionRestoreResponseApi {
@@ -5520,6 +5544,47 @@ export interface CallExecutionDeleteResponseApi {
   readonly message?: string;
 }
 
+export type ErrorLocalizerTaskResponseApiEvalResult = { [key: string]: unknown };
+
+export type ErrorLocalizerTaskResponseApiInputData = { [key: string]: unknown };
+
+export type ErrorLocalizerTaskResponseApiInputKeys = { [key: string]: unknown };
+
+export type ErrorLocalizerTaskResponseApiInputTypes = { [key: string]: unknown };
+
+export type ErrorLocalizerTaskResponseApiErrorAnalysis = { [key: string]: unknown };
+
+export interface ErrorLocalizerTaskResponseApi {
+  readonly task_id?: string;
+  /** @minLength 1 */
+  readonly eval_config_id?: string;
+  readonly status?: string;
+  readonly eval_result?: ErrorLocalizerTaskResponseApiEvalResult;
+  /** @minLength 1 */
+  readonly eval_explanation?: string;
+  readonly input_data?: ErrorLocalizerTaskResponseApiInputData;
+  readonly input_keys?: ErrorLocalizerTaskResponseApiInputKeys;
+  readonly input_types?: ErrorLocalizerTaskResponseApiInputTypes;
+  /** @minLength 1 */
+  readonly rule_prompt?: string;
+  readonly error_analysis?: ErrorLocalizerTaskResponseApiErrorAnalysis;
+  /** @minLength 1 */
+  readonly selected_input_key?: string;
+  /** @minLength 1 */
+  readonly error_message?: string;
+  readonly created_at?: string;
+  readonly updated_at?: string;
+  /** @minLength 1 */
+  readonly eval_template_name?: string;
+  readonly eval_template_id?: string;
+}
+
+export interface CallExecutionErrorLocalizerTasksResponseApi {
+  readonly call_execution_id?: string;
+  readonly error_localizer_tasks?: readonly ErrorLocalizerTaskResponseApi[];
+  readonly total_tasks?: number;
+}
+
 export type CallLogEntryResponseApiAttributes = {[key: string]: string};
 
 export type CallLogEntryResponseApiPayload = {[key: string]: string};
@@ -5546,6 +5611,23 @@ export interface CallExecutionLogsResponseApi {
   /** @minLength 1 */
   readonly source?: string;
   readonly ingestion_pending?: boolean;
+}
+
+export type SessionComparisonResultApiComparisonMetrics = { [key: string]: unknown };
+
+export type SessionComparisonResultApiComparisonTranscripts = { [key: string]: unknown };
+
+export type SessionComparisonResultApiComparisonRecordings = { [key: string]: unknown };
+
+export interface SessionComparisonResultApi {
+  readonly comparison_metrics?: SessionComparisonResultApiComparisonMetrics;
+  readonly comparison_transcripts?: SessionComparisonResultApiComparisonTranscripts;
+  readonly comparison_recordings?: SessionComparisonResultApiComparisonRecordings;
+}
+
+export interface SessionComparisonResponseApi {
+  status?: boolean;
+  result: SessionComparisonResultApi;
 }
 
 /**
@@ -5599,6 +5681,116 @@ export interface CallTranscriptResponseApi {
   readonly status?: string;
   readonly transcripts?: readonly CallTranscriptApi[];
   readonly total_transcripts?: number;
+}
+
+export interface PromptSimulationScenarioItemApi {
+  readonly id?: string;
+  /** @minLength 1 */
+  readonly name?: string;
+  readonly description?: string;
+  /** @minLength 1 */
+  readonly scenario_type?: string;
+  readonly dataset_id?: string;
+  readonly created_at?: string;
+}
+
+export interface PromptSimulationScenariosResultApi {
+  readonly count?: number;
+  readonly page?: number;
+  readonly limit?: number;
+  readonly results?: readonly PromptSimulationScenarioItemApi[];
+}
+
+export interface PromptSimulationScenariosResponseApi {
+  status?: boolean;
+  result: PromptSimulationScenariosResultApi;
+}
+
+export interface PromptSimulationTemplateSummaryApi {
+  readonly id?: string;
+  /** @minLength 1 */
+  readonly name?: string;
+}
+
+export interface PromptSimulationListResultApi {
+  readonly count?: number;
+  readonly page?: number;
+  readonly limit?: number;
+  readonly results?: readonly RunTestResponseApi[];
+  prompt_template?: PromptSimulationTemplateSummaryApi;
+}
+
+export interface PromptSimulationListResponseApi {
+  status?: boolean;
+  result: PromptSimulationListResultApi;
+}
+
+export type CreatePromptSimulationApiEvaluationsConfigItem = {[key: string]: string};
+
+export interface CreatePromptSimulationApi {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  description?: string;
+  /** Prompt template to use as the agent source */
+  prompt_template_id: string;
+  /**
+     * Prompt version ID (UUID) or template_version string
+     * @minLength 1
+     * @maxLength 255
+     */
+  prompt_version_id: string;
+  scenario_ids: string[];
+  dataset_row_ids?: string[];
+  /** Evaluation configurations to create */
+  evaluations_config?: CreatePromptSimulationApiEvaluationsConfigItem[];
+  /** Enable automatic tool evaluation for this simulation run */
+  enable_tool_evaluation?: boolean;
+}
+
+export interface PromptSimulationRunResponseApi {
+  status?: boolean;
+  result: RunTestResponseApi;
+}
+
+export interface PromptSimulationUpdateRequestApi {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  prompt_version_id?: string;
+  scenario_ids?: string[];
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name?: string;
+  description?: string;
+  enable_tool_evaluation?: boolean;
+}
+
+export interface ExecutePromptSimulationRequestApi {
+  scenario_ids?: string[];
+  select_all?: boolean;
+}
+
+export interface ExecutePromptSimulationResultApi {
+  /** @minLength 1 */
+  readonly message?: string;
+  readonly execution_id?: string;
+  readonly run_test_id?: string;
+  /** @minLength 1 */
+  readonly status?: string;
+  readonly total_scenarios?: number;
+  readonly total_calls?: number;
+  scenario_ids: string[];
+}
+
+export interface ExecutePromptSimulationResponseApi {
+  status?: boolean;
+  result: ExecutePromptSimulationResultApi;
 }
 
 export type AllActiveTestsApiActiveTests = {[key: string]: string};
@@ -5687,6 +5879,19 @@ export interface RunTestAnalyticsApi {
   summary_stats?: RunTestAnalyticsApiSummaryStats;
 }
 
+export type RunTestCallExecutionsResponseApiResultsItem = {[key: string]: string};
+
+export interface RunTestCallExecutionsResponseApi {
+  readonly count?: number;
+  /** @minLength 1 */
+  readonly next?: string;
+  /** @minLength 1 */
+  readonly previous?: string;
+  readonly results?: readonly RunTestCallExecutionsResponseApiResultsItem[];
+  readonly total_pages?: number;
+  readonly current_page?: number;
+}
+
 export interface RunTestChatExecutionResultApi {
   /** @minLength 1 */
   message: string;
@@ -5700,6 +5905,14 @@ export interface RunTestChatExecutionResultApi {
 export interface RunTestChatExecutionResponseApi {
   status?: boolean;
   result: RunTestChatExecutionResultApi;
+}
+
+export interface RunTestComponentsUpdateApi {
+  agent_definition_id?: string;
+  version?: string;
+  simulator_agent_id?: string;
+  scenarios?: string[];
+  enable_tool_evaluation?: boolean;
 }
 
 export interface TestExecutionBulkDeleteApi {
@@ -5823,17 +6036,65 @@ export interface AddEvalConfigsResponseApi {
   warnings?: string[];
 }
 
-export type EvalErrorResponseApiDetails = {[key: string]: string};
-
-export interface EvalErrorResponseApi {
-  /** @minLength 1 */
-  error: string;
-  details?: EvalErrorResponseApiDetails;
-}
-
 export interface DeleteEvalConfigResponseApi {
   /** @minLength 1 */
   message: string;
+}
+
+export type EvalConfigStructureApiEvalTags = { [key: string]: unknown };
+
+export type EvalConfigStructureApiMapping = {[key: string]: string};
+
+export type EvalConfigStructureApiConfig = {[key: string]: string};
+
+export type EvalConfigStructureApiParams = { [key: string]: unknown };
+
+export type EvalConfigStructureApiFunctionParamsSchema = { [key: string]: unknown };
+
+export type EvalConfigStructureApiModels = { [key: string]: unknown };
+
+export type EvalConfigStructureApiOutput = { [key: string]: unknown };
+
+export type EvalConfigStructureApiConfigParamsDesc = {[key: string]: string};
+
+export type EvalConfigStructureApiConfigParamsOption = {[key: string]: string};
+
+export interface EvalConfigStructureApi {
+  readonly id?: string;
+  readonly template_id?: string;
+  /** @minLength 1 */
+  readonly name?: string;
+  readonly reason_column?: boolean;
+  readonly eval_tags?: EvalConfigStructureApiEvalTags;
+  readonly description?: string;
+  required_keys: string[];
+  optional_keys: string[];
+  variable_keys: string[];
+  readonly run_prompt_column?: boolean;
+  /** @minLength 1 */
+  readonly template_name?: string;
+  readonly mapping?: EvalConfigStructureApiMapping;
+  readonly config?: EvalConfigStructureApiConfig;
+  readonly params?: EvalConfigStructureApiParams;
+  readonly function_params_schema?: EvalConfigStructureApiFunctionParamsSchema;
+  readonly models?: EvalConfigStructureApiModels;
+  /** @minLength 1 */
+  readonly selected_model?: string;
+  readonly error_localizer?: boolean;
+  readonly kb_id?: string;
+  readonly output?: EvalConfigStructureApiOutput;
+  readonly config_params_desc?: EvalConfigStructureApiConfigParamsDesc;
+  readonly config_params_option?: EvalConfigStructureApiConfigParamsOption;
+  readonly api_key_available?: boolean;
+}
+
+export interface EvalConfigStructureResultApi {
+  eval: EvalConfigStructureApi;
+}
+
+export interface EvalConfigStructureResponseApi {
+  status?: boolean;
+  result: EvalConfigStructureResultApi;
 }
 
 /**
@@ -5883,19 +6144,6 @@ export interface EvalConfigUpdateResponseApi {
 }
 
 export interface EvalSummaryComparisonResponseApi { [key: string]: unknown }
-
-export interface EvalTemplateSummaryApi {
-  /** @minLength 1 */
-  name: string;
-  average_score: number;
-  total_runs: number;
-  passed: number;
-  failed: number;
-}
-
-export interface EvalSummaryResponseApi {
-  evaluations: EvalTemplateSummaryApi[];
-}
 
 export interface TestExecutionItemResponseApi {
   /** @minLength 1 */
@@ -10368,6 +10616,29 @@ export type SimulateApiRunTestsListSimulationType = typeof SimulateApiRunTestsLi
 export const SimulateApiRunTestsListSimulationType = {
   agent_definition: 'agent_definition',
   prompt: 'prompt',
+} as const;
+
+export type SimulateExportReadParams = {
+/**
+ * Export source type.
+ */
+type: SimulateExportReadType;
+/**
+ * Optional call-execution search term.
+ */
+search?: string;
+/**
+ * Optional call-execution status filter.
+ */
+status?: string;
+};
+
+export type SimulateExportReadType = typeof SimulateExportReadType[keyof typeof SimulateExportReadType];
+
+
+export const SimulateExportReadType = {
+  runtest: 'runtest',
+  testexecution: 'testexecution',
 } as const;
 
 export type SimulateRunTestsListParams = {

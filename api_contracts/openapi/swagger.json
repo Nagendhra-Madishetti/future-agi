@@ -24211,7 +24211,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": "Evaluation summary for the agent version"
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/EvalSummaryResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/EvalErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/EvalErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -25981,7 +25996,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallExecutionErrorLocalizerTasksResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallExecutionErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallExecutionErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26042,7 +26072,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SessionComparisonResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallExecutionErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallExecutionErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26100,10 +26145,57 @@
             "get": {
                 "operationId": "simulate_export_read",
                 "description": "Export data as CSV based on type parameter\nQuery Parameters:\n- type: 'runtest' or 'testexecution' (required)\n- search: search string to filter call executions by phone number or scenario name\n- status: filter by call execution status",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Export source type.",
+                        "required": true,
+                        "type": "string",
+                        "enum": [
+                            "runtest",
+                            "testexecution"
+                        ]
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Optional call-execution search term.",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Optional call-execution status filter.",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "CSV export",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26127,7 +26219,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/PromptSimulationScenariosResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26144,7 +26251,28 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/PromptSimulationListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26155,10 +26283,40 @@
                 "operationId": "simulate_prompt-templates_simulations_create",
                 "summary": "Create a new prompt-based simulation run.",
                 "description": "Request Body:\n- name: Name of the simulation run\n- description: Optional description\n- prompt_version_id: The prompt version to use\n- scenario_ids: List of scenario IDs to run\n- dataset_row_ids: Optional list of specific row IDs\n- evaluations_config: Optional evaluation configurations\n- enable_tool_evaluation: Optional boolean to enable tool evaluation",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CreatePromptSimulation"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/PromptSimulationRunResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26181,7 +26339,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/PromptSimulationRunResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26191,10 +26364,40 @@
             "patch": {
                 "operationId": "simulate_prompt-templates_simulations_partial_update",
                 "description": "Update a prompt simulation run (version, scenarios, etc.).",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/PromptSimulationUpdateRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/PromptSimulationRunResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26234,10 +26437,40 @@
                 "operationId": "simulate_prompt-templates_simulations_execute_create",
                 "summary": "Execute a prompt-based simulation run.",
                 "description": "Request Body (optional):\n- scenario_ids: List of specific scenario IDs to run (default: all scenarios)\n- select_all: If true, run all scenarios except ones in scenario_ids",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ExecutePromptSimulationRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ExecutePromptSimulationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26598,7 +26831,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/RunTestCallExecutionsResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallExecutionErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CallExecutionErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26671,10 +26919,40 @@
             "patch": {
                 "operationId": "simulate_run-tests_components_partial_update",
                 "description": "Update components of a specific RunTest",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RunTestComponentsUpdate"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/RunTestResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/RunTestErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/RunTestErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/RunTestErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -26884,7 +27162,22 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/EvalConfigStructureResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/EvalErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/EvalErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -48668,6 +48961,75 @@
                 }
             }
         },
+        "EvalTemplateSummary": {
+            "required": [
+                "name",
+                "id",
+                "total_cells",
+                "output"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "total_cells": {
+                    "title": "Total cells",
+                    "type": "integer"
+                },
+                "output": {
+                    "title": "Output",
+                    "type": "object"
+                }
+            }
+        },
+        "EvalSummaryResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/EvalTemplateSummary"
+                    }
+                }
+            }
+        },
+        "EvalErrorResponse": {
+            "required": [
+                "error"
+            ],
+            "type": "object",
+            "properties": {
+                "error": {
+                    "title": "Error",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "details": {
+                    "title": "Details",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    }
+                }
+            }
+        },
         "AgentVersionRestoreResponse": {
             "type": "object",
             "properties": {
@@ -51235,6 +51597,138 @@
                 }
             }
         },
+        "ErrorLocalizerTaskResponse": {
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "title": "Task id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "eval_config_id": {
+                    "title": "Eval config id",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "readOnly": true
+                },
+                "eval_result": {
+                    "title": "Eval result",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "eval_explanation": {
+                    "title": "Eval explanation",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "input_data": {
+                    "title": "Input data",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "input_keys": {
+                    "title": "Input keys",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "input_types": {
+                    "title": "Input types",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "rule_prompt": {
+                    "title": "Rule prompt",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "error_analysis": {
+                    "title": "Error analysis",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "selected_input_key": {
+                    "title": "Selected input key",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "error_message": {
+                    "title": "Error message",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "eval_template_name": {
+                    "title": "Eval template name",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "eval_template_id": {
+                    "title": "Eval template id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true,
+                    "x-nullable": true
+                }
+            }
+        },
+        "CallExecutionErrorLocalizerTasksResponse": {
+            "type": "object",
+            "properties": {
+                "call_execution_id": {
+                    "title": "Call execution id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "error_localizer_tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ErrorLocalizerTaskResponse"
+                    },
+                    "readOnly": true
+                },
+                "total_tasks": {
+                    "title": "Total tasks",
+                    "type": "integer",
+                    "readOnly": true
+                }
+            }
+        },
         "CallLogEntryResponse": {
             "type": "object",
             "properties": {
@@ -51321,6 +51815,43 @@
                     "title": "Ingestion pending",
                     "type": "boolean",
                     "readOnly": true
+                }
+            }
+        },
+        "SessionComparisonResult": {
+            "type": "object",
+            "properties": {
+                "comparison_metrics": {
+                    "title": "Comparison metrics",
+                    "type": "object",
+                    "readOnly": true
+                },
+                "comparison_transcripts": {
+                    "title": "Comparison transcripts",
+                    "type": "object",
+                    "readOnly": true
+                },
+                "comparison_recordings": {
+                    "title": "Comparison recordings",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                }
+            }
+        },
+        "SessionComparisonResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "$ref": "#/definitions/SessionComparisonResult"
                 }
             }
         },
@@ -51425,6 +51956,351 @@
                     "title": "Total transcripts",
                     "type": "integer",
                     "readOnly": true
+                }
+            }
+        },
+        "PromptSimulationScenarioItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "readOnly": true
+                },
+                "scenario_type": {
+                    "title": "Scenario type",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                },
+                "dataset_id": {
+                    "title": "Dataset id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time",
+                    "readOnly": true
+                }
+            }
+        },
+        "PromptSimulationScenariosResult": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "title": "Count",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "page": {
+                    "title": "Page",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "limit": {
+                    "title": "Limit",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PromptSimulationScenarioItem"
+                    },
+                    "readOnly": true
+                }
+            }
+        },
+        "PromptSimulationScenariosResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "$ref": "#/definitions/PromptSimulationScenariosResult"
+                }
+            }
+        },
+        "PromptSimulationTemplateSummary": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                }
+            }
+        },
+        "PromptSimulationListResult": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "title": "Count",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "page": {
+                    "title": "Page",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "limit": {
+                    "title": "Limit",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/RunTestResponse"
+                    },
+                    "readOnly": true
+                },
+                "prompt_template": {
+                    "$ref": "#/definitions/PromptSimulationTemplateSummary"
+                }
+            }
+        },
+        "PromptSimulationListResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "$ref": "#/definitions/PromptSimulationListResult"
+                }
+            }
+        },
+        "CreatePromptSimulation": {
+            "required": [
+                "name",
+                "prompt_template_id",
+                "prompt_version_id",
+                "scenario_ids"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string"
+                },
+                "prompt_template_id": {
+                    "title": "Prompt template id",
+                    "description": "Prompt template to use as the agent source",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "prompt_version_id": {
+                    "title": "Prompt version id",
+                    "description": "Prompt version ID (UUID) or template_version string",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "scenario_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "dataset_row_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1
+                    }
+                },
+                "evaluations_config": {
+                    "description": "Evaluation configurations to create",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string",
+                            "x-nullable": true
+                        }
+                    },
+                    "default": []
+                },
+                "enable_tool_evaluation": {
+                    "title": "Enable tool evaluation",
+                    "description": "Enable automatic tool evaluation for this simulation run",
+                    "type": "boolean",
+                    "default": false
+                }
+            }
+        },
+        "PromptSimulationRunResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "$ref": "#/definitions/RunTestResponse"
+                }
+            }
+        },
+        "PromptSimulationUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "prompt_version_id": {
+                    "title": "Prompt version id",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "scenario_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string"
+                },
+                "enable_tool_evaluation": {
+                    "title": "Enable tool evaluation",
+                    "type": "boolean"
+                }
+            }
+        },
+        "ExecutePromptSimulationRequest": {
+            "type": "object",
+            "properties": {
+                "scenario_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "default": []
+                },
+                "select_all": {
+                    "title": "Select all",
+                    "type": "boolean",
+                    "default": false
+                }
+            }
+        },
+        "ExecutePromptSimulationResult": {
+            "required": [
+                "scenario_ids"
+            ],
+            "type": "object",
+            "properties": {
+                "message": {
+                    "title": "Message",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                },
+                "execution_id": {
+                    "title": "Execution id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "run_test_id": {
+                    "title": "Run test id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                },
+                "total_scenarios": {
+                    "title": "Total scenarios",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "total_calls": {
+                    "title": "Total calls",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "scenario_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }
+            }
+        },
+        "ExecutePromptSimulationResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "$ref": "#/definitions/ExecutePromptSimulationResult"
                 }
             }
         },
@@ -51672,6 +52548,51 @@
                 }
             }
         },
+        "RunTestCallExecutionsResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "title": "Count",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "next": {
+                    "title": "Next",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "previous": {
+                    "title": "Previous",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string",
+                            "x-nullable": true
+                        }
+                    },
+                    "readOnly": true
+                },
+                "total_pages": {
+                    "title": "Total pages",
+                    "type": "integer",
+                    "readOnly": true
+                },
+                "current_page": {
+                    "title": "Current page",
+                    "type": "integer",
+                    "readOnly": true
+                }
+            }
+        },
         "RunTestChatExecutionResult": {
             "required": [
                 "message",
@@ -51724,6 +52645,37 @@
                 },
                 "result": {
                     "$ref": "#/definitions/RunTestChatExecutionResult"
+                }
+            }
+        },
+        "RunTestComponentsUpdate": {
+            "type": "object",
+            "properties": {
+                "agent_definition_id": {
+                    "title": "Agent definition id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "version": {
+                    "title": "Version",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "simulator_agent_id": {
+                    "title": "Simulator agent id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "scenarios": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "enable_tool_evaluation": {
+                    "title": "Enable tool evaluation",
+                    "type": "boolean"
                 }
             }
         },
@@ -51970,27 +52922,6 @@
                 }
             }
         },
-        "EvalErrorResponse": {
-            "required": [
-                "error"
-            ],
-            "type": "object",
-            "properties": {
-                "error": {
-                    "title": "Error",
-                    "type": "string",
-                    "minLength": 1
-                },
-                "details": {
-                    "title": "Details",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string",
-                        "x-nullable": true
-                    }
-                }
-            }
-        },
         "DeleteEvalConfigResponse": {
             "required": [
                 "message"
@@ -52001,6 +52932,193 @@
                     "title": "Message",
                     "type": "string",
                     "minLength": 1
+                }
+            }
+        },
+        "EvalConfigStructure": {
+            "required": [
+                "required_keys",
+                "optional_keys",
+                "variable_keys"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "template_id": {
+                    "title": "Template id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                },
+                "reason_column": {
+                    "title": "Reason column",
+                    "type": "boolean",
+                    "readOnly": true
+                },
+                "eval_tags": {
+                    "title": "Eval tags",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "readOnly": true
+                },
+                "required_keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "optional_keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "variable_keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "run_prompt_column": {
+                    "title": "Run prompt column",
+                    "type": "boolean",
+                    "readOnly": true
+                },
+                "template_name": {
+                    "title": "Template name",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1
+                },
+                "mapping": {
+                    "title": "Mapping",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    },
+                    "readOnly": true
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    },
+                    "readOnly": true
+                },
+                "params": {
+                    "title": "Params",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "function_params_schema": {
+                    "title": "Function params schema",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "models": {
+                    "title": "Models",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "selected_model": {
+                    "title": "Selected model",
+                    "type": "string",
+                    "readOnly": true,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "error_localizer": {
+                    "title": "Error localizer",
+                    "type": "boolean",
+                    "readOnly": true
+                },
+                "kb_id": {
+                    "title": "Kb id",
+                    "type": "string",
+                    "format": "uuid",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "output": {
+                    "title": "Output",
+                    "type": "object",
+                    "readOnly": true,
+                    "x-nullable": true
+                },
+                "config_params_desc": {
+                    "title": "Config params desc",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    },
+                    "readOnly": true
+                },
+                "config_params_option": {
+                    "title": "Config params option",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                        "x-nullable": true
+                    },
+                    "readOnly": true
+                },
+                "api_key_available": {
+                    "title": "Api key available",
+                    "type": "boolean",
+                    "readOnly": true
+                }
+            }
+        },
+        "EvalConfigStructureResult": {
+            "required": [
+                "eval"
+            ],
+            "type": "object",
+            "properties": {
+                "eval": {
+                    "$ref": "#/definitions/EvalConfigStructure"
+                }
+            }
+        },
+        "EvalConfigStructureResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "$ref": "#/definitions/EvalConfigStructureResult"
                 }
             }
         },
@@ -52112,54 +53230,6 @@
         "EvalSummaryComparisonResponse": {
             "type": "object",
             "properties": {}
-        },
-        "EvalTemplateSummary": {
-            "required": [
-                "name",
-                "average_score",
-                "total_runs",
-                "passed",
-                "failed"
-            ],
-            "type": "object",
-            "properties": {
-                "name": {
-                    "title": "Name",
-                    "type": "string",
-                    "minLength": 1
-                },
-                "average_score": {
-                    "title": "Average score",
-                    "type": "number",
-                    "x-nullable": true
-                },
-                "total_runs": {
-                    "title": "Total runs",
-                    "type": "integer"
-                },
-                "passed": {
-                    "title": "Passed",
-                    "type": "integer"
-                },
-                "failed": {
-                    "title": "Failed",
-                    "type": "integer"
-                }
-            }
-        },
-        "EvalSummaryResponse": {
-            "required": [
-                "evaluations"
-            ],
-            "type": "object",
-            "properties": {
-                "evaluations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/EvalTemplateSummary"
-                    }
-                }
-            }
         },
         "TestExecutionItemResponse": {
             "type": "object",
