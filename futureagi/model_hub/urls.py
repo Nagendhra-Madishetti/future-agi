@@ -16,6 +16,7 @@ from model_hub.views.custom_model import (
     DeleteCustomAIModelView,
     EditCustomModel,
     UpdateBaselineDatasetCustomAIModelView,
+    UpdateMetricCustomAIModelView,
 )
 from model_hub.views.dataset_optimization import DatasetOptimizationViewSet
 from model_hub.views.datasets.add_rows.existing_dataset import AddRowsFromExistingView
@@ -310,6 +311,11 @@ urlpatterns = [
         "custom_models/update-baseline/<uuid:id>/",
         UpdateBaselineDatasetCustomAIModelView.as_view(),
         name="update-custom-model-baseline",
+    ),
+    path(
+        "custom_models/update-metric/<uuid:id>/",
+        UpdateMetricCustomAIModelView.as_view(),
+        name="update-custom-model-metric",
     ),
     path("custom_models/edit/", EditCustomModel.as_view(), name="edit-cutom-model"),
     path(

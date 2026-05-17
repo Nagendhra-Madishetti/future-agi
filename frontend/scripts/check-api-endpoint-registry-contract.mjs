@@ -28,8 +28,8 @@ const endpointRegistryPath = path.join(
 );
 const MAX_UNMARKED_UNCONTRACTED_REGISTRY_PATHS = 0;
 const MAX_RAW_REGISTRY_PATHS = 0;
-const MAX_CONTRACT_EXCEPTION_REGISTRY_PATHS = 23;
-const MAX_CONTRACT_EXCEPTION_SURFACE_PATHS = 19;
+const MAX_CONTRACT_EXCEPTION_REGISTRY_PATHS = 0;
+const MAX_CONTRACT_EXCEPTION_SURFACE_PATHS = 0;
 const MANAGEMENT_API_GROUPS = Object.keys(API_SURFACE_CONTRACT.groups)
   .filter((groupName) => groupName !== "root")
   .sort();
@@ -266,7 +266,7 @@ if (
       `Unmarked uncontracted paths: ${uncontracted.length}/${MAX_UNMARKED_UNCONTRACTED_REGISTRY_PATHS}`,
       `Contract exception paths: ${contractExceptionPaths.length}/${MAX_CONTRACT_EXCEPTION_REGISTRY_PATHS}`,
       `Contract exception manifest paths: ${contractExceptionSurfacePaths.length}/${MAX_CONTRACT_EXCEPTION_SURFACE_PATHS}`,
-      "Add the missing backend Swagger serializer/path first, switch contracted endpoints to apiPath(), or register intentional exceptions in api-contract-exceptions.js and use uncontractedApiPath(path).",
+      "Add the missing backend Swagger serializer/path first, then switch frontend endpoints to apiPath().",
       ...uncontracted
         .slice(0, 80)
         .map(({ line, value }) => `  - src/utils/axios.js:${line}: ${value}`),

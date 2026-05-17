@@ -19670,6 +19670,71 @@
                 }
             ]
         },
+        "/model-hub/custom_models/update-metric/{id}/": {
+            "post": {
+                "operationId": "model-hub_custom_models_update-metric_create",
+                "description": "Update default metric of the model given model id in request and information of metric in the body",
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CustomAIModelDefaultMetricRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    }
+                },
+                "tags": [
+                    "model-hub"
+                ]
+            },
+            "parameters": [
+                {
+                    "name": "id",
+                    "in": "path",
+                    "required": true,
+                    "type": "string"
+                }
+            ]
+        },
         "/model-hub/dataset-optimization/": {
             "get": {
                 "operationId": "model-hub_dataset-optimization_list",
@@ -71536,6 +71601,19 @@
                     "title": "Model version",
                     "type": "string",
                     "x-nullable": true
+                }
+            }
+        },
+        "CustomAIModelDefaultMetricRequest": {
+            "required": [
+                "metric_id"
+            ],
+            "type": "object",
+            "properties": {
+                "metric_id": {
+                    "title": "Metric id",
+                    "type": "string",
+                    "format": "uuid"
                 }
             }
         },

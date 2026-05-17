@@ -5,7 +5,7 @@
 export const OPENAPI_CONTRACT = Object.freeze({
   "generatedFrom": "api_contracts/openapi/swagger.json",
   "swaggerVersion": "2.0",
-  "endpointCount": 977,
+  "endpointCount": 978,
   "endpoints": {
     "/accounts/2fa/recovery-codes/": {
       "get": {
@@ -10488,6 +10488,35 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_custom_models_update-baseline_create",
         "requestBody": {
           "$ref": "#/definitions/CustomAIModelBaselineRequest"
+        },
+        "queryParameters": {},
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
+      }
+    },
+    "/model-hub/custom_models/update-metric/{id}/": {
+      "post": {
+        "operationId": "model-hub_custom_models_update-metric_create",
+        "requestBody": {
+          "$ref": "#/definitions/CustomAIModelDefaultMetricRequest"
         },
         "queryParameters": {},
         "responses": {
@@ -39723,6 +39752,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "data": {
           "$ref": "#/definitions/CustomAIModelCreateResponseData"
+        }
+      }
+    },
+    "CustomAIModelDefaultMetricRequest": {
+      "required": [
+        "metric_id"
+      ],
+      "type": "object",
+      "properties": {
+        "metric_id": {
+          "title": "Metric id",
+          "type": "string",
+          "format": "uuid"
         }
       }
     },

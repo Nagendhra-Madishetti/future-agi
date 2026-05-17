@@ -5,7 +5,7 @@ export const useGetMetricOptions = (id, metricId = null, options = {}) => {
   return useQuery({
     queryKey: ["dataset-options", id, metricId],
     queryFn: () =>
-      axios.get(`${endpoints.dataset.options}${id}/`, {
+      axios.get(endpoints.dataset.options(id), {
         params: { metric_id: metricId },
       }),
     select: (d) => d.data,

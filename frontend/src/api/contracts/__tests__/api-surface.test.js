@@ -6,12 +6,12 @@ import {
 } from "../api-surface.generated";
 import {
   apiPath,
-  getApiContractExceptionMeta,
   getContractedApiMethods,
   isContractedApiPath,
   isApiContractExceptionPath,
   uncontractedApiPath,
 } from "../api-surface";
+import { API_CONTRACT_EXCEPTIONS } from "../api-contract-exceptions";
 
 describe("api surface contract", () => {
   it("generates annotation and model-hub endpoint coverage from Swagger", () => {
@@ -110,32 +110,12 @@ describe("api surface contract", () => {
     );
   });
 
-  it("allows only manifest-registered contract exception paths", () => {
-    expect(
-      uncontractedApiPath("/model-hub/ai_models/delete/{id}/", {
-        id: "item/1",
-      }),
-    ).toBe("/model-hub/ai_models/delete/item%2F1/");
-    expect(isApiContractExceptionPath("/model-hub/ai-models/")).toBe(true);
-    expect(getApiContractExceptionMeta("/model-hub/ai-models/")).toMatchObject({
-      group: "model-management",
-      status: "active_uncontracted",
-    });
+  it("keeps the endpoint registry fully backed by generated contracts", () => {
+    expect(API_CONTRACT_EXCEPTIONS).toEqual({});
     expect(isApiContractExceptionPath("/usage/v2/usage-overview/")).toBe(false);
     expect(() => uncontractedApiPath("/model-hub/legacy/")).toThrow(
       "API contract exception path is not registered",
     );
-    expect(() =>
-      uncontractedApiPath(
-        "/model-hub/ai-models/",
-        "Not exposed in Swagger yet.",
-      ),
-    ).toThrow(
-      "Uncontracted API path metadata belongs in api-contract-exceptions.js",
-    );
-    expect(() =>
-      uncontractedApiPath("/model-hub/ai_models/delete/{id}/", {}),
-    ).toThrow('Missing uncontracted API path param "id"');
   });
 
   it("does not let generated Management API coverage accidentally shrink", () => {

@@ -12,7 +12,7 @@ import {
   setSession,
 } from "src/auth/context/jwt/utils";
 import { HOST_API } from "src/config-global";
-import { apiPath, uncontractedApiPath } from "src/api/contracts/api-surface";
+import { apiPath } from "src/api/contracts/api-surface";
 import {
   assertContractedRequestConfig,
   assertContractedResponse,
@@ -503,30 +503,21 @@ export const endpoints = {
       }),
   },
   model: {
-    list: uncontractedApiPath("/model-hub/ai-models/"),
-    details: uncontractedApiPath("/model-hub/ai-models/"),
-    updateMetric: uncontractedApiPath("/model-hub/ai-models/update-metric/"),
-    performance: uncontractedApiPath("/model-hub/ai-models/performance"),
-    create: uncontractedApiPath("/model-hub/ai_models/create/"),
-    updateDefaultDataset: uncontractedApiPath(
-      "/model-hub/ai_models/update-baseline/",
-    ),
-    modelList: uncontractedApiPath("/model-hub/ai-models/list/"),
-    deleteModel: (id) =>
-      uncontractedApiPath("/model-hub/ai_models/delete/{id}/", { id }),
-    getModelDetail: uncontractedApiPath("/model-hub/get-model-details/"),
+    list: apiPath("/model-hub/custom-models/"),
+    details: (id) => apiPath("/model-hub/custom-models/{id}/", { id }),
+    updateMetric: (id) =>
+      apiPath("/model-hub/custom_models/update-metric/{id}/", { id }),
+    performance: (id) => apiPath("/model-hub/performance/{id}/", { id }),
+    create: apiPath("/model-hub/custom_models/create/"),
+    updateDefaultDataset: (id) =>
+      apiPath("/model-hub/custom_models/update-baseline/{id}/", { id }),
+    modelList: apiPath("/model-hub/custom-models/list/"),
+    deleteModel: () => apiPath("/model-hub/custom_models/delete/"),
+    getModelDetail: (id) => apiPath("/model-hub/custom-models/{id}/", { id }),
   },
   dataset: {
-    list: uncontractedApiPath("/model-hub/dataset/"),
-    summary: uncontractedApiPath("/model-hub/dataset/summary"),
-    options: uncontractedApiPath("/model-hub/dataset/options/"),
-    getColumns: uncontractedApiPath("/model-hub/dataset/column-config/"),
-    updateColumns: uncontractedApiPath("/model-hub/dataset/column-config/"),
-    createDataset: uncontractedApiPath("/model-hub/dataset/create/"),
-    propertyList: uncontractedApiPath("/model-hub/dataset/properties/"),
-    propertyDetail: (id) =>
-      uncontractedApiPath("/model-hub/dataset/properties/{id}/", { id }),
-    createProperty: uncontractedApiPath("/model-hub/dataset/properties/"),
+    options: (id) =>
+      apiPath("/model-hub/performance/options/{model_id}/", { model_id: id }),
     promptSummary: (id) =>
       apiPath("/model-hub/dataset/{dataset_id}/run-prompt-stats/", {
         dataset_id: id,
@@ -569,13 +560,6 @@ export const endpoints = {
       apiPath("/model-hub/datasets/delete-compare/{compare_id}/", {
         compare_id: compareId,
       }),
-  },
-  dataPoints: {
-    getColumns: uncontractedApiPath("/model-hub/data-points/column-config/"),
-    updateColumns: uncontractedApiPath("/model-hub/data-points/column-config/"),
-    list: uncontractedApiPath("/model-hub/data-points/"),
-    create: uncontractedApiPath("/model-hub/data-points/create/"),
-    metrics: uncontractedApiPath("/model-hub/data-points/metrics/"),
   },
   annotation: {
     list: apiPath("/model-hub/annotation-tasks/"),

@@ -4578,6 +4578,10 @@ export interface CustomAIModelBaselineRequestApi {
   model_version?: string;
 }
 
+export interface CustomAIModelDefaultMetricRequestApi {
+  metric_id: string;
+}
+
 export type DatasetOptimizationListApiOptimizerAlgorithm = typeof DatasetOptimizationListApiOptimizerAlgorithm[keyof typeof DatasetOptimizationListApiOptimizerAlgorithm];
 
 

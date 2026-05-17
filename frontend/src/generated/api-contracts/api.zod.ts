@@ -14669,6 +14669,37 @@ export const ModelHubCustomModelsUpdateBaselineCreateResponse = zod.object({
 
 
 /**
+ * Update default metric of the model given model id in request and information of metric in the body
+ */
+export const ModelHubCustomModelsUpdateMetricCreateParams = zod.object({
+  "id": zod.string()
+})
+
+export const ModelHubCustomModelsUpdateMetricCreateBody = zod.object({
+  "metric_id": zod.string().uuid()
+})
+
+export const ModelHubCustomModelsUpdateMetricCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+/**
  * List all dataset optimization runs with table config for dynamic columns.
  */
 export const ModelHubDatasetOptimizationListQueryParams = zod.object({

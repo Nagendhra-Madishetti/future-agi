@@ -241,6 +241,7 @@ import type {
   CustomAIModelBaselineRequestApi,
   CustomAIModelCreateRequestApi,
   CustomAIModelCreateResponseApi,
+  CustomAIModelDefaultMetricRequestApi,
   CustomAIModelEditRequestApi,
   CustomAIModelUpdateRequestApi,
   CustomEvalConfigApi,
@@ -22732,6 +22733,71 @@ export const modelHubCustomModelsUpdateBaselineCreate = async (id: string,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       customAIModelBaselineRequestApi,)
+  }
+);}
+
+
+
+export type modelHubCustomModelsUpdateMetricCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
+}
+
+export type modelHubCustomModelsUpdateMetricCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubCustomModelsUpdateMetricCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubCustomModelsUpdateMetricCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubCustomModelsUpdateMetricCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubCustomModelsUpdateMetricCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubCustomModelsUpdateMetricCreateResponseSuccess = (modelHubCustomModelsUpdateMetricCreateResponse200) & {
+  headers: Headers;
+};
+export type modelHubCustomModelsUpdateMetricCreateResponseError = (modelHubCustomModelsUpdateMetricCreateResponse400 | modelHubCustomModelsUpdateMetricCreateResponse403 | modelHubCustomModelsUpdateMetricCreateResponse404 | modelHubCustomModelsUpdateMetricCreateResponse409 | modelHubCustomModelsUpdateMetricCreateResponse500) & {
+  headers: Headers;
+};
+
+export type modelHubCustomModelsUpdateMetricCreateResponse = (modelHubCustomModelsUpdateMetricCreateResponseSuccess | modelHubCustomModelsUpdateMetricCreateResponseError)
+
+export const getModelHubCustomModelsUpdateMetricCreateUrl = (id: string,) => {
+
+
+
+
+  return `/model-hub/custom_models/update-metric/${id}/`
+}
+
+/**
+ * Update default metric of the model given model id in request and information of metric in the body
+ */
+export const modelHubCustomModelsUpdateMetricCreate = async (id: string,
+    customAIModelDefaultMetricRequestApi: CustomAIModelDefaultMetricRequestApi, options?: RequestInit): Promise<modelHubCustomModelsUpdateMetricCreateResponse> => {
+
+  return apiMutator<modelHubCustomModelsUpdateMetricCreateResponse>(getModelHubCustomModelsUpdateMetricCreateUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      customAIModelDefaultMetricRequestApi,)
   }
 );}
 
