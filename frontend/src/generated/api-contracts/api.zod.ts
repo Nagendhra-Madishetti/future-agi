@@ -14590,22 +14590,10 @@ export const ModelHubCreateCustomEvalsCreateBody = zod.object({
 })
 
 export const ModelHubCreateCustomEvalsCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
+  "status": zod.boolean(),
   "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "eval_template_id": zod.string().uuid()
+})
 })
 
 
@@ -18510,23 +18498,12 @@ export const ModelHubEvalTemplateCreateCreateBody = zod.object({
   "eval_tags": zod.array(zod.string().min(1).max(modelHubEvalTemplateCreateCreateBodyEvalTagsItemMax)).optional()
 })
 
+
+
+
 export const ModelHubEvalTemplateCreateCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
-  "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "status": zod.boolean(),
+  "result": zod.string().min(1)
 })
 
 
@@ -19452,23 +19429,12 @@ export const ModelHubEvalUserTemplateCreateCreateBody = zod.object({
   "model": zod.string().min(1).max(modelHubEvalUserTemplateCreateCreateBodyModelMax).optional()
 })
 
+
+
+
 export const ModelHubEvalUserTemplateCreateCreateResponse = zod.object({
-  "status": zod.object({
-
-}).passthrough().optional(),
-  "message": zod.string().optional(),
-  "result": zod.object({
-
-}).passthrough().optional(),
-  "data": zod.object({
-
-}).passthrough().optional(),
-  "error": zod.object({
-
-}).passthrough().optional(),
-  "detail": zod.object({
-
-}).passthrough().optional()
+  "status": zod.boolean(),
+  "result": zod.string().min(1)
 })
 
 

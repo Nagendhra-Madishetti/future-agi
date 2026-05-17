@@ -429,6 +429,7 @@ class TestEvalTemplateCreateView(EvalRunnerBaseTestCase):
         )
 
         assert response.status_code == status.HTTP_200_OK
+        assert response.json()["result"] == "success"
 
     def test_create_eval_template_invalid_data(self):
         """Create fails with invalid data."""
@@ -493,6 +494,7 @@ class TestEvalUserTemplateCreateView(EvalRunnerBaseTestCase):
         )
 
         assert response.status_code == status.HTTP_200_OK
+        assert response.json()["result"] == "success"
 
         # Verify user eval metric was created
         user_metric = UserEvalMetric.objects.filter(

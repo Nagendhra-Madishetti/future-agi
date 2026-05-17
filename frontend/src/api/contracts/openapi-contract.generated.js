@@ -10093,7 +10093,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/CustomEvalTemplateCreateResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -13535,7 +13535,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/ModelHubStringResultResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -14155,7 +14155,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/ModelHubStringResultResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -40093,6 +40093,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CustomEvalTemplateCreateResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/CustomEvalTemplateCreateResponseResult"
+        }
+      }
+    },
     "CustomMetricListResponse": {
       "required": [
         "metrics"
@@ -59965,6 +59981,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "config_json": {
           "title": "Config json",
           "type": "object"
+        }
+      }
+    },
+    "CustomEvalTemplateCreateResponseResult": {
+      "required": [
+        "eval_template_id"
+      ],
+      "type": "object",
+      "properties": {
+        "eval_template_id": {
+          "title": "Eval template id",
+          "type": "string",
+          "format": "uuid"
         }
       }
     },

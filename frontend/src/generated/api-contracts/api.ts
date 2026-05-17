@@ -251,6 +251,7 @@ import type {
   CustomAIModelUpdateRequestApi,
   CustomEvalConfigApi,
   CustomEvalTemplateCreateApi,
+  CustomEvalTemplateCreateResponseApi,
   CustomMetricListResponseApi,
   CustomMetricMutationRequestApi,
   CustomMetricTestRequestApi,
@@ -21814,7 +21815,7 @@ export const modelHubColumnsRerunOperationCreate = async (columnId: string,
 
 
 export type modelHubCreateCustomEvalsCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: CustomEvalTemplateCreateResponseApi
   status: 200
 }
 
@@ -29530,7 +29531,7 @@ export const modelHubEvalSummaryTemplatesDelete = async (templateId: string, opt
 
 
 export type modelHubEvalTemplateCreateCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: ModelHubStringResultResponseApi
   status: 200
 }
 
@@ -30980,7 +30981,7 @@ export const modelHubEvalTemplatesVersionsSetDefaultUpdate = async (templateId: 
 
 
 export type modelHubEvalUserTemplateCreateCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: ModelHubStringResultResponseApi
   status: 200
 }
 

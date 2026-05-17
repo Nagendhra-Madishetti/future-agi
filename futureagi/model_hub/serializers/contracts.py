@@ -53,6 +53,15 @@ class ModelHubStringResultResponseSerializer(serializers.Serializer):
     result = serializers.CharField()
 
 
+class CustomEvalTemplateCreateResponseResultSerializer(serializers.Serializer):
+    eval_template_id = serializers.UUIDField()
+
+
+class CustomEvalTemplateCreateResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = CustomEvalTemplateCreateResponseResultSerializer()
+
+
 class AIEvalWriterRequestSerializer(serializers.Serializer):
     description = serializers.CharField()
     output_format = serializers.ChoiceField(

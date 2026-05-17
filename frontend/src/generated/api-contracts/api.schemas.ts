@@ -4976,23 +4976,13 @@ export interface CustomEvalTemplateCreateApi {
   template_id?: string;
 }
 
-export type ModelHubJSONResponseApiStatus = { [key: string]: unknown };
+export interface CustomEvalTemplateCreateResponseResultApi {
+  eval_template_id: string;
+}
 
-export type ModelHubJSONResponseApiResult = { [key: string]: unknown };
-
-export type ModelHubJSONResponseApiData = { [key: string]: unknown };
-
-export type ModelHubJSONResponseApiError = { [key: string]: unknown };
-
-export type ModelHubJSONResponseApiDetail = { [key: string]: unknown };
-
-export interface ModelHubJSONResponseApi {
-  status?: ModelHubJSONResponseApiStatus;
-  message?: string;
-  result?: ModelHubJSONResponseApiResult;
-  data?: ModelHubJSONResponseApiData;
-  error?: ModelHubJSONResponseApiError;
-  detail?: ModelHubJSONResponseApiDetail;
+export interface CustomEvalTemplateCreateResponseApi {
+  status: boolean;
+  result: CustomEvalTemplateCreateResponseResultApi;
 }
 
 export interface CustomMetricListItemApi {
@@ -5500,6 +5490,25 @@ export interface CompareEvalsListRequestApi {
   search_text?: string;
   eval_type: CompareEvalsListRequestApiEvalType;
   dataset_ids: string[];
+}
+
+export type ModelHubJSONResponseApiStatus = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiResult = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiData = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiError = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiDetail = { [key: string]: unknown };
+
+export interface ModelHubJSONResponseApi {
+  status?: ModelHubJSONResponseApiStatus;
+  message?: string;
+  result?: ModelHubJSONResponseApiResult;
+  data?: ModelHubJSONResponseApiData;
+  error?: ModelHubJSONResponseApiError;
+  detail?: ModelHubJSONResponseApiDetail;
 }
 
 export type ComparePreviewRunEvalRequestApiConfig = { [key: string]: unknown };

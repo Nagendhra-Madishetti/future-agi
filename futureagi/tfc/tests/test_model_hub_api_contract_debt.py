@@ -753,7 +753,9 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("POST", "/model-hub/develops/{dataset_id}/extract-json-column/"): (
             "ModelHubJSONResponse"
         ),
-        ("POST", "/model-hub/create_custom_evals/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/create_custom_evals/"): (
+            "CustomEvalTemplateCreateResponse"
+        ),
         ("POST", "/model-hub/delete-eval-template/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/duplicate-eval-template/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/evaluate-rows/"): "ModelHubJSONResponse",
@@ -822,8 +824,12 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "PUT",
             "/model-hub/eval-templates/{template_id}/versions/{version_id}/set-default/",
         ): "ModelHubJSONResponse",
-        ("POST", "/model-hub/eval-template/create/"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/eval-user-template/create/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/eval-template/create/"): (
+            "ModelHubStringResultResponse"
+        ),
+        ("POST", "/model-hub/eval-user-template/create/"): (
+            "ModelHubStringResultResponse"
+        ),
         ("GET", "/model-hub/embeddings/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/embeddings/{type}/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/experiments/v2/{experiment_id}/feedback/get-template/"): (

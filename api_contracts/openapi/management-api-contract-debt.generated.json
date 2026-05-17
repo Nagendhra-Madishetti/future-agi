@@ -5,7 +5,7 @@
     "operations": 1336,
     "mutation_endpoints_without_body_schema": 0,
     "operations_without_response_schema": 0,
-    "broad_success_response_schemas": 325
+    "broad_success_response_schemas": 322
   },
   "by_group": {
     "accounts": {
@@ -83,7 +83,7 @@
       "operations": 473,
       "mutation_endpoints_without_body_schema": 0,
       "operations_without_response_schema": 0,
-      "broad_success_response_schemas": 207
+      "broad_success_response_schemas": 204
     },
     "saml2_auth": {
       "paths": 12,
@@ -1190,18 +1190,6 @@
     {
       "group": "model-hub",
       "method": "POST",
-      "path": "/model-hub/create_custom_evals/",
-      "operation_id": "model-hub_create_custom_evals_create",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "200",
-      "schema": "ModelHubJSONResponse",
-      "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
       "path": "/model-hub/datasets/compare/get-evals-list/",
       "operation_id": "model-hub_datasets_compare_get-evals-list_create",
       "tags": [
@@ -2222,18 +2210,6 @@
     {
       "group": "model-hub",
       "method": "POST",
-      "path": "/model-hub/eval-template/create/",
-      "operation_id": "model-hub_eval-template_create_create",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "200",
-      "schema": "ModelHubJSONResponse",
-      "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
       "path": "/model-hub/eval-templates/bulk-delete/",
       "operation_id": "model-hub_eval-templates_bulk-delete_create",
       "tags": [
@@ -2476,18 +2452,6 @@
       "method": "PUT",
       "path": "/model-hub/eval-templates/{template_id}/versions/{version_id}/set-default/",
       "operation_id": "model-hub_eval-templates_versions_set-default_update",
-      "tags": [
-        "model-hub"
-      ],
-      "status_code": "200",
-      "schema": "ModelHubJSONResponse",
-      "reason": "ModelHubJSONResponse.result is an unshaped object"
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-user-template/create/",
-      "operation_id": "model-hub_eval-user-template_create_create",
       "tags": [
         "model-hub"
       ],

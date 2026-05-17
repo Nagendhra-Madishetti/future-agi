@@ -18833,7 +18833,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/CustomEvalTemplateCreateResponse"
                         }
                     },
                     "400": {
@@ -26057,7 +26057,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/ModelHubStringResultResponse"
                         }
                     },
                     "400": {
@@ -27387,7 +27387,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/ModelHubStringResultResponse"
                         }
                     },
                     "400": {
@@ -72961,32 +72961,32 @@
                 }
             }
         },
-        "ModelHubJSONResponse": {
+        "CustomEvalTemplateCreateResponseResult": {
+            "required": [
+                "eval_template_id"
+            ],
+            "type": "object",
+            "properties": {
+                "eval_template_id": {
+                    "title": "Eval template id",
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "CustomEvalTemplateCreateResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
             "type": "object",
             "properties": {
                 "status": {
                     "title": "Status",
-                    "type": "object"
-                },
-                "message": {
-                    "title": "Message",
-                    "type": "string"
+                    "type": "boolean"
                 },
                 "result": {
-                    "title": "Result",
-                    "type": "object"
-                },
-                "data": {
-                    "title": "Data",
-                    "type": "object"
-                },
-                "error": {
-                    "title": "Error",
-                    "type": "object"
-                },
-                "detail": {
-                    "title": "Detail",
-                    "type": "object"
+                    "$ref": "#/definitions/CustomEvalTemplateCreateResponseResult"
                 }
             }
         },
@@ -74275,6 +74275,35 @@
                         "type": "string",
                         "format": "uuid"
                     }
+                }
+            }
+        },
+        "ModelHubJSONResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "object"
+                },
+                "message": {
+                    "title": "Message",
+                    "type": "string"
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object"
+                },
+                "data": {
+                    "title": "Data",
+                    "type": "object"
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "object"
+                },
+                "detail": {
+                    "title": "Detail",
+                    "type": "object"
                 }
             }
         },

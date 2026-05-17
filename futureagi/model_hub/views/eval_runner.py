@@ -53,9 +53,11 @@ from model_hub.models.develop_dataset import (
 from model_hub.models.evals_metric import EvalTemplate, UserEvalMetric
 from model_hub.models.run_prompt import RunPrompter
 from model_hub.serializers.contracts import (
+    CustomEvalTemplateCreateResponseSerializer,
     DatasetEvalStatsResponseSerializer,
     MODEL_HUB_ERROR_RESPONSES,
     ModelHubJSONResponseSerializer,
+    ModelHubStringResultResponseSerializer,
 )
 from model_hub.serializers.develop_optimisation import UserEvalMetricSerializer
 from model_hub.serializers.eval_runner import (
@@ -3128,7 +3130,10 @@ class CustomEvalTemplateCreateView(CreateAPIView):
 
     @swagger_auto_schema(
         request_body=CustomEvalTemplateCreateSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: CustomEvalTemplateCreateResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request):
         try:
@@ -3218,7 +3223,10 @@ class EvalTemplateCreateView(CreateAPIView):
 
     @swagger_auto_schema(
         request_body=EvalTemplateSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: ModelHubStringResultResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request):
         try:
@@ -3252,7 +3260,10 @@ class EvalUserTemplateCreateView(CreateAPIView):
 
     @swagger_auto_schema(
         request_body=EvalUserTemplateSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: ModelHubStringResultResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request):
         try:
