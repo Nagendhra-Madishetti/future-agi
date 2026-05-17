@@ -23070,10 +23070,52 @@
                 "operationId": "model-hub_eval-templates_bulk-delete_create",
                 "summary": "POST /model-hub/eval-templates/bulk-delete/",
                 "description": "Soft-delete multiple eval templates. Only user-owned templates can be deleted.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EvalTemplateBulkDeleteRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23087,10 +23129,52 @@
                 "operationId": "model-hub_eval-templates_composite_execute-adhoc_create",
                 "summary": "POST /model-hub/eval-templates/composite/execute-adhoc/",
                 "description": "Execute a composite eval configuration without persisting it. Used by\nthe eval create page so users can test a composite (selected children +\naggregation settings) before clicking Save. Builds an unsaved parent\ntemplate and unsaved child links in memory and reuses\n`execute_composite_children_sync` so semantics match the persisted path.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CompositeEvalAdhocExecuteRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23104,10 +23188,52 @@
                 "operationId": "model-hub_eval-templates_create-composite_create",
                 "summary": "POST /model-hub/eval-templates/create-composite/",
                 "description": "Create a composite eval from a list of existing eval template IDs.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CompositeEvalCreateRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23121,10 +23247,52 @@
                 "operationId": "model-hub_eval-templates_create-v2_create",
                 "summary": "POST /model-hub/eval-templates/create-v2/",
                 "description": "Create a single eval template with the revamped schema.\nSupports the new scoring fields (pass_threshold, choice_scores, output_type_normalized).",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EvalTemplateCreateV2Request"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23138,10 +23306,52 @@
                 "operationId": "model-hub_eval-templates_list-charts_create",
                 "summary": "POST /model-hub/eval-templates/list-charts/",
                 "description": "Returns 30-day chart data (run counts + error rates) for a list of template IDs.\nUses ClickHouse for fast analytics. Called separately from the list API so the\ntable renders instantly while charts load async.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EvalTemplateListChartsRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23155,10 +23365,52 @@
                 "operationId": "model-hub_eval-templates_list_create",
                 "summary": "POST /model-hub/eval-templates/list/",
                 "description": "Returns paginated eval template list with filtering, search, and 30-day metrics.\nAll inputs and outputs are validated with Pydantic schemas.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EvalListRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23175,7 +23427,40 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23186,10 +23471,52 @@
                 "operationId": "model-hub_eval-templates_composite_partial_update",
                 "summary": "PATCH — partial update of a composite eval.",
                 "description": "Supported fields (all optional):\n  name, description, tags,\n  aggregation_enabled, aggregation_function,\n  child_template_ids (replaces the child list),\n  child_weights (map of child_id -> weight).",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CompositeEvalUpdateRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23210,10 +23537,52 @@
                 "operationId": "model-hub_eval-templates_composite_execute_create",
                 "summary": "POST /model-hub/eval-templates/<template_id>/composite/execute/",
                 "description": "Execute all child evals in a composite and optionally aggregate results.\nThin wrapper around `execute_composite_children_sync` — the same helper\nthe dataset/experiment `CompositeEvaluationRunner` uses, so aggregation\nsemantics stay consistent across surfaces.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CompositeEvalExecuteRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23237,7 +23606,40 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23285,7 +23687,40 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23296,10 +23731,52 @@
                 "operationId": "model-hub_eval-templates_ground-truth-config_update",
                 "summary": "GET/PUT /model-hub/eval-templates/<id>/ground-truth-config/",
                 "description": "Manages ground truth configuration on the eval template's config JSONField.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GroundTruthConfigRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23322,7 +23799,40 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23343,10 +23853,52 @@
                 "operationId": "model-hub_eval-templates_ground-truth_upload_create",
                 "summary": "POST /model-hub/eval-templates/<id>/ground-truth/upload/",
                 "description": "Supports two modes:\n1. JSON body: { name, columns, data, ... }\n2. Multipart file upload: file (CSV/XLS/XLSX/JSON) + name field",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GroundTruthUploadRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23367,10 +23919,52 @@
                 "operationId": "model-hub_eval-templates_update_update",
                 "summary": "PUT /model-hub/eval-templates/<id>/update/",
                 "description": "Update an eval template. Only user-owned templates can be updated.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EvalTemplateUpdateV2Request"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23418,7 +24012,40 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23439,10 +24066,52 @@
                 "operationId": "model-hub_eval-templates_versions_create_create",
                 "summary": "POST /model-hub/eval-templates/<id>/versions/create/",
                 "description": "Create a new version snapshot from the current template state.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/EvalTemplateVersionCreateRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23463,10 +24132,52 @@
                 "operationId": "model-hub_eval-templates_versions_restore_create",
                 "summary": "POST /model-hub/eval-templates/<id>/versions/<version_id>/restore/",
                 "description": "Restore a version by creating a new version with the old version's config.\nDoes NOT modify the old version — creates a new one on top.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubEmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -23493,10 +24204,52 @@
                 "operationId": "model-hub_eval-templates_versions_set-default_update",
                 "summary": "PUT /model-hub/eval-templates/<id>/versions/<version_id>/set-default/",
                 "description": "Set a specific version as the default (active) version.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubEmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -25448,8 +26201,41 @@
                 "description": "DELETE /model-hub/ground-truth/<id>/",
                 "parameters": [],
                 "responses": {
-                    "204": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -25472,7 +26258,40 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -25492,10 +26311,52 @@
             "post": {
                 "operationId": "model-hub_ground-truth_embed_create",
                 "description": "POST /model-hub/ground-truth/<id>/embed/ — trigger embedding generation.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubEmptyRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -25515,10 +26376,52 @@
             "put": {
                 "operationId": "model-hub_ground-truth_mapping_update",
                 "description": "PUT /model-hub/ground-truth/<id>/mapping/",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GroundTruthMappingRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -25538,10 +26441,52 @@
             "put": {
                 "operationId": "model-hub_ground-truth_role-mapping_update",
                 "description": "PUT /model-hub/ground-truth/<id>/role-mapping/",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GroundTruthRoleMappingRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -25561,10 +26506,52 @@
             "post": {
                 "operationId": "model-hub_ground-truth_search_create",
                 "description": "POST /model-hub/ground-truth/<id>/search/ — test retrieval with a query.",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/GroundTruthSearchRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "201": {
-                        "description": ""
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -25587,7 +26574,40 @@
                 "parameters": [],
                 "responses": {
                     "200": {
-                        "description": ""
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubJSONResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ModelHubErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -66253,6 +67273,878 @@
                 }
             }
         },
+        "EvalTemplateBulkDeleteRequest": {
+            "required": [
+                "template_ids"
+            ],
+            "type": "object",
+            "properties": {
+                "template_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }
+            }
+        },
+        "CompositeEvalAdhocExecuteRequest": {
+            "required": [
+                "mapping",
+                "child_template_ids"
+            ],
+            "type": "object",
+            "properties": {
+                "mapping": {
+                    "title": "Mapping",
+                    "type": "object"
+                },
+                "model": {
+                    "title": "Model",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "default": {}
+                },
+                "error_localizer": {
+                    "title": "Error localizer",
+                    "type": "boolean",
+                    "default": false
+                },
+                "input_data_types": {
+                    "title": "Input data types",
+                    "type": "object",
+                    "default": {}
+                },
+                "span_context": {
+                    "title": "Span context",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "trace_context": {
+                    "title": "Trace context",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "session_context": {
+                    "title": "Session context",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "call_context": {
+                    "title": "Call context",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "row_context": {
+                    "title": "Row context",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "child_template_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "aggregation_enabled": {
+                    "title": "Aggregation enabled",
+                    "type": "boolean",
+                    "default": true
+                },
+                "aggregation_function": {
+                    "title": "Aggregation function",
+                    "type": "string",
+                    "enum": [
+                        "weighted_avg",
+                        "avg",
+                        "min",
+                        "max",
+                        "pass_rate"
+                    ],
+                    "default": "weighted_avg"
+                },
+                "composite_child_axis": {
+                    "title": "Composite child axis",
+                    "type": "string",
+                    "enum": [
+                        "",
+                        "pass_fail",
+                        "percentage",
+                        "choices",
+                        "code"
+                    ],
+                    "default": ""
+                },
+                "child_weights": {
+                    "title": "Child weights",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "pass_threshold": {
+                    "title": "Pass threshold",
+                    "type": "number",
+                    "default": 0.5
+                }
+            }
+        },
+        "CompositeEvalCreateRequest": {
+            "required": [
+                "name",
+                "child_template_ids"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "default": []
+                },
+                "child_template_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "aggregation_enabled": {
+                    "title": "Aggregation enabled",
+                    "type": "boolean",
+                    "default": true
+                },
+                "aggregation_function": {
+                    "title": "Aggregation function",
+                    "type": "string",
+                    "enum": [
+                        "weighted_avg",
+                        "avg",
+                        "min",
+                        "max",
+                        "pass_rate"
+                    ],
+                    "default": "weighted_avg"
+                },
+                "child_weights": {
+                    "title": "Child weights",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "composite_child_axis": {
+                    "title": "Composite child axis",
+                    "type": "string",
+                    "enum": [
+                        "",
+                        "pass_fail",
+                        "percentage",
+                        "choices",
+                        "code"
+                    ],
+                    "default": ""
+                }
+            }
+        },
+        "EvalTemplateCreateV2Request": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "is_draft": {
+                    "title": "Is draft",
+                    "type": "boolean",
+                    "default": false
+                },
+                "eval_type": {
+                    "title": "Eval type",
+                    "type": "string",
+                    "enum": [
+                        "llm",
+                        "code",
+                        "agent"
+                    ],
+                    "default": "llm"
+                },
+                "instructions": {
+                    "title": "Instructions",
+                    "type": "string",
+                    "maxLength": 100000
+                },
+                "model": {
+                    "title": "Model",
+                    "type": "string",
+                    "default": "turing_large",
+                    "minLength": 1
+                },
+                "output_type": {
+                    "title": "Output type",
+                    "type": "string",
+                    "enum": [
+                        "pass_fail",
+                        "percentage",
+                        "deterministic"
+                    ],
+                    "default": "pass_fail"
+                },
+                "pass_threshold": {
+                    "title": "Pass threshold",
+                    "type": "number",
+                    "maximum": 1,
+                    "minimum": 0
+                },
+                "choice_scores": {
+                    "title": "Choice scores",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "default": []
+                },
+                "check_internet": {
+                    "title": "Check internet",
+                    "type": "boolean",
+                    "default": false
+                },
+                "code": {
+                    "title": "Code",
+                    "type": "string",
+                    "maxLength": 100000,
+                    "x-nullable": true
+                },
+                "code_language": {
+                    "title": "Code language",
+                    "type": "string",
+                    "enum": [
+                        "python",
+                        "javascript"
+                    ],
+                    "x-nullable": true
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    },
+                    "x-nullable": true
+                },
+                "few_shot_examples": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    },
+                    "x-nullable": true
+                },
+                "mode": {
+                    "title": "Mode",
+                    "type": "string",
+                    "enum": [
+                        "auto",
+                        "agent",
+                        "quick"
+                    ],
+                    "x-nullable": true
+                },
+                "tools": {
+                    "title": "Tools",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "knowledge_bases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "x-nullable": true
+                },
+                "data_injection": {
+                    "title": "Data injection",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "summary": {
+                    "title": "Summary",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "error_localizer_enabled": {
+                    "title": "Error localizer enabled",
+                    "type": "boolean",
+                    "default": false
+                },
+                "template_format": {
+                    "title": "Template format",
+                    "type": "string",
+                    "enum": [
+                        "mustache",
+                        "jinja"
+                    ],
+                    "default": "mustache"
+                }
+            }
+        },
+        "EvalTemplateListChartsRequest": {
+            "required": [
+                "template_ids"
+            ],
+            "type": "object",
+            "properties": {
+                "template_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }
+            }
+        },
+        "EvalListFilters": {
+            "type": "object",
+            "properties": {
+                "eval_type": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "llm",
+                            "code",
+                            "agent"
+                        ]
+                    }
+                },
+                "output_type": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "pass_fail",
+                            "percentage",
+                            "deterministic"
+                        ]
+                    }
+                },
+                "template_type": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "single",
+                            "composite"
+                        ]
+                    }
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "created_by": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                }
+            },
+            "x-nullable": true
+        },
+        "EvalListRequest": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "title": "Page",
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0
+                },
+                "page_size": {
+                    "title": "Page size",
+                    "type": "integer",
+                    "default": 25,
+                    "maximum": 100,
+                    "minimum": 1
+                },
+                "search": {
+                    "title": "Search",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "owner_filter": {
+                    "title": "Owner filter",
+                    "type": "string",
+                    "enum": [
+                        "all",
+                        "user",
+                        "system"
+                    ],
+                    "default": "all"
+                },
+                "filters": {
+                    "$ref": "#/definitions/EvalListFilters"
+                },
+                "sort_by": {
+                    "title": "Sort by",
+                    "type": "string",
+                    "enum": [
+                        "name",
+                        "updated_at",
+                        "created_at"
+                    ],
+                    "default": "updated_at"
+                },
+                "sort_order": {
+                    "title": "Sort order",
+                    "type": "string",
+                    "enum": [
+                        "asc",
+                        "desc"
+                    ],
+                    "default": "desc"
+                }
+            }
+        },
+        "CompositeEvalUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "x-nullable": true
+                },
+                "aggregation_enabled": {
+                    "title": "Aggregation enabled",
+                    "type": "boolean",
+                    "x-nullable": true
+                },
+                "aggregation_function": {
+                    "title": "Aggregation function",
+                    "type": "string",
+                    "enum": [
+                        "weighted_avg",
+                        "avg",
+                        "min",
+                        "max",
+                        "pass_rate"
+                    ],
+                    "x-nullable": true
+                },
+                "child_template_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "x-nullable": true
+                },
+                "child_weights": {
+                    "title": "Child weights",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "composite_child_axis": {
+                    "title": "Composite child axis",
+                    "type": "string",
+                    "enum": [
+                        "",
+                        "pass_fail",
+                        "percentage",
+                        "choices",
+                        "code"
+                    ],
+                    "x-nullable": true
+                }
+            }
+        },
+        "CompositeEvalExecuteRequest": {
+            "required": [
+                "mapping"
+            ],
+            "type": "object",
+            "properties": {
+                "mapping": {
+                    "title": "Mapping",
+                    "type": "object"
+                },
+                "model": {
+                    "title": "Model",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "config": {
+                    "title": "Config",
+                    "type": "object",
+                    "default": {}
+                },
+                "error_localizer": {
+                    "title": "Error localizer",
+                    "type": "boolean",
+                    "default": false
+                },
+                "input_data_types": {
+                    "title": "Input data types",
+                    "type": "object",
+                    "default": {}
+                },
+                "span_context": {
+                    "title": "Span context",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "trace_context": {
+                    "title": "Trace context",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "session_context": {
+                    "title": "Session context",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "call_context": {
+                    "title": "Call context",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "row_context": {
+                    "title": "Row context",
+                    "type": "object",
+                    "x-nullable": true
+                }
+            }
+        },
+        "GroundTruthConfigRequest": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "title": "Enabled",
+                    "type": "boolean",
+                    "default": true
+                },
+                "ground_truth_id": {
+                    "title": "Ground truth id",
+                    "type": "string",
+                    "format": "uuid",
+                    "x-nullable": true
+                },
+                "mode": {
+                    "title": "Mode",
+                    "type": "string",
+                    "enum": [
+                        "auto",
+                        "manual",
+                        "disabled"
+                    ],
+                    "default": "auto"
+                },
+                "max_examples": {
+                    "title": "Max examples",
+                    "type": "integer",
+                    "maximum": 10,
+                    "minimum": 1
+                },
+                "similarity_threshold": {
+                    "title": "Similarity threshold",
+                    "type": "number",
+                    "maximum": 1,
+                    "minimum": 0
+                },
+                "injection_format": {
+                    "title": "Injection format",
+                    "type": "string",
+                    "enum": [
+                        "structured",
+                        "conversational",
+                        "xml"
+                    ],
+                    "default": "structured"
+                }
+            }
+        },
+        "GroundTruthUploadRequest": {
+            "required": [
+                "name",
+                "columns",
+                "data"
+            ],
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "default": ""
+                },
+                "file_name": {
+                    "title": "File name",
+                    "type": "string",
+                    "default": ""
+                },
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                },
+                "variable_mapping": {
+                    "title": "Variable mapping",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "role_mapping": {
+                    "title": "Role mapping",
+                    "type": "object",
+                    "x-nullable": true
+                }
+            }
+        },
+        "EvalTemplateUpdateV2Request": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "eval_type": {
+                    "title": "Eval type",
+                    "type": "string",
+                    "enum": [
+                        "llm",
+                        "code",
+                        "agent"
+                    ],
+                    "x-nullable": true
+                },
+                "instructions": {
+                    "title": "Instructions",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "model": {
+                    "title": "Model",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "output_type": {
+                    "title": "Output type",
+                    "type": "string",
+                    "enum": [
+                        "pass_fail",
+                        "percentage",
+                        "deterministic"
+                    ],
+                    "x-nullable": true
+                },
+                "pass_threshold": {
+                    "title": "Pass threshold",
+                    "type": "number",
+                    "maximum": 1,
+                    "minimum": 0,
+                    "x-nullable": true
+                },
+                "choice_scores": {
+                    "title": "Choice scores",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "multi_choice": {
+                    "title": "Multi choice",
+                    "type": "boolean",
+                    "x-nullable": true
+                },
+                "description": {
+                    "title": "Description",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "x-nullable": true
+                },
+                "check_internet": {
+                    "title": "Check internet",
+                    "type": "boolean",
+                    "x-nullable": true
+                },
+                "code": {
+                    "title": "Code",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "code_language": {
+                    "title": "Code language",
+                    "type": "string",
+                    "enum": [
+                        "python",
+                        "javascript"
+                    ],
+                    "x-nullable": true
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    },
+                    "x-nullable": true
+                },
+                "few_shot_examples": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    },
+                    "x-nullable": true
+                },
+                "mode": {
+                    "title": "Mode",
+                    "type": "string",
+                    "enum": [
+                        "auto",
+                        "agent",
+                        "quick"
+                    ],
+                    "x-nullable": true
+                },
+                "tools": {
+                    "title": "Tools",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "knowledge_bases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "x-nullable": true
+                },
+                "data_injection": {
+                    "title": "Data injection",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "summary": {
+                    "title": "Summary",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "error_localizer_enabled": {
+                    "title": "Error localizer enabled",
+                    "type": "boolean",
+                    "x-nullable": true
+                },
+                "publish": {
+                    "title": "Publish",
+                    "type": "boolean",
+                    "x-nullable": true
+                },
+                "template_format": {
+                    "title": "Template format",
+                    "type": "string",
+                    "enum": [
+                        "mustache",
+                        "jinja"
+                    ],
+                    "x-nullable": true
+                }
+            }
+        },
+        "EvalTemplateVersionCreateRequest": {
+            "type": "object",
+            "properties": {
+                "criteria": {
+                    "title": "Criteria",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "model": {
+                    "title": "Model",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "config_snapshot": {
+                    "title": "Config snapshot",
+                    "type": "object",
+                    "x-nullable": true
+                }
+            }
+        },
+        "ModelHubEmptyRequest": {
+            "type": "object",
+            "properties": {}
+        },
         "EvalUserTemplate": {
             "required": [
                 "name",
@@ -66611,6 +68503,49 @@
                 "column_placeholders": {
                     "title": "Column placeholders",
                     "type": "object"
+                }
+            }
+        },
+        "GroundTruthMappingRequest": {
+            "required": [
+                "variable_mapping"
+            ],
+            "type": "object",
+            "properties": {
+                "variable_mapping": {
+                    "title": "Variable mapping",
+                    "type": "object"
+                }
+            }
+        },
+        "GroundTruthRoleMappingRequest": {
+            "required": [
+                "role_mapping"
+            ],
+            "type": "object",
+            "properties": {
+                "role_mapping": {
+                    "title": "Role mapping",
+                    "type": "object"
+                }
+            }
+        },
+        "GroundTruthSearchRequest": {
+            "required": [
+                "query"
+            ],
+            "type": "object",
+            "properties": {
+                "query": {
+                    "title": "Query",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "max_results": {
+                    "title": "Max results",
+                    "type": "integer",
+                    "maximum": 20,
+                    "minimum": 1
                 }
             }
         },

@@ -411,3 +411,281 @@ class SingleRowEvaluationRequestSerializer(serializers.Serializer):
         default=list,
     )
     selected_all_rows = serializers.BooleanField(required=False, default=False)
+
+
+class EvalTemplateListChartsRequestSerializer(serializers.Serializer):
+    template_ids = serializers.ListField(child=serializers.UUIDField())
+
+
+class EvalTemplateBulkDeleteRequestSerializer(serializers.Serializer):
+    template_ids = serializers.ListField(child=serializers.UUIDField())
+
+
+class EvalTemplateCreateV2RequestSerializer(serializers.Serializer):
+    name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    is_draft = serializers.BooleanField(required=False, default=False)
+    eval_type = serializers.ChoiceField(
+        choices=["llm", "code", "agent"],
+        required=False,
+        default="llm",
+    )
+    instructions = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=100000,
+    )
+    model = serializers.CharField(required=False, default="turing_large")
+    output_type = serializers.ChoiceField(
+        choices=["pass_fail", "percentage", "deterministic"],
+        required=False,
+        default="pass_fail",
+    )
+    pass_threshold = serializers.FloatField(required=False, min_value=0, max_value=1)
+    choice_scores = serializers.JSONField(required=False, allow_null=True)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    tags = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+    )
+    check_internet = serializers.BooleanField(required=False, default=False)
+    code = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=100000,
+    )
+    code_language = serializers.ChoiceField(
+        choices=["python", "javascript"],
+        required=False,
+        allow_null=True,
+    )
+    messages = serializers.ListField(
+        child=serializers.JSONField(),
+        required=False,
+        allow_null=True,
+    )
+    few_shot_examples = serializers.ListField(
+        child=serializers.JSONField(),
+        required=False,
+        allow_null=True,
+    )
+    mode = serializers.ChoiceField(
+        choices=["auto", "agent", "quick"],
+        required=False,
+        allow_null=True,
+    )
+    tools = serializers.JSONField(required=False, allow_null=True)
+    knowledge_bases = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_null=True,
+    )
+    data_injection = serializers.JSONField(required=False, allow_null=True)
+    summary = serializers.JSONField(required=False, allow_null=True)
+    error_localizer_enabled = serializers.BooleanField(required=False, default=False)
+    template_format = serializers.ChoiceField(
+        choices=["mustache", "jinja"],
+        required=False,
+        default="mustache",
+    )
+
+
+class EvalTemplateUpdateV2RequestSerializer(serializers.Serializer):
+    name = serializers.CharField(required=False, allow_null=True, max_length=255)
+    eval_type = serializers.ChoiceField(
+        choices=["llm", "code", "agent"],
+        required=False,
+        allow_null=True,
+    )
+    instructions = serializers.CharField(required=False, allow_null=True)
+    model = serializers.CharField(required=False, allow_null=True)
+    output_type = serializers.ChoiceField(
+        choices=["pass_fail", "percentage", "deterministic"],
+        required=False,
+        allow_null=True,
+    )
+    pass_threshold = serializers.FloatField(
+        required=False,
+        allow_null=True,
+        min_value=0,
+        max_value=1,
+    )
+    choice_scores = serializers.JSONField(required=False, allow_null=True)
+    multi_choice = serializers.BooleanField(required=False, allow_null=True)
+    description = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    tags = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_null=True,
+    )
+    check_internet = serializers.BooleanField(required=False, allow_null=True)
+    code = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    code_language = serializers.ChoiceField(
+        choices=["python", "javascript"],
+        required=False,
+        allow_null=True,
+    )
+    messages = serializers.ListField(
+        child=serializers.JSONField(),
+        required=False,
+        allow_null=True,
+    )
+    few_shot_examples = serializers.ListField(
+        child=serializers.JSONField(),
+        required=False,
+        allow_null=True,
+    )
+    mode = serializers.ChoiceField(
+        choices=["auto", "agent", "quick"],
+        required=False,
+        allow_null=True,
+    )
+    tools = serializers.JSONField(required=False, allow_null=True)
+    knowledge_bases = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_null=True,
+    )
+    data_injection = serializers.JSONField(required=False, allow_null=True)
+    summary = serializers.JSONField(required=False, allow_null=True)
+    error_localizer_enabled = serializers.BooleanField(required=False, allow_null=True)
+    publish = serializers.BooleanField(required=False, allow_null=True)
+    template_format = serializers.ChoiceField(
+        choices=["mustache", "jinja"],
+        required=False,
+        allow_null=True,
+    )
+
+
+class EvalTemplateVersionCreateRequestSerializer(serializers.Serializer):
+    criteria = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    model = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    config_snapshot = serializers.JSONField(required=False, allow_null=True)
+
+
+class CompositeEvalCreateRequestSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    tags = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+    )
+    child_template_ids = serializers.ListField(child=serializers.UUIDField())
+    aggregation_enabled = serializers.BooleanField(required=False, default=True)
+    aggregation_function = serializers.ChoiceField(
+        choices=["weighted_avg", "avg", "min", "max", "pass_rate"],
+        required=False,
+        default="weighted_avg",
+    )
+    child_weights = serializers.JSONField(required=False, allow_null=True)
+    composite_child_axis = serializers.ChoiceField(
+        choices=["", "pass_fail", "percentage", "choices", "code"],
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+
+
+class CompositeEvalUpdateRequestSerializer(serializers.Serializer):
+    name = serializers.CharField(required=False, allow_null=True, max_length=255)
+    description = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    tags = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_null=True,
+    )
+    aggregation_enabled = serializers.BooleanField(required=False, allow_null=True)
+    aggregation_function = serializers.ChoiceField(
+        choices=["weighted_avg", "avg", "min", "max", "pass_rate"],
+        required=False,
+        allow_null=True,
+    )
+    child_template_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        allow_null=True,
+    )
+    child_weights = serializers.JSONField(required=False, allow_null=True)
+    composite_child_axis = serializers.ChoiceField(
+        choices=["", "pass_fail", "percentage", "choices", "code"],
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
+
+
+class CompositeEvalExecuteRequestSerializer(serializers.Serializer):
+    mapping = serializers.JSONField()
+    model = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    config = serializers.JSONField(required=False, default=dict)
+    error_localizer = serializers.BooleanField(required=False, default=False)
+    input_data_types = serializers.JSONField(required=False, default=dict)
+    span_context = serializers.JSONField(required=False, allow_null=True)
+    trace_context = serializers.JSONField(required=False, allow_null=True)
+    session_context = serializers.JSONField(required=False, allow_null=True)
+    call_context = serializers.JSONField(required=False, allow_null=True)
+    row_context = serializers.JSONField(required=False, allow_null=True)
+
+
+class CompositeEvalAdhocExecuteRequestSerializer(CompositeEvalExecuteRequestSerializer):
+    child_template_ids = serializers.ListField(child=serializers.UUIDField())
+    aggregation_enabled = serializers.BooleanField(required=False, default=True)
+    aggregation_function = serializers.ChoiceField(
+        choices=["weighted_avg", "avg", "min", "max", "pass_rate"],
+        required=False,
+        default="weighted_avg",
+    )
+    composite_child_axis = serializers.ChoiceField(
+        choices=["", "pass_fail", "percentage", "choices", "code"],
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    child_weights = serializers.JSONField(required=False, allow_null=True)
+    pass_threshold = serializers.FloatField(required=False, default=0.5)
+
+
+class GroundTruthUploadRequestSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+    file_name = serializers.CharField(required=False, allow_blank=True, default="")
+    columns = serializers.ListField(child=serializers.CharField())
+    data = serializers.ListField(child=serializers.JSONField())
+    variable_mapping = serializers.JSONField(required=False, allow_null=True)
+    role_mapping = serializers.JSONField(required=False, allow_null=True)
+
+
+class GroundTruthMappingRequestSerializer(serializers.Serializer):
+    variable_mapping = serializers.JSONField()
+
+
+class GroundTruthRoleMappingRequestSerializer(serializers.Serializer):
+    role_mapping = serializers.JSONField()
+
+
+class GroundTruthConfigRequestSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField(required=False, default=True)
+    ground_truth_id = serializers.UUIDField(required=False, allow_null=True)
+    mode = serializers.ChoiceField(
+        choices=["auto", "manual", "disabled"],
+        required=False,
+        default="auto",
+    )
+    max_examples = serializers.IntegerField(required=False, min_value=1, max_value=10)
+    similarity_threshold = serializers.FloatField(
+        required=False,
+        min_value=0,
+        max_value=1,
+    )
+    injection_format = serializers.ChoiceField(
+        choices=["structured", "conversational", "xml"],
+        required=False,
+        default="structured",
+    )
+
+
+class GroundTruthSearchRequestSerializer(serializers.Serializer):
+    query = serializers.CharField()
+    max_results = serializers.IntegerField(required=False, min_value=1, max_value=20)

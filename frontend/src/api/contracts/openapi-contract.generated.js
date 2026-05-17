@@ -11983,49 +11983,175 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/bulk-delete/": {
       "post": {
         "operationId": "model-hub_eval-templates_bulk-delete_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalTemplateBulkDeleteRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/composite/execute-adhoc/": {
       "post": {
         "operationId": "model-hub_eval-templates_composite_execute-adhoc_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CompositeEvalAdhocExecuteRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/create-composite/": {
       "post": {
         "operationId": "model-hub_eval-templates_create-composite_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CompositeEvalCreateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/create-v2/": {
       "post": {
         "operationId": "model-hub_eval-templates_create-v2_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalTemplateCreateV2Request"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/list-charts/": {
       "post": {
         "operationId": "model-hub_eval-templates_list-charts_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalTemplateListChartsRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/list/": {
       "post": {
         "operationId": "model-hub_eval-templates_list_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalListRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/composite/": {
@@ -12033,21 +12159,82 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_eval-templates_composite_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "model-hub_eval-templates_composite_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CompositeEvalUpdateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/composite/execute/": {
       "post": {
         "operationId": "model-hub_eval-templates_composite_execute_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CompositeEvalExecuteRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/detail/": {
@@ -12055,7 +12242,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_eval-templates_detail_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/feedback-list/": {
@@ -12071,13 +12277,53 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_eval-templates_ground-truth-config_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       },
       "put": {
         "operationId": "model-hub_eval-templates_ground-truth-config_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GroundTruthConfigRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/ground-truth/": {
@@ -12085,23 +12331,84 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_eval-templates_ground-truth_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/ground-truth/upload/": {
       "post": {
         "operationId": "model-hub_eval-templates_ground-truth_upload_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GroundTruthUploadRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/update/": {
       "put": {
         "operationId": "model-hub_eval-templates_update_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalTemplateUpdateV2Request"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/usage/": {
@@ -12117,31 +12424,113 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_eval-templates_versions_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/versions/create/": {
       "post": {
         "operationId": "model-hub_eval-templates_versions_create_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/EvalTemplateVersionCreateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/versions/{version_id}/restore/": {
       "post": {
         "operationId": "model-hub_eval-templates_versions_restore_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ModelHubEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-templates/{template_id}/versions/{version_id}/set-default/": {
       "put": {
         "operationId": "model-hub_eval-templates_versions_set-default_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ModelHubEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/eval-user-template/create/": {
@@ -13174,7 +13563,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_ground-truth_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/ground-truth/{ground_truth_id}/data/": {
@@ -13182,39 +13590,142 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_ground-truth_data_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/ground-truth/{ground_truth_id}/embed/": {
       "post": {
         "operationId": "model-hub_ground-truth_embed_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/ModelHubEmptyRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/ground-truth/{ground_truth_id}/mapping/": {
       "put": {
         "operationId": "model-hub_ground-truth_mapping_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GroundTruthMappingRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/ground-truth/{ground_truth_id}/role-mapping/": {
       "put": {
         "operationId": "model-hub_ground-truth_role-mapping_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GroundTruthRoleMappingRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/ground-truth/{ground_truth_id}/search/": {
       "post": {
         "operationId": "model-hub_ground-truth_search_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/GroundTruthSearchRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/ground-truth/{ground_truth_id}/status/": {
@@ -13222,7 +13733,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_ground-truth_status_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/kb/": {
@@ -35081,6 +35611,303 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CompositeEvalAdhocExecuteRequest": {
+      "required": [
+        "mapping",
+        "child_template_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "mapping": {
+          "title": "Mapping",
+          "type": "object"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "x-nullable": true
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "default": {}
+        },
+        "error_localizer": {
+          "title": "Error localizer",
+          "type": "boolean",
+          "default": false
+        },
+        "input_data_types": {
+          "title": "Input data types",
+          "type": "object",
+          "default": {}
+        },
+        "span_context": {
+          "title": "Span context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "trace_context": {
+          "title": "Trace context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "session_context": {
+          "title": "Session context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "call_context": {
+          "title": "Call context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "row_context": {
+          "title": "Row context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "child_template_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "aggregation_enabled": {
+          "title": "Aggregation enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "aggregation_function": {
+          "title": "Aggregation function",
+          "type": "string",
+          "enum": [
+            "weighted_avg",
+            "avg",
+            "min",
+            "max",
+            "pass_rate"
+          ],
+          "default": "weighted_avg"
+        },
+        "composite_child_axis": {
+          "title": "Composite child axis",
+          "type": "string",
+          "enum": [
+            "",
+            "pass_fail",
+            "percentage",
+            "choices",
+            "code"
+          ],
+          "default": ""
+        },
+        "child_weights": {
+          "title": "Child weights",
+          "type": "object",
+          "x-nullable": true
+        },
+        "pass_threshold": {
+          "title": "Pass threshold",
+          "type": "number",
+          "default": 0.5
+        }
+      }
+    },
+    "CompositeEvalCreateRequest": {
+      "required": [
+        "name",
+        "child_template_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "x-nullable": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "child_template_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "aggregation_enabled": {
+          "title": "Aggregation enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "aggregation_function": {
+          "title": "Aggregation function",
+          "type": "string",
+          "enum": [
+            "weighted_avg",
+            "avg",
+            "min",
+            "max",
+            "pass_rate"
+          ],
+          "default": "weighted_avg"
+        },
+        "child_weights": {
+          "title": "Child weights",
+          "type": "object",
+          "x-nullable": true
+        },
+        "composite_child_axis": {
+          "title": "Composite child axis",
+          "type": "string",
+          "enum": [
+            "",
+            "pass_fail",
+            "percentage",
+            "choices",
+            "code"
+          ],
+          "default": ""
+        }
+      }
+    },
+    "CompositeEvalExecuteRequest": {
+      "required": [
+        "mapping"
+      ],
+      "type": "object",
+      "properties": {
+        "mapping": {
+          "title": "Mapping",
+          "type": "object"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "x-nullable": true
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "default": {}
+        },
+        "error_localizer": {
+          "title": "Error localizer",
+          "type": "boolean",
+          "default": false
+        },
+        "input_data_types": {
+          "title": "Input data types",
+          "type": "object",
+          "default": {}
+        },
+        "span_context": {
+          "title": "Span context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "trace_context": {
+          "title": "Trace context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "session_context": {
+          "title": "Session context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "call_context": {
+          "title": "Call context",
+          "type": "object",
+          "x-nullable": true
+        },
+        "row_context": {
+          "title": "Row context",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
+    "CompositeEvalUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "x-nullable": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x-nullable": true
+        },
+        "aggregation_enabled": {
+          "title": "Aggregation enabled",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "aggregation_function": {
+          "title": "Aggregation function",
+          "type": "string",
+          "enum": [
+            "weighted_avg",
+            "avg",
+            "min",
+            "max",
+            "pass_rate"
+          ],
+          "x-nullable": true
+        },
+        "child_template_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "x-nullable": true
+        },
+        "child_weights": {
+          "title": "Child weights",
+          "type": "object",
+          "x-nullable": true
+        },
+        "composite_child_axis": {
+          "title": "Composite child axis",
+          "type": "string",
+          "enum": [
+            "",
+            "pass_fail",
+            "percentage",
+            "choices",
+            "code"
+          ],
+          "x-nullable": true
+        }
+      }
+    },
     "ConditionalColumnRequest": {
       "required": [
         "config",
@@ -37355,6 +38182,61 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "EvalListRequest": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "title": "Page",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+        "page_size": {
+          "title": "Page size",
+          "type": "integer",
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1
+        },
+        "search": {
+          "title": "Search",
+          "type": "string",
+          "x-nullable": true
+        },
+        "owner_filter": {
+          "title": "Owner filter",
+          "type": "string",
+          "enum": [
+            "all",
+            "user",
+            "system"
+          ],
+          "default": "all"
+        },
+        "filters": {
+          "$ref": "#/definitions/EvalListFilters"
+        },
+        "sort_by": {
+          "title": "Sort by",
+          "type": "string",
+          "enum": [
+            "name",
+            "updated_at",
+            "created_at"
+          ],
+          "default": "updated_at"
+        },
+        "sort_order": {
+          "title": "Sort order",
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "default": "desc"
+        }
+      }
+    },
     "EvalPlayGround": {
       "required": [
         "template_id"
@@ -37773,6 +38655,366 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "maxLength": 100,
             "minLength": 1
           }
+        }
+      }
+    },
+    "EvalTemplateBulkDeleteRequest": {
+      "required": [
+        "template_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "template_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "EvalTemplateCreateV2Request": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255
+        },
+        "is_draft": {
+          "title": "Is draft",
+          "type": "boolean",
+          "default": false
+        },
+        "eval_type": {
+          "title": "Eval type",
+          "type": "string",
+          "enum": [
+            "llm",
+            "code",
+            "agent"
+          ],
+          "default": "llm"
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string",
+          "maxLength": 100000
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "default": "turing_large",
+          "minLength": 1
+        },
+        "output_type": {
+          "title": "Output type",
+          "type": "string",
+          "enum": [
+            "pass_fail",
+            "percentage",
+            "deterministic"
+          ],
+          "default": "pass_fail"
+        },
+        "pass_threshold": {
+          "title": "Pass threshold",
+          "type": "number",
+          "maximum": 1,
+          "minimum": 0
+        },
+        "choice_scores": {
+          "title": "Choice scores",
+          "type": "object",
+          "x-nullable": true
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "x-nullable": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "check_internet": {
+          "title": "Check internet",
+          "type": "boolean",
+          "default": false
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "maxLength": 100000,
+          "x-nullable": true
+        },
+        "code_language": {
+          "title": "Code language",
+          "type": "string",
+          "enum": [
+            "python",
+            "javascript"
+          ],
+          "x-nullable": true
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-nullable": true
+        },
+        "few_shot_examples": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-nullable": true
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string",
+          "enum": [
+            "auto",
+            "agent",
+            "quick"
+          ],
+          "x-nullable": true
+        },
+        "tools": {
+          "title": "Tools",
+          "type": "object",
+          "x-nullable": true
+        },
+        "knowledge_bases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x-nullable": true
+        },
+        "data_injection": {
+          "title": "Data injection",
+          "type": "object",
+          "x-nullable": true
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "object",
+          "x-nullable": true
+        },
+        "error_localizer_enabled": {
+          "title": "Error localizer enabled",
+          "type": "boolean",
+          "default": false
+        },
+        "template_format": {
+          "title": "Template format",
+          "type": "string",
+          "enum": [
+            "mustache",
+            "jinja"
+          ],
+          "default": "mustache"
+        }
+      }
+    },
+    "EvalTemplateListChartsRequest": {
+      "required": [
+        "template_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "template_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "EvalTemplateUpdateV2Request": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "eval_type": {
+          "title": "Eval type",
+          "type": "string",
+          "enum": [
+            "llm",
+            "code",
+            "agent"
+          ],
+          "x-nullable": true
+        },
+        "instructions": {
+          "title": "Instructions",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "output_type": {
+          "title": "Output type",
+          "type": "string",
+          "enum": [
+            "pass_fail",
+            "percentage",
+            "deterministic"
+          ],
+          "x-nullable": true
+        },
+        "pass_threshold": {
+          "title": "Pass threshold",
+          "type": "number",
+          "maximum": 1,
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "choice_scores": {
+          "title": "Choice scores",
+          "type": "object",
+          "x-nullable": true
+        },
+        "multi_choice": {
+          "title": "Multi choice",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "x-nullable": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x-nullable": true
+        },
+        "check_internet": {
+          "title": "Check internet",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "x-nullable": true
+        },
+        "code_language": {
+          "title": "Code language",
+          "type": "string",
+          "enum": [
+            "python",
+            "javascript"
+          ],
+          "x-nullable": true
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-nullable": true
+        },
+        "few_shot_examples": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-nullable": true
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string",
+          "enum": [
+            "auto",
+            "agent",
+            "quick"
+          ],
+          "x-nullable": true
+        },
+        "tools": {
+          "title": "Tools",
+          "type": "object",
+          "x-nullable": true
+        },
+        "knowledge_bases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x-nullable": true
+        },
+        "data_injection": {
+          "title": "Data injection",
+          "type": "object",
+          "x-nullable": true
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "object",
+          "x-nullable": true
+        },
+        "error_localizer_enabled": {
+          "title": "Error localizer enabled",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "publish": {
+          "title": "Publish",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "template_format": {
+          "title": "Template format",
+          "type": "string",
+          "enum": [
+            "mustache",
+            "jinja"
+          ],
+          "x-nullable": true
+        }
+      }
+    },
+    "EvalTemplateVersionCreateRequest": {
+      "type": "object",
+      "properties": {
+        "criteria": {
+          "title": "Criteria",
+          "type": "string",
+          "x-nullable": true
+        },
+        "model": {
+          "title": "Model",
+          "type": "string",
+          "x-nullable": true
+        },
+        "config_snapshot": {
+          "title": "Config snapshot",
+          "type": "object",
+          "x-nullable": true
         }
       }
     },
@@ -39315,6 +40557,146 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "description": {
           "title": "Description",
           "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "GroundTruthConfigRequest": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "ground_truth_id": {
+          "title": "Ground truth id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string",
+          "enum": [
+            "auto",
+            "manual",
+            "disabled"
+          ],
+          "default": "auto"
+        },
+        "max_examples": {
+          "title": "Max examples",
+          "type": "integer",
+          "maximum": 10,
+          "minimum": 1
+        },
+        "similarity_threshold": {
+          "title": "Similarity threshold",
+          "type": "number",
+          "maximum": 1,
+          "minimum": 0
+        },
+        "injection_format": {
+          "title": "Injection format",
+          "type": "string",
+          "enum": [
+            "structured",
+            "conversational",
+            "xml"
+          ],
+          "default": "structured"
+        }
+      }
+    },
+    "GroundTruthMappingRequest": {
+      "required": [
+        "variable_mapping"
+      ],
+      "type": "object",
+      "properties": {
+        "variable_mapping": {
+          "title": "Variable mapping",
+          "type": "object"
+        }
+      }
+    },
+    "GroundTruthRoleMappingRequest": {
+      "required": [
+        "role_mapping"
+      ],
+      "type": "object",
+      "properties": {
+        "role_mapping": {
+          "title": "Role mapping",
+          "type": "object"
+        }
+      }
+    },
+    "GroundTruthSearchRequest": {
+      "required": [
+        "query"
+      ],
+      "type": "object",
+      "properties": {
+        "query": {
+          "title": "Query",
+          "type": "string",
+          "minLength": 1
+        },
+        "max_results": {
+          "title": "Max results",
+          "type": "integer",
+          "maximum": 20,
+          "minimum": 1
+        }
+      }
+    },
+    "GroundTruthUploadRequest": {
+      "required": [
+        "name",
+        "columns",
+        "data"
+      ],
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "default": ""
+        },
+        "file_name": {
+          "title": "File name",
+          "type": "string",
+          "default": ""
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "variable_mapping": {
+          "title": "Variable mapping",
+          "type": "object",
+          "x-nullable": true
+        },
+        "role_mapping": {
+          "title": "Role mapping",
+          "type": "object",
           "x-nullable": true
         }
       }
@@ -41041,6 +42423,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "minLength": 1
         }
       }
+    },
+    "ModelHubEmptyRequest": {
+      "type": "object",
+      "properties": {}
     },
     "ModelHubErrorResponse": {
       "type": "object",
@@ -53442,6 +54828,65 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "$ref": "#/definitions/EvalConfigStructure"
         }
       }
+    },
+    "EvalListFilters": {
+      "type": "object",
+      "properties": {
+        "eval_type": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "code",
+              "agent"
+            ]
+          }
+        },
+        "output_type": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pass_fail",
+              "percentage",
+              "deterministic"
+            ]
+          }
+        },
+        "template_type": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "single",
+              "composite"
+            ]
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "created_by": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "x-nullable": true
     },
     "EvalTemplateSummary": {
       "required": [

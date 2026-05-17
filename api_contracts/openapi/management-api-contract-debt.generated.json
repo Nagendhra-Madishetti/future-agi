@@ -3,8 +3,8 @@
   "summary": {
     "paths": 964,
     "operations": 1323,
-    "mutation_endpoints_without_body_schema": 87,
-    "operations_without_response_schema": 142
+    "mutation_endpoints_without_body_schema": 69,
+    "operations_without_response_schema": 117
   },
   "by_group": {
     "accounts": {
@@ -70,8 +70,8 @@
     "model-hub": {
       "paths": 365,
       "operations": 475,
-      "mutation_endpoints_without_body_schema": 87,
-      "operations_without_response_schema": 142
+      "mutation_endpoints_without_body_schema": 69,
+      "operations_without_response_schema": 117
     },
     "saml2_auth": {
       "paths": 12,
@@ -564,132 +564,6 @@
     {
       "group": "model-hub",
       "method": "POST",
-      "path": "/model-hub/eval-templates/bulk-delete/",
-      "operation_id": "model-hub_eval-templates_bulk-delete_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/composite/execute-adhoc/",
-      "operation_id": "model-hub_eval-templates_composite_execute-adhoc_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/create-composite/",
-      "operation_id": "model-hub_eval-templates_create-composite_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/create-v2/",
-      "operation_id": "model-hub_eval-templates_create-v2_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/list-charts/",
-      "operation_id": "model-hub_eval-templates_list-charts_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/list/",
-      "operation_id": "model-hub_eval-templates_list_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PATCH",
-      "path": "/model-hub/eval-templates/{template_id}/composite/",
-      "operation_id": "model-hub_eval-templates_composite_partial_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/{template_id}/composite/execute/",
-      "operation_id": "model-hub_eval-templates_composite_execute_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/eval-templates/{template_id}/ground-truth-config/",
-      "operation_id": "model-hub_eval-templates_ground-truth-config_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/{template_id}/ground-truth/upload/",
-      "operation_id": "model-hub_eval-templates_ground-truth_upload_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/eval-templates/{template_id}/update/",
-      "operation_id": "model-hub_eval-templates_update_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/{template_id}/versions/create/",
-      "operation_id": "model-hub_eval-templates_versions_create_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/{template_id}/versions/{version_id}/restore/",
-      "operation_id": "model-hub_eval-templates_versions_restore_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/eval-templates/{template_id}/versions/{version_id}/set-default/",
-      "operation_id": "model-hub_eval-templates_versions_set-default_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
       "path": "/model-hub/experiments/",
       "operation_id": "model-hub_experiments_create",
       "tags": [
@@ -854,42 +728,6 @@
       "method": "POST",
       "path": "/model-hub/get-eval-templates",
       "operation_id": "model-hub_get-eval-templates_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/embed/",
-      "operation_id": "model-hub_ground-truth_embed_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/mapping/",
-      "operation_id": "model-hub_ground-truth_mapping_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/role-mapping/",
-      "operation_id": "model-hub_ground-truth_role-mapping_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/search/",
-      "operation_id": "model-hub_ground-truth_search_create",
       "tags": [
         "model-hub"
       ]
@@ -1555,96 +1393,6 @@
     },
     {
       "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/bulk-delete/",
-      "operation_id": "model-hub_eval-templates_bulk-delete_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/composite/execute-adhoc/",
-      "operation_id": "model-hub_eval-templates_composite_execute-adhoc_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/create-composite/",
-      "operation_id": "model-hub_eval-templates_create-composite_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/create-v2/",
-      "operation_id": "model-hub_eval-templates_create-v2_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/list-charts/",
-      "operation_id": "model-hub_eval-templates_list-charts_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/list/",
-      "operation_id": "model-hub_eval-templates_list_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/eval-templates/{template_id}/composite/",
-      "operation_id": "model-hub_eval-templates_composite_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PATCH",
-      "path": "/model-hub/eval-templates/{template_id}/composite/",
-      "operation_id": "model-hub_eval-templates_composite_partial_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/{template_id}/composite/execute/",
-      "operation_id": "model-hub_eval-templates_composite_execute_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/eval-templates/{template_id}/detail/",
-      "operation_id": "model-hub_eval-templates_detail_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
       "method": "GET",
       "path": "/model-hub/eval-templates/{template_id}/feedback-list/",
       "operation_id": "model-hub_eval-templates_feedback-list_list",
@@ -1655,89 +1403,8 @@
     {
       "group": "model-hub",
       "method": "GET",
-      "path": "/model-hub/eval-templates/{template_id}/ground-truth-config/",
-      "operation_id": "model-hub_eval-templates_ground-truth-config_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/eval-templates/{template_id}/ground-truth-config/",
-      "operation_id": "model-hub_eval-templates_ground-truth-config_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/eval-templates/{template_id}/ground-truth/",
-      "operation_id": "model-hub_eval-templates_ground-truth_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/{template_id}/ground-truth/upload/",
-      "operation_id": "model-hub_eval-templates_ground-truth_upload_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/eval-templates/{template_id}/update/",
-      "operation_id": "model-hub_eval-templates_update_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
       "path": "/model-hub/eval-templates/{template_id}/usage/",
       "operation_id": "model-hub_eval-templates_usage_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/eval-templates/{template_id}/versions/",
-      "operation_id": "model-hub_eval-templates_versions_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/{template_id}/versions/create/",
-      "operation_id": "model-hub_eval-templates_versions_create_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/eval-templates/{template_id}/versions/{version_id}/restore/",
-      "operation_id": "model-hub_eval-templates_versions_restore_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/eval-templates/{template_id}/versions/{version_id}/set-default/",
-      "operation_id": "model-hub_eval-templates_versions_set-default_update",
       "tags": [
         "model-hub"
       ]
@@ -2116,60 +1783,6 @@
       "method": "POST",
       "path": "/model-hub/get-eval-templates",
       "operation_id": "model-hub_get-eval-templates_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/data/",
-      "operation_id": "model-hub_ground-truth_data_list",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/embed/",
-      "operation_id": "model-hub_ground-truth_embed_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/mapping/",
-      "operation_id": "model-hub_ground-truth_mapping_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "PUT",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/role-mapping/",
-      "operation_id": "model-hub_ground-truth_role-mapping_update",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "POST",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/search/",
-      "operation_id": "model-hub_ground-truth_search_create",
-      "tags": [
-        "model-hub"
-      ]
-    },
-    {
-      "group": "model-hub",
-      "method": "GET",
-      "path": "/model-hub/ground-truth/{ground_truth_id}/status/",
-      "operation_id": "model-hub_ground-truth_status_list",
       "tags": [
         "model-hub"
       ]

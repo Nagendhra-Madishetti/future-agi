@@ -206,6 +206,10 @@ import type {
   ClassifyColumnRequestApi,
   ClickHouseHealthResponseApi,
   ColumnValuesRequestApi,
+  CompositeEvalAdhocExecuteRequestApi,
+  CompositeEvalCreateRequestApi,
+  CompositeEvalExecuteRequestApi,
+  CompositeEvalUpdateRequestApi,
   ConditionalColumnRequestApi,
   ConversationCreateRequestApi,
   ConversationDetailResponseApi,
@@ -272,6 +276,7 @@ import type {
   EvalConfigUpdateResponseApi,
   EvalErrorResponseApi,
   EvalGroupApi,
+  EvalListRequestApi,
   EvalPlayGroundApi,
   EvalPlayGroundFeedbackApi,
   EvalSummaryComparisonResponseApi,
@@ -279,6 +284,11 @@ import type {
   EvalSummaryTemplateMutationRequestApi,
   EvalTaskApi,
   EvalTemplateApi,
+  EvalTemplateBulkDeleteRequestApi,
+  EvalTemplateCreateV2RequestApi,
+  EvalTemplateListChartsRequestApi,
+  EvalTemplateUpdateV2RequestApi,
+  EvalTemplateVersionCreateRequestApi,
   EvalUserTemplateApi,
   ExecutePromptSimulationRequestApi,
   ExecutePromptSimulationResponseApi,
@@ -331,6 +341,11 @@ import type {
   GraphExecutionListResponseApi,
   GraphListApi,
   GraphUpdateApi,
+  GroundTruthConfigRequestApi,
+  GroundTruthMappingRequestApi,
+  GroundTruthRoleMappingRequestApi,
+  GroundTruthSearchRequestApi,
+  GroundTruthUploadRequestApi,
   HealthCheckResponseApi,
   ImagineAnalysisResponseApi,
   ImportAnnotationsApi,
@@ -414,6 +429,7 @@ import type {
   ModelHubApiKeysListParams,
   ModelHubDatasetOptimizationList200,
   ModelHubDatasetOptimizationListParams,
+  ModelHubEmptyRequestApi,
   ModelHubErrorResponseApi,
   ModelHubEvalGroupsList200,
   ModelHubEvalGroupsListParams,
@@ -27269,17 +27285,44 @@ export const modelHubEvalTemplateCreateCreate = async (evalTemplateApi: EvalTemp
 
 
 
-export type modelHubEvalTemplatesBulkDeleteCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesBulkDeleteCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesBulkDeleteCreateResponseSuccess = (modelHubEvalTemplatesBulkDeleteCreateResponse201) & {
+export type modelHubEvalTemplatesBulkDeleteCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesBulkDeleteCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesBulkDeleteCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesBulkDeleteCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesBulkDeleteCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesBulkDeleteCreateResponseSuccess = (modelHubEvalTemplatesBulkDeleteCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesBulkDeleteCreateResponseError = (modelHubEvalTemplatesBulkDeleteCreateResponse400 | modelHubEvalTemplatesBulkDeleteCreateResponse403 | modelHubEvalTemplatesBulkDeleteCreateResponse404 | modelHubEvalTemplatesBulkDeleteCreateResponse409 | modelHubEvalTemplatesBulkDeleteCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesBulkDeleteCreateResponse = (modelHubEvalTemplatesBulkDeleteCreateResponseSuccess)
+export type modelHubEvalTemplatesBulkDeleteCreateResponse = (modelHubEvalTemplatesBulkDeleteCreateResponseSuccess | modelHubEvalTemplatesBulkDeleteCreateResponseError)
 
 export const getModelHubEvalTemplatesBulkDeleteCreateUrl = () => {
 
@@ -27293,30 +27336,58 @@ export const getModelHubEvalTemplatesBulkDeleteCreateUrl = () => {
  * Soft-delete multiple eval templates. Only user-owned templates can be deleted.
  * @summary POST /model-hub/eval-templates/bulk-delete/
  */
-export const modelHubEvalTemplatesBulkDeleteCreate = async ( options?: RequestInit): Promise<modelHubEvalTemplatesBulkDeleteCreateResponse> => {
+export const modelHubEvalTemplatesBulkDeleteCreate = async (evalTemplateBulkDeleteRequestApi: EvalTemplateBulkDeleteRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesBulkDeleteCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesBulkDeleteCreateResponse>(getModelHubEvalTemplatesBulkDeleteCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      evalTemplateBulkDeleteRequestApi,)
   }
 );}
 
 
 
-export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponseSuccess = (modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse201) & {
+export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponseSuccess = (modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponseError = (modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse400 | modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse403 | modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse404 | modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse409 | modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse = (modelHubEvalTemplatesCompositeExecuteAdhocCreateResponseSuccess)
+export type modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse = (modelHubEvalTemplatesCompositeExecuteAdhocCreateResponseSuccess | modelHubEvalTemplatesCompositeExecuteAdhocCreateResponseError)
 
 export const getModelHubEvalTemplatesCompositeExecuteAdhocCreateUrl = () => {
 
@@ -27334,30 +27405,58 @@ template and unsaved child links in memory and reuses
 `execute_composite_children_sync` so semantics match the persisted path.
  * @summary POST /model-hub/eval-templates/composite/execute-adhoc/
  */
-export const modelHubEvalTemplatesCompositeExecuteAdhocCreate = async ( options?: RequestInit): Promise<modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse> => {
+export const modelHubEvalTemplatesCompositeExecuteAdhocCreate = async (compositeEvalAdhocExecuteRequestApi: CompositeEvalAdhocExecuteRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesCompositeExecuteAdhocCreateResponse>(getModelHubEvalTemplatesCompositeExecuteAdhocCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      compositeEvalAdhocExecuteRequestApi,)
   }
 );}
 
 
 
-export type modelHubEvalTemplatesCreateCompositeCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesCreateCompositeCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesCreateCompositeCreateResponseSuccess = (modelHubEvalTemplatesCreateCompositeCreateResponse201) & {
+export type modelHubEvalTemplatesCreateCompositeCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesCreateCompositeCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesCreateCompositeCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesCreateCompositeCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesCreateCompositeCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesCreateCompositeCreateResponseSuccess = (modelHubEvalTemplatesCreateCompositeCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesCreateCompositeCreateResponseError = (modelHubEvalTemplatesCreateCompositeCreateResponse400 | modelHubEvalTemplatesCreateCompositeCreateResponse403 | modelHubEvalTemplatesCreateCompositeCreateResponse404 | modelHubEvalTemplatesCreateCompositeCreateResponse409 | modelHubEvalTemplatesCreateCompositeCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesCreateCompositeCreateResponse = (modelHubEvalTemplatesCreateCompositeCreateResponseSuccess)
+export type modelHubEvalTemplatesCreateCompositeCreateResponse = (modelHubEvalTemplatesCreateCompositeCreateResponseSuccess | modelHubEvalTemplatesCreateCompositeCreateResponseError)
 
 export const getModelHubEvalTemplatesCreateCompositeCreateUrl = () => {
 
@@ -27371,30 +27470,58 @@ export const getModelHubEvalTemplatesCreateCompositeCreateUrl = () => {
  * Create a composite eval from a list of existing eval template IDs.
  * @summary POST /model-hub/eval-templates/create-composite/
  */
-export const modelHubEvalTemplatesCreateCompositeCreate = async ( options?: RequestInit): Promise<modelHubEvalTemplatesCreateCompositeCreateResponse> => {
+export const modelHubEvalTemplatesCreateCompositeCreate = async (compositeEvalCreateRequestApi: CompositeEvalCreateRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesCreateCompositeCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesCreateCompositeCreateResponse>(getModelHubEvalTemplatesCreateCompositeCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      compositeEvalCreateRequestApi,)
   }
 );}
 
 
 
-export type modelHubEvalTemplatesCreateV2CreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesCreateV2CreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesCreateV2CreateResponseSuccess = (modelHubEvalTemplatesCreateV2CreateResponse201) & {
+export type modelHubEvalTemplatesCreateV2CreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesCreateV2CreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesCreateV2CreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesCreateV2CreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesCreateV2CreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesCreateV2CreateResponseSuccess = (modelHubEvalTemplatesCreateV2CreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesCreateV2CreateResponseError = (modelHubEvalTemplatesCreateV2CreateResponse400 | modelHubEvalTemplatesCreateV2CreateResponse403 | modelHubEvalTemplatesCreateV2CreateResponse404 | modelHubEvalTemplatesCreateV2CreateResponse409 | modelHubEvalTemplatesCreateV2CreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesCreateV2CreateResponse = (modelHubEvalTemplatesCreateV2CreateResponseSuccess)
+export type modelHubEvalTemplatesCreateV2CreateResponse = (modelHubEvalTemplatesCreateV2CreateResponseSuccess | modelHubEvalTemplatesCreateV2CreateResponseError)
 
 export const getModelHubEvalTemplatesCreateV2CreateUrl = () => {
 
@@ -27409,30 +27536,58 @@ export const getModelHubEvalTemplatesCreateV2CreateUrl = () => {
 Supports the new scoring fields (pass_threshold, choice_scores, output_type_normalized).
  * @summary POST /model-hub/eval-templates/create-v2/
  */
-export const modelHubEvalTemplatesCreateV2Create = async ( options?: RequestInit): Promise<modelHubEvalTemplatesCreateV2CreateResponse> => {
+export const modelHubEvalTemplatesCreateV2Create = async (evalTemplateCreateV2RequestApi: EvalTemplateCreateV2RequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesCreateV2CreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesCreateV2CreateResponse>(getModelHubEvalTemplatesCreateV2CreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      evalTemplateCreateV2RequestApi,)
   }
 );}
 
 
 
-export type modelHubEvalTemplatesListChartsCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesListChartsCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesListChartsCreateResponseSuccess = (modelHubEvalTemplatesListChartsCreateResponse201) & {
+export type modelHubEvalTemplatesListChartsCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesListChartsCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesListChartsCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesListChartsCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesListChartsCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesListChartsCreateResponseSuccess = (modelHubEvalTemplatesListChartsCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesListChartsCreateResponseError = (modelHubEvalTemplatesListChartsCreateResponse400 | modelHubEvalTemplatesListChartsCreateResponse403 | modelHubEvalTemplatesListChartsCreateResponse404 | modelHubEvalTemplatesListChartsCreateResponse409 | modelHubEvalTemplatesListChartsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesListChartsCreateResponse = (modelHubEvalTemplatesListChartsCreateResponseSuccess)
+export type modelHubEvalTemplatesListChartsCreateResponse = (modelHubEvalTemplatesListChartsCreateResponseSuccess | modelHubEvalTemplatesListChartsCreateResponseError)
 
 export const getModelHubEvalTemplatesListChartsCreateUrl = () => {
 
@@ -27448,30 +27603,58 @@ Uses ClickHouse for fast analytics. Called separately from the list API so the
 table renders instantly while charts load async.
  * @summary POST /model-hub/eval-templates/list-charts/
  */
-export const modelHubEvalTemplatesListChartsCreate = async ( options?: RequestInit): Promise<modelHubEvalTemplatesListChartsCreateResponse> => {
+export const modelHubEvalTemplatesListChartsCreate = async (evalTemplateListChartsRequestApi: EvalTemplateListChartsRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesListChartsCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesListChartsCreateResponse>(getModelHubEvalTemplatesListChartsCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      evalTemplateListChartsRequestApi,)
   }
 );}
 
 
 
-export type modelHubEvalTemplatesListCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesListCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesListCreateResponseSuccess = (modelHubEvalTemplatesListCreateResponse201) & {
+export type modelHubEvalTemplatesListCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesListCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesListCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesListCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesListCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesListCreateResponseSuccess = (modelHubEvalTemplatesListCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesListCreateResponseError = (modelHubEvalTemplatesListCreateResponse400 | modelHubEvalTemplatesListCreateResponse403 | modelHubEvalTemplatesListCreateResponse404 | modelHubEvalTemplatesListCreateResponse409 | modelHubEvalTemplatesListCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesListCreateResponse = (modelHubEvalTemplatesListCreateResponseSuccess)
+export type modelHubEvalTemplatesListCreateResponse = (modelHubEvalTemplatesListCreateResponseSuccess | modelHubEvalTemplatesListCreateResponseError)
 
 export const getModelHubEvalTemplatesListCreateUrl = () => {
 
@@ -27486,30 +27669,58 @@ export const getModelHubEvalTemplatesListCreateUrl = () => {
 All inputs and outputs are validated with Pydantic schemas.
  * @summary POST /model-hub/eval-templates/list/
  */
-export const modelHubEvalTemplatesListCreate = async ( options?: RequestInit): Promise<modelHubEvalTemplatesListCreateResponse> => {
+export const modelHubEvalTemplatesListCreate = async (evalListRequestApi: EvalListRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesListCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesListCreateResponse>(getModelHubEvalTemplatesListCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      evalListRequestApi,)
   }
 );}
 
 
 
 export type modelHubEvalTemplatesCompositeListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalTemplatesCompositeListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesCompositeListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesCompositeListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesCompositeListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesCompositeListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalTemplatesCompositeListResponseSuccess = (modelHubEvalTemplatesCompositeListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesCompositeListResponseError = (modelHubEvalTemplatesCompositeListResponse400 | modelHubEvalTemplatesCompositeListResponse403 | modelHubEvalTemplatesCompositeListResponse404 | modelHubEvalTemplatesCompositeListResponse409 | modelHubEvalTemplatesCompositeListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesCompositeListResponse = (modelHubEvalTemplatesCompositeListResponseSuccess)
+export type modelHubEvalTemplatesCompositeListResponse = (modelHubEvalTemplatesCompositeListResponseSuccess | modelHubEvalTemplatesCompositeListResponseError)
 
 export const getModelHubEvalTemplatesCompositeListUrl = (templateId: string,) => {
 
@@ -27537,16 +27748,43 @@ export const modelHubEvalTemplatesCompositeList = async (templateId: string, opt
 
 
 export type modelHubEvalTemplatesCompositePartialUpdateResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalTemplatesCompositePartialUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesCompositePartialUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesCompositePartialUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesCompositePartialUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesCompositePartialUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalTemplatesCompositePartialUpdateResponseSuccess = (modelHubEvalTemplatesCompositePartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesCompositePartialUpdateResponseError = (modelHubEvalTemplatesCompositePartialUpdateResponse400 | modelHubEvalTemplatesCompositePartialUpdateResponse403 | modelHubEvalTemplatesCompositePartialUpdateResponse404 | modelHubEvalTemplatesCompositePartialUpdateResponse409 | modelHubEvalTemplatesCompositePartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesCompositePartialUpdateResponse = (modelHubEvalTemplatesCompositePartialUpdateResponseSuccess)
+export type modelHubEvalTemplatesCompositePartialUpdateResponse = (modelHubEvalTemplatesCompositePartialUpdateResponseSuccess | modelHubEvalTemplatesCompositePartialUpdateResponseError)
 
 export const getModelHubEvalTemplatesCompositePartialUpdateUrl = (templateId: string,) => {
 
@@ -27564,30 +27802,59 @@ export const getModelHubEvalTemplatesCompositePartialUpdateUrl = (templateId: st
   child_weights (map of child_id -> weight).
  * @summary PATCH — partial update of a composite eval.
  */
-export const modelHubEvalTemplatesCompositePartialUpdate = async (templateId: string, options?: RequestInit): Promise<modelHubEvalTemplatesCompositePartialUpdateResponse> => {
+export const modelHubEvalTemplatesCompositePartialUpdate = async (templateId: string,
+    compositeEvalUpdateRequestApi: CompositeEvalUpdateRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesCompositePartialUpdateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesCompositePartialUpdateResponse>(getModelHubEvalTemplatesCompositePartialUpdateUrl(templateId),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      compositeEvalUpdateRequestApi,)
   }
 );}
 
 
 
-export type modelHubEvalTemplatesCompositeExecuteCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesCompositeExecuteCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesCompositeExecuteCreateResponseSuccess = (modelHubEvalTemplatesCompositeExecuteCreateResponse201) & {
+export type modelHubEvalTemplatesCompositeExecuteCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesCompositeExecuteCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesCompositeExecuteCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesCompositeExecuteCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesCompositeExecuteCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesCompositeExecuteCreateResponseSuccess = (modelHubEvalTemplatesCompositeExecuteCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesCompositeExecuteCreateResponseError = (modelHubEvalTemplatesCompositeExecuteCreateResponse400 | modelHubEvalTemplatesCompositeExecuteCreateResponse403 | modelHubEvalTemplatesCompositeExecuteCreateResponse404 | modelHubEvalTemplatesCompositeExecuteCreateResponse409 | modelHubEvalTemplatesCompositeExecuteCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesCompositeExecuteCreateResponse = (modelHubEvalTemplatesCompositeExecuteCreateResponseSuccess)
+export type modelHubEvalTemplatesCompositeExecuteCreateResponse = (modelHubEvalTemplatesCompositeExecuteCreateResponseSuccess | modelHubEvalTemplatesCompositeExecuteCreateResponseError)
 
 export const getModelHubEvalTemplatesCompositeExecuteCreateUrl = (templateId: string,) => {
 
@@ -27604,30 +27871,59 @@ the dataset/experiment `CompositeEvaluationRunner` uses, so aggregation
 semantics stay consistent across surfaces.
  * @summary POST /model-hub/eval-templates/<template_id>/composite/execute/
  */
-export const modelHubEvalTemplatesCompositeExecuteCreate = async (templateId: string, options?: RequestInit): Promise<modelHubEvalTemplatesCompositeExecuteCreateResponse> => {
+export const modelHubEvalTemplatesCompositeExecuteCreate = async (templateId: string,
+    compositeEvalExecuteRequestApi: CompositeEvalExecuteRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesCompositeExecuteCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesCompositeExecuteCreateResponse>(getModelHubEvalTemplatesCompositeExecuteCreateUrl(templateId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      compositeEvalExecuteRequestApi,)
   }
 );}
 
 
 
 export type modelHubEvalTemplatesDetailListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalTemplatesDetailListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesDetailListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesDetailListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesDetailListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesDetailListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalTemplatesDetailListResponseSuccess = (modelHubEvalTemplatesDetailListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesDetailListResponseError = (modelHubEvalTemplatesDetailListResponse400 | modelHubEvalTemplatesDetailListResponse403 | modelHubEvalTemplatesDetailListResponse404 | modelHubEvalTemplatesDetailListResponse409 | modelHubEvalTemplatesDetailListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesDetailListResponse = (modelHubEvalTemplatesDetailListResponseSuccess)
+export type modelHubEvalTemplatesDetailListResponse = (modelHubEvalTemplatesDetailListResponseSuccess | modelHubEvalTemplatesDetailListResponseError)
 
 export const getModelHubEvalTemplatesDetailListUrl = (templateId: string,) => {
 
@@ -27693,16 +27989,43 @@ export const modelHubEvalTemplatesFeedbackListList = async (templateId: string, 
 
 
 export type modelHubEvalTemplatesGroundTruthConfigListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalTemplatesGroundTruthConfigListResponseSuccess = (modelHubEvalTemplatesGroundTruthConfigListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesGroundTruthConfigListResponseError = (modelHubEvalTemplatesGroundTruthConfigListResponse400 | modelHubEvalTemplatesGroundTruthConfigListResponse403 | modelHubEvalTemplatesGroundTruthConfigListResponse404 | modelHubEvalTemplatesGroundTruthConfigListResponse409 | modelHubEvalTemplatesGroundTruthConfigListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesGroundTruthConfigListResponse = (modelHubEvalTemplatesGroundTruthConfigListResponseSuccess)
+export type modelHubEvalTemplatesGroundTruthConfigListResponse = (modelHubEvalTemplatesGroundTruthConfigListResponseSuccess | modelHubEvalTemplatesGroundTruthConfigListResponseError)
 
 export const getModelHubEvalTemplatesGroundTruthConfigListUrl = (templateId: string,) => {
 
@@ -27730,16 +28053,43 @@ export const modelHubEvalTemplatesGroundTruthConfigList = async (templateId: str
 
 
 export type modelHubEvalTemplatesGroundTruthConfigUpdateResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesGroundTruthConfigUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalTemplatesGroundTruthConfigUpdateResponseSuccess = (modelHubEvalTemplatesGroundTruthConfigUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesGroundTruthConfigUpdateResponseError = (modelHubEvalTemplatesGroundTruthConfigUpdateResponse400 | modelHubEvalTemplatesGroundTruthConfigUpdateResponse403 | modelHubEvalTemplatesGroundTruthConfigUpdateResponse404 | modelHubEvalTemplatesGroundTruthConfigUpdateResponse409 | modelHubEvalTemplatesGroundTruthConfigUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesGroundTruthConfigUpdateResponse = (modelHubEvalTemplatesGroundTruthConfigUpdateResponseSuccess)
+export type modelHubEvalTemplatesGroundTruthConfigUpdateResponse = (modelHubEvalTemplatesGroundTruthConfigUpdateResponseSuccess | modelHubEvalTemplatesGroundTruthConfigUpdateResponseError)
 
 export const getModelHubEvalTemplatesGroundTruthConfigUpdateUrl = (templateId: string,) => {
 
@@ -27753,30 +28103,59 @@ export const getModelHubEvalTemplatesGroundTruthConfigUpdateUrl = (templateId: s
  * Manages ground truth configuration on the eval template's config JSONField.
  * @summary GET/PUT /model-hub/eval-templates/<id>/ground-truth-config/
  */
-export const modelHubEvalTemplatesGroundTruthConfigUpdate = async (templateId: string, options?: RequestInit): Promise<modelHubEvalTemplatesGroundTruthConfigUpdateResponse> => {
+export const modelHubEvalTemplatesGroundTruthConfigUpdate = async (templateId: string,
+    groundTruthConfigRequestApi: GroundTruthConfigRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesGroundTruthConfigUpdateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesGroundTruthConfigUpdateResponse>(getModelHubEvalTemplatesGroundTruthConfigUpdateUrl(templateId),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      groundTruthConfigRequestApi,)
   }
 );}
 
 
 
 export type modelHubEvalTemplatesGroundTruthListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalTemplatesGroundTruthListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesGroundTruthListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesGroundTruthListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesGroundTruthListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesGroundTruthListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalTemplatesGroundTruthListResponseSuccess = (modelHubEvalTemplatesGroundTruthListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesGroundTruthListResponseError = (modelHubEvalTemplatesGroundTruthListResponse400 | modelHubEvalTemplatesGroundTruthListResponse403 | modelHubEvalTemplatesGroundTruthListResponse404 | modelHubEvalTemplatesGroundTruthListResponse409 | modelHubEvalTemplatesGroundTruthListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesGroundTruthListResponse = (modelHubEvalTemplatesGroundTruthListResponseSuccess)
+export type modelHubEvalTemplatesGroundTruthListResponse = (modelHubEvalTemplatesGroundTruthListResponseSuccess | modelHubEvalTemplatesGroundTruthListResponseError)
 
 export const getModelHubEvalTemplatesGroundTruthListUrl = (templateId: string,) => {
 
@@ -27802,17 +28181,44 @@ export const modelHubEvalTemplatesGroundTruthList = async (templateId: string, o
 
 
 
-export type modelHubEvalTemplatesGroundTruthUploadCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesGroundTruthUploadCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesGroundTruthUploadCreateResponseSuccess = (modelHubEvalTemplatesGroundTruthUploadCreateResponse201) & {
+export type modelHubEvalTemplatesGroundTruthUploadCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesGroundTruthUploadCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesGroundTruthUploadCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesGroundTruthUploadCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesGroundTruthUploadCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesGroundTruthUploadCreateResponseSuccess = (modelHubEvalTemplatesGroundTruthUploadCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesGroundTruthUploadCreateResponseError = (modelHubEvalTemplatesGroundTruthUploadCreateResponse400 | modelHubEvalTemplatesGroundTruthUploadCreateResponse403 | modelHubEvalTemplatesGroundTruthUploadCreateResponse404 | modelHubEvalTemplatesGroundTruthUploadCreateResponse409 | modelHubEvalTemplatesGroundTruthUploadCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesGroundTruthUploadCreateResponse = (modelHubEvalTemplatesGroundTruthUploadCreateResponseSuccess)
+export type modelHubEvalTemplatesGroundTruthUploadCreateResponse = (modelHubEvalTemplatesGroundTruthUploadCreateResponseSuccess | modelHubEvalTemplatesGroundTruthUploadCreateResponseError)
 
 export const getModelHubEvalTemplatesGroundTruthUploadCreateUrl = (templateId: string,) => {
 
@@ -27828,30 +28234,59 @@ export const getModelHubEvalTemplatesGroundTruthUploadCreateUrl = (templateId: s
 2. Multipart file upload: file (CSV/XLS/XLSX/JSON) + name field
  * @summary POST /model-hub/eval-templates/<id>/ground-truth/upload/
  */
-export const modelHubEvalTemplatesGroundTruthUploadCreate = async (templateId: string, options?: RequestInit): Promise<modelHubEvalTemplatesGroundTruthUploadCreateResponse> => {
+export const modelHubEvalTemplatesGroundTruthUploadCreate = async (templateId: string,
+    groundTruthUploadRequestApi: GroundTruthUploadRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesGroundTruthUploadCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesGroundTruthUploadCreateResponse>(getModelHubEvalTemplatesGroundTruthUploadCreateUrl(templateId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      groundTruthUploadRequestApi,)
   }
 );}
 
 
 
 export type modelHubEvalTemplatesUpdateUpdateResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalTemplatesUpdateUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesUpdateUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesUpdateUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesUpdateUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesUpdateUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalTemplatesUpdateUpdateResponseSuccess = (modelHubEvalTemplatesUpdateUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesUpdateUpdateResponseError = (modelHubEvalTemplatesUpdateUpdateResponse400 | modelHubEvalTemplatesUpdateUpdateResponse403 | modelHubEvalTemplatesUpdateUpdateResponse404 | modelHubEvalTemplatesUpdateUpdateResponse409 | modelHubEvalTemplatesUpdateUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesUpdateUpdateResponse = (modelHubEvalTemplatesUpdateUpdateResponseSuccess)
+export type modelHubEvalTemplatesUpdateUpdateResponse = (modelHubEvalTemplatesUpdateUpdateResponseSuccess | modelHubEvalTemplatesUpdateUpdateResponseError)
 
 export const getModelHubEvalTemplatesUpdateUpdateUrl = (templateId: string,) => {
 
@@ -27865,14 +28300,16 @@ export const getModelHubEvalTemplatesUpdateUpdateUrl = (templateId: string,) => 
  * Update an eval template. Only user-owned templates can be updated.
  * @summary PUT /model-hub/eval-templates/<id>/update/
  */
-export const modelHubEvalTemplatesUpdateUpdate = async (templateId: string, options?: RequestInit): Promise<modelHubEvalTemplatesUpdateUpdateResponse> => {
+export const modelHubEvalTemplatesUpdateUpdate = async (templateId: string,
+    evalTemplateUpdateV2RequestApi: EvalTemplateUpdateV2RequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesUpdateUpdateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesUpdateUpdateResponse>(getModelHubEvalTemplatesUpdateUpdateUrl(templateId),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      evalTemplateUpdateV2RequestApi,)
   }
 );}
 
@@ -27917,16 +28354,43 @@ export const modelHubEvalTemplatesUsageList = async (templateId: string, options
 
 
 export type modelHubEvalTemplatesVersionsListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalTemplatesVersionsListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesVersionsListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesVersionsListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesVersionsListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesVersionsListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalTemplatesVersionsListResponseSuccess = (modelHubEvalTemplatesVersionsListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesVersionsListResponseError = (modelHubEvalTemplatesVersionsListResponse400 | modelHubEvalTemplatesVersionsListResponse403 | modelHubEvalTemplatesVersionsListResponse404 | modelHubEvalTemplatesVersionsListResponse409 | modelHubEvalTemplatesVersionsListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesVersionsListResponse = (modelHubEvalTemplatesVersionsListResponseSuccess)
+export type modelHubEvalTemplatesVersionsListResponse = (modelHubEvalTemplatesVersionsListResponseSuccess | modelHubEvalTemplatesVersionsListResponseError)
 
 export const getModelHubEvalTemplatesVersionsListUrl = (templateId: string,) => {
 
@@ -27953,17 +28417,44 @@ export const modelHubEvalTemplatesVersionsList = async (templateId: string, opti
 
 
 
-export type modelHubEvalTemplatesVersionsCreateCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesVersionsCreateCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesVersionsCreateCreateResponseSuccess = (modelHubEvalTemplatesVersionsCreateCreateResponse201) & {
+export type modelHubEvalTemplatesVersionsCreateCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesVersionsCreateCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesVersionsCreateCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesVersionsCreateCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesVersionsCreateCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesVersionsCreateCreateResponseSuccess = (modelHubEvalTemplatesVersionsCreateCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesVersionsCreateCreateResponseError = (modelHubEvalTemplatesVersionsCreateCreateResponse400 | modelHubEvalTemplatesVersionsCreateCreateResponse403 | modelHubEvalTemplatesVersionsCreateCreateResponse404 | modelHubEvalTemplatesVersionsCreateCreateResponse409 | modelHubEvalTemplatesVersionsCreateCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesVersionsCreateCreateResponse = (modelHubEvalTemplatesVersionsCreateCreateResponseSuccess)
+export type modelHubEvalTemplatesVersionsCreateCreateResponse = (modelHubEvalTemplatesVersionsCreateCreateResponseSuccess | modelHubEvalTemplatesVersionsCreateCreateResponseError)
 
 export const getModelHubEvalTemplatesVersionsCreateCreateUrl = (templateId: string,) => {
 
@@ -27977,30 +28468,59 @@ export const getModelHubEvalTemplatesVersionsCreateCreateUrl = (templateId: stri
  * Create a new version snapshot from the current template state.
  * @summary POST /model-hub/eval-templates/<id>/versions/create/
  */
-export const modelHubEvalTemplatesVersionsCreateCreate = async (templateId: string, options?: RequestInit): Promise<modelHubEvalTemplatesVersionsCreateCreateResponse> => {
+export const modelHubEvalTemplatesVersionsCreateCreate = async (templateId: string,
+    evalTemplateVersionCreateRequestApi: EvalTemplateVersionCreateRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesVersionsCreateCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesVersionsCreateCreateResponse>(getModelHubEvalTemplatesVersionsCreateCreateUrl(templateId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      evalTemplateVersionCreateRequestApi,)
   }
 );}
 
 
 
-export type modelHubEvalTemplatesVersionsRestoreCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubEvalTemplatesVersionsRestoreCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubEvalTemplatesVersionsRestoreCreateResponseSuccess = (modelHubEvalTemplatesVersionsRestoreCreateResponse201) & {
+export type modelHubEvalTemplatesVersionsRestoreCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesVersionsRestoreCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesVersionsRestoreCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesVersionsRestoreCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesVersionsRestoreCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubEvalTemplatesVersionsRestoreCreateResponseSuccess = (modelHubEvalTemplatesVersionsRestoreCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesVersionsRestoreCreateResponseError = (modelHubEvalTemplatesVersionsRestoreCreateResponse400 | modelHubEvalTemplatesVersionsRestoreCreateResponse403 | modelHubEvalTemplatesVersionsRestoreCreateResponse404 | modelHubEvalTemplatesVersionsRestoreCreateResponse409 | modelHubEvalTemplatesVersionsRestoreCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesVersionsRestoreCreateResponse = (modelHubEvalTemplatesVersionsRestoreCreateResponseSuccess)
+export type modelHubEvalTemplatesVersionsRestoreCreateResponse = (modelHubEvalTemplatesVersionsRestoreCreateResponseSuccess | modelHubEvalTemplatesVersionsRestoreCreateResponseError)
 
 export const getModelHubEvalTemplatesVersionsRestoreCreateUrl = (templateId: string,
     versionId: string,) => {
@@ -28017,30 +28537,59 @@ Does NOT modify the old version — creates a new one on top.
  * @summary POST /model-hub/eval-templates/<id>/versions/<version_id>/restore/
  */
 export const modelHubEvalTemplatesVersionsRestoreCreate = async (templateId: string,
-    versionId: string, options?: RequestInit): Promise<modelHubEvalTemplatesVersionsRestoreCreateResponse> => {
+    versionId: string,
+    modelHubEmptyRequestApi: ModelHubEmptyRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesVersionsRestoreCreateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesVersionsRestoreCreateResponse>(getModelHubEvalTemplatesVersionsRestoreCreateUrl(templateId,versionId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      modelHubEmptyRequestApi,)
   }
 );}
 
 
 
 export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponseSuccess = (modelHubEvalTemplatesVersionsSetDefaultUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponseError = (modelHubEvalTemplatesVersionsSetDefaultUpdateResponse400 | modelHubEvalTemplatesVersionsSetDefaultUpdateResponse403 | modelHubEvalTemplatesVersionsSetDefaultUpdateResponse404 | modelHubEvalTemplatesVersionsSetDefaultUpdateResponse409 | modelHubEvalTemplatesVersionsSetDefaultUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponse = (modelHubEvalTemplatesVersionsSetDefaultUpdateResponseSuccess)
+export type modelHubEvalTemplatesVersionsSetDefaultUpdateResponse = (modelHubEvalTemplatesVersionsSetDefaultUpdateResponseSuccess | modelHubEvalTemplatesVersionsSetDefaultUpdateResponseError)
 
 export const getModelHubEvalTemplatesVersionsSetDefaultUpdateUrl = (templateId: string,
     versionId: string,) => {
@@ -28056,14 +28605,16 @@ export const getModelHubEvalTemplatesVersionsSetDefaultUpdateUrl = (templateId: 
  * @summary PUT /model-hub/eval-templates/<id>/versions/<version_id>/set-default/
  */
 export const modelHubEvalTemplatesVersionsSetDefaultUpdate = async (templateId: string,
-    versionId: string, options?: RequestInit): Promise<modelHubEvalTemplatesVersionsSetDefaultUpdateResponse> => {
+    versionId: string,
+    modelHubEmptyRequestApi: ModelHubEmptyRequestApi, options?: RequestInit): Promise<modelHubEvalTemplatesVersionsSetDefaultUpdateResponse> => {
 
   return apiMutator<modelHubEvalTemplatesVersionsSetDefaultUpdateResponse>(getModelHubEvalTemplatesVersionsSetDefaultUpdateUrl(templateId,versionId),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      modelHubEmptyRequestApi,)
   }
 );}
 
@@ -30474,17 +31025,44 @@ export const modelHubGetEvalTemplatesCreate = async ( options?: RequestInit): Pr
 
 
 
-export type modelHubGroundTruthDeleteResponse204 = {
-  data: void
-  status: 204
+export type modelHubGroundTruthDeleteResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubGroundTruthDeleteResponseSuccess = (modelHubGroundTruthDeleteResponse204) & {
+export type modelHubGroundTruthDeleteResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubGroundTruthDeleteResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubGroundTruthDeleteResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubGroundTruthDeleteResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubGroundTruthDeleteResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubGroundTruthDeleteResponseSuccess = (modelHubGroundTruthDeleteResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubGroundTruthDeleteResponseError = (modelHubGroundTruthDeleteResponse400 | modelHubGroundTruthDeleteResponse403 | modelHubGroundTruthDeleteResponse404 | modelHubGroundTruthDeleteResponse409 | modelHubGroundTruthDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubGroundTruthDeleteResponse = (modelHubGroundTruthDeleteResponseSuccess)
+export type modelHubGroundTruthDeleteResponse = (modelHubGroundTruthDeleteResponseSuccess | modelHubGroundTruthDeleteResponseError)
 
 export const getModelHubGroundTruthDeleteUrl = (groundTruthId: string,) => {
 
@@ -30511,16 +31089,43 @@ export const modelHubGroundTruthDelete = async (groundTruthId: string, options?:
 
 
 export type modelHubGroundTruthDataListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubGroundTruthDataListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubGroundTruthDataListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubGroundTruthDataListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubGroundTruthDataListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubGroundTruthDataListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubGroundTruthDataListResponseSuccess = (modelHubGroundTruthDataListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubGroundTruthDataListResponseError = (modelHubGroundTruthDataListResponse400 | modelHubGroundTruthDataListResponse403 | modelHubGroundTruthDataListResponse404 | modelHubGroundTruthDataListResponse409 | modelHubGroundTruthDataListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubGroundTruthDataListResponse = (modelHubGroundTruthDataListResponseSuccess)
+export type modelHubGroundTruthDataListResponse = (modelHubGroundTruthDataListResponseSuccess | modelHubGroundTruthDataListResponseError)
 
 export const getModelHubGroundTruthDataListUrl = (groundTruthId: string,) => {
 
@@ -30546,17 +31151,44 @@ export const modelHubGroundTruthDataList = async (groundTruthId: string, options
 
 
 
-export type modelHubGroundTruthEmbedCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubGroundTruthEmbedCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubGroundTruthEmbedCreateResponseSuccess = (modelHubGroundTruthEmbedCreateResponse201) & {
+export type modelHubGroundTruthEmbedCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubGroundTruthEmbedCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubGroundTruthEmbedCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubGroundTruthEmbedCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubGroundTruthEmbedCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubGroundTruthEmbedCreateResponseSuccess = (modelHubGroundTruthEmbedCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubGroundTruthEmbedCreateResponseError = (modelHubGroundTruthEmbedCreateResponse400 | modelHubGroundTruthEmbedCreateResponse403 | modelHubGroundTruthEmbedCreateResponse404 | modelHubGroundTruthEmbedCreateResponse409 | modelHubGroundTruthEmbedCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubGroundTruthEmbedCreateResponse = (modelHubGroundTruthEmbedCreateResponseSuccess)
+export type modelHubGroundTruthEmbedCreateResponse = (modelHubGroundTruthEmbedCreateResponseSuccess | modelHubGroundTruthEmbedCreateResponseError)
 
 export const getModelHubGroundTruthEmbedCreateUrl = (groundTruthId: string,) => {
 
@@ -30569,30 +31201,59 @@ export const getModelHubGroundTruthEmbedCreateUrl = (groundTruthId: string,) => 
 /**
  * POST /model-hub/ground-truth/<id>/embed/ — trigger embedding generation.
  */
-export const modelHubGroundTruthEmbedCreate = async (groundTruthId: string, options?: RequestInit): Promise<modelHubGroundTruthEmbedCreateResponse> => {
+export const modelHubGroundTruthEmbedCreate = async (groundTruthId: string,
+    modelHubEmptyRequestApi: ModelHubEmptyRequestApi, options?: RequestInit): Promise<modelHubGroundTruthEmbedCreateResponse> => {
 
   return apiMutator<modelHubGroundTruthEmbedCreateResponse>(getModelHubGroundTruthEmbedCreateUrl(groundTruthId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      modelHubEmptyRequestApi,)
   }
 );}
 
 
 
 export type modelHubGroundTruthMappingUpdateResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubGroundTruthMappingUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubGroundTruthMappingUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubGroundTruthMappingUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubGroundTruthMappingUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubGroundTruthMappingUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubGroundTruthMappingUpdateResponseSuccess = (modelHubGroundTruthMappingUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubGroundTruthMappingUpdateResponseError = (modelHubGroundTruthMappingUpdateResponse400 | modelHubGroundTruthMappingUpdateResponse403 | modelHubGroundTruthMappingUpdateResponse404 | modelHubGroundTruthMappingUpdateResponse409 | modelHubGroundTruthMappingUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubGroundTruthMappingUpdateResponse = (modelHubGroundTruthMappingUpdateResponseSuccess)
+export type modelHubGroundTruthMappingUpdateResponse = (modelHubGroundTruthMappingUpdateResponseSuccess | modelHubGroundTruthMappingUpdateResponseError)
 
 export const getModelHubGroundTruthMappingUpdateUrl = (groundTruthId: string,) => {
 
@@ -30605,30 +31266,59 @@ export const getModelHubGroundTruthMappingUpdateUrl = (groundTruthId: string,) =
 /**
  * PUT /model-hub/ground-truth/<id>/mapping/
  */
-export const modelHubGroundTruthMappingUpdate = async (groundTruthId: string, options?: RequestInit): Promise<modelHubGroundTruthMappingUpdateResponse> => {
+export const modelHubGroundTruthMappingUpdate = async (groundTruthId: string,
+    groundTruthMappingRequestApi: GroundTruthMappingRequestApi, options?: RequestInit): Promise<modelHubGroundTruthMappingUpdateResponse> => {
 
   return apiMutator<modelHubGroundTruthMappingUpdateResponse>(getModelHubGroundTruthMappingUpdateUrl(groundTruthId),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      groundTruthMappingRequestApi,)
   }
 );}
 
 
 
 export type modelHubGroundTruthRoleMappingUpdateResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubGroundTruthRoleMappingUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubGroundTruthRoleMappingUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubGroundTruthRoleMappingUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubGroundTruthRoleMappingUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubGroundTruthRoleMappingUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubGroundTruthRoleMappingUpdateResponseSuccess = (modelHubGroundTruthRoleMappingUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubGroundTruthRoleMappingUpdateResponseError = (modelHubGroundTruthRoleMappingUpdateResponse400 | modelHubGroundTruthRoleMappingUpdateResponse403 | modelHubGroundTruthRoleMappingUpdateResponse404 | modelHubGroundTruthRoleMappingUpdateResponse409 | modelHubGroundTruthRoleMappingUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubGroundTruthRoleMappingUpdateResponse = (modelHubGroundTruthRoleMappingUpdateResponseSuccess)
+export type modelHubGroundTruthRoleMappingUpdateResponse = (modelHubGroundTruthRoleMappingUpdateResponseSuccess | modelHubGroundTruthRoleMappingUpdateResponseError)
 
 export const getModelHubGroundTruthRoleMappingUpdateUrl = (groundTruthId: string,) => {
 
@@ -30641,30 +31331,59 @@ export const getModelHubGroundTruthRoleMappingUpdateUrl = (groundTruthId: string
 /**
  * PUT /model-hub/ground-truth/<id>/role-mapping/
  */
-export const modelHubGroundTruthRoleMappingUpdate = async (groundTruthId: string, options?: RequestInit): Promise<modelHubGroundTruthRoleMappingUpdateResponse> => {
+export const modelHubGroundTruthRoleMappingUpdate = async (groundTruthId: string,
+    groundTruthRoleMappingRequestApi: GroundTruthRoleMappingRequestApi, options?: RequestInit): Promise<modelHubGroundTruthRoleMappingUpdateResponse> => {
 
   return apiMutator<modelHubGroundTruthRoleMappingUpdateResponse>(getModelHubGroundTruthRoleMappingUpdateUrl(groundTruthId),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      groundTruthRoleMappingRequestApi,)
   }
 );}
 
 
 
-export type modelHubGroundTruthSearchCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubGroundTruthSearchCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubGroundTruthSearchCreateResponseSuccess = (modelHubGroundTruthSearchCreateResponse201) & {
+export type modelHubGroundTruthSearchCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubGroundTruthSearchCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubGroundTruthSearchCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubGroundTruthSearchCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubGroundTruthSearchCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubGroundTruthSearchCreateResponseSuccess = (modelHubGroundTruthSearchCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubGroundTruthSearchCreateResponseError = (modelHubGroundTruthSearchCreateResponse400 | modelHubGroundTruthSearchCreateResponse403 | modelHubGroundTruthSearchCreateResponse404 | modelHubGroundTruthSearchCreateResponse409 | modelHubGroundTruthSearchCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubGroundTruthSearchCreateResponse = (modelHubGroundTruthSearchCreateResponseSuccess)
+export type modelHubGroundTruthSearchCreateResponse = (modelHubGroundTruthSearchCreateResponseSuccess | modelHubGroundTruthSearchCreateResponseError)
 
 export const getModelHubGroundTruthSearchCreateUrl = (groundTruthId: string,) => {
 
@@ -30677,30 +31396,59 @@ export const getModelHubGroundTruthSearchCreateUrl = (groundTruthId: string,) =>
 /**
  * POST /model-hub/ground-truth/<id>/search/ — test retrieval with a query.
  */
-export const modelHubGroundTruthSearchCreate = async (groundTruthId: string, options?: RequestInit): Promise<modelHubGroundTruthSearchCreateResponse> => {
+export const modelHubGroundTruthSearchCreate = async (groundTruthId: string,
+    groundTruthSearchRequestApi: GroundTruthSearchRequestApi, options?: RequestInit): Promise<modelHubGroundTruthSearchCreateResponse> => {
 
   return apiMutator<modelHubGroundTruthSearchCreateResponse>(getModelHubGroundTruthSearchCreateUrl(groundTruthId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      groundTruthSearchRequestApi,)
   }
 );}
 
 
 
 export type modelHubGroundTruthStatusListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubGroundTruthStatusListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubGroundTruthStatusListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubGroundTruthStatusListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubGroundTruthStatusListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubGroundTruthStatusListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubGroundTruthStatusListResponseSuccess = (modelHubGroundTruthStatusListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubGroundTruthStatusListResponseError = (modelHubGroundTruthStatusListResponse400 | modelHubGroundTruthStatusListResponse403 | modelHubGroundTruthStatusListResponse404 | modelHubGroundTruthStatusListResponse409 | modelHubGroundTruthStatusListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubGroundTruthStatusListResponse = (modelHubGroundTruthStatusListResponseSuccess)
+export type modelHubGroundTruthStatusListResponse = (modelHubGroundTruthStatusListResponseSuccess | modelHubGroundTruthStatusListResponseError)
 
 export const getModelHubGroundTruthStatusListUrl = (groundTruthId: string,) => {
 

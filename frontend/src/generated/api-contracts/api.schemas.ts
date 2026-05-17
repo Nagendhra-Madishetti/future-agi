@@ -5008,6 +5008,500 @@ export interface EvalTemplateApi {
   eval_tags?: string[];
 }
 
+export interface EvalTemplateBulkDeleteRequestApi {
+  template_ids: string[];
+}
+
+export type CompositeEvalAdhocExecuteRequestApiMapping = { [key: string]: unknown };
+
+export type CompositeEvalAdhocExecuteRequestApiConfig = { [key: string]: unknown };
+
+export type CompositeEvalAdhocExecuteRequestApiInputDataTypes = { [key: string]: unknown };
+
+export type CompositeEvalAdhocExecuteRequestApiSpanContext = { [key: string]: unknown };
+
+export type CompositeEvalAdhocExecuteRequestApiTraceContext = { [key: string]: unknown };
+
+export type CompositeEvalAdhocExecuteRequestApiSessionContext = { [key: string]: unknown };
+
+export type CompositeEvalAdhocExecuteRequestApiCallContext = { [key: string]: unknown };
+
+export type CompositeEvalAdhocExecuteRequestApiRowContext = { [key: string]: unknown };
+
+export type CompositeEvalAdhocExecuteRequestApiAggregationFunction = typeof CompositeEvalAdhocExecuteRequestApiAggregationFunction[keyof typeof CompositeEvalAdhocExecuteRequestApiAggregationFunction];
+
+
+export const CompositeEvalAdhocExecuteRequestApiAggregationFunction = {
+  weighted_avg: 'weighted_avg',
+  avg: 'avg',
+  min: 'min',
+  max: 'max',
+  pass_rate: 'pass_rate',
+} as const;
+
+export type CompositeEvalAdhocExecuteRequestApiCompositeChildAxis = typeof CompositeEvalAdhocExecuteRequestApiCompositeChildAxis[keyof typeof CompositeEvalAdhocExecuteRequestApiCompositeChildAxis];
+
+
+export const CompositeEvalAdhocExecuteRequestApiCompositeChildAxis = {
+  '': '',
+  pass_fail: 'pass_fail',
+  percentage: 'percentage',
+  choices: 'choices',
+  code: 'code',
+} as const;
+
+export type CompositeEvalAdhocExecuteRequestApiChildWeights = { [key: string]: unknown };
+
+export interface CompositeEvalAdhocExecuteRequestApi {
+  mapping: CompositeEvalAdhocExecuteRequestApiMapping;
+  model?: string;
+  config?: CompositeEvalAdhocExecuteRequestApiConfig;
+  error_localizer?: boolean;
+  input_data_types?: CompositeEvalAdhocExecuteRequestApiInputDataTypes;
+  span_context?: CompositeEvalAdhocExecuteRequestApiSpanContext;
+  trace_context?: CompositeEvalAdhocExecuteRequestApiTraceContext;
+  session_context?: CompositeEvalAdhocExecuteRequestApiSessionContext;
+  call_context?: CompositeEvalAdhocExecuteRequestApiCallContext;
+  row_context?: CompositeEvalAdhocExecuteRequestApiRowContext;
+  child_template_ids: string[];
+  aggregation_enabled?: boolean;
+  aggregation_function?: CompositeEvalAdhocExecuteRequestApiAggregationFunction;
+  composite_child_axis?: CompositeEvalAdhocExecuteRequestApiCompositeChildAxis;
+  child_weights?: CompositeEvalAdhocExecuteRequestApiChildWeights;
+  pass_threshold?: number;
+}
+
+export type CompositeEvalCreateRequestApiAggregationFunction = typeof CompositeEvalCreateRequestApiAggregationFunction[keyof typeof CompositeEvalCreateRequestApiAggregationFunction];
+
+
+export const CompositeEvalCreateRequestApiAggregationFunction = {
+  weighted_avg: 'weighted_avg',
+  avg: 'avg',
+  min: 'min',
+  max: 'max',
+  pass_rate: 'pass_rate',
+} as const;
+
+export type CompositeEvalCreateRequestApiChildWeights = { [key: string]: unknown };
+
+export type CompositeEvalCreateRequestApiCompositeChildAxis = typeof CompositeEvalCreateRequestApiCompositeChildAxis[keyof typeof CompositeEvalCreateRequestApiCompositeChildAxis];
+
+
+export const CompositeEvalCreateRequestApiCompositeChildAxis = {
+  '': '',
+  pass_fail: 'pass_fail',
+  percentage: 'percentage',
+  choices: 'choices',
+  code: 'code',
+} as const;
+
+export interface CompositeEvalCreateRequestApi {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  description?: string;
+  tags?: string[];
+  child_template_ids: string[];
+  aggregation_enabled?: boolean;
+  aggregation_function?: CompositeEvalCreateRequestApiAggregationFunction;
+  child_weights?: CompositeEvalCreateRequestApiChildWeights;
+  composite_child_axis?: CompositeEvalCreateRequestApiCompositeChildAxis;
+}
+
+export type EvalTemplateCreateV2RequestApiEvalType = typeof EvalTemplateCreateV2RequestApiEvalType[keyof typeof EvalTemplateCreateV2RequestApiEvalType];
+
+
+export const EvalTemplateCreateV2RequestApiEvalType = {
+  llm: 'llm',
+  code: 'code',
+  agent: 'agent',
+} as const;
+
+export type EvalTemplateCreateV2RequestApiOutputType = typeof EvalTemplateCreateV2RequestApiOutputType[keyof typeof EvalTemplateCreateV2RequestApiOutputType];
+
+
+export const EvalTemplateCreateV2RequestApiOutputType = {
+  pass_fail: 'pass_fail',
+  percentage: 'percentage',
+  deterministic: 'deterministic',
+} as const;
+
+export type EvalTemplateCreateV2RequestApiChoiceScores = { [key: string]: unknown };
+
+export type EvalTemplateCreateV2RequestApiCodeLanguage = typeof EvalTemplateCreateV2RequestApiCodeLanguage[keyof typeof EvalTemplateCreateV2RequestApiCodeLanguage];
+
+
+export const EvalTemplateCreateV2RequestApiCodeLanguage = {
+  python: 'python',
+  javascript: 'javascript',
+} as const;
+
+export type EvalTemplateCreateV2RequestApiMessagesItem = { [key: string]: unknown };
+
+export type EvalTemplateCreateV2RequestApiFewShotExamplesItem = { [key: string]: unknown };
+
+export type EvalTemplateCreateV2RequestApiMode = typeof EvalTemplateCreateV2RequestApiMode[keyof typeof EvalTemplateCreateV2RequestApiMode];
+
+
+export const EvalTemplateCreateV2RequestApiMode = {
+  auto: 'auto',
+  agent: 'agent',
+  quick: 'quick',
+} as const;
+
+export type EvalTemplateCreateV2RequestApiTools = { [key: string]: unknown };
+
+export type EvalTemplateCreateV2RequestApiDataInjection = { [key: string]: unknown };
+
+export type EvalTemplateCreateV2RequestApiSummary = { [key: string]: unknown };
+
+export type EvalTemplateCreateV2RequestApiTemplateFormat = typeof EvalTemplateCreateV2RequestApiTemplateFormat[keyof typeof EvalTemplateCreateV2RequestApiTemplateFormat];
+
+
+export const EvalTemplateCreateV2RequestApiTemplateFormat = {
+  mustache: 'mustache',
+  jinja: 'jinja',
+} as const;
+
+export interface EvalTemplateCreateV2RequestApi {
+  /** @maxLength 255 */
+  name?: string;
+  is_draft?: boolean;
+  eval_type?: EvalTemplateCreateV2RequestApiEvalType;
+  /** @maxLength 100000 */
+  instructions?: string;
+  /** @minLength 1 */
+  model?: string;
+  output_type?: EvalTemplateCreateV2RequestApiOutputType;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  pass_threshold?: number;
+  choice_scores?: EvalTemplateCreateV2RequestApiChoiceScores;
+  description?: string;
+  tags?: string[];
+  check_internet?: boolean;
+  /** @maxLength 100000 */
+  code?: string;
+  code_language?: EvalTemplateCreateV2RequestApiCodeLanguage;
+  messages?: EvalTemplateCreateV2RequestApiMessagesItem[];
+  few_shot_examples?: EvalTemplateCreateV2RequestApiFewShotExamplesItem[];
+  mode?: EvalTemplateCreateV2RequestApiMode;
+  tools?: EvalTemplateCreateV2RequestApiTools;
+  knowledge_bases?: string[];
+  data_injection?: EvalTemplateCreateV2RequestApiDataInjection;
+  summary?: EvalTemplateCreateV2RequestApiSummary;
+  error_localizer_enabled?: boolean;
+  template_format?: EvalTemplateCreateV2RequestApiTemplateFormat;
+}
+
+export interface EvalTemplateListChartsRequestApi {
+  template_ids: string[];
+}
+
+export type EvalListRequestApiOwnerFilter = typeof EvalListRequestApiOwnerFilter[keyof typeof EvalListRequestApiOwnerFilter];
+
+
+export const EvalListRequestApiOwnerFilter = {
+  all: 'all',
+  user: 'user',
+  system: 'system',
+} as const;
+
+export type EvalListRequestApiSortBy = typeof EvalListRequestApiSortBy[keyof typeof EvalListRequestApiSortBy];
+
+
+export const EvalListRequestApiSortBy = {
+  name: 'name',
+  updated_at: 'updated_at',
+  created_at: 'created_at',
+} as const;
+
+export type EvalListRequestApiSortOrder = typeof EvalListRequestApiSortOrder[keyof typeof EvalListRequestApiSortOrder];
+
+
+export const EvalListRequestApiSortOrder = {
+  asc: 'asc',
+  desc: 'desc',
+} as const;
+
+export type EvalListFiltersApiEvalTypeItem = typeof EvalListFiltersApiEvalTypeItem[keyof typeof EvalListFiltersApiEvalTypeItem];
+
+
+export const EvalListFiltersApiEvalTypeItem = {
+  llm: 'llm',
+  code: 'code',
+  agent: 'agent',
+} as const;
+
+export type EvalListFiltersApiOutputTypeItem = typeof EvalListFiltersApiOutputTypeItem[keyof typeof EvalListFiltersApiOutputTypeItem];
+
+
+export const EvalListFiltersApiOutputTypeItem = {
+  pass_fail: 'pass_fail',
+  percentage: 'percentage',
+  deterministic: 'deterministic',
+} as const;
+
+export type EvalListFiltersApiTemplateTypeItem = typeof EvalListFiltersApiTemplateTypeItem[keyof typeof EvalListFiltersApiTemplateTypeItem];
+
+
+export const EvalListFiltersApiTemplateTypeItem = {
+  single: 'single',
+  composite: 'composite',
+} as const;
+
+export interface EvalListFiltersApi {
+  eval_type?: EvalListFiltersApiEvalTypeItem[];
+  output_type?: EvalListFiltersApiOutputTypeItem[];
+  template_type?: EvalListFiltersApiTemplateTypeItem[];
+  tags?: string[];
+  created_by?: string[];
+  names?: string[];
+}
+
+export interface EvalListRequestApi {
+  /** @minimum 0 */
+  page?: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  page_size?: number;
+  search?: string;
+  owner_filter?: EvalListRequestApiOwnerFilter;
+  filters?: EvalListFiltersApi;
+  sort_by?: EvalListRequestApiSortBy;
+  sort_order?: EvalListRequestApiSortOrder;
+}
+
+export type CompositeEvalUpdateRequestApiAggregationFunction = typeof CompositeEvalUpdateRequestApiAggregationFunction[keyof typeof CompositeEvalUpdateRequestApiAggregationFunction];
+
+
+export const CompositeEvalUpdateRequestApiAggregationFunction = {
+  weighted_avg: 'weighted_avg',
+  avg: 'avg',
+  min: 'min',
+  max: 'max',
+  pass_rate: 'pass_rate',
+} as const;
+
+export type CompositeEvalUpdateRequestApiChildWeights = { [key: string]: unknown };
+
+export type CompositeEvalUpdateRequestApiCompositeChildAxis = typeof CompositeEvalUpdateRequestApiCompositeChildAxis[keyof typeof CompositeEvalUpdateRequestApiCompositeChildAxis];
+
+
+export const CompositeEvalUpdateRequestApiCompositeChildAxis = {
+  '': '',
+  pass_fail: 'pass_fail',
+  percentage: 'percentage',
+  choices: 'choices',
+  code: 'code',
+} as const;
+
+export interface CompositeEvalUpdateRequestApi {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name?: string;
+  description?: string;
+  tags?: string[];
+  aggregation_enabled?: boolean;
+  aggregation_function?: CompositeEvalUpdateRequestApiAggregationFunction;
+  child_template_ids?: string[];
+  child_weights?: CompositeEvalUpdateRequestApiChildWeights;
+  composite_child_axis?: CompositeEvalUpdateRequestApiCompositeChildAxis;
+}
+
+export type CompositeEvalExecuteRequestApiMapping = { [key: string]: unknown };
+
+export type CompositeEvalExecuteRequestApiConfig = { [key: string]: unknown };
+
+export type CompositeEvalExecuteRequestApiInputDataTypes = { [key: string]: unknown };
+
+export type CompositeEvalExecuteRequestApiSpanContext = { [key: string]: unknown };
+
+export type CompositeEvalExecuteRequestApiTraceContext = { [key: string]: unknown };
+
+export type CompositeEvalExecuteRequestApiSessionContext = { [key: string]: unknown };
+
+export type CompositeEvalExecuteRequestApiCallContext = { [key: string]: unknown };
+
+export type CompositeEvalExecuteRequestApiRowContext = { [key: string]: unknown };
+
+export interface CompositeEvalExecuteRequestApi {
+  mapping: CompositeEvalExecuteRequestApiMapping;
+  model?: string;
+  config?: CompositeEvalExecuteRequestApiConfig;
+  error_localizer?: boolean;
+  input_data_types?: CompositeEvalExecuteRequestApiInputDataTypes;
+  span_context?: CompositeEvalExecuteRequestApiSpanContext;
+  trace_context?: CompositeEvalExecuteRequestApiTraceContext;
+  session_context?: CompositeEvalExecuteRequestApiSessionContext;
+  call_context?: CompositeEvalExecuteRequestApiCallContext;
+  row_context?: CompositeEvalExecuteRequestApiRowContext;
+}
+
+export type GroundTruthConfigRequestApiMode = typeof GroundTruthConfigRequestApiMode[keyof typeof GroundTruthConfigRequestApiMode];
+
+
+export const GroundTruthConfigRequestApiMode = {
+  auto: 'auto',
+  manual: 'manual',
+  disabled: 'disabled',
+} as const;
+
+export type GroundTruthConfigRequestApiInjectionFormat = typeof GroundTruthConfigRequestApiInjectionFormat[keyof typeof GroundTruthConfigRequestApiInjectionFormat];
+
+
+export const GroundTruthConfigRequestApiInjectionFormat = {
+  structured: 'structured',
+  conversational: 'conversational',
+  xml: 'xml',
+} as const;
+
+export interface GroundTruthConfigRequestApi {
+  enabled?: boolean;
+  ground_truth_id?: string;
+  mode?: GroundTruthConfigRequestApiMode;
+  /**
+     * @minimum 1
+     * @maximum 10
+     */
+  max_examples?: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  similarity_threshold?: number;
+  injection_format?: GroundTruthConfigRequestApiInjectionFormat;
+}
+
+export type GroundTruthUploadRequestApiDataItem = { [key: string]: unknown };
+
+export type GroundTruthUploadRequestApiVariableMapping = { [key: string]: unknown };
+
+export type GroundTruthUploadRequestApiRoleMapping = { [key: string]: unknown };
+
+export interface GroundTruthUploadRequestApi {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  description?: string;
+  file_name?: string;
+  columns: string[];
+  data: GroundTruthUploadRequestApiDataItem[];
+  variable_mapping?: GroundTruthUploadRequestApiVariableMapping;
+  role_mapping?: GroundTruthUploadRequestApiRoleMapping;
+}
+
+export type EvalTemplateUpdateV2RequestApiEvalType = typeof EvalTemplateUpdateV2RequestApiEvalType[keyof typeof EvalTemplateUpdateV2RequestApiEvalType];
+
+
+export const EvalTemplateUpdateV2RequestApiEvalType = {
+  llm: 'llm',
+  code: 'code',
+  agent: 'agent',
+} as const;
+
+export type EvalTemplateUpdateV2RequestApiOutputType = typeof EvalTemplateUpdateV2RequestApiOutputType[keyof typeof EvalTemplateUpdateV2RequestApiOutputType];
+
+
+export const EvalTemplateUpdateV2RequestApiOutputType = {
+  pass_fail: 'pass_fail',
+  percentage: 'percentage',
+  deterministic: 'deterministic',
+} as const;
+
+export type EvalTemplateUpdateV2RequestApiChoiceScores = { [key: string]: unknown };
+
+export type EvalTemplateUpdateV2RequestApiCodeLanguage = typeof EvalTemplateUpdateV2RequestApiCodeLanguage[keyof typeof EvalTemplateUpdateV2RequestApiCodeLanguage];
+
+
+export const EvalTemplateUpdateV2RequestApiCodeLanguage = {
+  python: 'python',
+  javascript: 'javascript',
+} as const;
+
+export type EvalTemplateUpdateV2RequestApiMessagesItem = { [key: string]: unknown };
+
+export type EvalTemplateUpdateV2RequestApiFewShotExamplesItem = { [key: string]: unknown };
+
+export type EvalTemplateUpdateV2RequestApiMode = typeof EvalTemplateUpdateV2RequestApiMode[keyof typeof EvalTemplateUpdateV2RequestApiMode];
+
+
+export const EvalTemplateUpdateV2RequestApiMode = {
+  auto: 'auto',
+  agent: 'agent',
+  quick: 'quick',
+} as const;
+
+export type EvalTemplateUpdateV2RequestApiTools = { [key: string]: unknown };
+
+export type EvalTemplateUpdateV2RequestApiDataInjection = { [key: string]: unknown };
+
+export type EvalTemplateUpdateV2RequestApiSummary = { [key: string]: unknown };
+
+export type EvalTemplateUpdateV2RequestApiTemplateFormat = typeof EvalTemplateUpdateV2RequestApiTemplateFormat[keyof typeof EvalTemplateUpdateV2RequestApiTemplateFormat];
+
+
+export const EvalTemplateUpdateV2RequestApiTemplateFormat = {
+  mustache: 'mustache',
+  jinja: 'jinja',
+} as const;
+
+export interface EvalTemplateUpdateV2RequestApi {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name?: string;
+  eval_type?: EvalTemplateUpdateV2RequestApiEvalType;
+  /** @minLength 1 */
+  instructions?: string;
+  /** @minLength 1 */
+  model?: string;
+  output_type?: EvalTemplateUpdateV2RequestApiOutputType;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  pass_threshold?: number;
+  choice_scores?: EvalTemplateUpdateV2RequestApiChoiceScores;
+  multi_choice?: boolean;
+  description?: string;
+  tags?: string[];
+  check_internet?: boolean;
+  code?: string;
+  code_language?: EvalTemplateUpdateV2RequestApiCodeLanguage;
+  messages?: EvalTemplateUpdateV2RequestApiMessagesItem[];
+  few_shot_examples?: EvalTemplateUpdateV2RequestApiFewShotExamplesItem[];
+  mode?: EvalTemplateUpdateV2RequestApiMode;
+  tools?: EvalTemplateUpdateV2RequestApiTools;
+  knowledge_bases?: string[];
+  data_injection?: EvalTemplateUpdateV2RequestApiDataInjection;
+  summary?: EvalTemplateUpdateV2RequestApiSummary;
+  error_localizer_enabled?: boolean;
+  publish?: boolean;
+  template_format?: EvalTemplateUpdateV2RequestApiTemplateFormat;
+}
+
+export type EvalTemplateVersionCreateRequestApiConfigSnapshot = { [key: string]: unknown };
+
+export interface EvalTemplateVersionCreateRequestApi {
+  criteria?: string;
+  model?: string;
+  config_snapshot?: EvalTemplateVersionCreateRequestApiConfigSnapshot;
+}
+
+export interface ModelHubEmptyRequestApi { [key: string]: unknown }
+
 export type EvalUserTemplateApiConfig = { [key: string]: unknown };
 
 export interface EvalUserTemplateApi {
@@ -5197,6 +5691,28 @@ export type ColumnValuesRequestApiColumnPlaceholders = { [key: string]: unknown 
 export interface ColumnValuesRequestApi {
   dataset_id: string;
   column_placeholders: ColumnValuesRequestApiColumnPlaceholders;
+}
+
+export type GroundTruthMappingRequestApiVariableMapping = { [key: string]: unknown };
+
+export interface GroundTruthMappingRequestApi {
+  variable_mapping: GroundTruthMappingRequestApiVariableMapping;
+}
+
+export type GroundTruthRoleMappingRequestApiRoleMapping = { [key: string]: unknown };
+
+export interface GroundTruthRoleMappingRequestApi {
+  role_mapping: GroundTruthRoleMappingRequestApiRoleMapping;
+}
+
+export interface GroundTruthSearchRequestApi {
+  /** @minLength 1 */
+  query: string;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  max_results?: number;
 }
 
 export type KnowledgeBaseCreateApiEmbeddingModel = typeof KnowledgeBaseCreateApiEmbeddingModel[keyof typeof KnowledgeBaseCreateApiEmbeddingModel];

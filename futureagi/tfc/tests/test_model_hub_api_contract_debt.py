@@ -93,6 +93,23 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/eval-sdk-code/",
         "/model-hub/eval-summary-templates/",
         "/model-hub/eval-summary-templates/{template_id}/",
+        "/model-hub/eval-templates/bulk-delete/",
+        "/model-hub/eval-templates/composite/execute-adhoc/",
+        "/model-hub/eval-templates/create-composite/",
+        "/model-hub/eval-templates/create-v2/",
+        "/model-hub/eval-templates/list/",
+        "/model-hub/eval-templates/list-charts/",
+        "/model-hub/eval-templates/{template_id}/composite/",
+        "/model-hub/eval-templates/{template_id}/composite/execute/",
+        "/model-hub/eval-templates/{template_id}/detail/",
+        "/model-hub/eval-templates/{template_id}/ground-truth/",
+        "/model-hub/eval-templates/{template_id}/ground-truth-config/",
+        "/model-hub/eval-templates/{template_id}/ground-truth/upload/",
+        "/model-hub/eval-templates/{template_id}/update/",
+        "/model-hub/eval-templates/{template_id}/versions/",
+        "/model-hub/eval-templates/{template_id}/versions/create/",
+        "/model-hub/eval-templates/{template_id}/versions/{version_id}/restore/",
+        "/model-hub/eval-templates/{template_id}/versions/{version_id}/set-default/",
         "/model-hub/eval-template/create/",
         "/model-hub/eval-user-template/create/",
         "/model-hub/embeddings/",
@@ -102,6 +119,13 @@ def test_model_hub_ai_writer_and_custom_model_apis_stay_out_of_contract_debt():
         "/model-hub/experiments/v2/{experiment_id}/feedback/get-template/",
         "/model-hub/experiments/v2/{experiment_id}/feedback/submit-feedback/",
         "/model-hub/get-column-values/",
+        "/model-hub/ground-truth/{ground_truth_id}/",
+        "/model-hub/ground-truth/{ground_truth_id}/data/",
+        "/model-hub/ground-truth/{ground_truth_id}/embed/",
+        "/model-hub/ground-truth/{ground_truth_id}/mapping/",
+        "/model-hub/ground-truth/{ground_truth_id}/role-mapping/",
+        "/model-hub/ground-truth/{ground_truth_id}/search/",
+        "/model-hub/ground-truth/{ground_truth_id}/status/",
         "/model-hub/kb/",
         "/model-hub/kb/supported-embedding-models",
         "/model-hub/kb/supported_embedding_models/",
@@ -210,6 +234,48 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
         ("POST", "/model-hub/evaluate-rows/"): "SingleRowEvaluationRequest",
         ("POST", "/model-hub/eval-playground/"): "EvalPlayGround",
         ("POST", "/model-hub/eval-playground/feedback/"): "EvalPlayGroundFeedback",
+        ("POST", "/model-hub/eval-templates/bulk-delete/"): (
+            "EvalTemplateBulkDeleteRequest"
+        ),
+        ("POST", "/model-hub/eval-templates/composite/execute-adhoc/"): (
+            "CompositeEvalAdhocExecuteRequest"
+        ),
+        ("POST", "/model-hub/eval-templates/create-composite/"): (
+            "CompositeEvalCreateRequest"
+        ),
+        ("POST", "/model-hub/eval-templates/create-v2/"): (
+            "EvalTemplateCreateV2Request"
+        ),
+        ("POST", "/model-hub/eval-templates/list/"): "EvalListRequest",
+        ("POST", "/model-hub/eval-templates/list-charts/"): (
+            "EvalTemplateListChartsRequest"
+        ),
+        ("PATCH", "/model-hub/eval-templates/{template_id}/composite/"): (
+            "CompositeEvalUpdateRequest"
+        ),
+        ("POST", "/model-hub/eval-templates/{template_id}/composite/execute/"): (
+            "CompositeEvalExecuteRequest"
+        ),
+        ("PUT", "/model-hub/eval-templates/{template_id}/ground-truth-config/"): (
+            "GroundTruthConfigRequest"
+        ),
+        ("POST", "/model-hub/eval-templates/{template_id}/ground-truth/upload/"): (
+            "GroundTruthUploadRequest"
+        ),
+        ("PUT", "/model-hub/eval-templates/{template_id}/update/"): (
+            "EvalTemplateUpdateV2Request"
+        ),
+        ("POST", "/model-hub/eval-templates/{template_id}/versions/create/"): (
+            "EvalTemplateVersionCreateRequest"
+        ),
+        (
+            "POST",
+            "/model-hub/eval-templates/{template_id}/versions/{version_id}/restore/",
+        ): "ModelHubEmptyRequest",
+        (
+            "PUT",
+            "/model-hub/eval-templates/{template_id}/versions/{version_id}/set-default/",
+        ): "ModelHubEmptyRequest",
         ("POST", "/model-hub/experiments/v2/{experiment_id}/feedback/"): "Feedback",
         ("POST", "/model-hub/eval-summary-templates/"): (
             "EvalSummaryTemplateMutationRequest"
@@ -220,6 +286,18 @@ def test_model_hub_ai_writer_and_custom_model_mutations_have_request_contracts()
         ("POST", "/model-hub/eval-template/create/"): "EvalTemplate",
         ("POST", "/model-hub/eval-user-template/create/"): "EvalUserTemplate",
         ("POST", "/model-hub/get-column-values/"): "ColumnValuesRequest",
+        ("POST", "/model-hub/ground-truth/{ground_truth_id}/embed/"): (
+            "ModelHubEmptyRequest"
+        ),
+        ("PUT", "/model-hub/ground-truth/{ground_truth_id}/mapping/"): (
+            "GroundTruthMappingRequest"
+        ),
+        ("PUT", "/model-hub/ground-truth/{ground_truth_id}/role-mapping/"): (
+            "GroundTruthRoleMappingRequest"
+        ),
+        ("POST", "/model-hub/ground-truth/{ground_truth_id}/search/"): (
+            "GroundTruthSearchRequest"
+        ),
         (
             "POST",
             "/model-hub/experiments/v2/{experiment_id}/feedback/submit-feedback/",
@@ -369,6 +447,63 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("PUT", "/model-hub/eval-summary-templates/{template_id}/"): (
             "ModelHubJSONResponse"
         ),
+        ("POST", "/model-hub/eval-templates/bulk-delete/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/eval-templates/composite/execute-adhoc/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/eval-templates/create-composite/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/eval-templates/create-v2/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/eval-templates/list/"): "ModelHubJSONResponse",
+        ("POST", "/model-hub/eval-templates/list-charts/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/eval-templates/{template_id}/composite/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("PATCH", "/model-hub/eval-templates/{template_id}/composite/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/eval-templates/{template_id}/composite/execute/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/eval-templates/{template_id}/detail/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/eval-templates/{template_id}/ground-truth/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/eval-templates/{template_id}/ground-truth/upload/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/eval-templates/{template_id}/ground-truth-config/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("PUT", "/model-hub/eval-templates/{template_id}/ground-truth-config/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("PUT", "/model-hub/eval-templates/{template_id}/update/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/eval-templates/{template_id}/versions/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/eval-templates/{template_id}/versions/create/"): (
+            "ModelHubJSONResponse"
+        ),
+        (
+            "POST",
+            "/model-hub/eval-templates/{template_id}/versions/{version_id}/restore/",
+        ): "ModelHubJSONResponse",
+        (
+            "PUT",
+            "/model-hub/eval-templates/{template_id}/versions/{version_id}/set-default/",
+        ): "ModelHubJSONResponse",
         ("POST", "/model-hub/eval-template/create/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/eval-user-template/create/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/embeddings/"): "ModelHubJSONResponse",
@@ -388,6 +523,27 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
             "/model-hub/experiments/v2/{experiment_id}/feedback/submit-feedback/",
         ): "ModelHubJSONResponse",
         ("POST", "/model-hub/get-column-values/"): "ModelHubJSONResponse",
+        ("DELETE", "/model-hub/ground-truth/{ground_truth_id}/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/ground-truth/{ground_truth_id}/data/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/ground-truth/{ground_truth_id}/embed/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("PUT", "/model-hub/ground-truth/{ground_truth_id}/mapping/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("PUT", "/model-hub/ground-truth/{ground_truth_id}/role-mapping/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("POST", "/model-hub/ground-truth/{ground_truth_id}/search/"): (
+            "ModelHubJSONResponse"
+        ),
+        ("GET", "/model-hub/ground-truth/{ground_truth_id}/status/"): (
+            "ModelHubJSONResponse"
+        ),
         ("GET", "/model-hub/kb/"): "ModelHubJSONResponse",
         ("POST", "/model-hub/kb/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/kb/supported-embedding-models"): (

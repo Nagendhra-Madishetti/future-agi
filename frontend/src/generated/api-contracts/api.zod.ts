@@ -16201,11 +16201,343 @@ export const ModelHubEvalTemplateCreateCreateResponse = zod.object({
 
 
 /**
+ * Soft-delete multiple eval templates. Only user-owned templates can be deleted.
+ * @summary POST /model-hub/eval-templates/bulk-delete/
+ */
+export const ModelHubEvalTemplatesBulkDeleteCreateBody = zod.object({
+  "template_ids": zod.array(zod.string().uuid())
+})
+
+export const ModelHubEvalTemplatesBulkDeleteCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+/**
+ * Execute a composite eval configuration without persisting it. Used by
+the eval create page so users can test a composite (selected children +
+aggregation settings) before clicking Save. Builds an unsaved parent
+template and unsaved child links in memory and reuses
+`execute_composite_children_sync` so semantics match the persisted path.
+ * @summary POST /model-hub/eval-templates/composite/execute-adhoc/
+ */
+export const modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyConfigDefault = {  };
+export const modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyErrorLocalizerDefault = false;
+export const modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyInputDataTypesDefault = {  };
+export const modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyAggregationEnabledDefault = true;
+export const modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyAggregationFunctionDefault = `weighted_avg`;
+export const modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyCompositeChildAxisDefault = ``;
+export const modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyPassThresholdDefault = 0.5;
+
+export const ModelHubEvalTemplatesCompositeExecuteAdhocCreateBody = zod.object({
+  "mapping": zod.object({
+
+}).passthrough(),
+  "model": zod.string().optional(),
+  "config": zod.object({
+
+}).passthrough().default(modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyConfigDefault),
+  "error_localizer": zod.boolean().default(modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyErrorLocalizerDefault),
+  "input_data_types": zod.object({
+
+}).passthrough().default(modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyInputDataTypesDefault),
+  "span_context": zod.object({
+
+}).passthrough().optional(),
+  "trace_context": zod.object({
+
+}).passthrough().optional(),
+  "session_context": zod.object({
+
+}).passthrough().optional(),
+  "call_context": zod.object({
+
+}).passthrough().optional(),
+  "row_context": zod.object({
+
+}).passthrough().optional(),
+  "child_template_ids": zod.array(zod.string().uuid()),
+  "aggregation_enabled": zod.boolean().default(modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyAggregationEnabledDefault),
+  "aggregation_function": zod.enum(['weighted_avg', 'avg', 'min', 'max', 'pass_rate']).default(modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyAggregationFunctionDefault),
+  "composite_child_axis": zod.enum(['', 'pass_fail', 'percentage', 'choices', 'code']).default(modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyCompositeChildAxisDefault),
+  "child_weights": zod.object({
+
+}).passthrough().optional(),
+  "pass_threshold": zod.number().default(modelHubEvalTemplatesCompositeExecuteAdhocCreateBodyPassThresholdDefault)
+})
+
+export const ModelHubEvalTemplatesCompositeExecuteAdhocCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+/**
+ * Create a composite eval from a list of existing eval template IDs.
+ * @summary POST /model-hub/eval-templates/create-composite/
+ */
+export const modelHubEvalTemplatesCreateCompositeCreateBodyNameMax = 255;
+
+
+export const modelHubEvalTemplatesCreateCompositeCreateBodyTagsDefault = [];
+export const modelHubEvalTemplatesCreateCompositeCreateBodyAggregationEnabledDefault = true;
+export const modelHubEvalTemplatesCreateCompositeCreateBodyAggregationFunctionDefault = `weighted_avg`;
+export const modelHubEvalTemplatesCreateCompositeCreateBodyCompositeChildAxisDefault = ``;
+
+export const ModelHubEvalTemplatesCreateCompositeCreateBody = zod.object({
+  "name": zod.string().min(1).max(modelHubEvalTemplatesCreateCompositeCreateBodyNameMax),
+  "description": zod.string().optional(),
+  "tags": zod.array(zod.string().min(1)).default(modelHubEvalTemplatesCreateCompositeCreateBodyTagsDefault),
+  "child_template_ids": zod.array(zod.string().uuid()),
+  "aggregation_enabled": zod.boolean().default(modelHubEvalTemplatesCreateCompositeCreateBodyAggregationEnabledDefault),
+  "aggregation_function": zod.enum(['weighted_avg', 'avg', 'min', 'max', 'pass_rate']).default(modelHubEvalTemplatesCreateCompositeCreateBodyAggregationFunctionDefault),
+  "child_weights": zod.object({
+
+}).passthrough().optional(),
+  "composite_child_axis": zod.enum(['', 'pass_fail', 'percentage', 'choices', 'code']).default(modelHubEvalTemplatesCreateCompositeCreateBodyCompositeChildAxisDefault)
+})
+
+export const ModelHubEvalTemplatesCreateCompositeCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+/**
+ * Create a single eval template with the revamped schema.
+Supports the new scoring fields (pass_threshold, choice_scores, output_type_normalized).
+ * @summary POST /model-hub/eval-templates/create-v2/
+ */
+export const modelHubEvalTemplatesCreateV2CreateBodyNameMax = 255;
+
+export const modelHubEvalTemplatesCreateV2CreateBodyIsDraftDefault = false;
+export const modelHubEvalTemplatesCreateV2CreateBodyEvalTypeDefault = `llm`;
+export const modelHubEvalTemplatesCreateV2CreateBodyInstructionsMax = 100000;
+
+export const modelHubEvalTemplatesCreateV2CreateBodyModelDefault = `turing_large`;
+
+export const modelHubEvalTemplatesCreateV2CreateBodyOutputTypeDefault = `pass_fail`;
+export const modelHubEvalTemplatesCreateV2CreateBodyPassThresholdMin = 0;
+export const modelHubEvalTemplatesCreateV2CreateBodyPassThresholdMax = 1;
+
+
+export const modelHubEvalTemplatesCreateV2CreateBodyTagsDefault = [];
+export const modelHubEvalTemplatesCreateV2CreateBodyCheckInternetDefault = false;
+export const modelHubEvalTemplatesCreateV2CreateBodyCodeMax = 100000;
+
+
+export const modelHubEvalTemplatesCreateV2CreateBodyErrorLocalizerEnabledDefault = false;
+export const modelHubEvalTemplatesCreateV2CreateBodyTemplateFormatDefault = `mustache`;
+
+export const ModelHubEvalTemplatesCreateV2CreateBody = zod.object({
+  "name": zod.string().max(modelHubEvalTemplatesCreateV2CreateBodyNameMax).optional(),
+  "is_draft": zod.boolean().default(modelHubEvalTemplatesCreateV2CreateBodyIsDraftDefault),
+  "eval_type": zod.enum(['llm', 'code', 'agent']).default(modelHubEvalTemplatesCreateV2CreateBodyEvalTypeDefault),
+  "instructions": zod.string().max(modelHubEvalTemplatesCreateV2CreateBodyInstructionsMax).optional(),
+  "model": zod.string().min(1).default(modelHubEvalTemplatesCreateV2CreateBodyModelDefault),
+  "output_type": zod.enum(['pass_fail', 'percentage', 'deterministic']).default(modelHubEvalTemplatesCreateV2CreateBodyOutputTypeDefault),
+  "pass_threshold": zod.number().min(modelHubEvalTemplatesCreateV2CreateBodyPassThresholdMin).max(modelHubEvalTemplatesCreateV2CreateBodyPassThresholdMax).optional(),
+  "choice_scores": zod.object({
+
+}).passthrough().optional(),
+  "description": zod.string().optional(),
+  "tags": zod.array(zod.string().min(1)).default(modelHubEvalTemplatesCreateV2CreateBodyTagsDefault),
+  "check_internet": zod.boolean().default(modelHubEvalTemplatesCreateV2CreateBodyCheckInternetDefault),
+  "code": zod.string().max(modelHubEvalTemplatesCreateV2CreateBodyCodeMax).optional(),
+  "code_language": zod.enum(['python', 'javascript']).optional(),
+  "messages": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "few_shot_examples": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "mode": zod.enum(['auto', 'agent', 'quick']).optional(),
+  "tools": zod.object({
+
+}).passthrough().optional(),
+  "knowledge_bases": zod.array(zod.string().min(1)).optional(),
+  "data_injection": zod.object({
+
+}).passthrough().optional(),
+  "summary": zod.object({
+
+}).passthrough().optional(),
+  "error_localizer_enabled": zod.boolean().default(modelHubEvalTemplatesCreateV2CreateBodyErrorLocalizerEnabledDefault),
+  "template_format": zod.enum(['mustache', 'jinja']).default(modelHubEvalTemplatesCreateV2CreateBodyTemplateFormatDefault)
+})
+
+export const ModelHubEvalTemplatesCreateV2CreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+/**
+ * Returns 30-day chart data (run counts + error rates) for a list of template IDs.
+Uses ClickHouse for fast analytics. Called separately from the list API so the
+table renders instantly while charts load async.
+ * @summary POST /model-hub/eval-templates/list-charts/
+ */
+export const ModelHubEvalTemplatesListChartsCreateBody = zod.object({
+  "template_ids": zod.array(zod.string().uuid())
+})
+
+export const ModelHubEvalTemplatesListChartsCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+/**
+ * Returns paginated eval template list with filtering, search, and 30-day metrics.
+All inputs and outputs are validated with Pydantic schemas.
+ * @summary POST /model-hub/eval-templates/list/
+ */
+export const modelHubEvalTemplatesListCreateBodyPageDefault = 0;
+export const modelHubEvalTemplatesListCreateBodyPageMin = 0;
+
+export const modelHubEvalTemplatesListCreateBodyPageSizeDefault = 25;
+export const modelHubEvalTemplatesListCreateBodyPageSizeMax = 100;
+
+export const modelHubEvalTemplatesListCreateBodyOwnerFilterDefault = `all`;
+
+
+export const modelHubEvalTemplatesListCreateBodySortByDefault = `updated_at`;
+export const modelHubEvalTemplatesListCreateBodySortOrderDefault = `desc`;
+
+export const ModelHubEvalTemplatesListCreateBody = zod.object({
+  "page": zod.number().min(modelHubEvalTemplatesListCreateBodyPageMin).default(modelHubEvalTemplatesListCreateBodyPageDefault),
+  "page_size": zod.number().min(1).max(modelHubEvalTemplatesListCreateBodyPageSizeMax).default(modelHubEvalTemplatesListCreateBodyPageSizeDefault),
+  "search": zod.string().optional(),
+  "owner_filter": zod.enum(['all', 'user', 'system']).default(modelHubEvalTemplatesListCreateBodyOwnerFilterDefault),
+  "filters": zod.object({
+  "eval_type": zod.array(zod.enum(['llm', 'code', 'agent'])).optional(),
+  "output_type": zod.array(zod.enum(['pass_fail', 'percentage', 'deterministic'])).optional(),
+  "template_type": zod.array(zod.enum(['single', 'composite'])).optional(),
+  "tags": zod.array(zod.string().min(1)).optional(),
+  "created_by": zod.array(zod.string().min(1)).optional(),
+  "names": zod.array(zod.string().min(1)).optional()
+}).optional(),
+  "sort_by": zod.enum(['name', 'updated_at', 'created_at']).default(modelHubEvalTemplatesListCreateBodySortByDefault),
+  "sort_order": zod.enum(['asc', 'desc']).default(modelHubEvalTemplatesListCreateBodySortOrderDefault)
+})
+
+export const ModelHubEvalTemplatesListCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+/**
  * Get composite eval detail with its children.
  * @summary GET /model-hub/eval-templates/<id>/composite/
  */
 export const ModelHubEvalTemplatesCompositeListParams = zod.object({
   "template_id": zod.string()
+})
+
+export const ModelHubEvalTemplatesCompositeListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -16221,6 +16553,43 @@ export const ModelHubEvalTemplatesCompositePartialUpdateParams = zod.object({
   "template_id": zod.string()
 })
 
+export const modelHubEvalTemplatesCompositePartialUpdateBodyNameMax = 255;
+
+
+
+
+export const ModelHubEvalTemplatesCompositePartialUpdateBody = zod.object({
+  "name": zod.string().min(1).max(modelHubEvalTemplatesCompositePartialUpdateBodyNameMax).optional(),
+  "description": zod.string().optional(),
+  "tags": zod.array(zod.string().min(1)).optional(),
+  "aggregation_enabled": zod.boolean().optional(),
+  "aggregation_function": zod.enum(['weighted_avg', 'avg', 'min', 'max', 'pass_rate']).optional(),
+  "child_template_ids": zod.array(zod.string().uuid()).optional(),
+  "child_weights": zod.object({
+
+}).passthrough().optional(),
+  "composite_child_axis": zod.enum(['', 'pass_fail', 'percentage', 'choices', 'code']).optional()
+})
+
+export const ModelHubEvalTemplatesCompositePartialUpdateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * Execute all child evals in a composite and optionally aggregate results.
@@ -16233,6 +16602,58 @@ export const ModelHubEvalTemplatesCompositeExecuteCreateParams = zod.object({
   "template_id": zod.string()
 })
 
+export const modelHubEvalTemplatesCompositeExecuteCreateBodyConfigDefault = {  };
+export const modelHubEvalTemplatesCompositeExecuteCreateBodyErrorLocalizerDefault = false;
+export const modelHubEvalTemplatesCompositeExecuteCreateBodyInputDataTypesDefault = {  };
+
+export const ModelHubEvalTemplatesCompositeExecuteCreateBody = zod.object({
+  "mapping": zod.object({
+
+}).passthrough(),
+  "model": zod.string().optional(),
+  "config": zod.object({
+
+}).passthrough().default(modelHubEvalTemplatesCompositeExecuteCreateBodyConfigDefault),
+  "error_localizer": zod.boolean().default(modelHubEvalTemplatesCompositeExecuteCreateBodyErrorLocalizerDefault),
+  "input_data_types": zod.object({
+
+}).passthrough().default(modelHubEvalTemplatesCompositeExecuteCreateBodyInputDataTypesDefault),
+  "span_context": zod.object({
+
+}).passthrough().optional(),
+  "trace_context": zod.object({
+
+}).passthrough().optional(),
+  "session_context": zod.object({
+
+}).passthrough().optional(),
+  "call_context": zod.object({
+
+}).passthrough().optional(),
+  "row_context": zod.object({
+
+}).passthrough().optional()
+})
+
+export const ModelHubEvalTemplatesCompositeExecuteCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * Fetch a single eval template with all revamped fields.
@@ -16240,6 +16661,25 @@ export const ModelHubEvalTemplatesCompositeExecuteCreateParams = zod.object({
  */
 export const ModelHubEvalTemplatesDetailListParams = zod.object({
   "template_id": zod.string()
+})
+
+export const ModelHubEvalTemplatesDetailListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -16261,6 +16701,25 @@ export const ModelHubEvalTemplatesGroundTruthConfigListParams = zod.object({
   "template_id": zod.string()
 })
 
+export const ModelHubEvalTemplatesGroundTruthConfigListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * Manages ground truth configuration on the eval template's config JSONField.
@@ -16270,12 +16729,68 @@ export const ModelHubEvalTemplatesGroundTruthConfigUpdateParams = zod.object({
   "template_id": zod.string()
 })
 
+export const modelHubEvalTemplatesGroundTruthConfigUpdateBodyEnabledDefault = true;
+export const modelHubEvalTemplatesGroundTruthConfigUpdateBodyModeDefault = `auto`;
+export const modelHubEvalTemplatesGroundTruthConfigUpdateBodyMaxExamplesMax = 10;
+
+export const modelHubEvalTemplatesGroundTruthConfigUpdateBodySimilarityThresholdMin = 0;
+export const modelHubEvalTemplatesGroundTruthConfigUpdateBodySimilarityThresholdMax = 1;
+
+export const modelHubEvalTemplatesGroundTruthConfigUpdateBodyInjectionFormatDefault = `structured`;
+
+export const ModelHubEvalTemplatesGroundTruthConfigUpdateBody = zod.object({
+  "enabled": zod.boolean().default(modelHubEvalTemplatesGroundTruthConfigUpdateBodyEnabledDefault),
+  "ground_truth_id": zod.string().uuid().optional(),
+  "mode": zod.enum(['auto', 'manual', 'disabled']).default(modelHubEvalTemplatesGroundTruthConfigUpdateBodyModeDefault),
+  "max_examples": zod.number().min(1).max(modelHubEvalTemplatesGroundTruthConfigUpdateBodyMaxExamplesMax).optional(),
+  "similarity_threshold": zod.number().min(modelHubEvalTemplatesGroundTruthConfigUpdateBodySimilarityThresholdMin).max(modelHubEvalTemplatesGroundTruthConfigUpdateBodySimilarityThresholdMax).optional(),
+  "injection_format": zod.enum(['structured', 'conversational', 'xml']).default(modelHubEvalTemplatesGroundTruthConfigUpdateBodyInjectionFormatDefault)
+})
+
+export const ModelHubEvalTemplatesGroundTruthConfigUpdateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * GET /model-hub/eval-templates/<id>/ground-truth/
  */
 export const ModelHubEvalTemplatesGroundTruthListParams = zod.object({
   "template_id": zod.string()
+})
+
+export const ModelHubEvalTemplatesGroundTruthListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -16289,6 +16804,47 @@ export const ModelHubEvalTemplatesGroundTruthUploadCreateParams = zod.object({
   "template_id": zod.string()
 })
 
+export const modelHubEvalTemplatesGroundTruthUploadCreateBodyNameMax = 255;
+
+export const modelHubEvalTemplatesGroundTruthUploadCreateBodyDescriptionDefault = ``;
+export const modelHubEvalTemplatesGroundTruthUploadCreateBodyFileNameDefault = ``;
+
+
+export const ModelHubEvalTemplatesGroundTruthUploadCreateBody = zod.object({
+  "name": zod.string().min(1).max(modelHubEvalTemplatesGroundTruthUploadCreateBodyNameMax),
+  "description": zod.string().default(modelHubEvalTemplatesGroundTruthUploadCreateBodyDescriptionDefault),
+  "file_name": zod.string().default(modelHubEvalTemplatesGroundTruthUploadCreateBodyFileNameDefault),
+  "columns": zod.array(zod.string().min(1)),
+  "data": zod.array(zod.object({
+
+}).passthrough()),
+  "variable_mapping": zod.object({
+
+}).passthrough().optional(),
+  "role_mapping": zod.object({
+
+}).passthrough().optional()
+})
+
+export const ModelHubEvalTemplatesGroundTruthUploadCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * Update an eval template. Only user-owned templates can be updated.
@@ -16296,6 +16852,74 @@ export const ModelHubEvalTemplatesGroundTruthUploadCreateParams = zod.object({
  */
 export const ModelHubEvalTemplatesUpdateUpdateParams = zod.object({
   "template_id": zod.string()
+})
+
+export const modelHubEvalTemplatesUpdateUpdateBodyNameMax = 255;
+
+
+
+export const modelHubEvalTemplatesUpdateUpdateBodyPassThresholdMin = 0;
+export const modelHubEvalTemplatesUpdateUpdateBodyPassThresholdMax = 1;
+
+
+
+
+
+export const ModelHubEvalTemplatesUpdateUpdateBody = zod.object({
+  "name": zod.string().min(1).max(modelHubEvalTemplatesUpdateUpdateBodyNameMax).optional(),
+  "eval_type": zod.enum(['llm', 'code', 'agent']).optional(),
+  "instructions": zod.string().min(1).optional(),
+  "model": zod.string().min(1).optional(),
+  "output_type": zod.enum(['pass_fail', 'percentage', 'deterministic']).optional(),
+  "pass_threshold": zod.number().min(modelHubEvalTemplatesUpdateUpdateBodyPassThresholdMin).max(modelHubEvalTemplatesUpdateUpdateBodyPassThresholdMax).optional(),
+  "choice_scores": zod.object({
+
+}).passthrough().optional(),
+  "multi_choice": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "tags": zod.array(zod.string().min(1)).optional(),
+  "check_internet": zod.boolean().optional(),
+  "code": zod.string().optional(),
+  "code_language": zod.enum(['python', 'javascript']).optional(),
+  "messages": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "few_shot_examples": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "mode": zod.enum(['auto', 'agent', 'quick']).optional(),
+  "tools": zod.object({
+
+}).passthrough().optional(),
+  "knowledge_bases": zod.array(zod.string().min(1)).optional(),
+  "data_injection": zod.object({
+
+}).passthrough().optional(),
+  "summary": zod.object({
+
+}).passthrough().optional(),
+  "error_localizer_enabled": zod.boolean().optional(),
+  "publish": zod.boolean().optional(),
+  "template_format": zod.enum(['mustache', 'jinja']).optional()
+})
+
+export const ModelHubEvalTemplatesUpdateUpdateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -16317,6 +16941,25 @@ export const ModelHubEvalTemplatesVersionsListParams = zod.object({
   "template_id": zod.string()
 })
 
+export const ModelHubEvalTemplatesVersionsListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * Create a new version snapshot from the current template state.
@@ -16324,6 +16967,33 @@ export const ModelHubEvalTemplatesVersionsListParams = zod.object({
  */
 export const ModelHubEvalTemplatesVersionsCreateCreateParams = zod.object({
   "template_id": zod.string()
+})
+
+export const ModelHubEvalTemplatesVersionsCreateCreateBody = zod.object({
+  "criteria": zod.string().optional(),
+  "model": zod.string().optional(),
+  "config_snapshot": zod.object({
+
+}).passthrough().optional()
+})
+
+export const ModelHubEvalTemplatesVersionsCreateCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -16337,6 +17007,29 @@ export const ModelHubEvalTemplatesVersionsRestoreCreateParams = zod.object({
   "version_id": zod.string()
 })
 
+export const ModelHubEvalTemplatesVersionsRestoreCreateBody = zod.object({
+
+}).passthrough()
+
+export const ModelHubEvalTemplatesVersionsRestoreCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * Set a specific version as the default (active) version.
@@ -16345,6 +17038,29 @@ export const ModelHubEvalTemplatesVersionsRestoreCreateParams = zod.object({
 export const ModelHubEvalTemplatesVersionsSetDefaultUpdateParams = zod.object({
   "template_id": zod.string(),
   "version_id": zod.string()
+})
+
+export const ModelHubEvalTemplatesVersionsSetDefaultUpdateBody = zod.object({
+
+}).passthrough()
+
+export const ModelHubEvalTemplatesVersionsSetDefaultUpdateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -17168,12 +17884,50 @@ export const ModelHubGroundTruthDeleteParams = zod.object({
   "ground_truth_id": zod.string()
 })
 
+export const ModelHubGroundTruthDeleteResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * GET /model-hub/ground-truth/<id>/data/?page=1&page_size=50
  */
 export const ModelHubGroundTruthDataListParams = zod.object({
   "ground_truth_id": zod.string()
+})
+
+export const ModelHubGroundTruthDataListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -17184,6 +17938,29 @@ export const ModelHubGroundTruthEmbedCreateParams = zod.object({
   "ground_truth_id": zod.string()
 })
 
+export const ModelHubGroundTruthEmbedCreateBody = zod.object({
+
+}).passthrough()
+
+export const ModelHubGroundTruthEmbedCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * PUT /model-hub/ground-truth/<id>/mapping/
@@ -17192,12 +17969,62 @@ export const ModelHubGroundTruthMappingUpdateParams = zod.object({
   "ground_truth_id": zod.string()
 })
 
+export const ModelHubGroundTruthMappingUpdateBody = zod.object({
+  "variable_mapping": zod.object({
+
+}).passthrough()
+})
+
+export const ModelHubGroundTruthMappingUpdateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 /**
  * PUT /model-hub/ground-truth/<id>/role-mapping/
  */
 export const ModelHubGroundTruthRoleMappingUpdateParams = zod.object({
   "ground_truth_id": zod.string()
+})
+
+export const ModelHubGroundTruthRoleMappingUpdateBody = zod.object({
+  "role_mapping": zod.object({
+
+}).passthrough()
+})
+
+export const ModelHubGroundTruthRoleMappingUpdateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
@@ -17209,11 +18036,59 @@ export const ModelHubGroundTruthSearchCreateParams = zod.object({
 })
 
 
+export const modelHubGroundTruthSearchCreateBodyMaxResultsMax = 20;
+
+
+
+export const ModelHubGroundTruthSearchCreateBody = zod.object({
+  "query": zod.string().min(1),
+  "max_results": zod.number().min(1).max(modelHubGroundTruthSearchCreateBodyMaxResultsMax).optional()
+})
+
+export const ModelHubGroundTruthSearchCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
 /**
  * GET /model-hub/ground-truth/<id>/status/
  */
 export const ModelHubGroundTruthStatusListParams = zod.object({
   "ground_truth_id": zod.string()
+})
+
+export const ModelHubGroundTruthStatusListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 
