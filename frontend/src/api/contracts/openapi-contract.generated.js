@@ -14182,15 +14182,28 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_simulator-agents_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SimulatorAgentListResponse"
+          }
+        }
       }
     },
     "/simulate/simulator-agents/create/": {
       "post": {
         "operationId": "simulate_simulator-agents_create_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/SimulatorAgent"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "201": {
+            "$ref": "#/definitions/SimulatorAgent"
+          },
+          "400": {
+            "$ref": "#/definitions/SimulatorAgentValidationErrorResponse"
+          }
+        }
       }
     },
     "/simulate/simulator-agents/{agent_id}/": {
@@ -14198,7 +14211,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "simulate_simulator-agents_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SimulatorAgent"
+          }
+        }
       }
     },
     "/simulate/simulator-agents/{agent_id}/delete/": {
@@ -14212,9 +14229,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/simulator-agents/{agent_id}/edit/": {
       "put": {
         "operationId": "simulate_simulator-agents_edit_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/SimulatorAgent"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SimulatorAgent"
+          },
+          "400": {
+            "$ref": "#/definitions/SimulatorAgentValidationErrorResponse"
+          }
+        }
       }
     },
     "/simulate/test-executions/{test_execution_id}/": {
@@ -33401,6 +33427,192 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "data": {
           "title": "Data",
           "type": "object"
+        }
+      }
+    },
+    "SimulatorAgent": {
+      "required": [
+        "name",
+        "prompt",
+        "voice_provider",
+        "voice_name",
+        "model"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "name": {
+          "title": "Name",
+          "description": "Name of the simulator agent",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "prompt": {
+          "title": "Prompt",
+          "description": "System prompt for the agent",
+          "type": "string",
+          "minLength": 1
+        },
+        "voice_provider": {
+          "title": "Voice provider",
+          "description": "Voice service provider",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "voice_name": {
+          "title": "Voice name",
+          "description": "Specific voice to use",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "interrupt_sensitivity": {
+          "title": "Interrupt sensitivity",
+          "description": "Sensitivity for interruption detection (0-1)",
+          "type": "number",
+          "maximum": 11,
+          "minimum": 0
+        },
+        "conversation_speed": {
+          "title": "Conversation speed",
+          "description": "Speed of conversation (0.1-3.0)",
+          "type": "number",
+          "maximum": 2,
+          "minimum": 0.1
+        },
+        "finished_speaking_sensitivity": {
+          "title": "Finished speaking sensitivity",
+          "description": "Sensitivity for detecting when speaker has finished (0-1)",
+          "type": "number",
+          "maximum": 11,
+          "minimum": 0
+        },
+        "model": {
+          "title": "Model",
+          "description": "LLM model to use",
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "llm_temperature": {
+          "title": "Llm temperature",
+          "description": "Temperature setting for LLM (0-2)",
+          "type": "number",
+          "maximum": 2,
+          "minimum": 0
+        },
+        "max_call_duration_in_minutes": {
+          "title": "Max call duration in minutes",
+          "description": "Maximum call duration in minutes (1-180)",
+          "type": "integer",
+          "maximum": 180,
+          "minimum": 0
+        },
+        "initial_message_delay": {
+          "title": "Initial message delay",
+          "description": "Delay before initial message in seconds (0-60)",
+          "type": "integer",
+          "maximum": 60,
+          "minimum": 0
+        },
+        "initial_message": {
+          "title": "Initial message",
+          "description": "Initial message to send when conversation starts",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "organization": {
+          "title": "Organization",
+          "description": "Organization this simulator agent belongs to",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "deleted": {
+          "title": "Deleted",
+          "type": "boolean",
+          "readOnly": true
+        },
+        "deleted_at": {
+          "title": "Deleted at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true,
+          "x-nullable": true
+        },
+        "logo_url": {
+          "title": "Logo url",
+          "type": "string",
+          "readOnly": true
+        }
+      }
+    },
+    "SimulatorAgentListResponse": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer",
+          "readOnly": true
+        },
+        "next": {
+          "title": "Next",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "previous": {
+          "title": "Previous",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SimulatorAgent"
+          },
+          "readOnly": true
+        },
+        "total_pages": {
+          "title": "Total pages",
+          "type": "integer",
+          "readOnly": true
+        },
+        "current_page": {
+          "title": "Current page",
+          "type": "integer",
+          "readOnly": true
+        }
+      }
+    },
+    "SimulatorAgentValidationErrorResponse": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
         }
       }
     },

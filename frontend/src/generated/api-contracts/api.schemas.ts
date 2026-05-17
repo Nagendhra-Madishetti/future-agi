@@ -6103,6 +6103,97 @@ export interface ScenarioPromptsUpdateResponseApi {
   readonly prompts?: string;
 }
 
+export interface SimulatorAgentApi {
+  readonly id?: string;
+  /**
+     * Name of the simulator agent
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  /**
+     * System prompt for the agent
+     * @minLength 1
+     */
+  prompt: string;
+  /**
+     * Voice service provider
+     * @minLength 1
+     * @maxLength 100
+     */
+  voice_provider: string;
+  /**
+     * Specific voice to use
+     * @minLength 1
+     * @maxLength 100
+     */
+  voice_name: string;
+  /**
+     * Sensitivity for interruption detection (0-1)
+     * @minimum 0
+     * @maximum 11
+     */
+  interrupt_sensitivity?: number;
+  /**
+     * Speed of conversation (0.1-3.0)
+     * @minimum 0.1
+     * @maximum 2
+     */
+  conversation_speed?: number;
+  /**
+     * Sensitivity for detecting when speaker has finished (0-1)
+     * @minimum 0
+     * @maximum 11
+     */
+  finished_speaking_sensitivity?: number;
+  /**
+     * LLM model to use
+     * @minLength 1
+     * @maxLength 100
+     */
+  model: string;
+  /**
+     * Temperature setting for LLM (0-2)
+     * @minimum 0
+     * @maximum 2
+     */
+  llm_temperature?: number;
+  /**
+     * Maximum call duration in minutes (1-180)
+     * @minimum 0
+     * @maximum 180
+     */
+  max_call_duration_in_minutes?: number;
+  /**
+     * Delay before initial message in seconds (0-60)
+     * @minimum 0
+     * @maximum 60
+     */
+  initial_message_delay?: number;
+  /** Initial message to send when conversation starts */
+  initial_message?: string;
+  readonly created_at?: string;
+  readonly updated_at?: string;
+  /** Organization this simulator agent belongs to */
+  readonly organization?: string;
+  readonly deleted?: boolean;
+  readonly deleted_at?: string;
+  readonly logo_url?: string;
+}
+
+export interface SimulatorAgentListResponseApi {
+  readonly count?: number;
+  /** @minLength 1 */
+  readonly next?: string;
+  /** @minLength 1 */
+  readonly previous?: string;
+  readonly results?: readonly SimulatorAgentApi[];
+  readonly total_pages?: number;
+  readonly current_page?: number;
+}
+
+export interface SimulatorAgentValidationErrorResponseApi {[key: string]: string[]}
+
 export interface ErrorResponseApi {
   /** @minLength 1 */
   error: string;

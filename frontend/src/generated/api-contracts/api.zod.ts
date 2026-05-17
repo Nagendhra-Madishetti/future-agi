@@ -18999,10 +18999,173 @@ export const SimulateScenariosPromptsUpdateResponse = zod.object({
 
 
 /**
+ * List simulator agents with pagination and search
+ */
+
+
+export const simulateSimulatorAgentsListResponseResultsItemNameMax = 255;
+
+
+export const simulateSimulatorAgentsListResponseResultsItemVoiceProviderMax = 100;
+
+export const simulateSimulatorAgentsListResponseResultsItemVoiceNameMax = 100;
+
+export const simulateSimulatorAgentsListResponseResultsItemInterruptSensitivityMin = 0;
+export const simulateSimulatorAgentsListResponseResultsItemInterruptSensitivityMax = 11;
+
+export const simulateSimulatorAgentsListResponseResultsItemConversationSpeedMin = 0.1;
+export const simulateSimulatorAgentsListResponseResultsItemConversationSpeedMax = 2;
+
+export const simulateSimulatorAgentsListResponseResultsItemFinishedSpeakingSensitivityMin = 0;
+export const simulateSimulatorAgentsListResponseResultsItemFinishedSpeakingSensitivityMax = 11;
+
+export const simulateSimulatorAgentsListResponseResultsItemModelMax = 100;
+
+export const simulateSimulatorAgentsListResponseResultsItemLlmTemperatureMin = 0;
+export const simulateSimulatorAgentsListResponseResultsItemLlmTemperatureMax = 2;
+
+export const simulateSimulatorAgentsListResponseResultsItemMaxCallDurationInMinutesMin = 0;
+export const simulateSimulatorAgentsListResponseResultsItemMaxCallDurationInMinutesMax = 180;
+
+export const simulateSimulatorAgentsListResponseResultsItemInitialMessageDelayMin = 0;
+export const simulateSimulatorAgentsListResponseResultsItemInitialMessageDelayMax = 60;
+
+
+
+export const SimulateSimulatorAgentsListResponse = zod.object({
+  "count": zod.number().optional(),
+  "next": zod.string().min(1).optional(),
+  "previous": zod.string().min(1).optional(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(simulateSimulatorAgentsListResponseResultsItemNameMax).describe('Name of the simulator agent'),
+  "prompt": zod.string().min(1).describe('System prompt for the agent'),
+  "voice_provider": zod.string().min(1).max(simulateSimulatorAgentsListResponseResultsItemVoiceProviderMax).describe('Voice service provider'),
+  "voice_name": zod.string().min(1).max(simulateSimulatorAgentsListResponseResultsItemVoiceNameMax).describe('Specific voice to use'),
+  "interrupt_sensitivity": zod.number().min(simulateSimulatorAgentsListResponseResultsItemInterruptSensitivityMin).max(simulateSimulatorAgentsListResponseResultsItemInterruptSensitivityMax).optional().describe('Sensitivity for interruption detection (0-1)'),
+  "conversation_speed": zod.number().min(simulateSimulatorAgentsListResponseResultsItemConversationSpeedMin).max(simulateSimulatorAgentsListResponseResultsItemConversationSpeedMax).optional().describe('Speed of conversation (0.1-3.0)'),
+  "finished_speaking_sensitivity": zod.number().min(simulateSimulatorAgentsListResponseResultsItemFinishedSpeakingSensitivityMin).max(simulateSimulatorAgentsListResponseResultsItemFinishedSpeakingSensitivityMax).optional().describe('Sensitivity for detecting when speaker has finished (0-1)'),
+  "model": zod.string().min(1).max(simulateSimulatorAgentsListResponseResultsItemModelMax).describe('LLM model to use'),
+  "llm_temperature": zod.number().min(simulateSimulatorAgentsListResponseResultsItemLlmTemperatureMin).max(simulateSimulatorAgentsListResponseResultsItemLlmTemperatureMax).optional().describe('Temperature setting for LLM (0-2)'),
+  "max_call_duration_in_minutes": zod.number().min(simulateSimulatorAgentsListResponseResultsItemMaxCallDurationInMinutesMin).max(simulateSimulatorAgentsListResponseResultsItemMaxCallDurationInMinutesMax).optional().describe('Maximum call duration in minutes (1-180)'),
+  "initial_message_delay": zod.number().min(simulateSimulatorAgentsListResponseResultsItemInitialMessageDelayMin).max(simulateSimulatorAgentsListResponseResultsItemInitialMessageDelayMax).optional().describe('Delay before initial message in seconds (0-60)'),
+  "initial_message": zod.string().optional().describe('Initial message to send when conversation starts'),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "organization": zod.string().uuid().optional().describe('Organization this simulator agent belongs to'),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional(),
+  "logo_url": zod.string().optional()
+})).optional(),
+  "total_pages": zod.number().optional(),
+  "current_page": zod.number().optional()
+})
+
+
+/**
+ * Create a new simulator agent
+ */
+export const simulateSimulatorAgentsCreateCreateBodyNameMax = 255;
+
+
+export const simulateSimulatorAgentsCreateCreateBodyVoiceProviderMax = 100;
+
+export const simulateSimulatorAgentsCreateCreateBodyVoiceNameMax = 100;
+
+export const simulateSimulatorAgentsCreateCreateBodyInterruptSensitivityMin = 0;
+export const simulateSimulatorAgentsCreateCreateBodyInterruptSensitivityMax = 11;
+
+export const simulateSimulatorAgentsCreateCreateBodyConversationSpeedMin = 0.1;
+export const simulateSimulatorAgentsCreateCreateBodyConversationSpeedMax = 2;
+
+export const simulateSimulatorAgentsCreateCreateBodyFinishedSpeakingSensitivityMin = 0;
+export const simulateSimulatorAgentsCreateCreateBodyFinishedSpeakingSensitivityMax = 11;
+
+export const simulateSimulatorAgentsCreateCreateBodyModelMax = 100;
+
+export const simulateSimulatorAgentsCreateCreateBodyLlmTemperatureMin = 0;
+export const simulateSimulatorAgentsCreateCreateBodyLlmTemperatureMax = 2;
+
+export const simulateSimulatorAgentsCreateCreateBodyMaxCallDurationInMinutesMin = 0;
+export const simulateSimulatorAgentsCreateCreateBodyMaxCallDurationInMinutesMax = 180;
+
+export const simulateSimulatorAgentsCreateCreateBodyInitialMessageDelayMin = 0;
+export const simulateSimulatorAgentsCreateCreateBodyInitialMessageDelayMax = 60;
+
+
+
+export const SimulateSimulatorAgentsCreateCreateBody = zod.object({
+  "name": zod.string().min(1).max(simulateSimulatorAgentsCreateCreateBodyNameMax).describe('Name of the simulator agent'),
+  "prompt": zod.string().min(1).describe('System prompt for the agent'),
+  "voice_provider": zod.string().min(1).max(simulateSimulatorAgentsCreateCreateBodyVoiceProviderMax).describe('Voice service provider'),
+  "voice_name": zod.string().min(1).max(simulateSimulatorAgentsCreateCreateBodyVoiceNameMax).describe('Specific voice to use'),
+  "interrupt_sensitivity": zod.number().min(simulateSimulatorAgentsCreateCreateBodyInterruptSensitivityMin).max(simulateSimulatorAgentsCreateCreateBodyInterruptSensitivityMax).optional().describe('Sensitivity for interruption detection (0-1)'),
+  "conversation_speed": zod.number().min(simulateSimulatorAgentsCreateCreateBodyConversationSpeedMin).max(simulateSimulatorAgentsCreateCreateBodyConversationSpeedMax).optional().describe('Speed of conversation (0.1-3.0)'),
+  "finished_speaking_sensitivity": zod.number().min(simulateSimulatorAgentsCreateCreateBodyFinishedSpeakingSensitivityMin).max(simulateSimulatorAgentsCreateCreateBodyFinishedSpeakingSensitivityMax).optional().describe('Sensitivity for detecting when speaker has finished (0-1)'),
+  "model": zod.string().min(1).max(simulateSimulatorAgentsCreateCreateBodyModelMax).describe('LLM model to use'),
+  "llm_temperature": zod.number().min(simulateSimulatorAgentsCreateCreateBodyLlmTemperatureMin).max(simulateSimulatorAgentsCreateCreateBodyLlmTemperatureMax).optional().describe('Temperature setting for LLM (0-2)'),
+  "max_call_duration_in_minutes": zod.number().min(simulateSimulatorAgentsCreateCreateBodyMaxCallDurationInMinutesMin).max(simulateSimulatorAgentsCreateCreateBodyMaxCallDurationInMinutesMax).optional().describe('Maximum call duration in minutes (1-180)'),
+  "initial_message_delay": zod.number().min(simulateSimulatorAgentsCreateCreateBodyInitialMessageDelayMin).max(simulateSimulatorAgentsCreateCreateBodyInitialMessageDelayMax).optional().describe('Delay before initial message in seconds (0-60)'),
+  "initial_message": zod.string().optional().describe('Initial message to send when conversation starts')
+})
+
+
+/**
  * Get details of a specific simulator agent
  */
 export const SimulateSimulatorAgentsReadParams = zod.object({
   "agent_id": zod.string()
+})
+
+export const simulateSimulatorAgentsReadResponseNameMax = 255;
+
+
+export const simulateSimulatorAgentsReadResponseVoiceProviderMax = 100;
+
+export const simulateSimulatorAgentsReadResponseVoiceNameMax = 100;
+
+export const simulateSimulatorAgentsReadResponseInterruptSensitivityMin = 0;
+export const simulateSimulatorAgentsReadResponseInterruptSensitivityMax = 11;
+
+export const simulateSimulatorAgentsReadResponseConversationSpeedMin = 0.1;
+export const simulateSimulatorAgentsReadResponseConversationSpeedMax = 2;
+
+export const simulateSimulatorAgentsReadResponseFinishedSpeakingSensitivityMin = 0;
+export const simulateSimulatorAgentsReadResponseFinishedSpeakingSensitivityMax = 11;
+
+export const simulateSimulatorAgentsReadResponseModelMax = 100;
+
+export const simulateSimulatorAgentsReadResponseLlmTemperatureMin = 0;
+export const simulateSimulatorAgentsReadResponseLlmTemperatureMax = 2;
+
+export const simulateSimulatorAgentsReadResponseMaxCallDurationInMinutesMin = 0;
+export const simulateSimulatorAgentsReadResponseMaxCallDurationInMinutesMax = 180;
+
+export const simulateSimulatorAgentsReadResponseInitialMessageDelayMin = 0;
+export const simulateSimulatorAgentsReadResponseInitialMessageDelayMax = 60;
+
+
+
+export const SimulateSimulatorAgentsReadResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(simulateSimulatorAgentsReadResponseNameMax).describe('Name of the simulator agent'),
+  "prompt": zod.string().min(1).describe('System prompt for the agent'),
+  "voice_provider": zod.string().min(1).max(simulateSimulatorAgentsReadResponseVoiceProviderMax).describe('Voice service provider'),
+  "voice_name": zod.string().min(1).max(simulateSimulatorAgentsReadResponseVoiceNameMax).describe('Specific voice to use'),
+  "interrupt_sensitivity": zod.number().min(simulateSimulatorAgentsReadResponseInterruptSensitivityMin).max(simulateSimulatorAgentsReadResponseInterruptSensitivityMax).optional().describe('Sensitivity for interruption detection (0-1)'),
+  "conversation_speed": zod.number().min(simulateSimulatorAgentsReadResponseConversationSpeedMin).max(simulateSimulatorAgentsReadResponseConversationSpeedMax).optional().describe('Speed of conversation (0.1-3.0)'),
+  "finished_speaking_sensitivity": zod.number().min(simulateSimulatorAgentsReadResponseFinishedSpeakingSensitivityMin).max(simulateSimulatorAgentsReadResponseFinishedSpeakingSensitivityMax).optional().describe('Sensitivity for detecting when speaker has finished (0-1)'),
+  "model": zod.string().min(1).max(simulateSimulatorAgentsReadResponseModelMax).describe('LLM model to use'),
+  "llm_temperature": zod.number().min(simulateSimulatorAgentsReadResponseLlmTemperatureMin).max(simulateSimulatorAgentsReadResponseLlmTemperatureMax).optional().describe('Temperature setting for LLM (0-2)'),
+  "max_call_duration_in_minutes": zod.number().min(simulateSimulatorAgentsReadResponseMaxCallDurationInMinutesMin).max(simulateSimulatorAgentsReadResponseMaxCallDurationInMinutesMax).optional().describe('Maximum call duration in minutes (1-180)'),
+  "initial_message_delay": zod.number().min(simulateSimulatorAgentsReadResponseInitialMessageDelayMin).max(simulateSimulatorAgentsReadResponseInitialMessageDelayMax).optional().describe('Delay before initial message in seconds (0-60)'),
+  "initial_message": zod.string().optional().describe('Initial message to send when conversation starts'),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "organization": zod.string().uuid().optional().describe('Organization this simulator agent belongs to'),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional(),
+  "logo_url": zod.string().optional()
 })
 
 
@@ -19019,6 +19182,101 @@ export const SimulateSimulatorAgentsDeleteDeleteParams = zod.object({
  */
 export const SimulateSimulatorAgentsEditUpdateParams = zod.object({
   "agent_id": zod.string()
+})
+
+export const simulateSimulatorAgentsEditUpdateBodyNameMax = 255;
+
+
+export const simulateSimulatorAgentsEditUpdateBodyVoiceProviderMax = 100;
+
+export const simulateSimulatorAgentsEditUpdateBodyVoiceNameMax = 100;
+
+export const simulateSimulatorAgentsEditUpdateBodyInterruptSensitivityMin = 0;
+export const simulateSimulatorAgentsEditUpdateBodyInterruptSensitivityMax = 11;
+
+export const simulateSimulatorAgentsEditUpdateBodyConversationSpeedMin = 0.1;
+export const simulateSimulatorAgentsEditUpdateBodyConversationSpeedMax = 2;
+
+export const simulateSimulatorAgentsEditUpdateBodyFinishedSpeakingSensitivityMin = 0;
+export const simulateSimulatorAgentsEditUpdateBodyFinishedSpeakingSensitivityMax = 11;
+
+export const simulateSimulatorAgentsEditUpdateBodyModelMax = 100;
+
+export const simulateSimulatorAgentsEditUpdateBodyLlmTemperatureMin = 0;
+export const simulateSimulatorAgentsEditUpdateBodyLlmTemperatureMax = 2;
+
+export const simulateSimulatorAgentsEditUpdateBodyMaxCallDurationInMinutesMin = 0;
+export const simulateSimulatorAgentsEditUpdateBodyMaxCallDurationInMinutesMax = 180;
+
+export const simulateSimulatorAgentsEditUpdateBodyInitialMessageDelayMin = 0;
+export const simulateSimulatorAgentsEditUpdateBodyInitialMessageDelayMax = 60;
+
+
+
+export const SimulateSimulatorAgentsEditUpdateBody = zod.object({
+  "name": zod.string().min(1).max(simulateSimulatorAgentsEditUpdateBodyNameMax).describe('Name of the simulator agent'),
+  "prompt": zod.string().min(1).describe('System prompt for the agent'),
+  "voice_provider": zod.string().min(1).max(simulateSimulatorAgentsEditUpdateBodyVoiceProviderMax).describe('Voice service provider'),
+  "voice_name": zod.string().min(1).max(simulateSimulatorAgentsEditUpdateBodyVoiceNameMax).describe('Specific voice to use'),
+  "interrupt_sensitivity": zod.number().min(simulateSimulatorAgentsEditUpdateBodyInterruptSensitivityMin).max(simulateSimulatorAgentsEditUpdateBodyInterruptSensitivityMax).optional().describe('Sensitivity for interruption detection (0-1)'),
+  "conversation_speed": zod.number().min(simulateSimulatorAgentsEditUpdateBodyConversationSpeedMin).max(simulateSimulatorAgentsEditUpdateBodyConversationSpeedMax).optional().describe('Speed of conversation (0.1-3.0)'),
+  "finished_speaking_sensitivity": zod.number().min(simulateSimulatorAgentsEditUpdateBodyFinishedSpeakingSensitivityMin).max(simulateSimulatorAgentsEditUpdateBodyFinishedSpeakingSensitivityMax).optional().describe('Sensitivity for detecting when speaker has finished (0-1)'),
+  "model": zod.string().min(1).max(simulateSimulatorAgentsEditUpdateBodyModelMax).describe('LLM model to use'),
+  "llm_temperature": zod.number().min(simulateSimulatorAgentsEditUpdateBodyLlmTemperatureMin).max(simulateSimulatorAgentsEditUpdateBodyLlmTemperatureMax).optional().describe('Temperature setting for LLM (0-2)'),
+  "max_call_duration_in_minutes": zod.number().min(simulateSimulatorAgentsEditUpdateBodyMaxCallDurationInMinutesMin).max(simulateSimulatorAgentsEditUpdateBodyMaxCallDurationInMinutesMax).optional().describe('Maximum call duration in minutes (1-180)'),
+  "initial_message_delay": zod.number().min(simulateSimulatorAgentsEditUpdateBodyInitialMessageDelayMin).max(simulateSimulatorAgentsEditUpdateBodyInitialMessageDelayMax).optional().describe('Delay before initial message in seconds (0-60)'),
+  "initial_message": zod.string().optional().describe('Initial message to send when conversation starts')
+})
+
+export const simulateSimulatorAgentsEditUpdateResponseNameMax = 255;
+
+
+export const simulateSimulatorAgentsEditUpdateResponseVoiceProviderMax = 100;
+
+export const simulateSimulatorAgentsEditUpdateResponseVoiceNameMax = 100;
+
+export const simulateSimulatorAgentsEditUpdateResponseInterruptSensitivityMin = 0;
+export const simulateSimulatorAgentsEditUpdateResponseInterruptSensitivityMax = 11;
+
+export const simulateSimulatorAgentsEditUpdateResponseConversationSpeedMin = 0.1;
+export const simulateSimulatorAgentsEditUpdateResponseConversationSpeedMax = 2;
+
+export const simulateSimulatorAgentsEditUpdateResponseFinishedSpeakingSensitivityMin = 0;
+export const simulateSimulatorAgentsEditUpdateResponseFinishedSpeakingSensitivityMax = 11;
+
+export const simulateSimulatorAgentsEditUpdateResponseModelMax = 100;
+
+export const simulateSimulatorAgentsEditUpdateResponseLlmTemperatureMin = 0;
+export const simulateSimulatorAgentsEditUpdateResponseLlmTemperatureMax = 2;
+
+export const simulateSimulatorAgentsEditUpdateResponseMaxCallDurationInMinutesMin = 0;
+export const simulateSimulatorAgentsEditUpdateResponseMaxCallDurationInMinutesMax = 180;
+
+export const simulateSimulatorAgentsEditUpdateResponseInitialMessageDelayMin = 0;
+export const simulateSimulatorAgentsEditUpdateResponseInitialMessageDelayMax = 60;
+
+
+
+export const SimulateSimulatorAgentsEditUpdateResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "name": zod.string().min(1).max(simulateSimulatorAgentsEditUpdateResponseNameMax).describe('Name of the simulator agent'),
+  "prompt": zod.string().min(1).describe('System prompt for the agent'),
+  "voice_provider": zod.string().min(1).max(simulateSimulatorAgentsEditUpdateResponseVoiceProviderMax).describe('Voice service provider'),
+  "voice_name": zod.string().min(1).max(simulateSimulatorAgentsEditUpdateResponseVoiceNameMax).describe('Specific voice to use'),
+  "interrupt_sensitivity": zod.number().min(simulateSimulatorAgentsEditUpdateResponseInterruptSensitivityMin).max(simulateSimulatorAgentsEditUpdateResponseInterruptSensitivityMax).optional().describe('Sensitivity for interruption detection (0-1)'),
+  "conversation_speed": zod.number().min(simulateSimulatorAgentsEditUpdateResponseConversationSpeedMin).max(simulateSimulatorAgentsEditUpdateResponseConversationSpeedMax).optional().describe('Speed of conversation (0.1-3.0)'),
+  "finished_speaking_sensitivity": zod.number().min(simulateSimulatorAgentsEditUpdateResponseFinishedSpeakingSensitivityMin).max(simulateSimulatorAgentsEditUpdateResponseFinishedSpeakingSensitivityMax).optional().describe('Sensitivity for detecting when speaker has finished (0-1)'),
+  "model": zod.string().min(1).max(simulateSimulatorAgentsEditUpdateResponseModelMax).describe('LLM model to use'),
+  "llm_temperature": zod.number().min(simulateSimulatorAgentsEditUpdateResponseLlmTemperatureMin).max(simulateSimulatorAgentsEditUpdateResponseLlmTemperatureMax).optional().describe('Temperature setting for LLM (0-2)'),
+  "max_call_duration_in_minutes": zod.number().min(simulateSimulatorAgentsEditUpdateResponseMaxCallDurationInMinutesMin).max(simulateSimulatorAgentsEditUpdateResponseMaxCallDurationInMinutesMax).optional().describe('Maximum call duration in minutes (1-180)'),
+  "initial_message_delay": zod.number().min(simulateSimulatorAgentsEditUpdateResponseInitialMessageDelayMin).max(simulateSimulatorAgentsEditUpdateResponseInitialMessageDelayMax).optional().describe('Delay before initial message in seconds (0-60)'),
+  "initial_message": zod.string().optional().describe('Initial message to send when conversation starts'),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "organization": zod.string().uuid().optional().describe('Organization this simulator agent belongs to'),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional(),
+  "logo_url": zod.string().optional()
 })
 
 

@@ -1,12 +1,17 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from simulate.models import SimulatorAgent
-from simulate.serializers.simulator_agent import SimulatorAgentSerializer
+from simulate.serializers.simulator_agent import (
+    SimulatorAgentListResponseSerializer,
+    SimulatorAgentSerializer,
+    SimulatorAgentValidationErrorResponseSerializer,
+)
 from tfc.utils.pagination import ExtendedPageNumberPagination
 
 
@@ -15,6 +20,7 @@ class SimulatorAgentListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(responses={200: SimulatorAgentListResponseSerializer})
     def get(self, request):
         # Get query parameters
         search_query = request.GET.get("search", "").strip()
@@ -56,6 +62,13 @@ class CreateSimulatorAgentView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=SimulatorAgentSerializer,
+        responses={
+            201: SimulatorAgentSerializer,
+            400: SimulatorAgentValidationErrorResponseSerializer,
+        },
+    )
     def post(self, request):
         serializer = SimulatorAgentSerializer(
             data=request.data, context={"request": request}
@@ -76,6 +89,7 @@ class SimulatorAgentDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(responses={200: SimulatorAgentSerializer})
     def get(self, request, agent_id):
         simulator_agent = get_object_or_404(
             SimulatorAgent,
@@ -94,6 +108,13 @@ class EditSimulatorAgentView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=SimulatorAgentSerializer,
+        responses={
+            200: SimulatorAgentSerializer,
+            400: SimulatorAgentValidationErrorResponseSerializer,
+        },
+    )
     def put(self, request, agent_id):
         simulator_agent = get_object_or_404(
             SimulatorAgent,

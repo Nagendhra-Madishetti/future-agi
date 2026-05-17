@@ -418,6 +418,9 @@ import type {
   SimulateTestExecutionsEvalExplanationSummaryList200,
   SimulateTestExecutionsKpisList200,
   SimulateTestExecutionsRead200,
+  SimulatorAgentApi,
+  SimulatorAgentListResponseApi,
+  SimulatorAgentValidationErrorResponseApi,
   SpanAttributeDetailResponseApi,
   SpanAttributeKeysResponseApi,
   SpanAttributeValuesResponseApi,
@@ -37029,7 +37032,7 @@ export const simulateScenariosPromptsUpdate = async (scenarioId: string,
 
 
 export type simulateSimulatorAgentsListResponse200 = {
-  data: void
+  data: SimulatorAgentListResponseApi
   status: 200
 }
 
@@ -37065,16 +37068,23 @@ export const simulateSimulatorAgentsList = async ( options?: RequestInit): Promi
 
 
 export type simulateSimulatorAgentsCreateCreateResponse201 = {
-  data: void
+  data: SimulatorAgentApi
   status: 201
+}
+
+export type simulateSimulatorAgentsCreateCreateResponse400 = {
+  data: SimulatorAgentValidationErrorResponseApi
+  status: 400
 }
 
 export type simulateSimulatorAgentsCreateCreateResponseSuccess = (simulateSimulatorAgentsCreateCreateResponse201) & {
   headers: Headers;
 };
-;
+export type simulateSimulatorAgentsCreateCreateResponseError = (simulateSimulatorAgentsCreateCreateResponse400) & {
+  headers: Headers;
+};
 
-export type simulateSimulatorAgentsCreateCreateResponse = (simulateSimulatorAgentsCreateCreateResponseSuccess)
+export type simulateSimulatorAgentsCreateCreateResponse = (simulateSimulatorAgentsCreateCreateResponseSuccess | simulateSimulatorAgentsCreateCreateResponseError)
 
 export const getSimulateSimulatorAgentsCreateCreateUrl = () => {
 
@@ -37087,21 +37097,22 @@ export const getSimulateSimulatorAgentsCreateCreateUrl = () => {
 /**
  * Create a new simulator agent
  */
-export const simulateSimulatorAgentsCreateCreate = async ( options?: RequestInit): Promise<simulateSimulatorAgentsCreateCreateResponse> => {
+export const simulateSimulatorAgentsCreateCreate = async (simulatorAgentApi: NonReadonly<SimulatorAgentApi>, options?: RequestInit): Promise<simulateSimulatorAgentsCreateCreateResponse> => {
 
   return apiMutator<simulateSimulatorAgentsCreateCreateResponse>(getSimulateSimulatorAgentsCreateCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      simulatorAgentApi,)
   }
 );}
 
 
 
 export type simulateSimulatorAgentsReadResponse200 = {
-  data: void
+  data: SimulatorAgentApi
   status: 200
 }
 
@@ -37173,16 +37184,23 @@ export const simulateSimulatorAgentsDeleteDelete = async (agentId: string, optio
 
 
 export type simulateSimulatorAgentsEditUpdateResponse200 = {
-  data: void
+  data: SimulatorAgentApi
   status: 200
+}
+
+export type simulateSimulatorAgentsEditUpdateResponse400 = {
+  data: SimulatorAgentValidationErrorResponseApi
+  status: 400
 }
 
 export type simulateSimulatorAgentsEditUpdateResponseSuccess = (simulateSimulatorAgentsEditUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type simulateSimulatorAgentsEditUpdateResponseError = (simulateSimulatorAgentsEditUpdateResponse400) & {
+  headers: Headers;
+};
 
-export type simulateSimulatorAgentsEditUpdateResponse = (simulateSimulatorAgentsEditUpdateResponseSuccess)
+export type simulateSimulatorAgentsEditUpdateResponse = (simulateSimulatorAgentsEditUpdateResponseSuccess | simulateSimulatorAgentsEditUpdateResponseError)
 
 export const getSimulateSimulatorAgentsEditUpdateUrl = (agentId: string,) => {
 
@@ -37195,14 +37213,16 @@ export const getSimulateSimulatorAgentsEditUpdateUrl = (agentId: string,) => {
 /**
  * Edit an existing simulator agent
  */
-export const simulateSimulatorAgentsEditUpdate = async (agentId: string, options?: RequestInit): Promise<simulateSimulatorAgentsEditUpdateResponse> => {
+export const simulateSimulatorAgentsEditUpdate = async (agentId: string,
+    simulatorAgentApi: NonReadonly<SimulatorAgentApi>, options?: RequestInit): Promise<simulateSimulatorAgentsEditUpdateResponse> => {
 
   return apiMutator<simulateSimulatorAgentsEditUpdateResponse>(getSimulateSimulatorAgentsEditUpdateUrl(agentId),
   {
     ...options,
-    method: 'PUT'
-
-
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      simulatorAgentApi,)
   }
 );}
 

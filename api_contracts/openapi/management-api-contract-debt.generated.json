@@ -3,8 +3,8 @@
   "summary": {
     "paths": 964,
     "operations": 1326,
-    "mutation_endpoints_without_body_schema": 325,
-    "operations_without_response_schema": 560
+    "mutation_endpoints_without_body_schema": 323,
+    "operations_without_response_schema": 556
   },
   "by_group": {
     "accounts": {
@@ -88,8 +88,8 @@
     "simulate": {
       "paths": 105,
       "operations": 125,
-      "mutation_endpoints_without_body_schema": 17,
-      "operations_without_response_schema": 37
+      "mutation_endpoints_without_body_schema": 15,
+      "operations_without_response_schema": 33
     },
     "tracer": {
       "paths": 159,
@@ -2465,24 +2465,6 @@
       "method": "POST",
       "path": "/simulate/run-tests/{run_test_id}/rerun-test-executions/",
       "operation_id": "simulate_run-tests_rerun-test-executions_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/simulator-agents/create/",
-      "operation_id": "simulate_simulator-agents_create_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "PUT",
-      "path": "/simulate/simulator-agents/{agent_id}/edit/",
-      "operation_id": "simulate_simulator-agents_edit_update",
       "tags": [
         "simulate"
       ]
@@ -7174,42 +7156,6 @@
       "method": "GET",
       "path": "/simulate/run-tests/{run_test_id}/status/",
       "operation_id": "simulate_run-tests_status_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/simulator-agents/",
-      "operation_id": "simulate_simulator-agents_list",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "POST",
-      "path": "/simulate/simulator-agents/create/",
-      "operation_id": "simulate_simulator-agents_create_create",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "GET",
-      "path": "/simulate/simulator-agents/{agent_id}/",
-      "operation_id": "simulate_simulator-agents_read",
-      "tags": [
-        "simulate"
-      ]
-    },
-    {
-      "group": "simulate",
-      "method": "PUT",
-      "path": "/simulate/simulator-agents/{agent_id}/edit/",
-      "operation_id": "simulate_simulator-agents_edit_update",
       "tags": [
         "simulate"
       ]
