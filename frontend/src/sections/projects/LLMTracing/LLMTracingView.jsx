@@ -3141,6 +3141,11 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
                 hasEvalFilter={hasEvalFilter}
                 showDateFilter={showCompare}
                 observeIdOverride={observeId}
+                graphEndpoint={
+                  selectedTab === "spans"
+                    ? endpoints.project.getSpanGraphData()
+                    : endpoints.project.getTraceGraphData()
+                }
                 onFilterToggle={
                   showCompare
                     ? (e) => handleCompareFilterToggle(e, "primary")
@@ -3171,6 +3176,11 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
                   graphLabel="Compare Graph"
                   showDateFilter
                   observeIdOverride={observeId}
+                  graphEndpoint={
+                    selectedTab === "spans"
+                      ? endpoints.project.getSpanGraphData()
+                      : endpoints.project.getTraceGraphData()
+                  }
                   onFilterToggle={(e) =>
                     handleCompareFilterToggle(e, "compare")
                   }

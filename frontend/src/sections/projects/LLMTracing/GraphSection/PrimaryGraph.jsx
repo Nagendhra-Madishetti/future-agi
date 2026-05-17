@@ -179,6 +179,7 @@ const PrimaryGraph = ({
   trafficLabel = "traces",
 }) => {
   const { observeId } = useParams();
+  const effectiveObserveId = observeIdOverride || observeId;
   const theme = useTheme();
   const [selectedMetric, setSelectedMetric] = useState(
     defaultMetric || "latency",
@@ -339,7 +340,7 @@ const PrimaryGraph = ({
   const { data: graphData, isLoading } = useQuery({
     queryKey: [
       "primary-graph",
-      observeId,
+      effectiveObserveId,
       selectedMetric,
       selectedInterval,
       combinedFilters,
@@ -355,10 +356,10 @@ const PrimaryGraph = ({
           type: metricDef.apiType || "SYSTEM_METRIC",
           ...(metricDef.outputType && { output_type: metricDef.outputType }),
         },
-        project_id: observeId,
+        project_id: effectiveObserveId,
       }),
     select: (d) => d.data?.result,
-    enabled: !!observeId && !!metricDef.id,
+    enabled: !!effectiveObserveId && !!metricDef.id,
     staleTime: 30_000,
   });
 
