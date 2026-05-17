@@ -11179,6 +11179,28 @@ export const McpSessionsDeleteParams = zod.object({
 
 
 /**
+ * POST /model-hub/ai-eval-writer/
+ */
+
+export const modelHubAiEvalWriterCreateBodyOutputFormatDefault = `prompt`;
+
+export const ModelHubAiEvalWriterCreateBody = zod.object({
+  "description": zod.string().min(1),
+  "output_format": zod.enum(['prompt', 'messages']).default(modelHubAiEvalWriterCreateBodyOutputFormatDefault)
+})
+
+export const modelHubAiEvalWriterCreateResponseStatusDefault = true;
+
+
+export const ModelHubAiEvalWriterCreateResponse = zod.object({
+  "status": zod.boolean().default(modelHubAiEvalWriterCreateResponseStatusDefault),
+  "result": zod.object({
+  "prompt": zod.string().min(1)
+})
+})
+
+
+/**
  * Request body:
 {
     "query": "show me LLM evals that are pass/fail",
@@ -14125,10 +14147,52 @@ export const ModelHubCustomMetricReadParams = zod.object({
 
 
 /**
+ * Return all the models that belongs to a user organization
+ */
+export const ModelHubCustomModelsListResponse = zod.object({
+  "count": zod.number(),
+  "next": zod.string().optional(),
+  "previous": zod.string().optional(),
+  "results": zod.array(zod.object({
+
+}).passthrough())
+})
+
+
+export const ModelHubCustomModelsListListResponse = zod.object({
+  "count": zod.number(),
+  "next": zod.string().optional(),
+  "previous": zod.string().optional(),
+  "results": zod.array(zod.object({
+
+}).passthrough())
+})
+
+
+/**
  * Return details regarding a particular model, given his id
  */
 export const ModelHubCustomModelsReadParams = zod.object({
   "id": zod.string()
+})
+
+export const modelHubCustomModelsReadResponseUserModelIdMax = 255;
+
+export const modelHubCustomModelsReadResponseProviderMax = 50;
+
+
+
+export const ModelHubCustomModelsReadResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "user_model_id": zod.string().min(1).max(modelHubCustomModelsReadResponseUserModelIdMax),
+  "deleted": zod.boolean().optional(),
+  "provider": zod.string().min(1).max(modelHubCustomModelsReadResponseProviderMax),
+  "input_token_cost": zod.number(),
+  "output_token_cost": zod.number(),
+  "config_json": zod.string().optional(),
+  "user": zod.string().optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
 })
 
 
@@ -14139,9 +14203,139 @@ export const ModelHubCustomModelsCreateParams = zod.object({
   "id": zod.string()
 })
 
+export const ModelHubCustomModelsCreateBody = zod.object({
+  "model_name": zod.string().optional(),
+  "input_token_cost": zod.number().optional(),
+  "output_token_cost": zod.number().optional()
+})
+
+export const modelHubCustomModelsCreateResponseUserModelIdMax = 255;
+
+export const modelHubCustomModelsCreateResponseProviderMax = 50;
+
+
+
+export const ModelHubCustomModelsCreateResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "user_model_id": zod.string().min(1).max(modelHubCustomModelsCreateResponseUserModelIdMax),
+  "deleted": zod.boolean().optional(),
+  "provider": zod.string().min(1).max(modelHubCustomModelsCreateResponseProviderMax),
+  "input_token_cost": zod.number(),
+  "output_token_cost": zod.number(),
+  "config_json": zod.string().optional(),
+  "user": zod.string().optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional()
+})
+
+
+
+
+export const modelHubCustomModelsCreateCreateBodyConfigJsonDefault = {  };
+
+export const ModelHubCustomModelsCreateCreateBody = zod.object({
+  "model_provider": zod.string().min(1),
+  "model_name": zod.string().min(1),
+  "input_token_cost": zod.number().optional(),
+  "output_token_cost": zod.number().optional(),
+  "config_json": zod.object({
+
+}).passthrough().default(modelHubCustomModelsCreateCreateBodyConfigJsonDefault),
+  "key": zod.string().optional()
+})
+
+
+
+
+
+export const ModelHubCustomModelsCreateCreateResponse = zod.object({
+  "status": zod.string().min(1),
+  "message": zod.string().min(1),
+  "data": zod.object({
+  "id": zod.string().uuid()
+})
+})
+
+
+export const ModelHubCustomModelsEditListResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
+
+export const modelHubCustomModelsEditPartialUpdateBodyConfigJsonDefault = {  };
+
+export const ModelHubCustomModelsEditPartialUpdateBody = zod.object({
+  "id": zod.string().uuid(),
+  "model_name": zod.string().optional(),
+  "input_token_cost": zod.number().optional(),
+  "output_token_cost": zod.number().optional(),
+  "config_json": zod.object({
+
+}).passthrough().default(modelHubCustomModelsEditPartialUpdateBodyConfigJsonDefault),
+  "key": zod.string().optional()
+})
+
+export const ModelHubCustomModelsEditPartialUpdateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
+})
+
 
 export const ModelHubCustomModelsUpdateBaselineCreateParams = zod.object({
   "id": zod.string()
+})
+
+export const ModelHubCustomModelsUpdateBaselineCreateBody = zod.object({
+  "environment": zod.string().optional(),
+  "model_version": zod.string().optional()
+})
+
+export const ModelHubCustomModelsUpdateBaselineCreateResponse = zod.object({
+  "status": zod.object({
+
+}).passthrough().optional(),
+  "message": zod.string().optional(),
+  "result": zod.object({
+
+}).passthrough().optional(),
+  "data": zod.object({
+
+}).passthrough().optional(),
+  "error": zod.object({
+
+}).passthrough().optional(),
+  "detail": zod.object({
+
+}).passthrough().optional()
 })
 
 

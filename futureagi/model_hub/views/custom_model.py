@@ -5,15 +5,26 @@ import traceback
 import structlog
 from django.db.models import F
 from django.db.models.functions import Lower
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-logger = structlog.get_logger(__name__)
 from accounts.utils import get_request_organization
 from model_hub.models.api_key import ApiKey
 from model_hub.models.custom_models import CustomAIModel
 from model_hub.models.metric import Metric
+from model_hub.serializers.contracts import (
+    MODEL_HUB_ERROR_RESPONSES,
+    CustomAIModelBaselineRequestSerializer,
+    CustomAIModelCreateRequestSerializer,
+    CustomAIModelCreateResponseSerializer,
+    CustomAIModelDefaultMetricRequestSerializer,
+    CustomAIModelEditRequestSerializer,
+    CustomAIModelUpdateRequestSerializer,
+    ModelHubJSONResponseSerializer,
+    ModelHubPaginatedResponseSerializer,
+)
 from model_hub.serializers.custom_models import (
     CustomAIModelSerializer,
     CustomAIModelsListSerializer,
@@ -25,6 +36,8 @@ from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
 
+logger = structlog.get_logger(__name__)
+
 
 class CustomAIModelView(APIView):
     """Return all the models that belongs to a user organization"""
@@ -33,6 +46,9 @@ class CustomAIModelView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        responses={200: ModelHubPaginatedResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    )
     def get(self, request, *args, **kwargs):
         # Get the organization of the logged-in user
         user_organization = get_request_organization(self.request)
@@ -95,6 +111,10 @@ class CustomAIModelCreateView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        request_body=CustomAIModelCreateRequestSerializer,
+        responses={200: CustomAIModelCreateResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, *args, **kwargs):
         try:
             data = request.data
@@ -230,6 +250,9 @@ class CustomAIModelDetailsView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        responses={200: CustomAIModelSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    )
     def get(self, request, id, *args, **kwargs):
         """Return details regarding a particular model, given his id"""
         user_organization = get_request_organization(self.request)
@@ -244,6 +267,10 @@ class CustomAIModelDetailsView(APIView):
         # meta_properties = get_model_details(ai_model, user_organization)
         return Response({**ai_model_serializer.data})
 
+    @swagger_auto_schema(
+        request_body=CustomAIModelUpdateRequestSerializer,
+        responses={200: CustomAIModelSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, id, *args, **kwargs):
         """Update custom model details"""
         user_organization = get_request_organization(self.request)
@@ -289,6 +316,10 @@ class CustomAIModelDetailsView(APIView):
 class UpdateMetricCustomAIModelView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=CustomAIModelDefaultMetricRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, id, *args, **kwargs):
         """Update default metric of the model given model id in request and information of metric in the body"""
         user_organization = get_request_organization(self.request)
@@ -321,6 +352,10 @@ class UpdateMetricCustomAIModelView(APIView):
 class UpdateBaselineDatasetCustomAIModelView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=CustomAIModelBaselineRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def post(self, request, id, *args, **kwargs):
         user_organization = get_request_organization(self.request)
 
@@ -353,6 +388,9 @@ class UpdateBaselineDatasetCustomAIModelView(APIView):
 class CustomAIModelListView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={200: ModelHubPaginatedResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    )
     def get(self, request, *args, **kwargs):
         user_organization = get_request_organization(self.request)
         search_query = request.query_params.get("search_query")
@@ -403,6 +441,9 @@ class EditCustomModel(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
+    @swagger_auto_schema(
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    )
     def get(self, request, *args, **kwargs):
         model_id = request.query_params.get("id", None)
 
@@ -437,6 +478,10 @@ class EditCustomModel(APIView):
             traceback.print_exc()
             return self._gm.bad_request(str(e))
 
+    @swagger_auto_schema(
+        request_body=CustomAIModelEditRequestSerializer,
+        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def patch(self, request, *args, **kwargs):
         model_id = request.data.get("id", None)
 

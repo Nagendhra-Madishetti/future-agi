@@ -7,6 +7,8 @@
  * OpenAPI spec version: v1
  */
 import type {
+  AIEvalWriterRequestApi,
+  AIEvalWriterResponseApi,
   AIFilterRequestApi,
   AIFilterResponseApi,
   APICallCountResponseApi,
@@ -215,6 +217,12 @@ import type {
   CreateRunTestApi,
   CreateScoreApi,
   CreateSecretKeyApi,
+  CustomAIModelApi,
+  CustomAIModelBaselineRequestApi,
+  CustomAIModelCreateRequestApi,
+  CustomAIModelCreateResponseApi,
+  CustomAIModelEditRequestApi,
+  CustomAIModelUpdateRequestApi,
   CustomEvalConfigApi,
   CustomPaymentCheckoutRequestApi,
   CustomerInvoicesResponseApi,
@@ -380,6 +388,7 @@ import type {
   ModelHubApiKeysListParams,
   ModelHubDatasetOptimizationList200,
   ModelHubDatasetOptimizationListParams,
+  ModelHubErrorResponseApi,
   ModelHubEvalGroupsList200,
   ModelHubEvalGroupsListParams,
   ModelHubExperimentDetailList200,
@@ -396,6 +405,7 @@ import type {
   ModelHubFeedbackGetTemplateParams,
   ModelHubFeedbackList200,
   ModelHubFeedbackListParams,
+  ModelHubJSONResponseApi,
   ModelHubKbListParams,
   ModelHubKbSupportedEmbeddingModelsParams,
   ModelHubOptimisationList200,
@@ -404,6 +414,7 @@ import type {
   ModelHubOptimizeDatasetListParams,
   ModelHubOrganizationsUsersList200,
   ModelHubOrganizationsUsersListParams,
+  ModelHubPaginatedResponseApi,
   ModelHubPromptBaseTemplatesGetAllCategories200,
   ModelHubPromptBaseTemplatesGetAllCategoriesParams,
   ModelHubPromptBaseTemplatesList200,
@@ -17235,17 +17246,44 @@ export const mcpSessionsDelete = async (sessionId: string, options?: RequestInit
 
 
 
-export type modelHubAiEvalWriterCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubAiEvalWriterCreateResponse200 = {
+  data: AIEvalWriterResponseApi
+  status: 200
 }
 
-export type modelHubAiEvalWriterCreateResponseSuccess = (modelHubAiEvalWriterCreateResponse201) & {
+export type modelHubAiEvalWriterCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubAiEvalWriterCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubAiEvalWriterCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubAiEvalWriterCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubAiEvalWriterCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubAiEvalWriterCreateResponseSuccess = (modelHubAiEvalWriterCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubAiEvalWriterCreateResponseError = (modelHubAiEvalWriterCreateResponse400 | modelHubAiEvalWriterCreateResponse403 | modelHubAiEvalWriterCreateResponse404 | modelHubAiEvalWriterCreateResponse409 | modelHubAiEvalWriterCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubAiEvalWriterCreateResponse = (modelHubAiEvalWriterCreateResponseSuccess)
+export type modelHubAiEvalWriterCreateResponse = (modelHubAiEvalWriterCreateResponseSuccess | modelHubAiEvalWriterCreateResponseError)
 
 export const getModelHubAiEvalWriterCreateUrl = () => {
 
@@ -17258,14 +17296,15 @@ export const getModelHubAiEvalWriterCreateUrl = () => {
 /**
  * POST /model-hub/ai-eval-writer/
  */
-export const modelHubAiEvalWriterCreate = async ( options?: RequestInit): Promise<modelHubAiEvalWriterCreateResponse> => {
+export const modelHubAiEvalWriterCreate = async (aIEvalWriterRequestApi: AIEvalWriterRequestApi, options?: RequestInit): Promise<modelHubAiEvalWriterCreateResponse> => {
 
   return apiMutator<modelHubAiEvalWriterCreateResponse>(getModelHubAiEvalWriterCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      aIEvalWriterRequestApi,)
   }
 );}
 
@@ -21619,16 +21658,43 @@ export const modelHubCustomMetricRead = async (modelId: string, options?: Reques
 
 
 export type modelHubCustomModelsListResponse200 = {
-  data: void
+  data: ModelHubPaginatedResponseApi
   status: 200
+}
+
+export type modelHubCustomModelsListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubCustomModelsListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubCustomModelsListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubCustomModelsListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubCustomModelsListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubCustomModelsListResponseSuccess = (modelHubCustomModelsListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubCustomModelsListResponseError = (modelHubCustomModelsListResponse400 | modelHubCustomModelsListResponse403 | modelHubCustomModelsListResponse404 | modelHubCustomModelsListResponse409 | modelHubCustomModelsListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubCustomModelsListResponse = (modelHubCustomModelsListResponseSuccess)
+export type modelHubCustomModelsListResponse = (modelHubCustomModelsListResponseSuccess | modelHubCustomModelsListResponseError)
 
 export const getModelHubCustomModelsListUrl = () => {
 
@@ -21655,16 +21721,43 @@ export const modelHubCustomModelsList = async ( options?: RequestInit): Promise<
 
 
 export type modelHubCustomModelsListListResponse200 = {
-  data: void
+  data: ModelHubPaginatedResponseApi
   status: 200
+}
+
+export type modelHubCustomModelsListListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubCustomModelsListListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubCustomModelsListListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubCustomModelsListListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubCustomModelsListListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubCustomModelsListListResponseSuccess = (modelHubCustomModelsListListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubCustomModelsListListResponseError = (modelHubCustomModelsListListResponse400 | modelHubCustomModelsListListResponse403 | modelHubCustomModelsListListResponse404 | modelHubCustomModelsListListResponse409 | modelHubCustomModelsListListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubCustomModelsListListResponse = (modelHubCustomModelsListListResponseSuccess)
+export type modelHubCustomModelsListListResponse = (modelHubCustomModelsListListResponseSuccess | modelHubCustomModelsListListResponseError)
 
 export const getModelHubCustomModelsListListUrl = () => {
 
@@ -21688,16 +21781,43 @@ export const modelHubCustomModelsListList = async ( options?: RequestInit): Prom
 
 
 export type modelHubCustomModelsReadResponse200 = {
-  data: void
+  data: CustomAIModelApi
   status: 200
+}
+
+export type modelHubCustomModelsReadResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubCustomModelsReadResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubCustomModelsReadResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubCustomModelsReadResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubCustomModelsReadResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubCustomModelsReadResponseSuccess = (modelHubCustomModelsReadResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubCustomModelsReadResponseError = (modelHubCustomModelsReadResponse400 | modelHubCustomModelsReadResponse403 | modelHubCustomModelsReadResponse404 | modelHubCustomModelsReadResponse409 | modelHubCustomModelsReadResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubCustomModelsReadResponse = (modelHubCustomModelsReadResponseSuccess)
+export type modelHubCustomModelsReadResponse = (modelHubCustomModelsReadResponseSuccess | modelHubCustomModelsReadResponseError)
 
 export const getModelHubCustomModelsReadUrl = (id: string,) => {
 
@@ -21723,17 +21843,44 @@ export const modelHubCustomModelsRead = async (id: string, options?: RequestInit
 
 
 
-export type modelHubCustomModelsCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubCustomModelsCreateResponse200 = {
+  data: CustomAIModelApi
+  status: 200
 }
 
-export type modelHubCustomModelsCreateResponseSuccess = (modelHubCustomModelsCreateResponse201) & {
+export type modelHubCustomModelsCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubCustomModelsCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubCustomModelsCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubCustomModelsCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubCustomModelsCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubCustomModelsCreateResponseSuccess = (modelHubCustomModelsCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubCustomModelsCreateResponseError = (modelHubCustomModelsCreateResponse400 | modelHubCustomModelsCreateResponse403 | modelHubCustomModelsCreateResponse404 | modelHubCustomModelsCreateResponse409 | modelHubCustomModelsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubCustomModelsCreateResponse = (modelHubCustomModelsCreateResponseSuccess)
+export type modelHubCustomModelsCreateResponse = (modelHubCustomModelsCreateResponseSuccess | modelHubCustomModelsCreateResponseError)
 
 export const getModelHubCustomModelsCreateUrl = (id: string,) => {
 
@@ -21746,30 +21893,59 @@ export const getModelHubCustomModelsCreateUrl = (id: string,) => {
 /**
  * Update custom model details
  */
-export const modelHubCustomModelsCreate = async (id: string, options?: RequestInit): Promise<modelHubCustomModelsCreateResponse> => {
+export const modelHubCustomModelsCreate = async (id: string,
+    customAIModelUpdateRequestApi: CustomAIModelUpdateRequestApi, options?: RequestInit): Promise<modelHubCustomModelsCreateResponse> => {
 
   return apiMutator<modelHubCustomModelsCreateResponse>(getModelHubCustomModelsCreateUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      customAIModelUpdateRequestApi,)
   }
 );}
 
 
 
-export type modelHubCustomModelsCreateCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubCustomModelsCreateCreateResponse200 = {
+  data: CustomAIModelCreateResponseApi
+  status: 200
 }
 
-export type modelHubCustomModelsCreateCreateResponseSuccess = (modelHubCustomModelsCreateCreateResponse201) & {
+export type modelHubCustomModelsCreateCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubCustomModelsCreateCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubCustomModelsCreateCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubCustomModelsCreateCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubCustomModelsCreateCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubCustomModelsCreateCreateResponseSuccess = (modelHubCustomModelsCreateCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubCustomModelsCreateCreateResponseError = (modelHubCustomModelsCreateCreateResponse400 | modelHubCustomModelsCreateCreateResponse403 | modelHubCustomModelsCreateCreateResponse404 | modelHubCustomModelsCreateCreateResponse409 | modelHubCustomModelsCreateCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubCustomModelsCreateCreateResponse = (modelHubCustomModelsCreateCreateResponseSuccess)
+export type modelHubCustomModelsCreateCreateResponse = (modelHubCustomModelsCreateCreateResponseSuccess | modelHubCustomModelsCreateCreateResponseError)
 
 export const getModelHubCustomModelsCreateCreateUrl = () => {
 
@@ -21779,14 +21955,15 @@ export const getModelHubCustomModelsCreateCreateUrl = () => {
   return `/model-hub/custom_models/create/`
 }
 
-export const modelHubCustomModelsCreateCreate = async ( options?: RequestInit): Promise<modelHubCustomModelsCreateCreateResponse> => {
+export const modelHubCustomModelsCreateCreate = async (customAIModelCreateRequestApi: CustomAIModelCreateRequestApi, options?: RequestInit): Promise<modelHubCustomModelsCreateCreateResponse> => {
 
   return apiMutator<modelHubCustomModelsCreateCreateResponse>(getModelHubCustomModelsCreateCreateUrl(),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      customAIModelCreateRequestApi,)
   }
 );}
 
@@ -21826,16 +22003,43 @@ export const modelHubCustomModelsDeleteDelete = async ( options?: RequestInit): 
 
 
 export type modelHubCustomModelsEditListResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubCustomModelsEditListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubCustomModelsEditListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubCustomModelsEditListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubCustomModelsEditListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubCustomModelsEditListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubCustomModelsEditListResponseSuccess = (modelHubCustomModelsEditListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubCustomModelsEditListResponseError = (modelHubCustomModelsEditListResponse400 | modelHubCustomModelsEditListResponse403 | modelHubCustomModelsEditListResponse404 | modelHubCustomModelsEditListResponse409 | modelHubCustomModelsEditListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubCustomModelsEditListResponse = (modelHubCustomModelsEditListResponseSuccess)
+export type modelHubCustomModelsEditListResponse = (modelHubCustomModelsEditListResponseSuccess | modelHubCustomModelsEditListResponseError)
 
 export const getModelHubCustomModelsEditListUrl = () => {
 
@@ -21859,16 +22063,43 @@ export const modelHubCustomModelsEditList = async ( options?: RequestInit): Prom
 
 
 export type modelHubCustomModelsEditPartialUpdateResponse200 = {
-  data: void
+  data: ModelHubJSONResponseApi
   status: 200
+}
+
+export type modelHubCustomModelsEditPartialUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubCustomModelsEditPartialUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubCustomModelsEditPartialUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubCustomModelsEditPartialUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubCustomModelsEditPartialUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubCustomModelsEditPartialUpdateResponseSuccess = (modelHubCustomModelsEditPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubCustomModelsEditPartialUpdateResponseError = (modelHubCustomModelsEditPartialUpdateResponse400 | modelHubCustomModelsEditPartialUpdateResponse403 | modelHubCustomModelsEditPartialUpdateResponse404 | modelHubCustomModelsEditPartialUpdateResponse409 | modelHubCustomModelsEditPartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubCustomModelsEditPartialUpdateResponse = (modelHubCustomModelsEditPartialUpdateResponseSuccess)
+export type modelHubCustomModelsEditPartialUpdateResponse = (modelHubCustomModelsEditPartialUpdateResponseSuccess | modelHubCustomModelsEditPartialUpdateResponseError)
 
 export const getModelHubCustomModelsEditPartialUpdateUrl = () => {
 
@@ -21878,30 +22109,58 @@ export const getModelHubCustomModelsEditPartialUpdateUrl = () => {
   return `/model-hub/custom_models/edit/`
 }
 
-export const modelHubCustomModelsEditPartialUpdate = async ( options?: RequestInit): Promise<modelHubCustomModelsEditPartialUpdateResponse> => {
+export const modelHubCustomModelsEditPartialUpdate = async (customAIModelEditRequestApi: CustomAIModelEditRequestApi, options?: RequestInit): Promise<modelHubCustomModelsEditPartialUpdateResponse> => {
 
   return apiMutator<modelHubCustomModelsEditPartialUpdateResponse>(getModelHubCustomModelsEditPartialUpdateUrl(),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      customAIModelEditRequestApi,)
   }
 );}
 
 
 
-export type modelHubCustomModelsUpdateBaselineCreateResponse201 = {
-  data: void
-  status: 201
+export type modelHubCustomModelsUpdateBaselineCreateResponse200 = {
+  data: ModelHubJSONResponseApi
+  status: 200
 }
 
-export type modelHubCustomModelsUpdateBaselineCreateResponseSuccess = (modelHubCustomModelsUpdateBaselineCreateResponse201) & {
+export type modelHubCustomModelsUpdateBaselineCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubCustomModelsUpdateBaselineCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubCustomModelsUpdateBaselineCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubCustomModelsUpdateBaselineCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubCustomModelsUpdateBaselineCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
+export type modelHubCustomModelsUpdateBaselineCreateResponseSuccess = (modelHubCustomModelsUpdateBaselineCreateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubCustomModelsUpdateBaselineCreateResponseError = (modelHubCustomModelsUpdateBaselineCreateResponse400 | modelHubCustomModelsUpdateBaselineCreateResponse403 | modelHubCustomModelsUpdateBaselineCreateResponse404 | modelHubCustomModelsUpdateBaselineCreateResponse409 | modelHubCustomModelsUpdateBaselineCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubCustomModelsUpdateBaselineCreateResponse = (modelHubCustomModelsUpdateBaselineCreateResponseSuccess)
+export type modelHubCustomModelsUpdateBaselineCreateResponse = (modelHubCustomModelsUpdateBaselineCreateResponseSuccess | modelHubCustomModelsUpdateBaselineCreateResponseError)
 
 export const getModelHubCustomModelsUpdateBaselineCreateUrl = (id: string,) => {
 
@@ -21911,14 +22170,16 @@ export const getModelHubCustomModelsUpdateBaselineCreateUrl = (id: string,) => {
   return `/model-hub/custom_models/update-baseline/${id}/`
 }
 
-export const modelHubCustomModelsUpdateBaselineCreate = async (id: string, options?: RequestInit): Promise<modelHubCustomModelsUpdateBaselineCreateResponse> => {
+export const modelHubCustomModelsUpdateBaselineCreate = async (id: string,
+    customAIModelBaselineRequestApi: CustomAIModelBaselineRequestApi, options?: RequestInit): Promise<modelHubCustomModelsUpdateBaselineCreateResponse> => {
 
   return apiMutator<modelHubCustomModelsUpdateBaselineCreateResponse>(getModelHubCustomModelsUpdateBaselineCreateUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      customAIModelBaselineRequestApi,)
   }
 );}
 

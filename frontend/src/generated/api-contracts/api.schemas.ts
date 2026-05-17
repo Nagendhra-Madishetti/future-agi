@@ -3279,6 +3279,45 @@ export interface MCPSessionListResponseApi {
   result: MCPSessionApi[];
 }
 
+export type AIEvalWriterRequestApiOutputFormat = typeof AIEvalWriterRequestApiOutputFormat[keyof typeof AIEvalWriterRequestApiOutputFormat];
+
+
+export const AIEvalWriterRequestApiOutputFormat = {
+  prompt: 'prompt',
+  messages: 'messages',
+} as const;
+
+export interface AIEvalWriterRequestApi {
+  /** @minLength 1 */
+  description: string;
+  output_format?: AIEvalWriterRequestApiOutputFormat;
+}
+
+export interface AIEvalWriterResultApi {
+  /** @minLength 1 */
+  prompt: string;
+}
+
+export interface AIEvalWriterResponseApi {
+  status?: boolean;
+  result: AIEvalWriterResultApi;
+}
+
+export type ModelHubErrorResponseApiStatus = { [key: string]: unknown };
+
+export type ModelHubErrorResponseApiMessage = { [key: string]: unknown };
+
+export type ModelHubErrorResponseApiError = { [key: string]: unknown };
+
+export type ModelHubErrorResponseApiDetail = { [key: string]: unknown };
+
+export interface ModelHubErrorResponseApi {
+  status?: ModelHubErrorResponseApiStatus;
+  message?: ModelHubErrorResponseApiMessage;
+  error?: ModelHubErrorResponseApiError;
+  detail?: ModelHubErrorResponseApiDetail;
+}
+
 export type AIFilterRequestApiMode = typeof AIFilterRequestApiMode[keyof typeof AIFilterRequestApiMode];
 
 
@@ -4344,6 +4383,102 @@ export interface ApiKeyApi {
   readonly organization?: string;
   readonly masked_actual_key?: string;
   config_json?: ApiKeyApiConfigJson;
+}
+
+export type ModelHubPaginatedResponseApiResultsItem = { [key: string]: unknown };
+
+export interface ModelHubPaginatedResponseApi {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: ModelHubPaginatedResponseApiResultsItem[];
+}
+
+export interface CustomAIModelApi {
+  readonly id?: string;
+  readonly created_at?: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  user_model_id: string;
+  deleted?: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  provider: string;
+  input_token_cost: number;
+  output_token_cost: number;
+  readonly config_json?: string;
+  readonly user?: string;
+  readonly updated_at?: string;
+}
+
+export interface CustomAIModelUpdateRequestApi {
+  model_name?: string;
+  input_token_cost?: number;
+  output_token_cost?: number;
+}
+
+export type CustomAIModelCreateRequestApiConfigJson = { [key: string]: unknown };
+
+export interface CustomAIModelCreateRequestApi {
+  /** @minLength 1 */
+  model_provider: string;
+  /** @minLength 1 */
+  model_name: string;
+  input_token_cost?: number;
+  output_token_cost?: number;
+  config_json?: CustomAIModelCreateRequestApiConfigJson;
+  key?: string;
+}
+
+export interface CustomAIModelCreateResponseDataApi {
+  id: string;
+}
+
+export interface CustomAIModelCreateResponseApi {
+  /** @minLength 1 */
+  status: string;
+  /** @minLength 1 */
+  message: string;
+  data: CustomAIModelCreateResponseDataApi;
+}
+
+export type ModelHubJSONResponseApiStatus = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiResult = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiData = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiError = { [key: string]: unknown };
+
+export type ModelHubJSONResponseApiDetail = { [key: string]: unknown };
+
+export interface ModelHubJSONResponseApi {
+  status?: ModelHubJSONResponseApiStatus;
+  message?: string;
+  result?: ModelHubJSONResponseApiResult;
+  data?: ModelHubJSONResponseApiData;
+  error?: ModelHubJSONResponseApiError;
+  detail?: ModelHubJSONResponseApiDetail;
+}
+
+export type CustomAIModelEditRequestApiConfigJson = { [key: string]: unknown };
+
+export interface CustomAIModelEditRequestApi {
+  id: string;
+  model_name?: string;
+  input_token_cost?: number;
+  output_token_cost?: number;
+  config_json?: CustomAIModelEditRequestApiConfigJson;
+  key?: string;
+}
+
+export interface CustomAIModelBaselineRequestApi {
+  environment?: string;
+  model_version?: string;
 }
 
 export type DatasetOptimizationListApiOptimizerAlgorithm = typeof DatasetOptimizationListApiOptimizerAlgorithm[keyof typeof DatasetOptimizationListApiOptimizerAlgorithm];

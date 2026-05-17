@@ -7937,9 +7937,30 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/ai-eval-writer/": {
       "post": {
         "operationId": "model-hub_ai-eval-writer_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/AIEvalWriterRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AIEvalWriterResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/ai-filter/": {
@@ -9968,7 +9989,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_custom-models_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubPaginatedResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/custom-models/list/": {
@@ -9976,7 +10016,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_custom-models_list_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubPaginatedResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/custom-models/{id}/": {
@@ -9984,21 +10043,82 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_custom-models_read",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CustomAIModel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       },
       "post": {
         "operationId": "model-hub_custom-models_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CustomAIModelUpdateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CustomAIModel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/custom_models/create/": {
       "post": {
         "operationId": "model-hub_custom_models_create_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CustomAIModelCreateRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/CustomAIModelCreateResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/custom_models/delete/": {
@@ -10014,21 +10134,82 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_custom_models_edit_list",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       },
       "patch": {
         "operationId": "model-hub_custom_models_edit_partial_update",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CustomAIModelEditRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/custom_models/update-baseline/{id}/": {
       "post": {
         "operationId": "model-hub_custom_models_update-baseline_create",
-        "requestBody": null,
+        "requestBody": {
+          "$ref": "#/definitions/CustomAIModelBaselineRequest"
+        },
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/ModelHubJSONResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/dataset-optimization/": {
@@ -27230,6 +27411,44 @@ export const OPENAPI_CONTRACT = Object.freeze({
     }
   },
   "definitions": {
+    "AIEvalWriterRequest": {
+      "required": [
+        "description"
+      ],
+      "type": "object",
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "minLength": 1
+        },
+        "output_format": {
+          "title": "Output format",
+          "type": "string",
+          "enum": [
+            "prompt",
+            "messages"
+          ],
+          "default": "prompt"
+        }
+      }
+    },
+    "AIEvalWriterResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/AIEvalWriterResult"
+        }
+      }
+    },
     "AIFilterRequest": {
       "required": [
         "query",
@@ -33463,6 +33682,202 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "CustomAIModel": {
+      "required": [
+        "user_model_id",
+        "provider",
+        "input_token_cost",
+        "output_token_cost"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        },
+        "user_model_id": {
+          "title": "User model id",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "deleted": {
+          "title": "Deleted",
+          "type": "boolean"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "input_token_cost": {
+          "title": "Input token cost",
+          "type": "number"
+        },
+        "output_token_cost": {
+          "title": "Output token cost",
+          "type": "number"
+        },
+        "config_json": {
+          "title": "Config json",
+          "type": "string",
+          "readOnly": true
+        },
+        "user": {
+          "title": "User",
+          "type": "string",
+          "readOnly": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time",
+          "readOnly": true
+        }
+      }
+    },
+    "CustomAIModelBaselineRequest": {
+      "type": "object",
+      "properties": {
+        "environment": {
+          "title": "Environment",
+          "type": "string",
+          "x-nullable": true
+        },
+        "model_version": {
+          "title": "Model version",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "CustomAIModelCreateRequest": {
+      "required": [
+        "model_provider",
+        "model_name"
+      ],
+      "type": "object",
+      "properties": {
+        "model_provider": {
+          "title": "Model provider",
+          "type": "string",
+          "minLength": 1
+        },
+        "model_name": {
+          "title": "Model name",
+          "type": "string",
+          "minLength": 1
+        },
+        "input_token_cost": {
+          "title": "Input token cost",
+          "type": "number",
+          "x-nullable": true
+        },
+        "output_token_cost": {
+          "title": "Output token cost",
+          "type": "number",
+          "x-nullable": true
+        },
+        "config_json": {
+          "title": "Config json",
+          "type": "object",
+          "default": {}
+        },
+        "key": {
+          "title": "Key",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "CustomAIModelCreateResponse": {
+      "required": [
+        "status",
+        "message",
+        "data"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1
+        },
+        "data": {
+          "$ref": "#/definitions/CustomAIModelCreateResponseData"
+        }
+      }
+    },
+    "CustomAIModelEditRequest": {
+      "required": [
+        "id"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "model_name": {
+          "title": "Model name",
+          "type": "string"
+        },
+        "input_token_cost": {
+          "title": "Input token cost",
+          "type": "number",
+          "x-nullable": true
+        },
+        "output_token_cost": {
+          "title": "Output token cost",
+          "type": "number",
+          "x-nullable": true
+        },
+        "config_json": {
+          "title": "Config json",
+          "type": "object",
+          "default": {}
+        },
+        "key": {
+          "title": "Key",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "CustomAIModelUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "model_name": {
+          "title": "Model name",
+          "type": "string"
+        },
+        "input_token_cost": {
+          "title": "Input token cost",
+          "type": "number",
+          "x-nullable": true
+        },
+        "output_token_cost": {
+          "title": "Output token cost",
+          "type": "number",
+          "x-nullable": true
+        }
+      }
+    },
     "CustomEvalConfig": {
       "required": [
         "eval_template",
@@ -37884,6 +38299,85 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/MessageFeedbackResult"
+        }
+      }
+    },
+    "ModelHubErrorResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "object"
+        },
+        "message": {
+          "title": "Message",
+          "type": "object"
+        },
+        "error": {
+          "title": "Error",
+          "type": "object"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "object"
+        }
+      }
+    },
+    "ModelHubJSONResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "object"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "result": {
+          "title": "Result",
+          "type": "object"
+        },
+        "data": {
+          "title": "Data",
+          "type": "object"
+        },
+        "error": {
+          "title": "Error",
+          "type": "object"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "object"
+        }
+      }
+    },
+    "ModelHubPaginatedResponse": {
+      "required": [
+        "count",
+        "results"
+      ],
+      "type": "object",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "next": {
+          "title": "Next",
+          "type": "string",
+          "x-nullable": true
+        },
+        "previous": {
+          "title": "Previous",
+          "type": "string",
+          "x-nullable": true
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
         }
       }
     },
@@ -47326,6 +47820,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AIEvalWriterResult": {
+      "required": [
+        "prompt"
+      ],
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "title": "Prompt",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "AIFilterSchemaField": {
       "required": [
         "field"
@@ -49115,6 +49622,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       },
       "x-nullable": true
+    },
+    "CustomAIModelCreateResponseData": {
+      "required": [
+        "id"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        }
+      }
     },
     "CustomerInvoicesResult": {
       "required": [
