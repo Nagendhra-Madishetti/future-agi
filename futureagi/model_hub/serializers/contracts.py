@@ -882,37 +882,56 @@ class OptimizeDatasetKnowledgeBaseDetailResponseSerializer(serializers.Serialize
     result = OptimizeDatasetKnowledgeBaseDetailResultSerializer()
 
 
-class PerformanceQueryRequestSerializer(serializers.Serializer):
-    datasets = serializers.ListField(
-        child=serializers.JSONField(),
-        required=False,
-        default=list,
-    )
-    filters = serializers.ListField(
-        child=serializers.JSONField(),
-        required=False,
-        default=list,
-    )
-    breakdown = serializers.ListField(
-        child=serializers.JSONField(),
-        required=False,
-        default=list,
-    )
-    agg_by = serializers.CharField(required=False, allow_blank=True)
-    start_date = serializers.CharField(required=False, allow_blank=True)
-    end_date = serializers.CharField(required=False, allow_blank=True)
+PERFORMANCE_FILTER_TYPES = ("property", "performanceMetric", "performanceTag")
+PERFORMANCE_DATA_TYPES = ("string", "number")
+PERFORMANCE_OPERATORS = (
+    "equal",
+    "notEqual",
+    "greaterThan",
+    "greaterThanEqualTo",
+    "lessThan",
+    "lessThanEqualTo",
+)
+PERFORMANCE_AGGREGATIONS = ("hourly", "daily", "weekly", "monthly")
+PERFORMANCE_TAG_GRAPH_TYPES = ("all", "good", "bad")
 
 
-class PerformanceDetailsRequestSerializer(serializers.Serializer):
-    dataset = serializers.JSONField()
-    filters = serializers.ListField(
-        child=serializers.JSONField(),
-        required=False,
-        default=list,
-    )
-    page = serializers.IntegerField(required=False, default=1)
-    start_date = serializers.CharField(required=False, allow_blank=True)
-    end_date = serializers.CharField(required=False, allow_blank=True)
+class PerformanceFilterSerializer(StrictInputSerializer):
+    type = serializers.ChoiceField(choices=PERFORMANCE_FILTER_TYPES)
+    datatype = serializers.ChoiceField(choices=PERFORMANCE_DATA_TYPES)
+    operator = serializers.ChoiceField(choices=PERFORMANCE_OPERATORS)
+    values = serializers.ListField(child=serializers.JSONField(), default=list)
+    key = serializers.CharField(allow_blank=True)
+    key_id = serializers.CharField(allow_blank=True)
+
+
+class PerformanceDatasetSerializer(StrictInputSerializer):
+    environment = serializers.CharField()
+    version = serializers.CharField()
+    metric_id = serializers.UUIDField()
+    filters = PerformanceFilterSerializer(many=True, required=False, default=list)
+
+
+class PerformanceBreakdownSerializer(StrictInputSerializer):
+    key = serializers.CharField()
+    key_id = serializers.CharField()
+
+
+class PerformanceQueryRequestSerializer(StrictInputSerializer):
+    datasets = PerformanceDatasetSerializer(many=True)
+    filters = PerformanceFilterSerializer(many=True, required=False, default=list)
+    breakdown = PerformanceBreakdownSerializer(many=True, required=False, default=list)
+    agg_by = serializers.ChoiceField(choices=PERFORMANCE_AGGREGATIONS)
+    start_date = serializers.CharField()
+    end_date = serializers.CharField()
+
+
+class PerformanceDetailsRequestSerializer(StrictInputSerializer):
+    dataset = PerformanceDatasetSerializer()
+    filters = PerformanceFilterSerializer(many=True, required=False, default=list)
+    page = serializers.IntegerField(required=False, default=1, min_value=1)
+    start_date = serializers.CharField()
+    end_date = serializers.CharField()
 
 
 class PerformanceExportRequestSerializer(serializers.Serializer):
@@ -920,17 +939,13 @@ class PerformanceExportRequestSerializer(serializers.Serializer):
     metric = serializers.JSONField(required=False)
 
 
-class PerformanceTagDistributionRequestSerializer(serializers.Serializer):
-    dataset = serializers.JSONField()
-    filters = serializers.ListField(
-        child=serializers.JSONField(),
-        required=False,
-        default=list,
-    )
-    agg_by = serializers.CharField(required=False, allow_blank=True)
-    start_date = serializers.CharField(required=False, allow_blank=True)
-    end_date = serializers.CharField(required=False, allow_blank=True)
-    graph_type = serializers.CharField(required=False, allow_blank=True)
+class PerformanceTagDistributionRequestSerializer(StrictInputSerializer):
+    dataset = PerformanceDatasetSerializer()
+    filters = PerformanceFilterSerializer(many=True, required=False, default=list)
+    agg_by = serializers.ChoiceField(choices=PERFORMANCE_AGGREGATIONS)
+    start_date = serializers.CharField()
+    end_date = serializers.CharField()
+    graph_type = serializers.ChoiceField(choices=PERFORMANCE_TAG_GRAPH_TYPES)
 
 
 class PerformanceMetricOptionSerializer(serializers.Serializer):

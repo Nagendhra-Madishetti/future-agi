@@ -95,12 +95,17 @@ class PerformanceView(APIView):
         if not model:
             return self._gm.not_found(get_error_message("AI_MODEL_NOT_FOUND"))
 
-        datasets = request.data.get("datasets")
-        filters = request.data.get("filters")
-        breakdown = request.data.get("breakdown")
-        agg_by = request.data.get("agg_by")
-        start_date = request.data.get("start_date")
-        end_date = request.data.get("end_date")
+        serializer = PerformanceQueryRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return self._gm.bad_request(serializer.errors)
+        query_data = serializer.validated_data
+
+        datasets = query_data["datasets"]
+        filters = query_data.get("filters", [])
+        breakdown = query_data.get("breakdown", [])
+        agg_by = query_data["agg_by"]
+        start_date = query_data["start_date"]
+        end_date = query_data["end_date"]
 
         data = {}
 
@@ -197,14 +202,21 @@ class PerformanceDetailsView(APIView):
         organization = user.organization
 
         limit = 30
-        page = int(request.data.get("page")) or 1
+        serializer = PerformanceDetailsRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                data=serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        query_data = serializer.validated_data
+
+        page = query_data["page"]
         offset = (int(page) - 1) * limit
 
-        dataset = request.data.get("dataset")
-        filters = request.data.get("filters")
-        request.data.get("breakdown")
-        start_date = request.data.get("start_date")
-        end_date = request.data.get("end_date")
+        dataset = query_data["dataset"]
+        filters = query_data.get("filters", [])
+        start_date = query_data["start_date"]
+        end_date = query_data["end_date"]
 
         metric_id = dataset["metric_id"]
 
@@ -589,12 +601,17 @@ class GetPerformanceTagDistributionView(APIView):
     )
     def post(self, request, model_id, *args, **kwargs):
         user_organization = get_request_organization(self.request)
-        datasets = request.data.get("dataset")
-        filters = request.data.get("filters")
-        agg_by = request.data.get("agg_by")
-        start_date = request.data.get("start_date")
-        end_date = request.data.get("end_date")
-        graph_type = request.data.get("graph_type")
+        serializer = PerformanceTagDistributionRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return self._gm.bad_request(serializer.errors)
+        query_data = serializer.validated_data
+
+        datasets = query_data["dataset"]
+        filters = query_data.get("filters", [])
+        agg_by = query_data["agg_by"]
+        start_date = query_data["start_date"]
+        end_date = query_data["end_date"]
+        graph_type = query_data["graph_type"]
 
         if graph_type == "all":
             good_tags_distribution = get_all_tags_distribution(
