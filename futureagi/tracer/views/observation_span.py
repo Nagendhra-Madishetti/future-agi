@@ -82,6 +82,7 @@ from tracer.serializers.observation_span import (
     ObservationSpanSerializer,
     SpanExportQuerySerializer,
     SpanIndexQuerySerializer,
+    SpanListQuerySerializer,
     SpanObserveIndexQuerySerializer,
     SpanObserveListQuerySerializer,
     SubmitFeedbackActionTypeSerializer,
@@ -1021,11 +1022,11 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         List spans filtered by project ID and project version ID with optimized queries.
         """
         try:
-            project_version_id = self.request.query_params.get(
-                "project_version_id"
-            ) or self.request.query_params.get("projectVersionId")
-            if not project_version_id:
-                raise Exception("Project version id is required")
+            serializer = SpanListQuerySerializer(data=request.query_params)
+            if not serializer.is_valid():
+                return self._gm.bad_request(serializer.errors)
+            validated_data = serializer.validated_data
+            project_version_id = str(validated_data["project_version_id"])
 
             project_version = ProjectVersion.objects.get(
                 id=project_version_id,
@@ -1043,7 +1044,11 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             if analytics.should_use_clickhouse(QueryType.SPAN_LIST):
                 try:
                     return self._list_spans_non_observe_clickhouse(
-                        request, project_version_id, project_version, analytics
+                        request,
+                        project_version_id,
+                        project_version,
+                        analytics,
+                        validated_data,
                     )
                 except Exception as e:
                     logger.warning(
@@ -1193,11 +1198,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             )
 
             # Apply filters - combine all filter conditions for better performance
-            filters = self.request.query_params.get(
-                "filters", []
-            ) or self.request.query_params.get("filters", [])
-            if filters:
-                filters = json.loads(filters)
+            filters = validated_data.get("filters", [])
             if filters:
                 # Combine all filter conditions into a single Q object
                 combined_filter_conditions = Q()
@@ -1276,12 +1277,8 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             total_count = base_query.count()
 
             # Apply pagination
-            page_number = int(self.request.query_params.get("page_number", 0)) or int(
-                self.request.query_params.get("pageNumber", 0)
-            )
-            page_size = int(self.request.query_params.get("page_size", 30)) or int(
-                self.request.query_params.get("pageSize", 30)
-            )
+            page_number = validated_data.get("page_number", 0)
+            page_size = validated_data.get("page_size", 30)
             start = page_number * page_size
             base_query = base_query[start : start + page_size]
 
@@ -2295,26 +2292,14 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         return self._gm.success_response(response)
 
     def _list_spans_non_observe_clickhouse(
-        self, request, project_version_id, project_version, analytics
+        self, request, project_version_id, project_version, analytics, validated_data
     ):
         """List spans (non-observe, prompt version/eval task views) using ClickHouse backend."""
         from tracer.services.clickhouse.query_builders import SpanListQueryBuilder
 
-        filters_raw = self.request.query_params.get(
-            "filters", []
-        ) or self.request.query_params.get("filters", [])
-        filters = (
-            json.loads(filters_raw)
-            if isinstance(filters_raw, str) and filters_raw
-            else []
-        )
-
-        page_number = int(self.request.query_params.get("page_number", 0)) or int(
-            self.request.query_params.get("pageNumber", 0)
-        )
-        page_size = int(self.request.query_params.get("page_size", 30)) or int(
-            self.request.query_params.get("pageSize", 30)
-        )
+        filters = validated_data.get("filters", [])
+        page_number = validated_data.get("page_number", 0)
+        page_size = validated_data.get("page_size", 30)
 
         project_id = str(project_version.project_id)
 

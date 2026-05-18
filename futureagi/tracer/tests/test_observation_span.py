@@ -4,6 +4,7 @@ ObservationSpan API Tests
 Tests for /tracer/observation-span/ endpoints.
 """
 
+import json
 import uuid
 from datetime import timedelta
 
@@ -289,10 +290,31 @@ class TestObservationSpanListSpansAPI:
             "/tracer/observation-span/list_spans/",
             {
                 "project_version_id": str(project_version.id),
-                "observation_type": "llm",
+                "filters": json.dumps(
+                    [
+                        {
+                            "column_id": "node_type",
+                            "filter_config": {
+                                "filter_type": "text",
+                                "filter_op": "equals",
+                                "filter_value": "llm",
+                            },
+                        }
+                    ]
+                ),
             },
         )
         assert response.status_code == status.HTTP_200_OK
+
+    def test_list_spans_rejects_legacy_project_version_alias(
+        self, auth_client, project_version
+    ):
+        response = auth_client.get(
+            "/tracer/observation-span/list_spans/",
+            {"projectVersionId": str(project_version.id), "filters": "[]"},
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.integration

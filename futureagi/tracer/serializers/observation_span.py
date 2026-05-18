@@ -131,6 +131,15 @@ class SpanExportQuerySerializer(StrictInputSerializer):
     filters = filter_list_query_param_field(required=False, default=list)
 
 
+class SpanListQuerySerializer(StrictInputSerializer):
+    project_version_id = serializers.UUIDField()
+    filters = filter_list_query_param_field(required=False, default=list)
+    page_number = serializers.IntegerField(required=False, default=0, min_value=0)
+    page_size = serializers.IntegerField(
+        required=False, default=30, min_value=1, max_value=500
+    )
+
+
 class SpanObserveListQuerySerializer(StrictInputSerializer):
     project_id = serializers.UUIDField()
     user_id = serializers.CharField(required=False, allow_blank=True)

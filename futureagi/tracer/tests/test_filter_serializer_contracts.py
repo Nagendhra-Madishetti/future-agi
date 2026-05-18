@@ -19,6 +19,7 @@ from tracer.serializers.observation_span import (
     ObservationAttributeListQuerySerializer,
     SpanExportQuerySerializer,
     SpanIndexQuerySerializer,
+    SpanListQuerySerializer,
     SpanObserveIndexQuerySerializer,
     SpanObserveListQuerySerializer,
 )
@@ -684,6 +685,19 @@ class TestFilterSerializerContracts:
 
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["filters"][0]["column_id"] == "customer_tier"
+
+    def test_span_list_query_rejects_camel_case_aliases(self):
+        serializer = SpanListQuerySerializer(
+            data={
+                "projectVersionId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "pageNumber": "1",
+                "filters": json.dumps([_span_attr_filter()]),
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "projectVersionId" in serializer.errors
+        assert "pageNumber" in serializer.errors
 
     def test_span_observe_list_query_rejects_camel_case_aliases(self):
         serializer = SpanObserveListQuerySerializer(
