@@ -151,8 +151,14 @@ from model_hub.serializers.contracts import (
     HuggingFaceDatasetDetailRequestSerializer,
     HuggingFaceDatasetListResponseSerializer,
     HuggingFaceDatasetListRequestSerializer,
+    LegacyKnowledgeBaseCreateResponseSerializer,
     LegacyKnowledgeBaseFilesRequestSerializer,
+    LegacyKnowledgeBaseFilesResponseSerializer,
+    LegacyKnowledgeBaseListResponseSerializer,
     LegacyKnowledgeBaseMutationRequestSerializer,
+    LegacyKnowledgeBaseMutationResponseSerializer,
+    LegacyKnowledgeBaseSdkCodeResponseSerializer,
+    LegacyKnowledgeBaseTableResponseSerializer,
     ManualDatasetCreateRequestSerializer,
     MergeDatasetRequestSerializer,
     MODEL_HUB_ERROR_RESPONSES,
@@ -14294,7 +14300,10 @@ class CreateKnowledgeBaseView(APIView):
 
     # Api for fetching sdk code
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: LegacyKnowledgeBaseSdkCodeResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, *args, **kwargs):
         try:
@@ -14352,7 +14361,10 @@ class CreateKnowledgeBaseView(APIView):
 
     @swagger_auto_schema(
         request_body=LegacyKnowledgeBaseMutationRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: LegacyKnowledgeBaseCreateResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, *args, **kwargs):
         try:
@@ -14490,7 +14502,10 @@ class CreateKnowledgeBaseView(APIView):
     # Update knowledge base name and/or Add files
     @swagger_auto_schema(
         request_body=LegacyKnowledgeBaseMutationRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: LegacyKnowledgeBaseMutationResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def patch(self, request, *args, **kwargs):
         try:
@@ -14640,7 +14655,10 @@ class GetKnowledgeBaseDetailsView(APIView):
 
     # List knowledge base table data
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: LegacyKnowledgeBaseTableResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, *args, **kwargs):
         try:
@@ -14791,7 +14809,10 @@ class ListKnowledgeBaseDetailsView(APIView):
 
     # List knowledge base in org for dropdowns
     @swagger_auto_schema(
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: LegacyKnowledgeBaseListResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, *args, **kwargs):
         try:
@@ -14841,7 +14862,10 @@ class ExistingKnowledgeBaseView(APIView):
     # List files present in the KB
     @swagger_auto_schema(
         request_body=LegacyKnowledgeBaseFilesRequestSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: LegacyKnowledgeBaseFilesResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def post(self, request, *args, **kwargs):
         try:

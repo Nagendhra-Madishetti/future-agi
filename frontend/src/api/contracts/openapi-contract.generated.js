@@ -16170,7 +16170,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/KnowledgeBaseListResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16197,7 +16197,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "201": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/KnowledgeBaseResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16316,7 +16316,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/KnowledgeBaseResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16343,7 +16343,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/KnowledgeBaseResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16404,7 +16404,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/LegacyKnowledgeBaseSdkCodeResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16431,7 +16431,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/LegacyKnowledgeBaseCreateResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16458,7 +16458,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/LegacyKnowledgeBaseMutationResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16493,7 +16493,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/LegacyKnowledgeBaseFilesResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16526,7 +16526,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/LegacyKnowledgeBaseTableResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -16553,7 +16553,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ModelHubJSONResponse"
+            "$ref": "#/definitions/LegacyKnowledgeBaseListResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -45994,6 +45994,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "KnowledgeBaseListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/KnowledgeBasePaginatedResult"
+        }
+      }
+    },
+    "KnowledgeBaseResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/KnowledgeBaseItem"
+        }
+      }
+    },
     "LangfuseHealthResponse": {
       "required": [
         "status",
@@ -46129,6 +46161,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "LegacyKnowledgeBaseCreateResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/LegacyKnowledgeBaseCreateResult"
+        }
+      }
+    },
     "LegacyKnowledgeBaseFilesRequest": {
       "required": [
         "kb_id"
@@ -46164,6 +46212,38 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "LegacyKnowledgeBaseFilesResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/LegacyKnowledgeBaseFilesResult"
+        }
+      }
+    },
+    "LegacyKnowledgeBaseListResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/LegacyKnowledgeBaseListResult"
+        }
+      }
+    },
     "LegacyKnowledgeBaseMutationRequest": {
       "type": "object",
       "properties": {
@@ -46183,6 +46263,54 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "format": "uuid"
           },
           "default": []
+        }
+      }
+    },
+    "LegacyKnowledgeBaseMutationResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/LegacyKnowledgeBaseMutationResult"
+        }
+      }
+    },
+    "LegacyKnowledgeBaseSdkCodeResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/LegacyKnowledgeBaseSdkCodeResult"
+        }
+      }
+    },
+    "LegacyKnowledgeBaseTableResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/LegacyKnowledgeBaseTableResult"
         }
       }
     },
@@ -63226,6 +63354,97 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "KnowledgeBasePaginatedResult": {
+      "required": [
+        "count",
+        "results",
+        "total_pages",
+        "current_page"
+      ],
+      "type": "object",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "next": {
+          "title": "Next",
+          "type": "string",
+          "x-nullable": true
+        },
+        "previous": {
+          "title": "Previous",
+          "type": "string",
+          "x-nullable": true
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/KnowledgeBaseItem"
+          }
+        },
+        "total_pages": {
+          "title": "Total pages",
+          "type": "integer"
+        },
+        "current_page": {
+          "title": "Current page",
+          "type": "integer"
+        },
+        "total_queries": {
+          "title": "Total queries",
+          "type": "integer"
+        }
+      }
+    },
+    "KnowledgeBaseItem": {
+      "required": [
+        "id",
+        "name",
+        "embedding_model",
+        "chunk_size",
+        "organization",
+        "created_at",
+        "updated_at"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "embedding_model": {
+          "title": "Embedding model",
+          "type": "string",
+          "minLength": 1
+        },
+        "chunk_size": {
+          "title": "Chunk size",
+          "type": "integer"
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid"
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "LangfuseIngestionEvent": {
       "required": [
         "type"
@@ -63342,6 +63561,180 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "data_available": {
           "title": "Data available",
           "type": "boolean"
+        }
+      }
+    },
+    "LegacyKnowledgeBaseCreateResult": {
+      "required": [
+        "detail",
+        "kb_id",
+        "kb_name",
+        "file_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "minLength": 1
+        },
+        "kb_id": {
+          "title": "Kb id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "kb_name": {
+          "title": "Kb name",
+          "type": "string",
+          "minLength": 1
+        },
+        "file_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "LegacyKnowledgeBaseFilesResult": {
+      "required": [
+        "table_data",
+        "last_updated",
+        "status",
+        "status_count",
+        "total_rows"
+      ],
+      "type": "object",
+      "properties": {
+        "table_data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LegacyKnowledgeBaseFileRow"
+          }
+        },
+        "last_updated": {
+          "title": "Last updated",
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "status_count": {
+          "title": "Status count",
+          "type": "integer"
+        },
+        "total_rows": {
+          "title": "Total rows",
+          "type": "integer"
+        }
+      }
+    },
+    "LegacyKnowledgeBaseListResult": {
+      "required": [
+        "table_data"
+      ],
+      "type": "object",
+      "properties": {
+        "table_data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LegacyKnowledgeBaseOption"
+          }
+        }
+      }
+    },
+    "LegacyKnowledgeBaseMutationResult": {
+      "required": [
+        "id",
+        "name",
+        "organization",
+        "status",
+        "files",
+        "updated_at",
+        "created_by",
+        "last_error"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time"
+        },
+        "created_by": {
+          "title": "Created by",
+          "type": "string",
+          "x-nullable": true
+        },
+        "last_error": {
+          "title": "Last error",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "LegacyKnowledgeBaseSdkCodeResult": {
+      "required": [
+        "code"
+      ],
+      "type": "object",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "LegacyKnowledgeBaseTableResult": {
+      "type": "object",
+      "properties": {
+        "column_config": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LegacyKnowledgeBaseTableColumn"
+          }
+        },
+        "table_data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LegacyKnowledgeBaseTableRow"
+          }
+        },
+        "total_rows": {
+          "title": "Total rows",
+          "type": "integer"
         }
       }
     },
@@ -69959,6 +70352,138 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Updated at",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "LegacyKnowledgeBaseFileRow": {
+      "required": [
+        "id",
+        "name",
+        "file_size",
+        "status",
+        "updated",
+        "updated_by"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "file_size": {
+          "title": "File size",
+          "type": "integer"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "updated": {
+          "title": "Updated",
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_by": {
+          "title": "Updated by",
+          "type": "string",
+          "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "LegacyKnowledgeBaseOption": {
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "LegacyKnowledgeBaseTableColumn": {
+      "required": [
+        "id",
+        "name"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "LegacyKnowledgeBaseTableRow": {
+      "required": [
+        "id",
+        "name",
+        "files_uploaded",
+        "status",
+        "updated_at",
+        "created_by"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "minLength": 1
+        },
+        "files_uploaded": {
+          "title": "Files uploaded",
+          "type": "integer"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "minLength": 1
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        },
+        "updated_at": {
+          "title": "Updated at",
+          "type": "string",
+          "format": "date-time"
+        },
+        "created_by": {
+          "title": "Created by",
+          "type": "string",
+          "x-nullable": true
         }
       }
     },

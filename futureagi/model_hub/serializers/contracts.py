@@ -423,6 +423,36 @@ class KnowledgeBaseEmbeddingModelsResponseSerializer(serializers.Serializer):
     result = EmbeddingModelOptionSerializer(many=True)
 
 
+class KnowledgeBaseItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    embedding_model = serializers.CharField()
+    chunk_size = serializers.IntegerField()
+    organization = serializers.UUIDField()
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
+
+
+class KnowledgeBaseResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = KnowledgeBaseItemSerializer()
+
+
+class KnowledgeBasePaginatedResultSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    previous = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    results = KnowledgeBaseItemSerializer(many=True)
+    total_pages = serializers.IntegerField()
+    current_page = serializers.IntegerField()
+    total_queries = serializers.IntegerField(required=False)
+
+
+class KnowledgeBaseListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = KnowledgeBasePaginatedResultSerializer()
+
+
 class LegacyKnowledgeBaseMutationRequestSerializer(serializers.Serializer):
     name = serializers.CharField(required=False, allow_blank=True)
     kb_id = serializers.UUIDField(required=False)
@@ -443,6 +473,108 @@ class LegacyKnowledgeBaseFilesRequestSerializer(serializers.Serializer):
     )
     page_number = serializers.IntegerField(required=False, default=0)
     page_size = serializers.IntegerField(required=False, default=10)
+
+
+class LegacyKnowledgeBaseSdkCodeResultSerializer(serializers.Serializer):
+    code = serializers.CharField()
+
+
+class LegacyKnowledgeBaseSdkCodeResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = LegacyKnowledgeBaseSdkCodeResultSerializer()
+
+
+class LegacyKnowledgeBaseCreateResultSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    kb_id = serializers.UUIDField()
+    kb_name = serializers.CharField()
+    file_ids = serializers.ListField(child=serializers.UUIDField())
+
+
+class LegacyKnowledgeBaseCreateResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = LegacyKnowledgeBaseCreateResultSerializer()
+
+
+class LegacyKnowledgeBaseMutationResultSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    organization = serializers.UUIDField()
+    status = serializers.CharField()
+    files = serializers.ListField(child=serializers.UUIDField())
+    updated_at = serializers.DateTimeField()
+    created_by = serializers.CharField(allow_blank=True, allow_null=True)
+    last_error = serializers.CharField(allow_blank=True, allow_null=True)
+
+
+class LegacyKnowledgeBaseMutationResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = LegacyKnowledgeBaseMutationResultSerializer()
+
+
+class LegacyKnowledgeBaseTableColumnSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField()
+
+
+class LegacyKnowledgeBaseTableRowSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    files_uploaded = serializers.IntegerField()
+    status = serializers.CharField()
+    error = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    updated_at = serializers.DateTimeField()
+    created_by = serializers.CharField(allow_blank=True, allow_null=True)
+
+
+class LegacyKnowledgeBaseTableResultSerializer(serializers.Serializer):
+    column_config = LegacyKnowledgeBaseTableColumnSerializer(
+        many=True, required=False
+    )
+    table_data = LegacyKnowledgeBaseTableRowSerializer(many=True, required=False)
+    total_rows = serializers.IntegerField(required=False)
+
+
+class LegacyKnowledgeBaseTableResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = LegacyKnowledgeBaseTableResultSerializer()
+
+
+class LegacyKnowledgeBaseOptionSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class LegacyKnowledgeBaseListResultSerializer(serializers.Serializer):
+    table_data = LegacyKnowledgeBaseOptionSerializer(many=True)
+
+
+class LegacyKnowledgeBaseListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = LegacyKnowledgeBaseListResultSerializer()
+
+
+class LegacyKnowledgeBaseFileRowSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    file_size = serializers.IntegerField()
+    status = serializers.CharField()
+    updated = serializers.DateTimeField()
+    updated_by = serializers.CharField(allow_blank=True, allow_null=True)
+    error = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+
+class LegacyKnowledgeBaseFilesResultSerializer(serializers.Serializer):
+    table_data = LegacyKnowledgeBaseFileRowSerializer(many=True)
+    last_updated = serializers.DateTimeField()
+    status = serializers.CharField()
+    status_count = serializers.IntegerField()
+    total_rows = serializers.IntegerField()
+
+
+class LegacyKnowledgeBaseFilesResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = LegacyKnowledgeBaseFilesResultSerializer()
 
 
 class OptimizeDatasetMutationRequestSerializer(serializers.Serializer):

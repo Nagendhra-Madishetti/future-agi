@@ -897,22 +897,34 @@ def test_model_hub_ai_writer_and_custom_model_endpoints_have_response_contracts(
         ("GET", "/model-hub/ground-truth/{ground_truth_id}/status/"): (
             "GroundTruthStatusResponse"
         ),
-        ("GET", "/model-hub/kb/"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/kb/"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/kb/"): "KnowledgeBaseListResponse",
+        ("POST", "/model-hub/kb/"): "KnowledgeBaseResponse",
         ("GET", "/model-hub/kb/supported-embedding-models"): (
             "KnowledgeBaseEmbeddingModelsResponse"
         ),
         ("GET", "/model-hub/kb/supported_embedding_models/"): (
             "KnowledgeBaseEmbeddingModelsResponse"
         ),
-        ("GET", "/model-hub/kb/{id}/"): "ModelHubJSONResponse",
-        ("PUT", "/model-hub/kb/{id}/"): "ModelHubJSONResponse",
-        ("GET", "/model-hub/knowledge-base/"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/knowledge-base/"): "ModelHubJSONResponse",
-        ("PATCH", "/model-hub/knowledge-base/"): "ModelHubJSONResponse",
-        ("POST", "/model-hub/knowledge-base/files/"): "ModelHubJSONResponse",
-        ("GET", "/model-hub/knowledge-base/get/"): "ModelHubJSONResponse",
-        ("GET", "/model-hub/knowledge-base/list/"): "ModelHubJSONResponse",
+        ("GET", "/model-hub/kb/{id}/"): "KnowledgeBaseResponse",
+        ("PUT", "/model-hub/kb/{id}/"): "KnowledgeBaseResponse",
+        ("GET", "/model-hub/knowledge-base/"): (
+            "LegacyKnowledgeBaseSdkCodeResponse"
+        ),
+        ("POST", "/model-hub/knowledge-base/"): (
+            "LegacyKnowledgeBaseCreateResponse"
+        ),
+        ("PATCH", "/model-hub/knowledge-base/"): (
+            "LegacyKnowledgeBaseMutationResponse"
+        ),
+        ("POST", "/model-hub/knowledge-base/files/"): (
+            "LegacyKnowledgeBaseFilesResponse"
+        ),
+        ("GET", "/model-hub/knowledge-base/get/"): (
+            "LegacyKnowledgeBaseTableResponse"
+        ),
+        ("GET", "/model-hub/knowledge-base/list/"): (
+            "LegacyKnowledgeBaseListResponse"
+        ),
         ("GET", "/model-hub/metrics/by-column/"): "ModelHubJSONResponse",
         ("GET", "/model-hub/optimize-dataset/kb/{optim_id}/"): (
             "ModelHubJSONResponse"

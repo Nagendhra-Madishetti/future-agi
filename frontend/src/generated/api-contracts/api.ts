@@ -457,6 +457,8 @@ import type {
   KnowledgeBaseApi,
   KnowledgeBaseCreateApi,
   KnowledgeBaseEmbeddingModelsResponseApi,
+  KnowledgeBaseListResponseApi,
+  KnowledgeBaseResponseApi,
   LangfuseHealthResponseApi,
   LangfuseIngestionRequestApi,
   LangfuseIngestionResponseApi,
@@ -464,8 +466,14 @@ import type {
   LegacyEvalTemplateUpdateResponseApi,
   LegacyEvalTemplatesRequestApi,
   LegacyEvalTemplatesResponseApi,
+  LegacyKnowledgeBaseCreateResponseApi,
   LegacyKnowledgeBaseFilesRequestApi,
+  LegacyKnowledgeBaseFilesResponseApi,
+  LegacyKnowledgeBaseListResponseApi,
   LegacyKnowledgeBaseMutationRequestApi,
+  LegacyKnowledgeBaseMutationResponseApi,
+  LegacyKnowledgeBaseSdkCodeResponseApi,
+  LegacyKnowledgeBaseTableResponseApi,
   LinearTeamsResponseApi,
   LiteLLMModelVoicesResponseApi,
   LitellmApi,
@@ -34907,7 +34915,7 @@ export const modelHubGroundTruthStatusList = async (groundTruthId: string, optio
 
 
 export type modelHubKbListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: KnowledgeBaseListResponseApi
   status: 200
 }
 
@@ -34978,7 +34986,7 @@ export const modelHubKbList = async (params?: ModelHubKbListParams, options?: Re
 
 
 export type modelHubKbCreateResponse201 = {
-  data: ModelHubJSONResponseApi
+  data: KnowledgeBaseResponseApi
   status: 201
 }
 
@@ -35114,7 +35122,7 @@ export const modelHubKbSupportedEmbeddingModels = async (params?: ModelHubKbSupp
 
 
 export type modelHubKbReadResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: KnowledgeBaseResponseApi
   status: 200
 }
 
@@ -35178,7 +35186,7 @@ export const modelHubKbRead = async (id: string, options?: RequestInit): Promise
 
 
 export type modelHubKbUpdateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: KnowledgeBaseResponseApi
   status: 200
 }
 
@@ -35346,7 +35354,7 @@ export const modelHubKbDelete = async (id: string, options?: RequestInit): Promi
 
 
 export type modelHubKnowledgeBaseListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: LegacyKnowledgeBaseSdkCodeResponseApi
   status: 200
 }
 
@@ -35406,7 +35414,7 @@ export const modelHubKnowledgeBaseList = async ( options?: RequestInit): Promise
 
 
 export type modelHubKnowledgeBaseCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: LegacyKnowledgeBaseCreateResponseApi
   status: 200
 }
 
@@ -35467,7 +35475,7 @@ export const modelHubKnowledgeBaseCreate = async (legacyKnowledgeBaseMutationReq
 
 
 export type modelHubKnowledgeBasePartialUpdateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: LegacyKnowledgeBaseMutationResponseApi
   status: 200
 }
 
@@ -35561,7 +35569,7 @@ export const modelHubKnowledgeBaseDelete = async ( options?: RequestInit): Promi
 
 
 export type modelHubKnowledgeBaseFilesCreateResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: LegacyKnowledgeBaseFilesResponseApi
   status: 200
 }
 
@@ -35655,7 +35663,7 @@ export const modelHubKnowledgeBaseFilesDelete = async ( options?: RequestInit): 
 
 
 export type modelHubKnowledgeBaseGetListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: LegacyKnowledgeBaseTableResponseApi
   status: 200
 }
 
@@ -35715,7 +35723,7 @@ export const modelHubKnowledgeBaseGetList = async ( options?: RequestInit): Prom
 
 
 export type modelHubKnowledgeBaseListListResponse200 = {
-  data: ModelHubJSONResponseApi
+  data: LegacyKnowledgeBaseListResponseApi
   status: 200
 }
 

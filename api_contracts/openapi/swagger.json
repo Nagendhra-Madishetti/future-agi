@@ -31186,7 +31186,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/KnowledgeBaseListResponse"
                         }
                     },
                     "400": {
@@ -31242,7 +31242,7 @@
                     "201": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/KnowledgeBaseResponse"
                         }
                     },
                     "400": {
@@ -31436,7 +31436,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/KnowledgeBaseResponse"
                         }
                     },
                     "400": {
@@ -31492,7 +31492,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/KnowledgeBaseResponse"
                         }
                     },
                     "400": {
@@ -31619,7 +31619,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/LegacyKnowledgeBaseSdkCodeResponse"
                         }
                     },
                     "400": {
@@ -31674,7 +31674,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/LegacyKnowledgeBaseCreateResponse"
                         }
                     },
                     "400": {
@@ -31729,7 +31729,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/LegacyKnowledgeBaseMutationResponse"
                         }
                     },
                     "400": {
@@ -31800,7 +31800,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/LegacyKnowledgeBaseFilesResponse"
                         }
                     },
                     "400": {
@@ -31862,7 +31862,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/LegacyKnowledgeBaseTableResponse"
                         }
                     },
                     "400": {
@@ -31911,7 +31911,7 @@
                     "200": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ModelHubJSONResponse"
+                            "$ref": "#/definitions/LegacyKnowledgeBaseListResponse"
                         }
                     },
                     "400": {
@@ -81041,6 +81041,113 @@
                 }
             }
         },
+        "KnowledgeBaseItem": {
+            "required": [
+                "id",
+                "name",
+                "embedding_model",
+                "chunk_size",
+                "organization",
+                "created_at",
+                "updated_at"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "embedding_model": {
+                    "title": "Embedding model",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "chunk_size": {
+                    "title": "Chunk size",
+                    "type": "integer"
+                },
+                "organization": {
+                    "title": "Organization",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "created_at": {
+                    "title": "Created at",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "KnowledgeBasePaginatedResult": {
+            "required": [
+                "count",
+                "results",
+                "total_pages",
+                "current_page"
+            ],
+            "type": "object",
+            "properties": {
+                "count": {
+                    "title": "Count",
+                    "type": "integer"
+                },
+                "next": {
+                    "title": "Next",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "previous": {
+                    "title": "Previous",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/KnowledgeBaseItem"
+                    }
+                },
+                "total_pages": {
+                    "title": "Total pages",
+                    "type": "integer"
+                },
+                "current_page": {
+                    "title": "Current page",
+                    "type": "integer"
+                },
+                "total_queries": {
+                    "title": "Total queries",
+                    "type": "integer"
+                }
+            }
+        },
+        "KnowledgeBaseListResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/KnowledgeBasePaginatedResult"
+                }
+            }
+        },
         "KnowledgeBaseCreate": {
             "required": [
                 "name",
@@ -81089,6 +81196,22 @@
                     "type": "string",
                     "format": "date-time",
                     "readOnly": true
+                }
+            }
+        },
+        "KnowledgeBaseResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/KnowledgeBaseItem"
                 }
             }
         },
@@ -81182,6 +81305,35 @@
                 }
             }
         },
+        "LegacyKnowledgeBaseSdkCodeResult": {
+            "required": [
+                "code"
+            ],
+            "type": "object",
+            "properties": {
+                "code": {
+                    "title": "Code",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "LegacyKnowledgeBaseSdkCodeResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/LegacyKnowledgeBaseSdkCodeResult"
+                }
+            }
+        },
         "LegacyKnowledgeBaseMutationRequest": {
             "type": "object",
             "properties": {
@@ -81201,6 +81353,128 @@
                         "format": "uuid"
                     },
                     "default": []
+                }
+            }
+        },
+        "LegacyKnowledgeBaseCreateResult": {
+            "required": [
+                "detail",
+                "kb_id",
+                "kb_name",
+                "file_ids"
+            ],
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "title": "Detail",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "kb_id": {
+                    "title": "Kb id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "kb_name": {
+                    "title": "Kb name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "file_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }
+            }
+        },
+        "LegacyKnowledgeBaseCreateResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/LegacyKnowledgeBaseCreateResult"
+                }
+            }
+        },
+        "LegacyKnowledgeBaseMutationResult": {
+            "required": [
+                "id",
+                "name",
+                "organization",
+                "status",
+                "files",
+                "updated_at",
+                "created_by",
+                "last_error"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "organization": {
+                    "title": "Organization",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "created_by": {
+                    "title": "Created by",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "last_error": {
+                    "title": "Last error",
+                    "type": "string",
+                    "x-nullable": true
+                }
+            }
+        },
+        "LegacyKnowledgeBaseMutationResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/LegacyKnowledgeBaseMutationResult"
                 }
             }
         },
@@ -81236,6 +81510,257 @@
                     "title": "Page size",
                     "type": "integer",
                     "default": 10
+                }
+            }
+        },
+        "LegacyKnowledgeBaseFileRow": {
+            "required": [
+                "id",
+                "name",
+                "file_size",
+                "status",
+                "updated",
+                "updated_by"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "file_size": {
+                    "title": "File size",
+                    "type": "integer"
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "updated": {
+                    "title": "Updated",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "updated_by": {
+                    "title": "Updated by",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "string",
+                    "x-nullable": true
+                }
+            }
+        },
+        "LegacyKnowledgeBaseFilesResult": {
+            "required": [
+                "table_data",
+                "last_updated",
+                "status",
+                "status_count",
+                "total_rows"
+            ],
+            "type": "object",
+            "properties": {
+                "table_data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/LegacyKnowledgeBaseFileRow"
+                    }
+                },
+                "last_updated": {
+                    "title": "Last updated",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "status_count": {
+                    "title": "Status count",
+                    "type": "integer"
+                },
+                "total_rows": {
+                    "title": "Total rows",
+                    "type": "integer"
+                }
+            }
+        },
+        "LegacyKnowledgeBaseFilesResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/LegacyKnowledgeBaseFilesResult"
+                }
+            }
+        },
+        "LegacyKnowledgeBaseTableColumn": {
+            "required": [
+                "id",
+                "name"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "LegacyKnowledgeBaseTableRow": {
+            "required": [
+                "id",
+                "name",
+                "files_uploaded",
+                "status",
+                "updated_at",
+                "created_by"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "files_uploaded": {
+                    "title": "Files uploaded",
+                    "type": "integer"
+                },
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "created_by": {
+                    "title": "Created by",
+                    "type": "string",
+                    "x-nullable": true
+                }
+            }
+        },
+        "LegacyKnowledgeBaseTableResult": {
+            "type": "object",
+            "properties": {
+                "column_config": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/LegacyKnowledgeBaseTableColumn"
+                    }
+                },
+                "table_data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/LegacyKnowledgeBaseTableRow"
+                    }
+                },
+                "total_rows": {
+                    "title": "Total rows",
+                    "type": "integer"
+                }
+            }
+        },
+        "LegacyKnowledgeBaseTableResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/LegacyKnowledgeBaseTableResult"
+                }
+            }
+        },
+        "LegacyKnowledgeBaseOption": {
+            "required": [
+                "id",
+                "name"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "LegacyKnowledgeBaseListResult": {
+            "required": [
+                "table_data"
+            ],
+            "type": "object",
+            "properties": {
+                "table_data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/LegacyKnowledgeBaseOption"
+                    }
+                }
+            }
+        },
+        "LegacyKnowledgeBaseListResponse": {
+            "required": [
+                "status",
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean"
+                },
+                "result": {
+                    "$ref": "#/definitions/LegacyKnowledgeBaseListResult"
                 }
             }
         },

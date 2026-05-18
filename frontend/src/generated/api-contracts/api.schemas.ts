@@ -8005,6 +8005,33 @@ export interface GroundTruthStatusResponseApi {
   result: GroundTruthStatusResponseResultApi;
 }
 
+export interface KnowledgeBaseItemApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  embedding_model: string;
+  chunk_size: number;
+  organization: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeBasePaginatedResultApi {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: KnowledgeBaseItemApi[];
+  total_pages: number;
+  current_page: number;
+  total_queries?: number;
+}
+
+export interface KnowledgeBaseListResponseApi {
+  status: boolean;
+  result: KnowledgeBasePaginatedResultApi;
+}
+
 export type KnowledgeBaseCreateApiEmbeddingModel = typeof KnowledgeBaseCreateApiEmbeddingModel[keyof typeof KnowledgeBaseCreateApiEmbeddingModel];
 
 
@@ -8028,6 +8055,11 @@ export interface KnowledgeBaseCreateApi {
   organization?: string;
   readonly created_at?: string;
   readonly updated_at?: string;
+}
+
+export interface KnowledgeBaseResponseApi {
+  status: boolean;
+  result: KnowledgeBaseItemApi;
 }
 
 export interface EmbeddingModelOptionApi {
@@ -8067,10 +8099,52 @@ export interface KnowledgeBaseApi {
   readonly updated_at?: string;
 }
 
+export interface LegacyKnowledgeBaseSdkCodeResultApi {
+  /** @minLength 1 */
+  code: string;
+}
+
+export interface LegacyKnowledgeBaseSdkCodeResponseApi {
+  status: boolean;
+  result: LegacyKnowledgeBaseSdkCodeResultApi;
+}
+
 export interface LegacyKnowledgeBaseMutationRequestApi {
   name?: string;
   kb_id?: string;
   files?: string[];
+}
+
+export interface LegacyKnowledgeBaseCreateResultApi {
+  /** @minLength 1 */
+  detail: string;
+  kb_id: string;
+  /** @minLength 1 */
+  kb_name: string;
+  file_ids: string[];
+}
+
+export interface LegacyKnowledgeBaseCreateResponseApi {
+  status: boolean;
+  result: LegacyKnowledgeBaseCreateResultApi;
+}
+
+export interface LegacyKnowledgeBaseMutationResultApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  organization: string;
+  /** @minLength 1 */
+  status: string;
+  files: string[];
+  updated_at: string;
+  created_by: string;
+  last_error: string;
+}
+
+export interface LegacyKnowledgeBaseMutationResponseApi {
+  status: boolean;
+  result: LegacyKnowledgeBaseMutationResultApi;
 }
 
 export type LegacyKnowledgeBaseFilesRequestApiSortItem = { [key: string]: unknown };
@@ -8081,6 +8155,77 @@ export interface LegacyKnowledgeBaseFilesRequestApi {
   sort?: LegacyKnowledgeBaseFilesRequestApiSortItem[];
   page_number?: number;
   page_size?: number;
+}
+
+export interface LegacyKnowledgeBaseFileRowApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  file_size: number;
+  /** @minLength 1 */
+  status: string;
+  updated: string;
+  updated_by: string;
+  error?: string;
+}
+
+export interface LegacyKnowledgeBaseFilesResultApi {
+  table_data: LegacyKnowledgeBaseFileRowApi[];
+  last_updated: string;
+  /** @minLength 1 */
+  status: string;
+  status_count: number;
+  total_rows: number;
+}
+
+export interface LegacyKnowledgeBaseFilesResponseApi {
+  status: boolean;
+  result: LegacyKnowledgeBaseFilesResultApi;
+}
+
+export interface LegacyKnowledgeBaseTableColumnApi {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  name: string;
+}
+
+export interface LegacyKnowledgeBaseTableRowApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+  files_uploaded: number;
+  /** @minLength 1 */
+  status: string;
+  error?: string;
+  updated_at: string;
+  created_by: string;
+}
+
+export interface LegacyKnowledgeBaseTableResultApi {
+  column_config?: LegacyKnowledgeBaseTableColumnApi[];
+  table_data?: LegacyKnowledgeBaseTableRowApi[];
+  total_rows?: number;
+}
+
+export interface LegacyKnowledgeBaseTableResponseApi {
+  status: boolean;
+  result: LegacyKnowledgeBaseTableResultApi;
+}
+
+export interface LegacyKnowledgeBaseOptionApi {
+  id: string;
+  /** @minLength 1 */
+  name: string;
+}
+
+export interface LegacyKnowledgeBaseListResultApi {
+  table_data: LegacyKnowledgeBaseOptionApi[];
+}
+
+export interface LegacyKnowledgeBaseListResponseApi {
+  status: boolean;
+  result: LegacyKnowledgeBaseListResultApi;
 }
 
 export type OptimizationDatasetApiMessagesItem = { [key: string]: unknown };

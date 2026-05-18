@@ -14,7 +14,8 @@ from model_hub.models.kb import KnowledgeBase
 from model_hub.serializers.contracts import (
     MODEL_HUB_ERROR_RESPONSES,
     KnowledgeBaseEmbeddingModelsResponseSerializer,
-    ModelHubJSONResponseSerializer,
+    KnowledgeBaseListResponseSerializer,
+    KnowledgeBaseResponseSerializer,
 )
 from model_hub.serializers.kb import (
     KnowledgeBaseCreateSerializer,
@@ -59,7 +60,7 @@ class KnowledgeBaseViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewS
         operation_description="Create a new knowledge base.",
         operation_summary="Create a new knowledge base.",
         request_body=KnowledgeBaseCreateSerializer,
-        responses={201: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={201: KnowledgeBaseResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         from tfc.ee_gating import EEFeature, check_ee_feature
@@ -81,7 +82,10 @@ class KnowledgeBaseViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewS
     @swagger_auto_schema(
         operation_description="List all knowledge bases.",
         operation_summary="List all knowledge bases.",
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: KnowledgeBaseListResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
     )
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:
@@ -96,7 +100,7 @@ class KnowledgeBaseViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewS
     @swagger_auto_schema(
         operation_description="Retrieve a specific knowledge base.",
         operation_summary="Retrieve a specific knowledge base.",
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={200: KnowledgeBaseResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:
@@ -112,7 +116,7 @@ class KnowledgeBaseViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewS
         operation_description="Update a knowledge base.",
         operation_summary="Update a knowledge base.",
         request_body=KnowledgeBaseSerializer,
-        responses={200: ModelHubJSONResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={200: KnowledgeBaseResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:
