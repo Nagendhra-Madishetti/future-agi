@@ -370,6 +370,23 @@ export const applyQuickFilters =
             : filter.filterConfig?.filterValue,
         },
       };
+      // user_id column renders emails; route through the user.id custom
+      // attribute so the value picker matches.
+      if (extraFilter.column_id === "user_id") {
+        extraFilter.column_id = "user.id";
+        extraFilter.display_name = "User ID";
+        extraFilter.filter_config.col_type = "SPAN_ATTRIBUTE";
+      }
+      // Remap to the property-picker / backend `name` field with the
+      // canonical SYSTEM_METRIC wire shape.
+      if (extraFilter.column_id === "trace_name") {
+        const fv = extraFilter.filter_config.filter_value;
+        extraFilter.column_id = "name";
+        extraFilter.display_name = "Trace Name";
+        extraFilter.filter_config.col_type = "SYSTEM_METRIC";
+        extraFilter.filter_config.filter_op = "in";
+        extraFilter.filter_config.filter_value = Array.isArray(fv) ? fv : [fv];
+      }
       setFilters((prev) => {
         const exists = (prev || []).some(
           (f) =>
