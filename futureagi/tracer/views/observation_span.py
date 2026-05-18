@@ -62,6 +62,7 @@ from model_hub.views.scores import (
     _auto_complete_queue_items,
     _auto_create_queue_items_for_default_queues,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
@@ -1555,14 +1556,11 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                 f"Error submitting feedback action type: {str(e)}"
             )
 
-    @swagger_auto_schema(query_serializer=SpanObserveListQuerySerializer)
+    @validated_request(query_serializer=SpanObserveListQuerySerializer)
     @action(detail=False, methods=["get"])
     def list_spans_observe(self, request, *args, **kwargs):
         try:
-            serializer = SpanObserveListQuerySerializer(data=request.query_params)
-            if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
-            validated_data = serializer.validated_data
+            validated_data = request.validated_query_data
             export = kwargs.get("export", False) if kwargs else False
 
             project_id = str(validated_data["project_id"])
@@ -2442,17 +2440,14 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
 
         return self._gm.success_response(response)
 
-    @swagger_auto_schema(request_body=ObserveGraphDataRequestSerializer)
+    @validated_request(request_serializer=ObserveGraphDataRequestSerializer)
     @action(detail=False, methods=["post"])
     def get_graph_methods(self, request, *args, **kwargs):
         """
         Fetch data for the observe graph with optimized queries
         """
         try:
-            body_serializer = ObserveGraphDataRequestSerializer(data=request.data)
-            if not body_serializer.is_valid():
-                return self._gm.bad_request(body_serializer.errors)
-            body = body_serializer.validated_data
+            body = request.validated_data
             project_id = str(body["project_id"])
 
             project = Project.objects.get(
@@ -2814,7 +2809,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             logger.exception(f"Error in fetching graph data: {str(e)}")
             return self._gm.bad_request(f"Error fetching graph data: {str(e)}")
 
-    @swagger_auto_schema(query_serializer=ObservationAttributeListQuerySerializer)
+    @validated_request(query_serializer=ObservationAttributeListQuerySerializer)
     @action(detail=False, methods=["get"])
     def get_span_attributes_list(self, request, *args, **kwargs):
         """Distinct span_attributes keys for a project (spans surface).
@@ -2826,12 +2821,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             List of attribute key strings.
         """
         try:
-            query_serializer = ObservationAttributeListQuerySerializer(
-                data=request.query_params
-            )
-            if not query_serializer.is_valid():
-                return self._gm.bad_request(query_serializer.errors)
-            project_id = query_serializer.validated_data["filters"]["project_id"]
+            project_id = request.validated_query_data["filters"]["project_id"]
 
             result = self._get_span_attribute_keys(project_id)
             return self._gm.success_response(result)
@@ -2842,7 +2832,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
                 f"error fetching the span attributes list {str(e)}"
             )
 
-    @swagger_auto_schema(query_serializer=ObservationAttributeListQuerySerializer)
+    @validated_request(query_serializer=ObservationAttributeListQuerySerializer)
     @action(detail=False, methods=["get"])
     def get_eval_attributes_list(self, request, *args, **kwargs):
         """Attribute paths the EvalPicker exposes per row_type.
@@ -2863,13 +2853,8 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         resolve time (see ``_resolve_session_path`` / ``_resolve_trace_path``).
         """
         try:
-            query_serializer = ObservationAttributeListQuerySerializer(
-                data=request.query_params
-            )
-            if not query_serializer.is_valid():
-                return self._gm.bad_request(query_serializer.errors)
-            project_id = query_serializer.validated_data["filters"]["project_id"]
-            row_type = query_serializer.validated_data["row_type"]
+            project_id = request.validated_query_data["filters"]["project_id"]
+            row_type = request.validated_query_data["row_type"]
 
             if row_type == "spans" or row_type == "voiceCalls":
                 # voiceCalls share the spans surface for the picker; they
@@ -3296,13 +3281,11 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             logger.exception(f"Error in exporting the spans list of observe: {str(e)}")
             return self._gm.bad_request(get_error_message(""))
 
-    @swagger_auto_schema(request_body=AddObservationSpanAnnotationsSerializer)
+    @validated_request(request_serializer=AddObservationSpanAnnotationsSerializer)
     @action(detail=False, methods=["post"])
     def add_annotations(self, request, *args, **kwargs):
         try:
-            serializer = AddObservationSpanAnnotationsSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            data = serializer.validated_data
+            data = request.validated_data
             observation_span_id = data.get("observation_span_id")
             annotation_values = data.get("annotation_values")
             trace_id = data.get("trace_id")
@@ -3510,7 +3493,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         except Exception as e:
             return self._gm.bad_request(f"error deleting the annotation label {str(e)}")
 
-    @swagger_auto_schema(query_serializer=SpanIndexQuerySerializer)
+    @validated_request(query_serializer=SpanIndexQuerySerializer)
     @action(detail=False, methods=["get"])
     def get_trace_id_by_index_spans_as_base(self, request, *args, **kwargs):
         """
@@ -3518,10 +3501,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         Mirrors the query/filter logic of list_spans.
         """
         try:
-            query_serializer = SpanIndexQuerySerializer(data=request.query_params)
-            if not query_serializer.is_valid():
-                return self._gm.bad_request(query_serializer.errors)
-            query = query_serializer.validated_data
+            query = request.validated_query_data
             span_id = query["span_id"]
             project_version_id = str(query["project_version_id"])
 
@@ -3744,7 +3724,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
             logger.exception(f"Error fetching span id by index: {str(e)}")
             return self._gm.bad_request(f"error fetching the span id by index {str(e)}")
 
-    @swagger_auto_schema(query_serializer=SpanObserveIndexQuerySerializer)
+    @validated_request(query_serializer=SpanObserveIndexQuerySerializer)
     @action(detail=False, methods=["get"])
     def get_trace_id_by_index_spans_as_observe(self, request, *args, **kwargs):
         """
@@ -3752,12 +3732,7 @@ class ObservationSpanView(BaseModelViewSetMixin, ModelViewSet):
         Mirrors the query/filter logic of list_spans_as_observe.
         """
         try:
-            query_serializer = SpanObserveIndexQuerySerializer(
-                data=request.query_params
-            )
-            if not query_serializer.is_valid():
-                return self._gm.bad_request(query_serializer.errors)
-            query = query_serializer.validated_data
+            query = request.validated_query_data
             span_id = query["span_id"]
             project_id = str(query["project_id"])
             user_id = query.get("user_id") or None

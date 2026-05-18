@@ -5,9 +5,9 @@
     "futureagi/tracer/views"
   ],
   "summary": {
-    "runtime_backed_validated_request_decorators": 57,
-    "direct_swagger_auto_schema_decorators": 377,
-    "doc_only_input_contract_decorators": 250,
+    "runtime_backed_validated_request_decorators": 64,
+    "direct_swagger_auto_schema_decorators": 370,
+    "doc_only_input_contract_decorators": 243,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [
@@ -1873,62 +1873,6 @@
       "function": "duplicate",
       "serializers": [
         "UserAlertMonitorDuplicateSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/observation_span.py",
-      "line": 1558,
-      "function": "list_spans_observe",
-      "serializers": [
-        "SpanObserveListQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/observation_span.py",
-      "line": 2445,
-      "function": "get_graph_methods",
-      "serializers": [
-        "ObserveGraphDataRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/observation_span.py",
-      "line": 2817,
-      "function": "get_span_attributes_list",
-      "serializers": [
-        "ObservationAttributeListQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/observation_span.py",
-      "line": 2845,
-      "function": "get_eval_attributes_list",
-      "serializers": [
-        "ObservationAttributeListQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/observation_span.py",
-      "line": 3299,
-      "function": "add_annotations",
-      "serializers": [
-        "AddObservationSpanAnnotationsSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/observation_span.py",
-      "line": 3513,
-      "function": "get_trace_id_by_index_spans_as_base",
-      "serializers": [
-        "SpanIndexQuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/tracer/views/observation_span.py",
-      "line": 3747,
-      "function": "get_trace_id_by_index_spans_as_observe",
-      "serializers": [
-        "SpanObserveIndexQuerySerializer"
       ]
     },
     {
