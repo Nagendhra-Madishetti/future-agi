@@ -1,3 +1,5 @@
+import json
+
 from rest_framework import serializers
 
 from tracer.serializers.filters import (
@@ -634,6 +636,46 @@ class LegacyKnowledgeBaseFilesRequestSerializer(serializers.Serializer):
     )
     page_number = serializers.IntegerField(required=False, default=0)
     page_size = serializers.IntegerField(required=False, default=10)
+
+
+class LegacyKnowledgeBaseSortQueryParamField(serializers.Field):
+    def to_internal_value(self, data):
+        if data in (None, ""):
+            return []
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError as exc:
+                raise serializers.ValidationError("Sort must be valid JSON.") from exc
+        if not isinstance(data, list):
+            raise serializers.ValidationError("Sort must be a list.")
+        for item in data:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError("Each sort item must be an object.")
+            unknown = sorted(set(item.keys()) - {"column_id", "type"})
+            if unknown:
+                raise serializers.ValidationError(
+                    {key: ["Unknown field."] for key in unknown}
+                )
+            if "column_id" not in item or "type" not in item:
+                raise serializers.ValidationError(
+                    "Each sort item requires column_id and type."
+                )
+            if item["type"] not in ("ascending", "descending"):
+                raise serializers.ValidationError(
+                    "Sort type must be ascending or descending."
+                )
+        return data
+
+    def to_representation(self, value):
+        return value
+
+
+class LegacyKnowledgeBaseTableQuerySerializer(StrictInputSerializer):
+    search = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    sort = LegacyKnowledgeBaseSortQueryParamField(required=False, default=list)
+    page_number = serializers.IntegerField(required=False, default=0, min_value=0)
+    page_size = serializers.IntegerField(required=False, default=10, min_value=1)
 
 
 class LegacyKnowledgeBaseSdkCodeResultSerializer(serializers.Serializer):

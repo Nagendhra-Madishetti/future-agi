@@ -161,6 +161,7 @@ from model_hub.serializers.contracts import (
     LegacyKnowledgeBaseMutationRequestSerializer,
     LegacyKnowledgeBaseMutationResponseSerializer,
     LegacyKnowledgeBaseSdkCodeResponseSerializer,
+    LegacyKnowledgeBaseTableQuerySerializer,
     LegacyKnowledgeBaseTableResponseSerializer,
     ManualDatasetCreateRequestSerializer,
     MergeDatasetRequestSerializer,
@@ -14792,17 +14793,23 @@ class GetKnowledgeBaseDetailsView(APIView):
     def get(self, request, *args, **kwargs):
         try:
             org = getattr(request, "organization", None) or request.user.organization
-            search = request.query_params.get("search", None)
-            sort_config = request.query_params.get("sort", [])
-            page_number = int(request.query_params.get("page_number", 0)) or int(
-                request.query_params.get("pageNumber", 0)
+            query_serializer = LegacyKnowledgeBaseTableQuerySerializer(
+                data=request.query_params
             )
-            page_size = int(request.query_params.get("page_size", 10)) or int(
-                request.query_params.get("pageSize", 10)
-            )
+            if not query_serializer.is_valid():
+                return self._gm.bad_request(query_serializer.errors)
+            query_data = query_serializer.validated_data
+
+            search = query_data.get("search", None)
+            sort_config = query_data.get("sort", [])
+            page_number = query_data["page_number"]
+            page_size = query_data["page_size"]
 
             if search:
-                search = json.loads(search)
+                try:
+                    search = json.loads(search)
+                except json.JSONDecodeError:
+                    pass
 
             start = page_size * page_number
             end = start + page_size
