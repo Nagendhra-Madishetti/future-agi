@@ -5613,7 +5613,7 @@ class UsersView(APIView):
             organization_id = request.user.organization.id
             limit = page_size
             offset = current_page * page_size
-            sort_params = request.query_params.get("sort_params", [])
+            sort_params = query_data.get("sort_params", [])
             filters = query_data.get("filters", [])
 
             # Convert string parameters to appropriate types
@@ -5623,13 +5623,6 @@ class UsersView(APIView):
             except (ValueError, TypeError):
                 page_size = 10
                 current_page = 0
-
-            # Parse sort_params and filters if they're strings
-            if isinstance(sort_params, str):
-                try:
-                    sort_params = json.loads(sort_params)
-                except (ValueError, TypeError):
-                    sort_params = []
 
             column_mapping = {
                 "user_id": "user_id",
@@ -5658,10 +5651,11 @@ class UsersView(APIView):
 
             column = None
             sort_order = None
-            if isinstance(sort_params, dict) and sort_params:
-                column = sort_params.get("column_id")
+            sort_param = sort_params[0] if sort_params else {}
+            if sort_param:
+                column = sort_param.get("column_id")
                 column = column_mapping.get(column, None)
-                direction = sort_params.get("direction", "asc")
+                direction = sort_param.get("direction", "asc")
                 if direction == "desc":
                     sort_order = "DESC"
                 else:

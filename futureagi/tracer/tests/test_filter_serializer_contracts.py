@@ -82,6 +82,44 @@ class TestFilterSerializerContracts:
         assert not serializer.is_valid()
         assert "filters" in serializer.errors
 
+    def test_users_query_serializer_accepts_canonical_sort_params(self):
+        serializer = UsersQuerySerializer(
+            data={
+                "sort_params": json.dumps(
+                    [{"column_id": "last_active", "direction": "desc"}]
+                )
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["sort_params"] == [
+            {"column_id": "last_active", "direction": "desc"}
+        ]
+
+    def test_users_query_serializer_rejects_legacy_aliases(self):
+        serializer = UsersQuerySerializer(
+            data={
+                "projectId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "pageNumber": "1",
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "projectId" in serializer.errors
+        assert "pageNumber" in serializer.errors
+
+    def test_users_query_serializer_rejects_legacy_sort_aliases(self):
+        serializer = UsersQuerySerializer(
+            data={
+                "sort_params": json.dumps(
+                    [{"columnId": "last_active", "sort": "desc"}]
+                ),
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "sort_params" in serializer.errors
+
     def test_eval_task_filters_validate_span_attribute_contract(self):
         serializer = EditEvalTaskSerializer(
             data={

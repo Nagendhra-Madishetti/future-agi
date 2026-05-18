@@ -228,6 +228,24 @@ class TestAnnotationsLabelsViewSet:
         assert "results" in data
         assert len(data["results"]) >= 1
 
+    def test_list_annotation_labels_rejects_legacy_query_aliases(self, auth_client):
+        """Label list accepts canonical snake_case query params only."""
+        response = auth_client.get(
+            f"/model-hub/annotations-labels/?projectId={uuid.uuid4()}"
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_list_annotation_labels_rejects_invalid_boolean_query(
+        self, auth_client
+    ):
+        """Boolean query params should be validated instead of silently coerced."""
+        response = auth_client.get(
+            "/model-hub/annotations-labels/?include_usage_count=maybe"
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     def test_create_numeric_label(self, auth_client, numeric_label_settings):
         """Test creating a numeric annotation label."""
         payload = {
@@ -535,6 +553,18 @@ class TestAnnotationsViewSetActions:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_bulk_destroy_rejects_legacy_annotation_ids_alias(
+        self, auth_client, annotation
+    ):
+        """bulk_destroy accepts annotation_ids only, not annotationIds."""
+        response = auth_client.post(
+            "/model-hub/annotations/bulk_destroy/",
+            {"annotationIds": [str(annotation.id)]},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     def test_annotate_row(self, auth_client, annotation, row):
         """Test annotating a specific row."""
         response = auth_client.get(
@@ -582,6 +612,7 @@ class TestAnnotationsViewSetActions:
                 {
                     "row_id": str(row.id),
                     "label_id": str(annotation.labels.first().id),
+                    "column_id": str(uuid.uuid4()),
                     "value": 5,
                 }
             ]
@@ -592,6 +623,50 @@ class TestAnnotationsViewSetActions:
             format="json",
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_update_cells_rejects_legacy_label_values_alias(
+        self, auth_client, annotation, row
+    ):
+        """update_cells accepts label_values only, not labelValues."""
+        payload = {
+            "labelValues": [
+                {
+                    "row_id": str(row.id),
+                    "label_id": str(annotation.labels.first().id),
+                    "column_id": str(uuid.uuid4()),
+                    "value": 5,
+                }
+            ]
+        }
+        response = auth_client.post(
+            f"/model-hub/annotations/{annotation.id}/update_cells/",
+            payload,
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_update_cells_accepts_zero_label_value(
+        self, auth_client, annotation, row, column
+    ):
+        """Falsy-but-valid annotation values should survive request validation."""
+        payload = {
+            "label_values": [
+                {
+                    "row_id": str(row.id),
+                    "label_id": str(annotation.labels.first().id),
+                    "column_id": str(column.id),
+                    "value": 0,
+                }
+            ]
+        }
+        response = auth_client.post(
+            f"/model-hub/annotations/{annotation.id}/update_cells/",
+            payload,
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
 
     def test_update_cells_missing_data(self, auth_client, annotation):
         """Test update_cells with missing label_values and response_field_values."""
@@ -621,11 +696,19 @@ class TestAnnotationsViewSetActions:
             payload,
             format="json",
         )
-        # Can return 400 or 500 depending on error handling
-        assert response.status_code in [
-            status.HTTP_400_BAD_REQUEST,
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-        ]
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_reset_annotations_rejects_legacy_row_id_alias(
+        self, auth_client, annotation
+    ):
+        """reset_annotations accepts row_id only, not rowId."""
+        response = auth_client.post(
+            f"/model-hub/annotations/{annotation.id}/reset_annotations/",
+            {"rowId": str(uuid.uuid4())},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_preview_annotations(self, auth_client, dataset, column, row, cell):
         """Test previewing annotations."""
@@ -651,6 +734,22 @@ class TestAnnotationsViewSetActions:
             payload,
             format="json",
         )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_preview_annotations_rejects_legacy_column_aliases(
+        self, auth_client, dataset, column
+    ):
+        """preview_annotations accepts static_column/response_column only."""
+        payload = {
+            "dataset_id": str(dataset.id),
+            "staticColumn": [str(column.id)],
+        }
+        response = auth_client.post(
+            "/model-hub/annotations/preview_annotations/",
+            payload,
+            format="json",
+        )
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_preview_annotations_missing_columns(self, auth_client, dataset):

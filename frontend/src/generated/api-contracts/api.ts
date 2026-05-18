@@ -175,6 +175,7 @@ import type {
   AgentccWebhooksList200,
   AgentccWebhooksListParams,
   AllActiveTestsApi,
+  AnnotationActionMessageResponseApi,
   AnnotationLabelRestoreResponseApi,
   AnnotationQueueApi,
   AnnotationSummaryResponseApi,
@@ -204,6 +205,8 @@ import type {
   BulkAnnotationResponseApi,
   BulkCreateScoresApi,
   BulkCreateScoresResponseApi,
+  BulkDestroyAnnotationsRequestApi,
+  BulkDestroyAnnotationsResponseApi,
   BulkRemoveItemsApi,
   CICDJobApi,
   CallBranchAnalysisResponseApi,
@@ -626,7 +629,6 @@ import type {
   ModelHubAnnotationTasksList200,
   ModelHubAnnotationTasksListParams,
   ModelHubAnnotationsAnnotateRowParams,
-  ModelHubAnnotationsLabelsList200,
   ModelHubAnnotationsLabelsListParams,
   ModelHubAnnotationsList200,
   ModelHubAnnotationsListParams,
@@ -785,6 +787,8 @@ import type {
   PersonaDuplicateRequestApi,
   PersonaDuplicateResponseApi,
   PlanResponseApi,
+  PreviewAnnotationsRequestApi,
+  PreviewAnnotationsResponseApi,
   PreviewDatasetOperationRequestApi,
   PreviewDatasetOperationResponseApi,
   PreviewRunEvalRequestApi,
@@ -862,6 +866,7 @@ import type {
   RerunOperationResponseApi,
   ResendInviteApi,
   ResendInviteResponseApi,
+  ResetAnnotationsRequestApi,
   ResourceLimitDetailResponseApi,
   ResourceLimitListResponseApi,
   ResourceLimitMutationResponseApi,
@@ -1195,6 +1200,7 @@ import type {
   TwoFactorPasskeyVerifyRequestApi,
   TwoFactorStatusApi,
   TwoFactorVerifyApi,
+  UpdateAnnotationCellsRequestApi,
   UpdateBillingDetailsResponseApi,
   UpdateColumnConfigApi,
   UpdateEvalTemplateApi,
@@ -20638,16 +20644,33 @@ export const modelHubAnnotationTasksRead = async (id: string, options?: RequestI
 
 
 export type modelHubAnnotationsLabelsListResponse200 = {
-  data: ModelHubAnnotationsLabelsList200
+  data: AnnotationsLabelsApi[]
   status: 200
+}
+
+export type modelHubAnnotationsLabelsListResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type modelHubAnnotationsLabelsListResponse403 = {
+  data: ApiErrorResponseApi
+  status: 403
+}
+
+export type modelHubAnnotationsLabelsListResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
 }
 
 export type modelHubAnnotationsLabelsListResponseSuccess = (modelHubAnnotationsLabelsListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubAnnotationsLabelsListResponseError = (modelHubAnnotationsLabelsListResponse400 | modelHubAnnotationsLabelsListResponse403 | modelHubAnnotationsLabelsListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubAnnotationsLabelsListResponse = (modelHubAnnotationsLabelsListResponseSuccess)
+export type modelHubAnnotationsLabelsListResponse = (modelHubAnnotationsLabelsListResponseSuccess | modelHubAnnotationsLabelsListResponseError)
 
 export const getModelHubAnnotationsLabelsListUrl = (params?: ModelHubAnnotationsLabelsListParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -20979,17 +21002,34 @@ export const modelHubAnnotationsCreate = async (annotationsApi: NonReadonly<Anno
 
 
 
-export type modelHubAnnotationsBulkDestroyResponse201 = {
-  data: AnnotationsApi
-  status: 201
+export type modelHubAnnotationsBulkDestroyResponse200 = {
+  data: BulkDestroyAnnotationsResponseApi
+  status: 200
 }
 
-export type modelHubAnnotationsBulkDestroyResponseSuccess = (modelHubAnnotationsBulkDestroyResponse201) & {
+export type modelHubAnnotationsBulkDestroyResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type modelHubAnnotationsBulkDestroyResponse403 = {
+  data: ApiErrorResponseApi
+  status: 403
+}
+
+export type modelHubAnnotationsBulkDestroyResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type modelHubAnnotationsBulkDestroyResponseSuccess = (modelHubAnnotationsBulkDestroyResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubAnnotationsBulkDestroyResponseError = (modelHubAnnotationsBulkDestroyResponse400 | modelHubAnnotationsBulkDestroyResponse403 | modelHubAnnotationsBulkDestroyResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubAnnotationsBulkDestroyResponse = (modelHubAnnotationsBulkDestroyResponseSuccess)
+export type modelHubAnnotationsBulkDestroyResponse = (modelHubAnnotationsBulkDestroyResponseSuccess | modelHubAnnotationsBulkDestroyResponseError)
 
 export const getModelHubAnnotationsBulkDestroyUrl = () => {
 
@@ -21003,7 +21043,7 @@ export const getModelHubAnnotationsBulkDestroyUrl = () => {
  * Bulk delete annotations and their associated data
 Expected input: {"annotation_ids": ["uuid1", "uuid2", ...]}
  */
-export const modelHubAnnotationsBulkDestroy = async (annotationsApi: NonReadonly<AnnotationsApi>, options?: RequestInit): Promise<modelHubAnnotationsBulkDestroyResponse> => {
+export const modelHubAnnotationsBulkDestroy = async (bulkDestroyAnnotationsRequestApi: BulkDestroyAnnotationsRequestApi, options?: RequestInit): Promise<modelHubAnnotationsBulkDestroyResponse> => {
 
   return apiMutator<modelHubAnnotationsBulkDestroyResponse>(getModelHubAnnotationsBulkDestroyUrl(),
   {
@@ -21011,23 +21051,40 @@ export const modelHubAnnotationsBulkDestroy = async (annotationsApi: NonReadonly
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      annotationsApi,)
+      bulkDestroyAnnotationsRequestApi,)
   }
 );}
 
 
 
-export type modelHubAnnotationsPreviewAnnotationsResponse201 = {
-  data: AnnotationsApi
-  status: 201
+export type modelHubAnnotationsPreviewAnnotationsResponse200 = {
+  data: PreviewAnnotationsResponseApi
+  status: 200
 }
 
-export type modelHubAnnotationsPreviewAnnotationsResponseSuccess = (modelHubAnnotationsPreviewAnnotationsResponse201) & {
+export type modelHubAnnotationsPreviewAnnotationsResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type modelHubAnnotationsPreviewAnnotationsResponse403 = {
+  data: ApiErrorResponseApi
+  status: 403
+}
+
+export type modelHubAnnotationsPreviewAnnotationsResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type modelHubAnnotationsPreviewAnnotationsResponseSuccess = (modelHubAnnotationsPreviewAnnotationsResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubAnnotationsPreviewAnnotationsResponseError = (modelHubAnnotationsPreviewAnnotationsResponse400 | modelHubAnnotationsPreviewAnnotationsResponse403 | modelHubAnnotationsPreviewAnnotationsResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubAnnotationsPreviewAnnotationsResponse = (modelHubAnnotationsPreviewAnnotationsResponseSuccess)
+export type modelHubAnnotationsPreviewAnnotationsResponse = (modelHubAnnotationsPreviewAnnotationsResponseSuccess | modelHubAnnotationsPreviewAnnotationsResponseError)
 
 export const getModelHubAnnotationsPreviewAnnotationsUrl = () => {
 
@@ -21040,7 +21097,7 @@ export const getModelHubAnnotationsPreviewAnnotationsUrl = () => {
 /**
  * Preview the first row of data for specified columns in a dataset.
  */
-export const modelHubAnnotationsPreviewAnnotations = async (annotationsApi: NonReadonly<AnnotationsApi>, options?: RequestInit): Promise<modelHubAnnotationsPreviewAnnotationsResponse> => {
+export const modelHubAnnotationsPreviewAnnotations = async (previewAnnotationsRequestApi: PreviewAnnotationsRequestApi, options?: RequestInit): Promise<modelHubAnnotationsPreviewAnnotationsResponse> => {
 
   return apiMutator<modelHubAnnotationsPreviewAnnotationsResponse>(getModelHubAnnotationsPreviewAnnotationsUrl(),
   {
@@ -21048,7 +21105,7 @@ export const modelHubAnnotationsPreviewAnnotations = async (annotationsApi: NonR
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      annotationsApi,)
+      previewAnnotationsRequestApi,)
   }
 );}
 
@@ -21235,17 +21292,34 @@ export const modelHubAnnotationsAnnotateRow = async (id: string,
 
 
 
-export type modelHubAnnotationsResetAnnotationsResponse201 = {
-  data: AnnotationsApi
-  status: 201
+export type modelHubAnnotationsResetAnnotationsResponse200 = {
+  data: AnnotationActionMessageResponseApi
+  status: 200
 }
 
-export type modelHubAnnotationsResetAnnotationsResponseSuccess = (modelHubAnnotationsResetAnnotationsResponse201) & {
+export type modelHubAnnotationsResetAnnotationsResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type modelHubAnnotationsResetAnnotationsResponse403 = {
+  data: ApiErrorResponseApi
+  status: 403
+}
+
+export type modelHubAnnotationsResetAnnotationsResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type modelHubAnnotationsResetAnnotationsResponseSuccess = (modelHubAnnotationsResetAnnotationsResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubAnnotationsResetAnnotationsResponseError = (modelHubAnnotationsResetAnnotationsResponse400 | modelHubAnnotationsResetAnnotationsResponse403 | modelHubAnnotationsResetAnnotationsResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubAnnotationsResetAnnotationsResponse = (modelHubAnnotationsResetAnnotationsResponseSuccess)
+export type modelHubAnnotationsResetAnnotationsResponse = (modelHubAnnotationsResetAnnotationsResponseSuccess | modelHubAnnotationsResetAnnotationsResponseError)
 
 export const getModelHubAnnotationsResetAnnotationsUrl = (id: string,) => {
 
@@ -21256,7 +21330,7 @@ export const getModelHubAnnotationsResetAnnotationsUrl = (id: string,) => {
 }
 
 export const modelHubAnnotationsResetAnnotations = async (id: string,
-    annotationsApi: NonReadonly<AnnotationsApi>, options?: RequestInit): Promise<modelHubAnnotationsResetAnnotationsResponse> => {
+    resetAnnotationsRequestApi: ResetAnnotationsRequestApi, options?: RequestInit): Promise<modelHubAnnotationsResetAnnotationsResponse> => {
 
   return apiMutator<modelHubAnnotationsResetAnnotationsResponse>(getModelHubAnnotationsResetAnnotationsUrl(id),
   {
@@ -21264,23 +21338,40 @@ export const modelHubAnnotationsResetAnnotations = async (id: string,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      annotationsApi,)
+      resetAnnotationsRequestApi,)
   }
 );}
 
 
 
-export type modelHubAnnotationsUpdateCellsResponse201 = {
-  data: AnnotationsApi
-  status: 201
+export type modelHubAnnotationsUpdateCellsResponse200 = {
+  data: AnnotationActionMessageResponseApi
+  status: 200
 }
 
-export type modelHubAnnotationsUpdateCellsResponseSuccess = (modelHubAnnotationsUpdateCellsResponse201) & {
+export type modelHubAnnotationsUpdateCellsResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type modelHubAnnotationsUpdateCellsResponse403 = {
+  data: ApiErrorResponseApi
+  status: 403
+}
+
+export type modelHubAnnotationsUpdateCellsResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type modelHubAnnotationsUpdateCellsResponseSuccess = (modelHubAnnotationsUpdateCellsResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubAnnotationsUpdateCellsResponseError = (modelHubAnnotationsUpdateCellsResponse400 | modelHubAnnotationsUpdateCellsResponse403 | modelHubAnnotationsUpdateCellsResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubAnnotationsUpdateCellsResponse = (modelHubAnnotationsUpdateCellsResponseSuccess)
+export type modelHubAnnotationsUpdateCellsResponse = (modelHubAnnotationsUpdateCellsResponseSuccess | modelHubAnnotationsUpdateCellsResponseError)
 
 export const getModelHubAnnotationsUpdateCellsUrl = (id: string,) => {
 
@@ -21291,7 +21382,7 @@ export const getModelHubAnnotationsUpdateCellsUrl = (id: string,) => {
 }
 
 export const modelHubAnnotationsUpdateCells = async (id: string,
-    annotationsApi: NonReadonly<AnnotationsApi>, options?: RequestInit): Promise<modelHubAnnotationsUpdateCellsResponse> => {
+    updateAnnotationCellsRequestApi: UpdateAnnotationCellsRequestApi, options?: RequestInit): Promise<modelHubAnnotationsUpdateCellsResponse> => {
 
   return apiMutator<modelHubAnnotationsUpdateCellsResponse>(getModelHubAnnotationsUpdateCellsUrl(id),
   {
@@ -21299,7 +21390,7 @@ export const modelHubAnnotationsUpdateCells = async (id: string,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      annotationsApi,)
+      updateAnnotationCellsRequestApi,)
   }
 );}
 

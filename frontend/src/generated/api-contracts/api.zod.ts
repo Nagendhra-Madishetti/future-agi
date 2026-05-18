@@ -13683,20 +13683,22 @@ export const ModelHubAnnotationTasksReadResponse = zod.object({
 
 export const ModelHubAnnotationsLabelsListQueryParams = zod.object({
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
-  "limit": zod.number().optional().describe('Number of results to return per page.')
+  "limit": zod.number().optional().describe('Number of results to return per page.'),
+  "dataset": zod.string().uuid().optional(),
+  "project_id": zod.string().uuid().optional(),
+  "type": zod.enum(['text', 'numeric', 'categorical', 'star', 'thumbs_up_down']).optional(),
+  "search": zod.string().optional(),
+  "include_usage_count": zod.boolean().optional(),
+  "include_archived": zod.boolean().optional()
 })
 
-export const modelHubAnnotationsLabelsListResponseResultsItemNameMax = 255;
+export const modelHubAnnotationsLabelsListResponseNameMax = 255;
 
 
 
-export const ModelHubAnnotationsLabelsListResponse = zod.object({
-  "count": zod.number(),
-  "next": zod.string().url().optional(),
-  "previous": zod.string().url().optional(),
-  "results": zod.array(zod.object({
+export const ModelHubAnnotationsLabelsListResponseItem = zod.object({
   "id": zod.string().uuid().optional(),
-  "name": zod.string().min(1).max(modelHubAnnotationsLabelsListResponseResultsItemNameMax),
+  "name": zod.string().min(1).max(modelHubAnnotationsLabelsListResponseNameMax),
   "type": zod.enum(['text', 'numeric', 'categorical', 'star', 'thumbs_up_down']),
   "organization": zod.string().uuid().optional(),
   "settings": zod.object({
@@ -13708,8 +13710,8 @@ export const ModelHubAnnotationsLabelsListResponse = zod.object({
   "created_at": zod.string().datetime({"offset":true}).optional(),
   "trace_annotations_count": zod.number().optional(),
   "annotation_count": zod.number().optional()
-}))
 })
+export const ModelHubAnnotationsLabelsListResponse = zod.array(ModelHubAnnotationsLabelsListResponseItem)
 
 
 /**
@@ -13941,48 +13943,66 @@ export const ModelHubAnnotationsCreateBody = zod.object({
  * Bulk delete annotations and their associated data
 Expected input: {"annotation_ids": ["uuid1", "uuid2", ...]}
  */
-export const modelHubAnnotationsBulkDestroyBodyNameMax = 255;
-
-export const modelHubAnnotationsBulkDestroyBodyResponsesMin = -2147483648;
-export const modelHubAnnotationsBulkDestroyBodyResponsesMax = 2147483647;
-
-
-
 export const ModelHubAnnotationsBulkDestroyBody = zod.object({
-  "name": zod.string().min(1).max(modelHubAnnotationsBulkDestroyBodyNameMax),
-  "columns": zod.array(zod.string().uuid()).optional(),
-  "static_fields": zod.object({
+  "annotation_ids": zod.array(zod.string().uuid())
+})
 
-}).passthrough().optional(),
-  "response_fields": zod.object({
+export const modelHubAnnotationsBulkDestroyResponseStatusDefault = true;
 
-}).passthrough().optional(),
-  "dataset": zod.string().uuid().optional(),
-  "responses": zod.number().min(modelHubAnnotationsBulkDestroyBodyResponsesMin).max(modelHubAnnotationsBulkDestroyBodyResponsesMax).optional()
+
+
+export const ModelHubAnnotationsBulkDestroyResponse = zod.object({
+  "status": zod.boolean().default(modelHubAnnotationsBulkDestroyResponseStatusDefault),
+  "result": zod.object({
+  "message": zod.string().min(1),
+  "deleted_count": zod.number(),
+  "errors": zod.array(zod.string().min(1)).optional()
+})
 })
 
 
 /**
  * Preview the first row of data for specified columns in a dataset.
  */
-export const modelHubAnnotationsPreviewAnnotationsBodyNameMax = 255;
-
-export const modelHubAnnotationsPreviewAnnotationsBodyResponsesMin = -2147483648;
-export const modelHubAnnotationsPreviewAnnotationsBodyResponsesMax = 2147483647;
-
-
+export const modelHubAnnotationsPreviewAnnotationsBodyStaticColumnDefault = [];
+export const modelHubAnnotationsPreviewAnnotationsBodyResponseColumnDefault = [];
 
 export const ModelHubAnnotationsPreviewAnnotationsBody = zod.object({
-  "name": zod.string().min(1).max(modelHubAnnotationsPreviewAnnotationsBodyNameMax),
-  "columns": zod.array(zod.string().uuid()).optional(),
-  "static_fields": zod.object({
+  "dataset_id": zod.string().uuid(),
+  "static_column": zod.array(zod.string().uuid()).default(modelHubAnnotationsPreviewAnnotationsBodyStaticColumnDefault),
+  "response_column": zod.array(zod.string().uuid()).default(modelHubAnnotationsPreviewAnnotationsBodyResponseColumnDefault)
+})
 
-}).passthrough().optional(),
-  "response_fields": zod.object({
+export const modelHubAnnotationsPreviewAnnotationsResponseStatusDefault = true;
 
-}).passthrough().optional(),
-  "dataset": zod.string().uuid().optional(),
-  "responses": zod.number().min(modelHubAnnotationsPreviewAnnotationsBodyResponsesMin).max(modelHubAnnotationsPreviewAnnotationsBodyResponsesMax).optional()
+
+
+
+
+export const ModelHubAnnotationsPreviewAnnotationsResponse = zod.object({
+  "status": zod.boolean().default(modelHubAnnotationsPreviewAnnotationsResponseStatusDefault),
+  "result": zod.object({
+  "row_id": zod.string().uuid(),
+  "row_number": zod.number(),
+  "preview_data": zod.object({
+  "static_fields": zod.array(zod.object({
+  "column_id": zod.string().uuid(),
+  "column_name": zod.string().min(1),
+  "data_type": zod.string().min(1),
+  "value": zod.object({
+
+}).passthrough()
+})),
+  "response_fields": zod.array(zod.object({
+  "column_id": zod.string().uuid(),
+  "column_name": zod.string().min(1),
+  "data_type": zod.string().min(1),
+  "value": zod.object({
+
+}).passthrough()
+}))
+})
+})
 })
 
 
@@ -14178,24 +14198,18 @@ export const ModelHubAnnotationsResetAnnotationsParams = zod.object({
   "id": zod.string()
 })
 
-export const modelHubAnnotationsResetAnnotationsBodyNameMax = 255;
-
-export const modelHubAnnotationsResetAnnotationsBodyResponsesMin = -2147483648;
-export const modelHubAnnotationsResetAnnotationsBodyResponsesMax = 2147483647;
-
-
-
 export const ModelHubAnnotationsResetAnnotationsBody = zod.object({
-  "name": zod.string().min(1).max(modelHubAnnotationsResetAnnotationsBodyNameMax),
-  "columns": zod.array(zod.string().uuid()).optional(),
-  "static_fields": zod.object({
+  "row_id": zod.string().uuid()
+})
 
-}).passthrough().optional(),
-  "response_fields": zod.object({
+export const modelHubAnnotationsResetAnnotationsResponseStatusDefault = true;
 
-}).passthrough().optional(),
-  "dataset": zod.string().uuid().optional(),
-  "responses": zod.number().min(modelHubAnnotationsResetAnnotationsBodyResponsesMin).max(modelHubAnnotationsResetAnnotationsBodyResponsesMax).optional()
+
+export const ModelHubAnnotationsResetAnnotationsResponse = zod.object({
+  "status": zod.boolean().default(modelHubAnnotationsResetAnnotationsResponseStatusDefault),
+  "result": zod.object({
+  "message": zod.string().min(1)
+})
 })
 
 
@@ -14203,24 +14217,38 @@ export const ModelHubAnnotationsUpdateCellsParams = zod.object({
   "id": zod.string()
 })
 
-export const modelHubAnnotationsUpdateCellsBodyNameMax = 255;
-
-export const modelHubAnnotationsUpdateCellsBodyResponsesMin = -2147483648;
-export const modelHubAnnotationsUpdateCellsBodyResponsesMax = 2147483647;
-
-
+export const modelHubAnnotationsUpdateCellsBodyLabelValuesItemDescriptionDefault = ``;
+export const modelHubAnnotationsUpdateCellsBodyLabelValuesDefault = [];
+export const modelHubAnnotationsUpdateCellsBodyResponseFieldValuesDefault = [];
 
 export const ModelHubAnnotationsUpdateCellsBody = zod.object({
-  "name": zod.string().min(1).max(modelHubAnnotationsUpdateCellsBodyNameMax),
-  "columns": zod.array(zod.string().uuid()).optional(),
-  "static_fields": zod.object({
+  "label_values": zod.array(zod.object({
+  "row_id": zod.string().uuid(),
+  "label_id": zod.string().uuid(),
+  "value": zod.object({
 
-}).passthrough().optional(),
-  "response_fields": zod.object({
+}).passthrough(),
+  "description": zod.string().default(modelHubAnnotationsUpdateCellsBodyLabelValuesItemDescriptionDefault),
+  "column_id": zod.string().uuid(),
+  "time_taken": zod.number().optional()
+})).default(modelHubAnnotationsUpdateCellsBodyLabelValuesDefault),
+  "response_field_values": zod.array(zod.object({
+  "row_id": zod.string().uuid(),
+  "column_id": zod.string().uuid(),
+  "value": zod.object({
 
-}).passthrough().optional(),
-  "dataset": zod.string().uuid().optional(),
-  "responses": zod.number().min(modelHubAnnotationsUpdateCellsBodyResponsesMin).max(modelHubAnnotationsUpdateCellsBodyResponsesMax).optional()
+}).passthrough()
+})).default(modelHubAnnotationsUpdateCellsBodyResponseFieldValuesDefault)
+})
+
+export const modelHubAnnotationsUpdateCellsResponseStatusDefault = true;
+
+
+export const ModelHubAnnotationsUpdateCellsResponse = zod.object({
+  "status": zod.boolean().default(modelHubAnnotationsUpdateCellsResponseStatusDefault),
+  "result": zod.object({
+  "message": zod.string().min(1)
+})
 })
 
 
@@ -42513,6 +42541,8 @@ export const tracerUsersListQueryPageSizeMax = 500;
 
 export const tracerUsersListQueryCurrentPageIndexMin = 0;
 
+export const tracerUsersListQuerySortParamsDefault = `[]`;
+
 export const tracerUsersListQueryFiltersDefault = `[]`;
 
 
@@ -42522,7 +42552,7 @@ export const TracerUsersListQueryParams = zod.object({
   "search": zod.string().optional(),
   "page_size": zod.number().min(1).max(tracerUsersListQueryPageSizeMax).optional(),
   "current_page_index": zod.number().min(tracerUsersListQueryCurrentPageIndexMin).optional(),
-  "sort_params": zod.string().optional(),
+  "sort_params": zod.string().min(1).default(tracerUsersListQuerySortParamsDefault),
   "filters": zod.string().min(1).default(tracerUsersListQueryFiltersDefault)
 })
 

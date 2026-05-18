@@ -9492,36 +9492,68 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "schema": {
               "type": "integer"
             }
+          },
+          "dataset": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "project_id": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "type": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "text",
+                "numeric",
+                "categorical",
+                "star",
+                "thumbs_up_down"
+              ]
+            }
+          },
+          "search": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "include_usage_count": {
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          "include_archived": {
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/AnnotationsLabels"
-                }
-              }
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/AnnotationsLabels"
             }
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
           }
         }
       },
@@ -9669,12 +9701,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "post": {
         "operationId": "model-hub_annotations_bulk_destroy",
         "requestBody": {
-          "$ref": "#/definitions/Annotations"
+          "$ref": "#/definitions/BulkDestroyAnnotationsRequest"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/Annotations"
+          "200": {
+            "$ref": "#/definitions/BulkDestroyAnnotationsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
           }
         }
       }
@@ -9683,12 +9724,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "post": {
         "operationId": "model-hub_annotations_preview_annotations",
         "requestBody": {
-          "$ref": "#/definitions/Annotations"
+          "$ref": "#/definitions/PreviewAnnotationsRequest"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/Annotations"
+          "200": {
+            "$ref": "#/definitions/PreviewAnnotationsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
           }
         }
       }
@@ -9759,12 +9809,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "post": {
         "operationId": "model-hub_annotations_reset_annotations",
         "requestBody": {
-          "$ref": "#/definitions/Annotations"
+          "$ref": "#/definitions/ResetAnnotationsRequest"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/Annotations"
+          "200": {
+            "$ref": "#/definitions/AnnotationActionMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
           }
         }
       }
@@ -9773,12 +9832,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "post": {
         "operationId": "model-hub_annotations_update_cells",
         "requestBody": {
-          "$ref": "#/definitions/Annotations"
+          "$ref": "#/definitions/UpdateAnnotationCellsRequest"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/Annotations"
+          "200": {
+            "$ref": "#/definitions/AnnotationActionMessageResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ApiErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiErrorResponse"
           }
         }
       }
@@ -29486,7 +29554,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "sort_params": {
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "default": "[]"
             }
           },
           "filters": {
@@ -37649,6 +37719,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AnnotationActionMessageResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/AnnotationActionMessageResult"
+        }
+      }
+    },
     "AnnotationLabelRestoreResponse": {
       "required": [
         "result"
@@ -38570,6 +38656,37 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/BulkCreateScoresResult"
+        }
+      }
+    },
+    "BulkDestroyAnnotationsRequest": {
+      "required": [
+        "annotation_ids"
+      ],
+      "type": "object",
+      "properties": {
+        "annotation_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "BulkDestroyAnnotationsResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/BulkDestroyAnnotationsResult"
         }
       }
     },
@@ -53358,6 +53475,51 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "PreviewAnnotationsRequest": {
+      "required": [
+        "dataset_id"
+      ],
+      "type": "object",
+      "properties": {
+        "dataset_id": {
+          "title": "Dataset id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "static_column": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "default": []
+        },
+        "response_column": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "default": []
+        }
+      }
+    },
+    "PreviewAnnotationsResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/PreviewAnnotationsResult"
+        }
+      }
+    },
     "PreviewDatasetOperationRequest": {
       "type": "object",
       "properties": {
@@ -55584,6 +55746,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/ResendInviteResult"
+        }
+      }
+    },
+    "ResetAnnotationsRequest": {
+      "required": [
+        "row_id"
+      ],
+      "type": "object",
+      "properties": {
+        "row_id": {
+          "title": "Row id",
+          "type": "string",
+          "format": "uuid"
         }
       }
     },
@@ -60664,6 +60839,25 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "UpdateAnnotationCellsRequest": {
+      "type": "object",
+      "properties": {
+        "label_values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AnnotationLabelValueUpdate"
+          },
+          "default": []
+        },
+        "response_field_values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AnnotationResponseFieldUpdate"
+          },
+          "default": []
+        }
+      }
+    },
     "UpdateBillingDetailsResponse": {
       "required": [
         "status",
@@ -64621,6 +64815,19 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AnnotationActionMessageResult": {
+      "required": [
+        "message"
+      ],
+      "type": "object",
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "QueueAnnotatorNested": {
       "required": [
         "user_id"
@@ -65088,6 +65295,31 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "$ref": "#/definitions/Score"
           }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "BulkDestroyAnnotationsResult": {
+      "required": [
+        "message",
+        "deleted_count"
+      ],
+      "type": "object",
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "minLength": 1
+        },
+        "deleted_count": {
+          "title": "Deleted count",
+          "type": "integer"
         },
         "errors": {
           "type": "array",
@@ -73139,6 +73371,28 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "PreviewAnnotationsResult": {
+      "required": [
+        "row_id",
+        "row_number",
+        "preview_data"
+      ],
+      "type": "object",
+      "properties": {
+        "row_id": {
+          "title": "Row id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "row_number": {
+          "title": "Row number",
+          "type": "integer"
+        },
+        "preview_data": {
+          "$ref": "#/definitions/PreviewAnnotationData"
+        }
+      }
+    },
     "PreviewDatasetOperationResult": {
       "required": [
         "message",
@@ -76557,6 +76811,70 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "maxLength": 8000,
           "minLength": 1
+        }
+      }
+    },
+    "AnnotationLabelValueUpdate": {
+      "required": [
+        "row_id",
+        "label_id",
+        "value",
+        "column_id"
+      ],
+      "type": "object",
+      "properties": {
+        "row_id": {
+          "title": "Row id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "label_id": {
+          "title": "Label id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "value": {
+          "title": "Value",
+          "type": "object"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "default": ""
+        },
+        "column_id": {
+          "title": "Column id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "time_taken": {
+          "title": "Time taken",
+          "type": "number",
+          "x-nullable": true
+        }
+      }
+    },
+    "AnnotationResponseFieldUpdate": {
+      "required": [
+        "row_id",
+        "column_id",
+        "value"
+      ],
+      "type": "object",
+      "properties": {
+        "row_id": {
+          "title": "Row id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "column_id": {
+          "title": "Column id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "value": {
+          "title": "Value",
+          "type": "object"
         }
       }
     },
@@ -82110,6 +82428,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "PreviewAnnotationData": {
+      "required": [
+        "static_fields",
+        "response_fields"
+      ],
+      "type": "object",
+      "properties": {
+        "static_fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PreviewAnnotationField"
+          }
+        },
+        "response_fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PreviewAnnotationField"
+          }
+        }
+      }
+    },
     "PreviewDatasetOperationResultItem": {
       "required": [
         "row_id"
@@ -84942,6 +85281,37 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "output_tokens": {
           "title": "Output tokens",
           "type": "integer",
+          "x-nullable": true
+        }
+      }
+    },
+    "PreviewAnnotationField": {
+      "required": [
+        "column_id",
+        "column_name",
+        "data_type",
+        "value"
+      ],
+      "type": "object",
+      "properties": {
+        "column_id": {
+          "title": "Column id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "column_name": {
+          "title": "Column name",
+          "type": "string",
+          "minLength": 1
+        },
+        "data_type": {
+          "title": "Data type",
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "title": "Value",
+          "type": "object",
           "x-nullable": true
         }
       }

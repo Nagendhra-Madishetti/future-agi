@@ -5849,6 +5849,93 @@ export interface AnnotationsApi {
   readonly label_requirements?: string;
 }
 
+export interface BulkDestroyAnnotationsRequestApi {
+  annotation_ids: string[];
+}
+
+export interface BulkDestroyAnnotationsResultApi {
+  /** @minLength 1 */
+  message: string;
+  deleted_count: number;
+  errors?: string[];
+}
+
+export interface BulkDestroyAnnotationsResponseApi {
+  status?: boolean;
+  result: BulkDestroyAnnotationsResultApi;
+}
+
+export interface PreviewAnnotationsRequestApi {
+  dataset_id: string;
+  static_column?: string[];
+  response_column?: string[];
+}
+
+export type PreviewAnnotationFieldApiValue = { [key: string]: unknown };
+
+export interface PreviewAnnotationFieldApi {
+  column_id: string;
+  /** @minLength 1 */
+  column_name: string;
+  /** @minLength 1 */
+  data_type: string;
+  value: PreviewAnnotationFieldApiValue;
+}
+
+export interface PreviewAnnotationDataApi {
+  static_fields: PreviewAnnotationFieldApi[];
+  response_fields: PreviewAnnotationFieldApi[];
+}
+
+export interface PreviewAnnotationsResultApi {
+  row_id: string;
+  row_number: number;
+  preview_data: PreviewAnnotationDataApi;
+}
+
+export interface PreviewAnnotationsResponseApi {
+  status?: boolean;
+  result: PreviewAnnotationsResultApi;
+}
+
+export interface ResetAnnotationsRequestApi {
+  row_id: string;
+}
+
+export interface AnnotationActionMessageResultApi {
+  /** @minLength 1 */
+  message: string;
+}
+
+export interface AnnotationActionMessageResponseApi {
+  status?: boolean;
+  result: AnnotationActionMessageResultApi;
+}
+
+export type AnnotationLabelValueUpdateApiValue = { [key: string]: unknown };
+
+export interface AnnotationLabelValueUpdateApi {
+  row_id: string;
+  label_id: string;
+  value: AnnotationLabelValueUpdateApiValue;
+  description?: string;
+  column_id: string;
+  time_taken?: number;
+}
+
+export type AnnotationResponseFieldUpdateApiValue = { [key: string]: unknown };
+
+export interface AnnotationResponseFieldUpdateApi {
+  row_id: string;
+  column_id: string;
+  value: AnnotationResponseFieldUpdateApiValue;
+}
+
+export interface UpdateAnnotationCellsRequestApi {
+  label_values?: AnnotationLabelValueUpdateApi[];
+  response_field_values?: AnnotationResponseFieldUpdateApi[];
+}
+
 export type ApiKeyApiConfigJson = { [key: string]: unknown };
 
 export interface ApiKeyApi {
@@ -20935,14 +21022,24 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+dataset?: string;
+project_id?: string;
+type?: ModelHubAnnotationsLabelsListType;
+search?: string;
+include_usage_count?: boolean;
+include_archived?: boolean;
 };
 
-export type ModelHubAnnotationsLabelsList200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: AnnotationsLabelsApi[];
-};
+export type ModelHubAnnotationsLabelsListType = typeof ModelHubAnnotationsLabelsListType[keyof typeof ModelHubAnnotationsLabelsListType];
+
+
+export const ModelHubAnnotationsLabelsListType = {
+  text: 'text',
+  numeric: 'numeric',
+  categorical: 'categorical',
+  star: 'star',
+  thumbs_up_down: 'thumbs_up_down',
+} as const;
 
 export type ModelHubAnnotationsListParams = {
 /**
@@ -23700,6 +23797,9 @@ page_size?: number;
  * @minimum 0
  */
 current_page_index?: number;
+/**
+ * @minLength 1
+ */
 sort_params?: string;
 /**
  * @minLength 1

@@ -115,12 +115,12 @@ class TraceAgentGraphQuerySerializer(StrictInputSerializer):
     filters = filter_list_query_param_field(required=False, default=list)
 
 
-class UsersQuerySerializer(serializers.Serializer):
+class UsersQuerySerializer(StrictInputSerializer):
     project_id = serializers.UUIDField(required=False)
     search = serializers.CharField(required=False, allow_blank=True)
     page_size = serializers.IntegerField(required=False, min_value=1, max_value=500)
     current_page_index = serializers.IntegerField(required=False, min_value=0)
-    sort_params = serializers.JSONField(required=False)
+    sort_params = SortParamListQueryParamField(required=False, default=list)
     filters = filter_list_query_param_field(required=False, default=list)
 
 
