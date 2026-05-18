@@ -103,6 +103,7 @@ def test_saml_oauth_callbacks_are_documented_as_redirects():
     assert set(_operation("/saml2_auth/acs/", "POST")["responses"]) == {
         "302",
         "400",
+        "default",
     }
 
     for path in (
@@ -113,4 +114,8 @@ def test_saml_oauth_callbacks_are_documented_as_redirects():
         "/saml2_auth/microsoft/callback/",
         "/saml2_auth/microsoft/callback{format}",
     ):
-        assert set(_operation(path, "GET")["responses"]) == {"302", "400"}
+        assert set(_operation(path, "GET")["responses"]) == {
+            "302",
+            "400",
+            "default",
+        }

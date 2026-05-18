@@ -48,7 +48,7 @@ def test_persona_duplicate_has_body_and_response_contracts():
 
     assert _body_ref(operation) == "PersonaDuplicateRequest"
     assert _response_ref(operation, "201") == "PersonaDuplicateResponse"
-    assert _response_ref(operation, "400") == "ApiErrorResponse"
+    assert _response_ref(operation, "400") == "ApiTextErrorResponse"
 
 
 def test_persona_duplicate_contract_debt_stays_burned_down():

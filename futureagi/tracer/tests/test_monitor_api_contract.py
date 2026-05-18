@@ -35,7 +35,7 @@ def test_monitor_duplicate_has_explicit_contract():
     operation = _operation("/tracer/user-alerts/duplicate/", "POST")
 
     assert _body_ref(operation) == "UserAlertMonitorDuplicate"
-    assert _response_ref(operation) == "ApiSuccessResponse"
+    assert _response_ref(operation) == "UserAlertMonitorDuplicateResponse"
 
 
 def test_monitor_metric_options_has_explicit_contract():
