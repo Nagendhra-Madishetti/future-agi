@@ -38,7 +38,7 @@ describe("axios response shape", () => {
     ]);
   });
 
-  it("runs response contract validation for documented error responses", async () => {
+  it("fails fast when documented error responses drift from the generated contract", async () => {
     const rejected = axiosInstance.interceptors.response.handlers.find(
       (handler) => handler.rejected,
     )?.rejected;
@@ -53,11 +53,11 @@ describe("axios response shape", () => {
       },
     };
 
-    await expect(rejected(error)).rejects.toMatchObject({ statusCode: 400 });
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("response contract validation failed"),
-      expect.any(Object),
-    );
+    await expect(rejected(error)).rejects.toMatchObject({
+      name: "ApiContractValidationError",
+      details: { kind: "response" },
+    });
+    expect(warn).not.toHaveBeenCalled();
 
     warn.mockRestore();
   });

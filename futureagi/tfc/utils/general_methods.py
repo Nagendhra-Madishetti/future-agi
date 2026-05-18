@@ -9,6 +9,7 @@ import secrets
 import string
 import sys
 import uuid
+from collections.abc import Mapping
 
 import structlog
 from rest_framework.response import Response
@@ -240,10 +241,52 @@ class GeneralMethods:
         Server Error:             500 <= http status code <= 599
     """
 
+    def _stringify_error_value(self, value):
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, Mapping):
+            return ", ".join(
+                f"{key}: {self._stringify_error_value(item)}"
+                for key, item in value.items()
+            )
+        if isinstance(value, (list, tuple, set)):
+            return ", ".join(self._stringify_error_value(item) for item in value)
+        return str(value)
+
+    def _error_details(self, result):
+        if not isinstance(result, Mapping):
+            return None
+        return {
+            str(key): (
+                [self._stringify_error_value(item) for item in value]
+                if isinstance(value, (list, tuple, set))
+                else [self._stringify_error_value(value)]
+            )
+            for key, value in result.items()
+        }
+
     def _error_message(self, result):
         if isinstance(result, str) or result is None:
             return result
-        return result
+        if isinstance(result, Mapping) and len(result) == 1:
+            key, value = next(iter(result.items()))
+            if key in {"detail", "error", "message", "non_field_errors"}:
+                return self._stringify_error_value(value)
+        return self._stringify_error_value(result)
+
+    def _error_response_body(self, result):
+        message = self._error_message(result)
+        response = {
+            STATUS_KEY_NAME: ERROR_STATUS_CODE,
+            RESULT_KEY_NAME: message,
+            ERROR_MESSAGE_KEY_NAME: message,
+        }
+        details = self._error_details(result)
+        if details:
+            response["details"] = details
+        return response
 
     def bad_request(self, result):
         """
@@ -251,10 +294,7 @@ class GeneralMethods:
         :param result:
         :return:
         """
-        response = {}
-        response[STATUS_KEY_NAME] = ERROR_STATUS_CODE
-        response[RESULT_KEY_NAME] = result
-        response[ERROR_MESSAGE_KEY_NAME] = self._error_message(result)
+        response = self._error_response_body(result)
         return Response(response, status=HTTP_400_BAD_REQUEST)
 
     def usage_limit_response(self, check_result):
@@ -281,21 +321,7 @@ class GeneralMethods:
         :param result:
         :return:
         """
-        message = None
-        if type(result) is not str:
-            keys = list(dict(result).keys())
-            if len(keys) > 0:
-                try:
-                    message = f"{keys[0]}: " + str(dict(result).get(keys[0])[0])
-                except (KeyError, IndexError, AttributeError, TypeError) as e:
-                    logger.error(e, exc_info=True)
-                    result = result
-        elif type(result) is str:
-            message = result
-        response = {}
-        response[STATUS_KEY_NAME] = ERROR_STATUS_CODE
-        response[RESULT_KEY_NAME] = result
-        response[ERROR_MESSAGE_KEY_NAME] = message
+        response = self._error_response_body(result)
         return Response(response, status=HTTP_404_NOT_FOUND)
 
     def success_response(self, result, status=HTTP_200_OK):
@@ -334,12 +360,7 @@ class GeneralMethods:
         :param result:
         :return:
         """
-        response = {}
-        response[STATUS_KEY_NAME] = ERROR_STATUS_CODE
-        response[ERROR_MESSAGE_KEY_NAME] = self._error_message(result)
-        # if programatic_response:
-        #     response = dict()
-        response[RESULT_KEY_NAME] = result
+        response = self._error_response_body(result)
         return Response(response, status=HTTP_500_INTERNAL_SERVER_ERROR)
 
     def param_missing_response(self, key, message):
@@ -348,14 +369,11 @@ class GeneralMethods:
         :param result:
         :return:
         """
-        response = {}
         result = {}
         errors = []
         errors.append(message)
         result.update({key: errors})
-        response[STATUS_KEY_NAME] = ERROR_STATUS_CODE
-        response[RESULT_KEY_NAME] = result
-        response[ERROR_MESSAGE_KEY_NAME] = result
+        response = self._error_response_body(result)
         return Response(response, status=HTTP_400_BAD_REQUEST)
 
     def unauthorized_response(self):
@@ -387,10 +405,7 @@ class GeneralMethods:
         :param result:
         :return:
         """
-        response = {}
-        response[STATUS_KEY_NAME] = ERROR_STATUS_CODE
-        response[RESULT_KEY_NAME] = result
-        response[ERROR_MESSAGE_KEY_NAME] = self._error_message(result)
+        response = self._error_response_body(result)
         return Response(response, status=status_code)
 
     def detect_delimiter(self, file):

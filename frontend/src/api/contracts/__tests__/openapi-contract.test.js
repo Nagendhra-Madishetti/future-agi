@@ -1,12 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   findOpenApiEndpoint,
+  shouldEnforceApiResponseContracts,
   validateContractedRequestConfig,
   validateContractedResponse,
 } from "../openapi-contract";
 
 describe("OpenAPI runtime contract", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("enforces response contracts by default outside production with explicit opt-out", () => {
+    expect(shouldEnforceApiResponseContracts()).toBe(true);
+
+    vi.stubEnv("VITE_API_CONTRACT_STRICT_RESPONSES", "off");
+    expect(shouldEnforceApiResponseContracts()).toBe(false);
+
+    vi.stubEnv("VITE_API_CONTRACT_STRICT_RESPONSES", "true");
+    expect(shouldEnforceApiResponseContracts()).toBe(true);
+  });
+
   it("finds endpoints across the full Management API surface", () => {
     expect(findOpenApiEndpoint("/usage/ee/licenses/", "get")).toMatchObject({
       template: "/usage/ee/licenses/",

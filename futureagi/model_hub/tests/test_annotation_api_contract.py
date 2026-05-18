@@ -370,11 +370,29 @@ class TestAnnotationApiContract:
         assert bad_request.data["status"] is False
         assert bad_request.data["result"] == "Bad input"
         assert bad_request.data["message"] == "Bad input"
+        assert "details" not in bad_request.data
+
+        validation_error = gm.bad_request({"name": ["This field is required."]})
+        assert validation_error.data["status"] is False
+        assert validation_error.data["result"] == "name: This field is required."
+        assert validation_error.data["message"] == "name: This field is required."
+        assert validation_error.data["details"] == {
+            "name": ["This field is required."]
+        }
 
         custom_error = gm.custom_error_response(409, "Already running")
         assert custom_error.data["status"] is False
         assert custom_error.data["result"] == "Already running"
         assert custom_error.data["message"] == "Already running"
+
+        custom_validation_error = gm.custom_error_response(
+            409, {"error": "Already running"}
+        )
+        assert custom_validation_error.data["result"] == "Already running"
+        assert custom_validation_error.data["message"] == "Already running"
+        assert custom_validation_error.data["details"] == {
+            "error": ["Already running"]
+        }
 
     def test_empty_request_contract_rejects_surprise_payloads(self):
         empty = EmptyRequestSerializer(data={})

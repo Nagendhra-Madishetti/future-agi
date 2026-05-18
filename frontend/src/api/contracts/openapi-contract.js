@@ -35,8 +35,12 @@ const appMode = () => envValue("MODE") || nodeEnv() || "development";
 export const shouldEnforceApiRequestContracts = () =>
   envValue("VITE_API_CONTRACTS") !== "off" && appMode() !== "production";
 
-export const shouldEnforceApiResponseContracts = () =>
-  envValue("VITE_API_CONTRACT_STRICT_RESPONSES") === "true";
+export const shouldEnforceApiResponseContracts = () => {
+  const value = envValue("VITE_API_CONTRACT_STRICT_RESPONSES");
+  if (value === "true") return true;
+  if (value === "false" || value === "off") return false;
+  return appMode() !== "production";
+};
 
 function pathTemplateToRegex(template) {
   let pattern = "^";
