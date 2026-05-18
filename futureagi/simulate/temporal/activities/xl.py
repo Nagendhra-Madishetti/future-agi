@@ -38,6 +38,10 @@ from simulate.temporal.types.activities import (
     RunToolCallEvaluationInput,
     RunToolCallEvaluationOutput,
 )
+from simulate.utils.eval_context import (
+    flatten_persona_for_resolver,
+    resolve_persona_for_call,
+)
 from simulate.utils.eval_summary import derive_kpi_output_type
 
 logger = structlog.get_logger(__name__)
@@ -372,12 +376,6 @@ CONTEXT_MAP_DOT_ALIASES = {
     "agent_model": "agent.model",
     "agent_language": "agent.language",
     "agent_description": "agent.description",
-    "persona_name": "persona.name",
-    "persona_prompt": "persona.prompt",
-    "persona_description": "persona.description",
-    "persona_voice_name": "persona.voice_name",
-    "persona_model": "persona.model",
-    "persona_initial_message": "persona.initial_message",
     "prompt_template": "prompt.name",
     "prompt_template_name": "prompt.name",
     "prompt_template_description": "prompt.description",
@@ -413,48 +411,6 @@ TRANSCRIPT_DOT_ALIASES = {
     # transcript_data — handled inline in _run_single_evaluation.
     "call.agent_prompt": "agent_prompt",
 }
-
-
-def _resolve_persona_for_call(call_execution):
-    """Pick the Persona used for this specific call.
-
-    Priority:
-    1. call_metadata.row_data.persona (UUID) — baked into the dataset row
-       at execution time by temporal/activities/test_execution.py.
-    2. First Persona referenced by scenario.metadata.persona_ids
-       (ordered by created_at — stable across runs).
-    3. None — `persona.*` keys resolve to "".
-    """
-    from simulate.models import Persona
-
-    metadata = call_execution.call_metadata or {}
-    row_data = metadata.get("row_data") or {}
-    row_persona_id = row_data.get("persona")
-    if row_persona_id:
-        try:
-            return Persona.no_workspace_objects.get(
-                id=row_persona_id, deleted=False
-            )
-        except (Persona.DoesNotExist, ValueError):
-            pass
-
-    scenario = getattr(call_execution, "scenario", None)
-    if not scenario:
-        return None
-    scenario_meta = scenario.metadata or {}
-    persona_ids = scenario_meta.get("persona_ids") or []
-    if not persona_ids:
-        return None
-    try:
-        return (
-            Persona.no_workspace_objects.filter(
-                id__in=persona_ids, deleted=False
-            )
-            .order_by("created_at")
-            .first()
-        )
-    except ValueError:
-        return None
 
 
 def _build_simulation_context_map(call_execution, agent_version):
@@ -521,16 +477,14 @@ def _build_simulation_context_map(call_execution, agent_version):
     ctx["agent_description"] = _agent("description", "description")
     ctx["agent_model"] = _agent("model", "model")
 
-    if simulator_agent:
-        ctx["persona_name"] = _s(simulator_agent.name)
-        ctx["persona_prompt"] = _s(simulator_agent.prompt)
-        # Back-compat alias: the UI dropdown has historically shown
-        # "persona_description" (serializer exposed `prompt` under a
-        # `description` alias). Keep the mapping value resolvable.
-        ctx["persona_description"] = _s(simulator_agent.prompt)
-        ctx["persona_voice_name"] = _s(simulator_agent.voice_name)
-        ctx["persona_model"] = _s(simulator_agent.model)
-        ctx["persona_initial_message"] = _s(simulator_agent.initial_message)
+    persona = resolve_persona_for_call(call_execution)
+    ctx.update(flatten_persona_for_resolver(persona, simulator_agent))
+
+    # Underscore back-compat for pre-2026-04-13 configs that used persona_name etc.
+    for _suffix in ("name", "prompt", "description", "voice_name", "model", "initial_message"):
+        _dot = f"persona.{_suffix}"
+        if _dot in ctx:
+            ctx[f"persona_{_suffix}"] = ctx[_dot]
 
     if prompt_template:
         ctx["prompt_template_name"] = _s(prompt_template.name)

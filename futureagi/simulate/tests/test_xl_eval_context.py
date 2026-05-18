@@ -1,25 +1,22 @@
-"""Tests for the eval context map and mapping resolver in xl.py.
+"""Tests for the eval context map and mapping resolver.
 
 Covers:
-- _resolve_persona_for_call: picks the Persona used for a given CallExecution.
-- _flatten_persona / _flatten_persona_for_resolver: build the persona.* namespace.
-- _build_simulation_context_map: full context map assembly.
+- resolve_persona_for_call: picks the Persona used for a given CallExecution.
+- flatten_persona / flatten_persona_for_resolver: build persona.* namespace.
+- _build_simulation_context_map: full context map assembly (xl.py).
 - _translate_mapping_value: resolver branches including scenario.<column_name>.
 """
 
 import pytest
 
 from model_hub.models.choices import DatasetSourceChoices, SourceChoices, StatusType
-
-# These exercise the resolver against a real DB graph (Persona, Scenarios,
-# Dataset, CallExecution) — integration scope, not pure unit. Per the
-# project convention these live in @pytest.mark.integration.
-pytestmark = pytest.mark.integration
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
 from simulate.models import AgentDefinition, Persona, Scenarios
 from simulate.models.run_test import RunTest
 from simulate.models.simulator_agent import SimulatorAgent
 from simulate.models.test_execution import CallExecution, TestExecution
+
+pytestmark = pytest.mark.integration
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +177,7 @@ def persona_setup(db, organization, workspace, user):
 def test_resolve_persona_prefers_row_data_persona_id(
     persona_setup, organization, workspace
 ):
-    from simulate.temporal.activities.xl import _resolve_persona_for_call
+    from simulate.utils.eval_context import resolve_persona_for_call
 
     persona_a = _make_persona(organization, workspace, name="A")
     persona_b = _make_persona(organization, workspace, name="B")
@@ -190,7 +187,7 @@ def test_resolve_persona_prefers_row_data_persona_id(
         row_data={"persona": str(persona_b.id)},
     )
 
-    resolved = _resolve_persona_for_call(call)
+    resolved = resolve_persona_for_call(call)
 
     assert resolved is not None
     assert resolved.id == persona_b.id
@@ -200,7 +197,7 @@ def test_resolve_persona_prefers_row_data_persona_id(
 def test_resolve_persona_falls_back_to_first_in_metadata(
     persona_setup, organization, workspace
 ):
-    from simulate.temporal.activities.xl import _resolve_persona_for_call
+    from simulate.utils.eval_context import resolve_persona_for_call
 
     persona_a = _make_persona(organization, workspace, name="A")
     persona_b = _make_persona(organization, workspace, name="B")
@@ -210,7 +207,7 @@ def test_resolve_persona_falls_back_to_first_in_metadata(
         row_data={},
     )
 
-    resolved = _resolve_persona_for_call(call)
+    resolved = resolve_persona_for_call(call)
 
     assert resolved is not None
     assert resolved.id == persona_a.id
@@ -218,8 +215,189 @@ def test_resolve_persona_falls_back_to_first_in_metadata(
 
 @pytest.mark.django_db
 def test_resolve_persona_returns_none_when_no_persona_ids(persona_setup):
-    from simulate.temporal.activities.xl import _resolve_persona_for_call
+    from simulate.utils.eval_context import resolve_persona_for_call
 
     call = persona_setup(scenario_metadata={}, row_data={})
 
-    assert _resolve_persona_for_call(call) is None
+    assert resolve_persona_for_call(call) is None
+
+
+# ---------------------------------------------------------------------------
+# Task 1.2 — _flatten_persona / _flatten_persona_for_resolver
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_user_facing_flatten_persona_excludes_simulator_fields(
+    organization, workspace
+):
+    """User-facing variant — Persona model only. SimulatorAgent fields are
+    deliberately absent so the eval-mapping dropdown never offers them.
+    """
+    from simulate.utils.eval_context import flatten_persona
+
+    persona = _make_persona(
+        organization,
+        workspace,
+        name="Alice",
+        gender=["female"],
+        age_group=["28-35"],
+        tone="casual",
+    )
+
+    flat = flatten_persona(persona)
+
+    assert flat["persona.name"] == "Alice"
+    assert flat["persona.gender"] == "female"
+    assert flat["persona.age_group"] == "28-35"
+    assert flat["persona.tone"] == "casual"
+    # SimulatorAgent-only fields must NOT appear in the user-facing variant.
+    assert "persona.voice_name" not in flat
+    assert "persona.prompt" not in flat
+    assert "persona.initial_message" not in flat
+
+
+@pytest.mark.django_db
+def test_flatten_persona_multi_value_list_joins_with_comma(organization, workspace):
+    from simulate.utils.eval_context import flatten_persona
+
+    persona = _make_persona(
+        organization,
+        workspace,
+        languages=["English", "Hindi", "Marathi"],
+    )
+
+    flat = flatten_persona(persona)
+
+    assert flat["persona.languages"] == "English, Hindi, Marathi"
+
+
+@pytest.mark.django_db
+def test_flatten_persona_metadata_surfaces_dynamically(organization, workspace):
+    """Persona.metadata is a free-form dict — each key must surface under
+    persona.metadata.<key>, with the same flattening rules.
+    """
+    from simulate.utils.eval_context import flatten_persona
+
+    persona = _make_persona(
+        organization,
+        workspace,
+        metadata={"region": "EMEA", "vip_tier": "gold", "tags": ["A", "B"]},
+    )
+
+    flat = flatten_persona(persona)
+
+    assert flat["persona.metadata.region"] == "EMEA"
+    assert flat["persona.metadata.vip_tier"] == "gold"
+    assert flat["persona.metadata.tags"] == "A, B"
+
+
+@pytest.mark.django_db
+def test_flatten_persona_none_returns_empty_strings(organization, workspace):
+    """When no Persona is bound, every persona.<scalar> key is "" and no
+    JSONField/metadata keys are present.
+    """
+    from simulate.utils.eval_context import flatten_persona
+
+    flat = flatten_persona(None)
+
+    assert flat["persona.name"] == ""
+    assert flat["persona.gender"] == ""
+    assert flat["persona.tone"] == ""
+    assert "persona.metadata.region" not in flat
+
+
+@pytest.mark.django_db
+def test_resolver_flatten_persona_falls_back_to_simulator(
+    organization, workspace
+):
+    """The resolver variant adds a SimulatorAgent fallback for legacy
+    persona.<sim_field> mappings. Persona model still wins on conflicts.
+    """
+    from simulate.utils.eval_context import flatten_persona_for_resolver
+
+    persona = _make_persona(organization, workspace, name="Alice")
+    simulator = SimulatorAgent.objects.create(
+        name="SimulatorBot",  # Persona.name should still win.
+        prompt="You are helpful",
+        voice_provider="elevenlabs",
+        voice_name="alloy",
+        model="gpt-4",
+        initial_message="Hello",
+        organization=organization,
+        workspace=workspace,
+    )
+
+    flat = flatten_persona_for_resolver(persona, simulator)
+
+    # Persona wins the name collision.
+    assert flat["persona.name"] == "Alice"
+    # SimulatorAgent fills in the rest under persona.*.
+    assert flat["persona.prompt"] == "You are helpful"
+    assert flat["persona.voice_name"] == "alloy"
+    assert flat["persona.initial_message"] == "Hello"
+
+
+@pytest.mark.django_db
+def test_resolver_flatten_persona_no_persona_uses_simulator(
+    organization, workspace
+):
+    """If no Persona is bound, the resolver variant returns SimulatorAgent
+    fields under persona.* — keeping legacy eval-config mappings alive.
+    """
+    from simulate.utils.eval_context import flatten_persona_for_resolver
+
+    simulator = SimulatorAgent.objects.create(
+        name="Bot",
+        prompt="You are helpful",
+        voice_provider="elevenlabs",
+        voice_name="alloy",
+        model="gpt-4",
+        initial_message="Hi",
+        organization=organization,
+        workspace=workspace,
+    )
+
+    flat = flatten_persona_for_resolver(None, simulator)
+
+    assert flat["persona.name"] == "Bot"
+    assert flat["persona.prompt"] == "You are helpful"
+    assert flat["persona.voice_name"] == "alloy"
+
+
+# ---------------------------------------------------------------------------
+# Task 1.2 — integration: _build_simulation_context_map surfaces persona.*
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_context_map_surfaces_persona_and_legacy_simulator_fields(
+    persona_setup, organization, workspace
+):
+    """End-to-end: Persona attributes resolve under persona.*, and legacy
+    persona.<sim_field> keys (prompt, voice_name, initial_message) keep
+    resolving via the SimulatorAgent fallback in the resolver variant.
+    """
+    from simulate.temporal.activities.xl import _build_simulation_context_map
+
+    persona = _make_persona(
+        organization,
+        workspace,
+        name="Alice",
+        gender=["female"],
+        age_group=["28-35"],
+    )
+    call = persona_setup(
+        scenario_metadata={"persona_ids": [str(persona.id)]},
+        row_data={"persona": str(persona.id)},
+    )
+
+    ctx = _build_simulation_context_map(call, agent_version=None)
+
+    # Persona model fields.
+    assert ctx["persona.name"] == "Alice"
+    assert ctx["persona.gender"] == "female"
+    assert ctx["persona.age_group"] == "28-35"
+    # SimulatorAgent fallback fields under the same namespace (legacy compat).
+    assert ctx["persona.voice_name"] == "marissa"
+    assert ctx["persona.prompt"] == "You are a simulator"
