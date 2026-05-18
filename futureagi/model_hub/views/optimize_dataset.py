@@ -26,8 +26,10 @@ from model_hub.models.metric import Metric
 from model_hub.serializers.column_config import ColumnConfigSerializer
 from model_hub.serializers.contracts import (
     MODEL_HUB_ERROR_RESPONSES,
+    ModelHubEmptyRequestSerializer,
     OptimizeDatasetColumnConfigResponseSerializer,
     OptimizeDatasetColumnConfigUpdateResponseSerializer,
+    OptimizeDatasetColumnConfigUpdateRequestSerializer,
     OptimizeDatasetCreateResponseSerializer,
     OptimizeDatasetDetailResponseSerializer,
     OptimizeDatasetKnowledgeBaseCreateResponseSerializer,
@@ -36,7 +38,7 @@ from model_hub.serializers.contracts import (
     OptimizeDatasetKnowledgeBaseRequestSerializer,
     OptimizeDatasetListQuerySerializer,
     OptimizeDatasetMutationRequestSerializer,
-    OptimizeDatasetOperationRequestSerializer,
+    OptimizeDatasetPageRequestSerializer,
     OptimizeDatasetPaginatedResponseSerializer,
     OptimizeDatasetTemplateResultsResponseSerializer,
 )
@@ -97,6 +99,13 @@ OPTIMIZE_DATASET_DYNAMIC_ROWS_RESPONSE_SCHEMA = openapi.Schema(
         "message",
     ],
 )
+
+
+def _validate_request(serializer_class, data):
+    serializer = serializer_class(data=data)
+    if not serializer.is_valid():
+        return None, Response(serializer.errors, status=400)
+    return serializer.validated_data, None
 
 
 class OptimizedDatasetView(APIView):
@@ -166,7 +175,12 @@ class OptimizedDatasetView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            data = request.data
+            data, error_response = _validate_request(
+                OptimizeDatasetMutationRequestSerializer,
+                request.data,
+            )
+            if error_response is not None:
+                return error_response
             name = data.get("name")
             start_date = data.get("start_date").split("T")[0]
             end_date = data.get("end_date").split("T")[0]
@@ -197,7 +211,7 @@ class OptimizedDatasetView(APIView):
             )
 
             if not valid:
-                return self.gm.bad_request(get_error_message("IN_VALID_METRICS"))
+                return self._gm.bad_request(get_error_message("IN_VALID_METRICS"))
 
             metrics_list = Metric.objects.filter(id__in=metrics)
 
@@ -517,19 +531,26 @@ class RightAnswerResultsView(APIView):
         return result
 
     @swagger_auto_schema(
-        request_body=OptimizeDatasetOperationRequestSerializer,
+        request_body=OptimizeDatasetPageRequestSerializer,
         responses={
             200: OPTIMIZE_DATASET_DYNAMIC_ROWS_RESPONSE_SCHEMA,
             **MODEL_HUB_ERROR_RESPONSES,
         },
     )
     def post(self, request, model_id, optimization_id):
+        payload, error_response = _validate_request(
+            OptimizeDatasetPageRequestSerializer,
+            request.data,
+        )
+        if error_response is not None:
+            return error_response
+
         optimization = OptimizeDataset.objects.prefetch_related("metrics").get(
             id=optimization_id
         )
 
-        page = int(request.data["page"]) or 1
-        limit = int(request.data["limit"]) or 10
+        page = payload["page"]
+        limit = payload["limit"]
         offset = (int(page) - 1) * limit
         environment = optimization.environment
         version = optimization.version
@@ -779,7 +800,7 @@ class TemplateResultsView(APIView):
         return query
 
     @swagger_auto_schema(
-        request_body=OptimizeDatasetOperationRequestSerializer,
+        request_body=ModelHubEmptyRequestSerializer,
         responses={
             200: OptimizeDatasetTemplateResultsResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -787,6 +808,13 @@ class TemplateResultsView(APIView):
     )
     def post(self, request, model_id, optimization_id, *args, **kwarg):
         try:
+            _payload, error_response = _validate_request(
+                ModelHubEmptyRequestSerializer,
+                request.data,
+            )
+            if error_response is not None:
+                return error_response
+
             optimization = OptimizeDataset.objects.prefetch_related("metrics").get(
                 id=optimization_id
             )
@@ -1009,19 +1037,26 @@ class TemplateExploreView(APIView):
         return result
 
     @swagger_auto_schema(
-        request_body=OptimizeDatasetOperationRequestSerializer,
+        request_body=OptimizeDatasetPageRequestSerializer,
         responses={
             200: OPTIMIZE_DATASET_DYNAMIC_ROWS_RESPONSE_SCHEMA,
             **MODEL_HUB_ERROR_RESPONSES,
         },
     )
     def post(self, request, model_id, optimization_id):
+        payload, error_response = _validate_request(
+            OptimizeDatasetPageRequestSerializer,
+            request.data,
+        )
+        if error_response is not None:
+            return error_response
+
         optimization = OptimizeDataset.objects.prefetch_related("metrics").get(
             id=optimization_id
         )
 
-        page = int(request.data["page"]) or 1
-        limit = int(request.data["limit"]) or 10
+        page = payload["page"]
+        limit = payload["limit"]
         offset = (int(page) - 1) * limit
         environment = optimization.environment
         version = optimization.version
@@ -1193,13 +1228,20 @@ class OptimizeDatasetColumnConfig(APIView):
         )
 
     @swagger_auto_schema(
-        request_body=OptimizeDatasetOperationRequestSerializer,
+        request_body=OptimizeDatasetColumnConfigUpdateRequestSerializer,
         responses={
             200: OptimizeDatasetColumnConfigUpdateResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
         },
     )
     def post(self, request, model_id):
+        payload, error_response = _validate_request(
+            OptimizeDatasetColumnConfigUpdateRequestSerializer,
+            request.data,
+        )
+        if error_response is not None:
+            return error_response
+
         user_organization = (
             getattr(self.request, "organization", None)
             or self.request.user.organization
@@ -1211,7 +1253,7 @@ class OptimizeDatasetColumnConfig(APIView):
             identifier=f"{model_id}",
         )
 
-        column_config.columns = request.data["columns"]
+        column_config.columns = payload["columns"]
 
         column_config.save()
 
@@ -1292,7 +1334,7 @@ class OptimizeDatasetRightColumnConfig(APIView):
         )
 
     @swagger_auto_schema(
-        request_body=OptimizeDatasetOperationRequestSerializer,
+        request_body=OptimizeDatasetColumnConfigUpdateRequestSerializer,
         responses={
             200: OptimizeDatasetColumnConfigUpdateResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -1304,6 +1346,13 @@ class OptimizeDatasetRightColumnConfig(APIView):
         model_id,
         optimization_id,
     ):
+        payload, error_response = _validate_request(
+            OptimizeDatasetColumnConfigUpdateRequestSerializer,
+            request.data,
+        )
+        if error_response is not None:
+            return error_response
+
         user_organization = (
             getattr(self.request, "organization", None)
             or self.request.user.organization
@@ -1315,7 +1364,7 @@ class OptimizeDatasetRightColumnConfig(APIView):
             identifier=f"{model_id}-{optimization_id}-right-answers-explore",
         )
 
-        column_config.columns = request.data["columns"]
+        column_config.columns = payload["columns"]
 
         column_config.save()
 
@@ -1399,7 +1448,7 @@ class OptimizeDatasetPromptExploreColumnConfig(APIView):
         )
 
     @swagger_auto_schema(
-        request_body=OptimizeDatasetOperationRequestSerializer,
+        request_body=OptimizeDatasetColumnConfigUpdateRequestSerializer,
         responses={
             200: OptimizeDatasetColumnConfigUpdateResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -1411,6 +1460,13 @@ class OptimizeDatasetPromptExploreColumnConfig(APIView):
         model_id,
         optimization_id,
     ):
+        payload, error_response = _validate_request(
+            OptimizeDatasetColumnConfigUpdateRequestSerializer,
+            request.data,
+        )
+        if error_response is not None:
+            return error_response
+
         user_organization = (
             getattr(self.request, "organization", None)
             or self.request.user.organization
@@ -1422,7 +1478,7 @@ class OptimizeDatasetPromptExploreColumnConfig(APIView):
             identifier=f"{model_id}-{optimization_id}-prompt-template-explore",
         )
 
-        column_config.columns = request.data["columns"]
+        column_config.columns = payload["columns"]
 
         column_config.save()
 
@@ -1445,7 +1501,12 @@ class OptimizedDatasetKbView(CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         try:
-            data = request.data
+            data, error_response = _validate_request(
+                OptimizeDatasetKnowledgeBaseRequestSerializer,
+                request.data,
+            )
+            if error_response is not None:
+                return error_response
             name = data.get("name")
             knowledge_base_metrics = data.get("knowledge_base_metrics")
             knowledge_base_filters = data.get("knowledge_base_filters")

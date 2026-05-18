@@ -851,9 +851,9 @@ const DevelopData = React.forwardRef(
             rowNode.setDataValue(columnId, tempUrl);
 
             const formData = new FormData();
-            formData.append("columnId", columnId);
-            formData.append("rowId", rowId);
-            formData.append("newValue", newValue);
+            formData.append("column_id", columnId);
+            formData.append("row_id", rowId);
+            formData.append("new_value", newValue);
 
             updateCellValue(formData);
           } else if (
@@ -863,18 +863,18 @@ const DevelopData = React.forwardRef(
             rowNode.setDataValue(columnId, newValue);
 
             updateCellValue({
-              columnId,
-              rowId,
-              newValue,
+              column_id: columnId,
+              row_id: rowId,
+              new_value: newValue,
             });
           } else if (dataType == "datetime") {
             const date = new Date(newValue);
             rowNode.setDataValue(columnId, date);
             const formattedDate = format(date, "yyyy-MM-dd HH:mm:ss");
             updateCellValue({
-              columnId,
-              rowId,
-              newValue: formattedDate,
+              column_id: columnId,
+              row_id: rowId,
+              new_value: formattedDate,
             });
           } else {
             const formattedValue =
@@ -883,9 +883,9 @@ const DevelopData = React.forwardRef(
                 : newValue?.toString() ?? "";
             rowNode.setDataValue(columnId, formattedValue);
             updateCellValue({
-              columnId,
-              rowId,
-              newValue: formattedValue,
+              column_id: columnId,
+              row_id: rowId,
+              new_value: formattedValue,
             });
           }
         } catch (e) {

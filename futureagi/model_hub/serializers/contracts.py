@@ -18,7 +18,7 @@ from model_hub.serializers.optimize_dataset import (
 from model_hub.serializers.performance_report import PerformanceReportSerializer
 
 
-class ModelHubEmptyRequestSerializer(serializers.Serializer):
+class ModelHubEmptyRequestSerializer(StrictInputSerializer):
     pass
 
 
@@ -778,18 +778,17 @@ class LegacyKnowledgeBaseFilesResponseSerializer(serializers.Serializer):
     result = LegacyKnowledgeBaseFilesResultSerializer()
 
 
-class OptimizeDatasetMutationRequestSerializer(serializers.Serializer):
-    name = serializers.CharField(required=False, allow_blank=True)
-    start_date = serializers.CharField(required=False, allow_blank=True)
-    end_date = serializers.CharField(required=False, allow_blank=True)
-    model = serializers.UUIDField(required=False)
-    optimize_type = serializers.CharField(required=False, allow_blank=True)
-    environment = serializers.CharField(required=False, allow_blank=True)
-    version = serializers.CharField(required=False, allow_blank=True)
+class OptimizeDatasetMutationRequestSerializer(StrictInputSerializer):
+    name = serializers.CharField(allow_blank=True)
+    start_date = serializers.CharField(allow_blank=True)
+    end_date = serializers.CharField(allow_blank=True)
+    model = serializers.UUIDField()
+    optimize_type = serializers.CharField(allow_blank=True)
+    environment = serializers.CharField(allow_blank=True)
+    version = serializers.CharField(allow_blank=True)
     metrics = serializers.ListField(
         child=serializers.UUIDField(),
-        required=False,
-        default=list,
+        allow_empty=False,
     )
     prompt = serializers.CharField(required=False, allow_blank=True)
     variables = serializers.JSONField(required=False)
@@ -829,11 +828,13 @@ class OptimizeDatasetFilterListQueryParamField(serializers.CharField):
         ).run_validation(filters)
 
 
-class OptimizeDatasetListQuerySerializer(serializers.Serializer):
+class OptimizeDatasetListQuerySerializer(StrictInputSerializer):
     filters = OptimizeDatasetFilterListQueryParamField(required=False, default=list)
+    page = serializers.IntegerField(required=False, default=1, min_value=1)
+    limit = serializers.IntegerField(required=False, default=15, min_value=1)
 
 
-class OptimizeDatasetKnowledgeBaseRequestSerializer(serializers.Serializer):
+class OptimizeDatasetKnowledgeBaseRequestSerializer(StrictInputSerializer):
     name = serializers.CharField(required=False, allow_blank=True)
     knowledge_base_metrics = serializers.JSONField(required=False)
     knowledge_base_filters = serializers.JSONField(required=False)
@@ -841,15 +842,13 @@ class OptimizeDatasetKnowledgeBaseRequestSerializer(serializers.Serializer):
     variables = serializers.JSONField(required=False)
 
 
-class OptimizeDatasetOperationRequestSerializer(serializers.Serializer):
-    filters = serializers.JSONField(required=False)
-    order = serializers.JSONField(required=False)
-    page_number = serializers.IntegerField(required=False)
-    page_size = serializers.IntegerField(required=False)
-    columns = serializers.JSONField(required=False)
-    prompt_template = serializers.CharField(required=False, allow_blank=True)
-    prompt = serializers.CharField(required=False, allow_blank=True)
-    variables = serializers.JSONField(required=False)
+class OptimizeDatasetPageRequestSerializer(StrictInputSerializer):
+    page = serializers.IntegerField(required=False, default=1, min_value=1)
+    limit = serializers.IntegerField(required=False, default=10, min_value=1)
+
+
+class OptimizeDatasetColumnConfigUpdateRequestSerializer(StrictInputSerializer):
+    columns = serializers.ListField(child=serializers.JSONField(), allow_empty=True)
 
 
 class OptimizeDatasetPaginatedResponseSerializer(serializers.Serializer):
@@ -2646,10 +2645,24 @@ class DatasetBehaviorRequestSerializer(serializers.Serializer):
     dataset_config = serializers.JSONField(required=False, default=dict)
 
 
-class DatasetUpdateCellValueRequestSerializer(serializers.Serializer):
+class DatasetCellValueField(serializers.Field):
+    class Meta:
+        swagger_schema_fields = {
+            "description": "New cell value. Accepts JSON primitives or multipart file uploads.",
+            "x-nullable": True,
+        }
+
+    def to_internal_value(self, data):
+        return data
+
+    def to_representation(self, value):
+        return value
+
+
+class DatasetUpdateCellValueRequestSerializer(StrictInputSerializer):
     row_id = serializers.UUIDField()
     column_id = serializers.UUIDField()
-    new_value = serializers.JSONField(required=False, allow_null=True)
+    new_value = DatasetCellValueField(required=False, allow_null=True)
 
 
 class DatasetUpdateColumnTypeRequestSerializer(serializers.Serializer):

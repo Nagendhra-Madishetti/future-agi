@@ -5213,7 +5213,23 @@ export interface QueueItemApi {
   readonly created_at?: string;
 }
 
-export type AddItemsApiItemsItem = {[key: string]: string};
+export type AddQueueItemApiSourceType = typeof AddQueueItemApiSourceType[keyof typeof AddQueueItemApiSourceType];
+
+
+export const AddQueueItemApiSourceType = {
+  call_execution: 'call_execution',
+  dataset_row: 'dataset_row',
+  observation_span: 'observation_span',
+  prototype_run: 'prototype_run',
+  trace: 'trace',
+  trace_session: 'trace_session',
+} as const;
+
+export interface AddQueueItemApi {
+  source_type: AddQueueItemApiSourceType;
+  /** @minLength 1 */
+  source_id: string;
+}
 
 export type SelectionApiMode = typeof SelectionApiMode[keyof typeof SelectionApiMode];
 
@@ -5248,6 +5264,10 @@ export type SelectionApiFilterItem = {
   column_id: string;
   /** Optional UI label for chips and saved views. */
   display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
   filter_config: SelectionApiFilterItemFilterConfig;
 };
 
@@ -5262,7 +5282,7 @@ export interface SelectionApi {
 }
 
 export interface AddItemsApi {
-  items?: AddItemsApiItemsItem[];
+  items?: AddQueueItemApi[];
   selection?: SelectionApi;
 }
 
@@ -5307,7 +5327,6 @@ export interface AssignItemsApi {
   /** @minItems 1 */
   item_ids: string[];
   user_ids?: string[];
-  user_id?: string;
   action?: AssignItemsApiAction;
 }
 
@@ -5463,11 +5482,16 @@ export interface QueueImportAnnotationsResponseApi {
   result: QueueImportAnnotationsResultApi;
 }
 
-export type SubmitAnnotationsApiAnnotationsItem = {[key: string]: string};
+export type SubmitAnnotationEntryApiValue = { [key: string]: unknown };
+
+export interface SubmitAnnotationEntryApi {
+  label_id: string;
+  value: SubmitAnnotationEntryApiValue;
+  notes?: string;
+}
 
 export interface SubmitAnnotationsApi {
-  /** @minItems 1 */
-  annotations: SubmitAnnotationsApiAnnotationsItem[];
+  annotations: SubmitAnnotationEntryApi[];
   notes?: string;
   item_notes?: string;
 }
@@ -5522,21 +5546,15 @@ export interface QueueDiscussionResponseApi {
 
 export interface DiscussionCommentRequestApi {
   comment?: string;
-  content?: string;
   label_id?: string;
-  label?: string;
   target_annotator_id?: string;
   thread_id?: string;
-  thread?: string;
   mentioned_user_ids?: string[];
-  mentions?: string[];
 }
 
 export interface DiscussionReactionRequestApi {
   /** @maxLength 16 */
   emoji?: string;
-  /** @maxLength 16 */
-  reaction?: string;
 }
 
 export interface DiscussionThreadStatusRequestApi {
@@ -5564,11 +5582,8 @@ export const ReviewItemRequestApiAction = {
 
 export interface ReviewLabelCommentRequestApi {
   label_id?: string;
-  label?: string;
   target_annotator_id?: string;
-  annotator_id?: string;
   comment?: string;
-  notes?: string;
 }
 
 export interface ReviewItemRequestApi {
@@ -7866,9 +7881,41 @@ export interface DatasetTableResponseApi {
   result: DatasetTableResultApi;
 }
 
-export type DatasetRowDataRequestApiFiltersItem = { [key: string]: unknown };
+export type DatasetRowDataRequestApiFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
 
-export type DatasetRowDataRequestApiSortItem = { [key: string]: unknown };
+export type DatasetRowDataRequestApiFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: DatasetRowDataRequestApiFiltersItemFilterConfig;
+};
+
+export type DatasetRowDataRequestApiSortItemType = typeof DatasetRowDataRequestApiSortItemType[keyof typeof DatasetRowDataRequestApiSortItemType];
+
+
+export const DatasetRowDataRequestApiSortItemType = {
+  ascending: 'ascending',
+  descending: 'descending',
+} as const;
+
+export type DatasetRowDataRequestApiSortItem = {
+  column_id: string;
+  type?: DatasetRowDataRequestApiSortItemType;
+};
 
 export interface DatasetRowDataRequestApi {
   filters?: DatasetRowDataRequestApiFiltersItem[];
@@ -8035,12 +8082,11 @@ export interface SyntheticDatasetUpdateResponseApi {
   result: SyntheticDatasetUpdateResultApi;
 }
 
-export type DatasetUpdateCellValueRequestApiNewValue = { [key: string]: unknown };
-
 export interface DatasetUpdateCellValueRequestApi {
   row_id: string;
   column_id: string;
-  new_value?: DatasetUpdateCellValueRequestApiNewValue;
+  /** New cell value. Accepts JSON primitives or multipart file uploads. */
+  new_value?: string;
 }
 
 export interface DatasetUpdateColumnNameRequestApi {
@@ -10201,7 +10247,28 @@ export interface EvalMetricResponseApi {
   result: EvalMetricResponseResultApi;
 }
 
-export type EvalMetricRequestApiFiltersItem = { [key: string]: unknown };
+export type EvalMetricRequestApiFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type EvalMetricRequestApiFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: EvalMetricRequestApiFiltersItemFilterConfig;
+};
 
 export interface EvalMetricRequestApi {
   eval_template_id: string;
@@ -10930,14 +10997,14 @@ export interface OptimizeDatasetPaginatedResponseApi {
 export type OptimizeDatasetMutationRequestApiVariables = { [key: string]: unknown };
 
 export interface OptimizeDatasetMutationRequestApi {
-  name?: string;
-  start_date?: string;
-  end_date?: string;
-  model?: string;
-  optimize_type?: string;
-  environment?: string;
-  version?: string;
-  metrics?: string[];
+  name: string;
+  start_date: string;
+  end_date: string;
+  model: string;
+  optimize_type: string;
+  environment: string;
+  version: string;
+  metrics: string[];
   prompt?: string;
   variables?: OptimizeDatasetMutationRequestApiVariables;
 }
@@ -10962,23 +11029,10 @@ export interface OptimizeDatasetColumnConfigResponseApi {
   status: string;
 }
 
-export type OptimizeDatasetOperationRequestApiFilters = { [key: string]: unknown };
+export type OptimizeDatasetColumnConfigUpdateRequestApiColumnsItem = { [key: string]: unknown };
 
-export type OptimizeDatasetOperationRequestApiOrder = { [key: string]: unknown };
-
-export type OptimizeDatasetOperationRequestApiColumns = { [key: string]: unknown };
-
-export type OptimizeDatasetOperationRequestApiVariables = { [key: string]: unknown };
-
-export interface OptimizeDatasetOperationRequestApi {
-  filters?: OptimizeDatasetOperationRequestApiFilters;
-  order?: OptimizeDatasetOperationRequestApiOrder;
-  page_number?: number;
-  page_size?: number;
-  columns?: OptimizeDatasetOperationRequestApiColumns;
-  prompt_template?: string;
-  prompt?: string;
-  variables?: OptimizeDatasetOperationRequestApiVariables;
+export interface OptimizeDatasetColumnConfigUpdateRequestApi {
+  columns: OptimizeDatasetColumnConfigUpdateRequestApiColumnsItem[];
 }
 
 export interface OptimizeDatasetColumnConfigUpdateResponseApi {
@@ -10986,6 +11040,13 @@ export interface OptimizeDatasetColumnConfigUpdateResponseApi {
   message: string;
   /** @minLength 1 */
   status: string;
+}
+
+export interface OptimizeDatasetPageRequestApi {
+  /** @minimum 1 */
+  page?: number;
+  /** @minimum 1 */
+  limit?: number;
 }
 
 export interface OptimizeDatasetTemplateResultApi {
@@ -11063,16 +11124,64 @@ export interface ModelHubOverviewResponseApi {
   versions: ModelHubOverviewResponseApiVersions;
 }
 
-export type PerformanceDetailsRequestApiDataset = { [key: string]: unknown };
+export type PerformanceFilterApiType = typeof PerformanceFilterApiType[keyof typeof PerformanceFilterApiType];
 
-export type PerformanceDetailsRequestApiFiltersItem = { [key: string]: unknown };
+
+export const PerformanceFilterApiType = {
+  property: 'property',
+  performanceMetric: 'performanceMetric',
+  performanceTag: 'performanceTag',
+} as const;
+
+export type PerformanceFilterApiDatatype = typeof PerformanceFilterApiDatatype[keyof typeof PerformanceFilterApiDatatype];
+
+
+export const PerformanceFilterApiDatatype = {
+  string: 'string',
+  number: 'number',
+} as const;
+
+export type PerformanceFilterApiOperator = typeof PerformanceFilterApiOperator[keyof typeof PerformanceFilterApiOperator];
+
+
+export const PerformanceFilterApiOperator = {
+  equal: 'equal',
+  notEqual: 'notEqual',
+  greaterThan: 'greaterThan',
+  greaterThanEqualTo: 'greaterThanEqualTo',
+  lessThan: 'lessThan',
+  lessThanEqualTo: 'lessThanEqualTo',
+} as const;
+
+export type PerformanceFilterApiValuesItem = { [key: string]: unknown };
+
+export interface PerformanceFilterApi {
+  type: PerformanceFilterApiType;
+  datatype: PerformanceFilterApiDatatype;
+  operator: PerformanceFilterApiOperator;
+  values?: PerformanceFilterApiValuesItem[];
+  key: string;
+  key_id: string;
+}
+
+export interface PerformanceDatasetApi {
+  /** @minLength 1 */
+  environment: string;
+  /** @minLength 1 */
+  version: string;
+  metric_id: string;
+  filters?: PerformanceFilterApi[];
+}
 
 export interface PerformanceDetailsRequestApi {
-  dataset: PerformanceDetailsRequestApiDataset;
-  filters?: PerformanceDetailsRequestApiFiltersItem[];
+  dataset: PerformanceDatasetApi;
+  filters?: PerformanceFilterApi[];
+  /** @minimum 1 */
   page?: number;
-  start_date?: string;
-  end_date?: string;
+  /** @minLength 1 */
+  start_date: string;
+  /** @minLength 1 */
+  end_date: string;
 }
 
 export type PerformanceDetailsResponseApiResultItem = { [key: string]: unknown };
@@ -11085,13 +11194,13 @@ export interface PerformanceDetailsResponseApi {
   page: number;
 }
 
-export type PerformanceExportRequestApiDataset = { [key: string]: unknown };
-
-export type PerformanceExportRequestApiMetric = { [key: string]: unknown };
-
 export interface PerformanceExportRequestApi {
-  dataset: PerformanceExportRequestApiDataset;
-  metric?: PerformanceExportRequestApiMetric;
+  dataset: PerformanceDatasetApi;
+  filters?: PerformanceFilterApi[];
+  /** @minLength 1 */
+  start_date: string;
+  /** @minLength 1 */
+  end_date: string;
 }
 
 export interface PerformanceMetricOptionApi {
@@ -11193,32 +11302,62 @@ export interface PerformanceReportCreateResponseApi {
   result: PerformanceReportApi;
 }
 
-export type PerformanceTagDistributionRequestApiDataset = { [key: string]: unknown };
+export type PerformanceTagDistributionRequestApiAggBy = typeof PerformanceTagDistributionRequestApiAggBy[keyof typeof PerformanceTagDistributionRequestApiAggBy];
 
-export type PerformanceTagDistributionRequestApiFiltersItem = { [key: string]: unknown };
+
+export const PerformanceTagDistributionRequestApiAggBy = {
+  hourly: 'hourly',
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export type PerformanceTagDistributionRequestApiGraphType = typeof PerformanceTagDistributionRequestApiGraphType[keyof typeof PerformanceTagDistributionRequestApiGraphType];
+
+
+export const PerformanceTagDistributionRequestApiGraphType = {
+  all: 'all',
+  good: 'good',
+  bad: 'bad',
+} as const;
 
 export interface PerformanceTagDistributionRequestApi {
-  dataset: PerformanceTagDistributionRequestApiDataset;
-  filters?: PerformanceTagDistributionRequestApiFiltersItem[];
-  agg_by?: string;
-  start_date?: string;
-  end_date?: string;
-  graph_type?: string;
+  dataset: PerformanceDatasetApi;
+  filters?: PerformanceFilterApi[];
+  agg_by: PerformanceTagDistributionRequestApiAggBy;
+  /** @minLength 1 */
+  start_date: string;
+  /** @minLength 1 */
+  end_date: string;
+  graph_type: PerformanceTagDistributionRequestApiGraphType;
 }
 
-export type PerformanceQueryRequestApiDatasetsItem = { [key: string]: unknown };
+export type PerformanceQueryRequestApiAggBy = typeof PerformanceQueryRequestApiAggBy[keyof typeof PerformanceQueryRequestApiAggBy];
 
-export type PerformanceQueryRequestApiFiltersItem = { [key: string]: unknown };
 
-export type PerformanceQueryRequestApiBreakdownItem = { [key: string]: unknown };
+export const PerformanceQueryRequestApiAggBy = {
+  hourly: 'hourly',
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export interface PerformanceBreakdownApi {
+  /** @minLength 1 */
+  key: string;
+  /** @minLength 1 */
+  key_id: string;
+}
 
 export interface PerformanceQueryRequestApi {
-  datasets?: PerformanceQueryRequestApiDatasetsItem[];
-  filters?: PerformanceQueryRequestApiFiltersItem[];
-  breakdown?: PerformanceQueryRequestApiBreakdownItem[];
-  agg_by?: string;
-  start_date?: string;
-  end_date?: string;
+  datasets: PerformanceDatasetApi[];
+  filters?: PerformanceFilterApi[];
+  breakdown?: PerformanceBreakdownApi[];
+  agg_by: PerformanceQueryRequestApiAggBy;
+  /** @minLength 1 */
+  start_date: string;
+  /** @minLength 1 */
+  end_date: string;
 }
 
 export type PromptBaseTemplateApiPromptConfigSnapshot = { [key: string]: unknown };
@@ -11619,14 +11758,30 @@ export const BulkCreateScoresApiSourceType = {
   trace_session: 'trace_session',
 } as const;
 
-export type BulkCreateScoresApiScoresItem = {[key: string]: string};
+export type BulkCreateScoreItemApiScoreSource = typeof BulkCreateScoreItemApiScoreSource[keyof typeof BulkCreateScoreItemApiScoreSource];
+
+
+export const BulkCreateScoreItemApiScoreSource = {
+  human: 'human',
+  api: 'api',
+  auto: 'auto',
+  imported: 'imported',
+} as const;
+
+export type BulkCreateScoreItemApiValue = { [key: string]: unknown };
+
+export interface BulkCreateScoreItemApi {
+  label_id: string;
+  value: BulkCreateScoreItemApiValue;
+  notes?: string;
+  score_source?: BulkCreateScoreItemApiScoreSource;
+}
 
 export interface BulkCreateScoresApi {
   source_type: BulkCreateScoresApiSourceType;
   /** @minLength 1 */
   source_id: string;
-  /** @minItems 1 */
-  scores: BulkCreateScoresApiScoresItem[];
+  scores: BulkCreateScoreItemApi[];
   notes?: string;
   span_notes?: string;
   span_notes_source_id?: string;
@@ -16263,19 +16418,19 @@ export type FetchGraphApiFiltersItem = {
   column_id: string;
   /** Optional UI label for chips and saved views. */
   display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
   filter_config: FetchGraphApiFiltersItemFilterConfig;
 };
-
-export type FetchGraphApiReqDataConfig = { [key: string]: unknown };
 
 export interface FetchGraphApi {
   /** @minLength 1 */
   interval: string;
-  filters: FetchGraphApiFiltersItem[];
-  /** @minLength 1 */
-  property: string;
-  req_data_config: FetchGraphApiReqDataConfig;
-  /** @minLength 1 */
+  filters?: FetchGraphApiFiltersItem[];
+  property?: string;
+  req_data_config: string;
   project_id: string;
 }
 
@@ -16402,6 +16557,10 @@ export type EvalTaskApiFiltersSpanAttributesFiltersItem = {
   column_id: string;
   /** Optional UI label for chips and saved views. */
   display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
   filter_config: EvalTaskApiFiltersSpanAttributesFiltersItemFilterConfig;
 };
 
@@ -17161,6 +17320,65 @@ export interface AddObservationSpanAnnotationsApi {
   notes?: string;
 }
 
+export type ObserveGraphDataRequestApiFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type ObserveGraphDataRequestApiFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: ObserveGraphDataRequestApiFiltersItemFilterConfig;
+};
+
+export type ObserveGraphDataRequestApiInterval = typeof ObserveGraphDataRequestApiInterval[keyof typeof ObserveGraphDataRequestApiInterval];
+
+
+export const ObserveGraphDataRequestApiInterval = {
+  hour: 'hour',
+  day: 'day',
+  week: 'week',
+  month: 'month',
+} as const;
+
+export type ObserveGraphDataRequestApiReqDataConfigType = typeof ObserveGraphDataRequestApiReqDataConfigType[keyof typeof ObserveGraphDataRequestApiReqDataConfigType];
+
+
+export const ObserveGraphDataRequestApiReqDataConfigType = {
+  SYSTEM_METRIC: 'SYSTEM_METRIC',
+  EVAL: 'EVAL',
+  ANNOTATION: 'ANNOTATION',
+} as const;
+
+export type ObserveGraphDataRequestApiReqDataConfig = {
+  id: string;
+  type: ObserveGraphDataRequestApiReqDataConfigType;
+  output_type?: string;
+  eval_output_type?: string;
+  choices?: string[];
+  [key: string]: unknown;
+ };
+
+export interface ObserveGraphDataRequestApi {
+  project_id: string;
+  filters?: ObserveGraphDataRequestApiFiltersItem[];
+  interval?: ObserveGraphDataRequestApiInterval;
+  property?: string;
+  req_data_config: ObserveGraphDataRequestApiReqDataConfig;
+}
+
 export type ProjectVersionApiMetadata = { [key: string]: unknown };
 
 export type ProjectVersionApiError = { [key: string]: unknown };
@@ -17248,6 +17466,101 @@ export interface ProjectApi {
   source?: ProjectApiSource;
   session_config?: ProjectApiSessionConfig;
   tags?: ProjectApiTags;
+}
+
+export type ProjectUserGraphDataRequestApiFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type ProjectUserGraphDataRequestApiFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: ProjectUserGraphDataRequestApiFiltersItemFilterConfig;
+};
+
+export interface ProjectUserGraphDataRequestApi {
+  /** @minLength 1 */
+  interval?: string;
+  filters?: ProjectUserGraphDataRequestApiFiltersItem[];
+}
+
+export type ProjectUserMetricsRequestApiFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type ProjectUserMetricsRequestApiFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: ProjectUserMetricsRequestApiFiltersItemFilterConfig;
+};
+
+export interface ProjectUserMetricsRequestApi {
+  end_user_id: string;
+  project_id: string;
+  /** @minLength 1 */
+  interval?: string;
+  filters?: ProjectUserMetricsRequestApiFiltersItem[];
+}
+
+export type ProjectUsersAggregateGraphDataRequestApiFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type ProjectUsersAggregateGraphDataRequestApiFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: ProjectUsersAggregateGraphDataRequestApiFiltersItemFilterConfig;
+};
+
+export type ProjectUsersAggregateGraphDataRequestApiReqDataConfig = {[key: string]: { [key: string]: unknown }};
+
+export interface ProjectUsersAggregateGraphDataRequestApi {
+  project_id: string;
+  /** @minLength 1 */
+  interval?: string;
+  filters?: ProjectUsersAggregateGraphDataRequestApiFiltersItem[];
+  /** @minLength 1 */
+  property?: string;
+  req_data_config?: ProjectUsersAggregateGraphDataRequestApiReqDataConfig;
 }
 
 export type ReplaySessionListApiReplayType = typeof ReplaySessionListApiReplayType[keyof typeof ReplaySessionListApiReplayType];
@@ -17698,8 +18011,52 @@ export interface GetTraceAnnotationApi {
      */
   observation_span_id?: string;
   trace_id?: string;
-  annotators?: string[];
-  exclude_annotators?: string[];
+  /** JSON-encoded UUID list. */
+  annotators?: string;
+  /** JSON-encoded UUID list. */
+  exclude_annotators?: string;
+}
+
+export type TraceAnnotationValueResponseApiAnnotationValue = { [key: string]: unknown };
+
+export type TraceAnnotationValueResponseApiSettings = { [key: string]: unknown };
+
+export interface TraceAnnotationValueResponseApi {
+  id: string;
+  /** @minLength 1 */
+  annotation_label_name: string;
+  annotation_value: TraceAnnotationValueResponseApiAnnotationValue;
+  annotation_label_id: string;
+  /** @minLength 1 */
+  annotator?: string;
+  annotator_id?: string;
+  /** @minLength 1 */
+  updated_by?: string;
+  updated_at?: string;
+  /** @minLength 1 */
+  annotation_type: string;
+  settings?: TraceAnnotationValueResponseApiSettings;
+}
+
+export interface TraceAnnotationNoteResponseApi {
+  id: string;
+  notes: string;
+  /** @minLength 1 */
+  created_by_annotator: string;
+  /** @minLength 1 */
+  created_by_user: string;
+  created_by_user_id: string;
+  updated_at: string;
+}
+
+export interface GetTraceAnnotationValuesResultApi {
+  annotations: TraceAnnotationValueResponseApi[];
+  notes: TraceAnnotationNoteResponseApi[];
+}
+
+export interface GetTraceAnnotationValuesResponseApi {
+  status?: boolean;
+  result: GetTraceAnnotationValuesResultApi;
 }
 
 export type TraceErrorAnalysisResultApiSummary = { [key: string]: unknown };
@@ -17814,6 +18171,65 @@ export interface TraceSessionApi {
   /** @maxLength 255 */
   name?: string;
   readonly created_at?: string;
+}
+
+export type TraceSessionGraphDataRequestApiFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type TraceSessionGraphDataRequestApiFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: TraceSessionGraphDataRequestApiFiltersItemFilterConfig;
+};
+
+export type TraceSessionGraphDataRequestApiInterval = typeof TraceSessionGraphDataRequestApiInterval[keyof typeof TraceSessionGraphDataRequestApiInterval];
+
+
+export const TraceSessionGraphDataRequestApiInterval = {
+  hour: 'hour',
+  day: 'day',
+  week: 'week',
+  month: 'month',
+} as const;
+
+export type TraceSessionGraphDataRequestApiReqDataConfigType = typeof TraceSessionGraphDataRequestApiReqDataConfigType[keyof typeof TraceSessionGraphDataRequestApiReqDataConfigType];
+
+
+export const TraceSessionGraphDataRequestApiReqDataConfigType = {
+  SYSTEM_METRIC: 'SYSTEM_METRIC',
+  EVAL: 'EVAL',
+  ANNOTATION: 'ANNOTATION',
+} as const;
+
+export type TraceSessionGraphDataRequestApiReqDataConfig = {
+  id: string;
+  type: TraceSessionGraphDataRequestApiReqDataConfigType;
+  output_type?: string;
+  eval_output_type?: string;
+  choices?: string[];
+  [key: string]: unknown;
+ };
+
+export interface TraceSessionGraphDataRequestApi {
+  project_id: string;
+  filters?: TraceSessionGraphDataRequestApiFiltersItem[];
+  interval?: TraceSessionGraphDataRequestApiInterval;
+  property?: string;
+  req_data_config: TraceSessionGraphDataRequestApiReqDataConfig;
 }
 
 export type TraceApiMetadata = { [key: string]: unknown };
@@ -20381,14 +20797,25 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-source_type?: string;
+source_type?: ModelHubAnnotationQueuesForSourceSourceType;
 source_id?: string;
 sources?: string;
 };
 
+export type ModelHubAnnotationQueuesForSourceSourceType = typeof ModelHubAnnotationQueuesForSourceSourceType[keyof typeof ModelHubAnnotationQueuesForSourceSourceType];
+
+
+export const ModelHubAnnotationQueuesForSourceSourceType = {
+  call_execution: 'call_execution',
+  dataset_row: 'dataset_row',
+  observation_span: 'observation_span',
+  prototype_run: 'prototype_run',
+  trace: 'trace',
+  trace_session: 'trace_session',
+} as const;
+
 export type ModelHubAnnotationQueuesExportAnnotationsParams = {
 export_format?: ModelHubAnnotationQueuesExportAnnotationsExportFormat;
-format?: ModelHubAnnotationQueuesExportAnnotationsFormat;
 status?: string;
 };
 
@@ -20396,14 +20823,6 @@ export type ModelHubAnnotationQueuesExportAnnotationsExportFormat = typeof Model
 
 
 export const ModelHubAnnotationQueuesExportAnnotationsExportFormat = {
-  json: 'json',
-  csv: 'csv',
-} as const;
-
-export type ModelHubAnnotationQueuesExportAnnotationsFormat = typeof ModelHubAnnotationQueuesExportAnnotationsFormat[keyof typeof ModelHubAnnotationQueuesExportAnnotationsFormat];
-
-
-export const ModelHubAnnotationQueuesExportAnnotationsFormat = {
   json: 'json',
   csv: 'csv',
 } as const;
@@ -20472,16 +20891,17 @@ review_status?: string;
 exclude_review_status?: string;
 include_completed?: boolean;
 view_mode?: string;
+include_all_annotations?: boolean;
 };
 
 export type ModelHubAnnotationQueuesItemsAnnotateDetailParams = {
 annotator_id?: string;
 include_completed?: boolean;
 view_mode?: string;
-mode?: string;
 review_status?: string;
 exclude_review_status?: string;
 include_all_annotations?: boolean;
+reserve?: boolean;
 };
 
 export type ModelHubAnnotationTasksListParams = {
@@ -20744,6 +21164,42 @@ export type ModelHubFeedbackGetTemplate200 = {
   results: FeedbackApi[];
 };
 
+export type ModelHubGetEvalLogsDetailsListParams = {
+eval_template_id: string;
+/**
+ * @minimum 1
+ */
+page_size?: number;
+/**
+ * @minimum 0
+ */
+current_page_index?: number;
+source?: ModelHubGetEvalLogsDetailsListSource;
+search?: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
+sort?: string;
+};
+
+export type ModelHubGetEvalLogsDetailsListSource = typeof ModelHubGetEvalLogsDetailsListSource[keyof typeof ModelHubGetEvalLogsDetailsListSource];
+
+
+export const ModelHubGetEvalLogsDetailsListSource = {
+  logs: 'logs',
+  feedback: 'feedback',
+  eval_playground: 'eval_playground',
+} as const;
+
+export type ModelHubGetEvalMetricsListParams = {
+eval_template_id: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
+};
+
 export type ModelHubKbListParams = {
 /**
  * A search term.
@@ -20833,6 +21289,21 @@ export type ModelHubOptimizeDatasetList200 = {
   next?: string;
   previous?: string;
   results: OptimizeDatasetKbApi[];
+};
+
+export type ModelHubOptimizeDatasetReadParams = {
+/**
+ * @minLength 1
+ */
+filters?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ */
+limit?: number;
 };
 
 export type ModelHubOptimizeDatasetPromptTemplateExploreCreate200ResultsItem = {
@@ -21158,6 +21629,42 @@ export type ModelHubPromptTemplatesGetTemplateByName200 = {
   next?: string;
   previous?: string;
   results: PromptTemplateApi[];
+};
+
+export type ModelHubPromptMetricsListParams = {
+prompt_template_id: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
+search_term?: string;
+/**
+ * @minimum 0
+ */
+page_number?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+page_size?: number;
+};
+
+export type ModelHubPromptSpanMetricsListParams = {
+prompt_template_id: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
+search_term?: string;
+/**
+ * @minimum 0
+ */
+page_number?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+page_size?: number;
 };
 
 export type ModelHubResponseSchemaListParams = {
@@ -22138,6 +22645,10 @@ export type TracerFeedIssuesTrendsListParams = {
 days?: number;
 };
 
+export type TracerGetAnnotationLabelsListParams = {
+project_id?: string;
+};
+
 export type TracerImagineAnalysisListParams = {
 saved_view_id: string;
 /**
@@ -22192,7 +22703,22 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+/**
+ * @minLength 1
+ */
+filters: string;
+row_type?: TracerObservationSpanGetEvalAttributesListRowType;
 };
+
+export type TracerObservationSpanGetEvalAttributesListRowType = typeof TracerObservationSpanGetEvalAttributesListRowType[keyof typeof TracerObservationSpanGetEvalAttributesListRowType];
+
+
+export const TracerObservationSpanGetEvalAttributesListRowType = {
+  spans: 'spans',
+  traces: 'traces',
+  sessions: 'sessions',
+  voiceCalls: 'voiceCalls',
+} as const;
 
 export type TracerObservationSpanGetEvalAttributesList200 = {
   count: number;
@@ -22246,7 +22772,22 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+/**
+ * @minLength 1
+ */
+filters: string;
+row_type?: TracerObservationSpanGetSpanAttributesListRowType;
 };
+
+export type TracerObservationSpanGetSpanAttributesListRowType = typeof TracerObservationSpanGetSpanAttributesListRowType[keyof typeof TracerObservationSpanGetSpanAttributesListRowType];
+
+
+export const TracerObservationSpanGetSpanAttributesListRowType = {
+  spans: 'spans',
+  traces: 'traces',
+  sessions: 'sessions',
+  voiceCalls: 'voiceCalls',
+} as const;
 
 export type TracerObservationSpanGetSpanAttributesList200 = {
   count: number;
@@ -22282,6 +22823,15 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+/**
+ * @minLength 1
+ */
+span_id: string;
+project_version_id: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
 };
 
 export type TracerObservationSpanGetTraceIdByIndexSpansAsBase200 = {
@@ -22300,6 +22850,16 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+/**
+ * @minLength 1
+ */
+span_id: string;
+project_id: string;
+user_id?: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
 };
 
 export type TracerObservationSpanGetTraceIdByIndexSpansAsObserve200 = {
@@ -22336,6 +22896,21 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+project_id: string;
+user_id?: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
+/**
+ * @minimum 0
+ */
+page_number?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+page_size?: number;
 };
 
 export type TracerObservationSpanListSpansObserve200 = {
@@ -22508,6 +23083,15 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+project_id: string;
+/**
+ * @minLength 1
+ */
+interval?: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
 };
 
 export type TracerProjectGetGraphData200 = {
@@ -22515,6 +23099,11 @@ export type TracerProjectGetGraphData200 = {
   next?: string;
   previous?: string;
   results: ProjectApi[];
+};
+
+export type TracerProjectGetUserGraphDataParams = {
+project_id: string;
+end_user_id: string;
 };
 
 export type TracerProjectListProjectIdsParams = {
@@ -22634,13 +23223,14 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type TracerTraceAnnotationGetAnnotationValues200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: GetTraceAnnotationApi[];
+/**
+ * @minLength 1
+ * @maxLength 255
+ */
+observation_span_id?: string;
+trace_id?: string;
+annotators?: string;
+exclude_annotators?: string;
 };
 
 export type TracerTraceSessionListParams = {
@@ -22706,6 +23296,27 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+project_id?: string;
+user_id?: string;
+bookmarked?: boolean;
+/**
+ * @minLength 1
+ */
+filters?: string;
+/**
+ * @minLength 1
+ */
+sort_params?: string;
+/**
+ * @minimum 0
+ */
+page_number?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+page_size?: number;
+interval?: string;
 };
 
 export type TracerTraceSessionListSessions200 = {
@@ -22742,6 +23353,11 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+project_id: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
 };
 
 export type TracerTraceAgentGraph200 = {
@@ -22814,6 +23430,12 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+trace_id: string;
+project_version_id: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
 };
 
 export type TracerTraceGetTraceIdByIndex200 = {
@@ -22832,6 +23454,12 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+trace_id: string;
+project_id: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
 };
 
 export type TracerTraceGetTraceIdByIndexObserve200 = {
@@ -22850,6 +23478,25 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+project_version_id: string;
+trace_ids?: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
+/**
+ * @minLength 1
+ */
+sort_params?: string;
+/**
+ * @minimum 0
+ */
+page_number?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+page_size?: number;
 };
 
 export type TracerTraceListTraces200 = {
@@ -22868,6 +23515,23 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+project_id?: string;
+project_version_id?: string;
+session_id?: string;
+/**
+ * @minLength 1
+ */
+filters?: string;
+/**
+ * @minimum 0
+ */
+page_number?: number;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+page_size?: number;
+interval?: string;
 };
 
 export type TracerTraceListTracesOfSession200 = {

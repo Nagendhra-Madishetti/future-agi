@@ -6,6 +6,7 @@ from rest_framework import status
 from model_hub.models.choices import DataTypeChoices, SourceChoices
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
 from model_hub.serializers.contracts import (
+    DatasetUpdateCellValueRequestSerializer,
     DatasetRowDataRequestSerializer,
     DatasetTableQuerySerializer,
 )
@@ -154,6 +155,22 @@ def test_dataset_row_data_request_rejects_legacy_filter_shape(dataset_filter_see
     assert "filters" in serializer.errors
 
 
+def test_dataset_update_cell_value_request_rejects_legacy_aliases(dataset_filter_seed):
+    _dataset, rows, text_col, _bool_col = dataset_filter_seed
+    serializer = DatasetUpdateCellValueRequestSerializer(
+        data={
+            "rowId": str(rows[0].id),
+            "columnId": str(text_col.id),
+            "newValue": "Gamma",
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "rowId" in serializer.errors
+    assert "columnId" in serializer.errors
+    assert "newValue" in serializer.errors
+
+
 def test_dataset_table_api_rejects_legacy_query_aliases(
     auth_client, dataset_filter_seed
 ):
@@ -169,6 +186,48 @@ def test_dataset_table_api_rejects_legacy_query_aliases(
     )
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_update_cell_value_api_rejects_legacy_payload_aliases(
+    auth_client, dataset_filter_seed
+):
+    dataset, rows, text_col, _bool_col = dataset_filter_seed
+    cell = Cell.objects.get(dataset=dataset, row=rows[0], column=text_col)
+
+    response = auth_client.post(
+        f"/model-hub/develops/{dataset.id}/update_cell_value/",
+        {
+            "rowId": str(rows[0].id),
+            "columnId": str(text_col.id),
+            "newValue": "Gamma",
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    cell.refresh_from_db()
+    assert cell.value == "Alpha"
+
+
+def test_update_cell_value_api_accepts_canonical_payload(
+    auth_client, dataset_filter_seed
+):
+    dataset, rows, text_col, _bool_col = dataset_filter_seed
+    cell = Cell.objects.get(dataset=dataset, row=rows[0], column=text_col)
+
+    response = auth_client.post(
+        f"/model-hub/develops/{dataset.id}/update_cell_value/",
+        {
+            "row_id": str(rows[0].id),
+            "column_id": str(text_col.id),
+            "new_value": "Gamma",
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    cell.refresh_from_db()
+    assert cell.value == "Gamma"
 
 
 def test_dataset_row_data_api_rejects_legacy_filter_shape(

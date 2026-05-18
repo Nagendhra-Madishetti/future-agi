@@ -494,6 +494,7 @@ import type {
   GenerateScenarioApi,
   GetAnnotationLabelsResponseApi,
   GetTraceAnnotationApi,
+  GetTraceAnnotationValuesResponseApi,
   GraphCreateApi,
   GraphDetailApi,
   GraphExecutionDetailResponseApi,
@@ -651,6 +652,8 @@ import type {
   ModelHubFeedbackGetTemplateParams,
   ModelHubFeedbackList200,
   ModelHubFeedbackListParams,
+  ModelHubGetEvalLogsDetailsListParams,
+  ModelHubGetEvalMetricsListParams,
   ModelHubKbListParams,
   ModelHubKbSupportedEmbeddingModelsParams,
   ModelHubOptimisationList200,
@@ -683,6 +686,8 @@ import type {
   ModelHubPromptLabelsListParams,
   ModelHubPromptLabelsTemplateLabels200,
   ModelHubPromptLabelsTemplateLabelsParams,
+  ModelHubPromptMetricsListParams,
+  ModelHubPromptSpanMetricsListParams,
   ModelHubPromptTemplatesGetTemplateByName200,
   ModelHubPromptTemplatesGetTemplateByNameParams,
   ModelHubPromptTemplatesList200,
@@ -712,6 +717,7 @@ import type {
   OTLPTraceResponseApi,
   ObservabilityProviderApi,
   ObservationSpanApi,
+  ObserveGraphDataRequestApi,
   OperationConfigResponseApi,
   OptimiserAnalysisRefreshResponseApi,
   OptimiserAnalysisResponseApi,
@@ -719,6 +725,7 @@ import type {
   OptimizationDatasetGetApi,
   OptimizationDetailApi,
   OptimizeDatasetColumnConfigResponseApi,
+  OptimizeDatasetColumnConfigUpdateRequestApi,
   OptimizeDatasetColumnConfigUpdateResponseApi,
   OptimizeDatasetCreateResponseApi,
   OptimizeDatasetDetailResponseApi,
@@ -726,7 +733,7 @@ import type {
   OptimizeDatasetKnowledgeBaseDetailResponseApi,
   OptimizeDatasetKnowledgeBaseRequestApi,
   OptimizeDatasetMutationRequestApi,
-  OptimizeDatasetOperationRequestApi,
+  OptimizeDatasetPageRequestApi,
   OptimizeDatasetTemplateResultsResponseApi,
   OrgConfigBulkResponseApi,
   OrgTwoFactorPolicyApi,
@@ -785,6 +792,9 @@ import type {
   PricingListResponseApi,
   PricingReadResponseApi,
   ProjectApi,
+  ProjectUserGraphDataRequestApi,
+  ProjectUserMetricsRequestApi,
+  ProjectUsersAggregateGraphDataRequestApi,
   ProjectVersionApi,
   PromptBaseTemplateApi,
   PromptDerivedVariablesResponseApi,
@@ -1034,6 +1044,7 @@ import type {
   TraceErrorTaskUpdateRequestApi,
   TraceErrorTaskUpdateResponseApi,
   TraceSessionApi,
+  TraceSessionGraphDataRequestApi,
   TraceTagsUpdateApi,
   TraceToGraphRequestApi,
   TraceToGraphResponseApi,
@@ -1076,6 +1087,7 @@ import type {
   TracerFeedIssuesStatsListParams,
   TracerFeedIssuesTracesListParams,
   TracerFeedIssuesTrendsListParams,
+  TracerGetAnnotationLabelsListParams,
   TracerImagineAnalysisListParams,
   TracerObservabilityProviderList200,
   TracerObservabilityProviderListParams,
@@ -1109,6 +1121,7 @@ import type {
   TracerProjectFetchSystemMetricsParams,
   TracerProjectGetGraphData200,
   TracerProjectGetGraphDataParams,
+  TracerProjectGetUserGraphDataParams,
   TracerProjectList200,
   TracerProjectListParams,
   TracerProjectListProjectIds200,
@@ -1131,7 +1144,6 @@ import type {
   TracerSharedLinksListParams,
   TracerTraceAgentGraph200,
   TracerTraceAgentGraphParams,
-  TracerTraceAnnotationGetAnnotationValues200,
   TracerTraceAnnotationGetAnnotationValuesParams,
   TracerTraceAnnotationList200,
   TracerTraceAnnotationListParams,
@@ -34356,17 +34368,24 @@ export type modelHubGetEvalLogsDetailsListResponseError = (modelHubGetEvalLogsDe
 
 export type modelHubGetEvalLogsDetailsListResponse = (modelHubGetEvalLogsDetailsListResponseSuccess | modelHubGetEvalLogsDetailsListResponseError)
 
-export const getModelHubGetEvalLogsDetailsListUrl = () => {
+export const getModelHubGetEvalLogsDetailsListUrl = (params: ModelHubGetEvalLogsDetailsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/get-eval-logs-details`
+  return stringifiedParams.length > 0 ? `/model-hub/get-eval-logs-details?${stringifiedParams}` : `/model-hub/get-eval-logs-details`
 }
 
-export const modelHubGetEvalLogsDetailsList = async ( options?: RequestInit): Promise<modelHubGetEvalLogsDetailsListResponse> => {
+export const modelHubGetEvalLogsDetailsList = async (params: ModelHubGetEvalLogsDetailsListParams, options?: RequestInit): Promise<modelHubGetEvalLogsDetailsListResponse> => {
 
-  return apiMutator<modelHubGetEvalLogsDetailsListResponse>(getModelHubGetEvalLogsDetailsListUrl(),
+  return apiMutator<modelHubGetEvalLogsDetailsListResponse>(getModelHubGetEvalLogsDetailsListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -34416,17 +34435,24 @@ export type modelHubGetEvalMetricsListResponseError = (modelHubGetEvalMetricsLis
 
 export type modelHubGetEvalMetricsListResponse = (modelHubGetEvalMetricsListResponseSuccess | modelHubGetEvalMetricsListResponseError)
 
-export const getModelHubGetEvalMetricsListUrl = () => {
+export const getModelHubGetEvalMetricsListUrl = (params: ModelHubGetEvalMetricsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/get-eval-metrics`
+  return stringifiedParams.length > 0 ? `/model-hub/get-eval-metrics?${stringifiedParams}` : `/model-hub/get-eval-metrics`
 }
 
-export const modelHubGetEvalMetricsList = async ( options?: RequestInit): Promise<modelHubGetEvalMetricsListResponse> => {
+export const modelHubGetEvalMetricsList = async (params: ModelHubGetEvalMetricsListParams, options?: RequestInit): Promise<modelHubGetEvalMetricsListResponse> => {
 
-  return apiMutator<modelHubGetEvalMetricsListResponse>(getModelHubGetEvalMetricsListUrl(),
+  return apiMutator<modelHubGetEvalMetricsListResponse>(getModelHubGetEvalMetricsListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -36742,7 +36768,7 @@ export const getModelHubOptimizeDatasetColumnConfigCreateUrl = (modelId: string,
 }
 
 export const modelHubOptimizeDatasetColumnConfigCreate = async (modelId: string,
-    optimizeDatasetOperationRequestApi: OptimizeDatasetOperationRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetColumnConfigCreateResponse> => {
+    optimizeDatasetColumnConfigUpdateRequestApi: OptimizeDatasetColumnConfigUpdateRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetColumnConfigCreateResponse> => {
 
   return apiMutator<modelHubOptimizeDatasetColumnConfigCreateResponse>(getModelHubOptimizeDatasetColumnConfigCreateUrl(modelId),
   {
@@ -36750,7 +36776,7 @@ export const modelHubOptimizeDatasetColumnConfigCreate = async (modelId: string,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      optimizeDatasetOperationRequestApi,)
+      optimizeDatasetColumnConfigUpdateRequestApi,)
   }
 );}
 
@@ -36868,7 +36894,7 @@ export const getModelHubOptimizeDatasetColumnConfigPromptTemplateExploreCreateUr
 
 export const modelHubOptimizeDatasetColumnConfigPromptTemplateExploreCreate = async (modelId: string,
     optimizationId: string,
-    optimizeDatasetOperationRequestApi: OptimizeDatasetOperationRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetColumnConfigPromptTemplateExploreCreateResponse> => {
+    optimizeDatasetColumnConfigUpdateRequestApi: OptimizeDatasetColumnConfigUpdateRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetColumnConfigPromptTemplateExploreCreateResponse> => {
 
   return apiMutator<modelHubOptimizeDatasetColumnConfigPromptTemplateExploreCreateResponse>(getModelHubOptimizeDatasetColumnConfigPromptTemplateExploreCreateUrl(modelId,optimizationId),
   {
@@ -36876,7 +36902,7 @@ export const modelHubOptimizeDatasetColumnConfigPromptTemplateExploreCreate = as
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      optimizeDatasetOperationRequestApi,)
+      optimizeDatasetColumnConfigUpdateRequestApi,)
   }
 );}
 
@@ -36994,7 +37020,7 @@ export const getModelHubOptimizeDatasetColumnConfigRightAnswersCreateUrl = (mode
 
 export const modelHubOptimizeDatasetColumnConfigRightAnswersCreate = async (modelId: string,
     optimizationId: string,
-    optimizeDatasetOperationRequestApi: OptimizeDatasetOperationRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetColumnConfigRightAnswersCreateResponse> => {
+    optimizeDatasetColumnConfigUpdateRequestApi: OptimizeDatasetColumnConfigUpdateRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetColumnConfigRightAnswersCreateResponse> => {
 
   return apiMutator<modelHubOptimizeDatasetColumnConfigRightAnswersCreateResponse>(getModelHubOptimizeDatasetColumnConfigRightAnswersCreateUrl(modelId,optimizationId),
   {
@@ -37002,7 +37028,7 @@ export const modelHubOptimizeDatasetColumnConfigRightAnswersCreate = async (mode
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      optimizeDatasetOperationRequestApi,)
+      optimizeDatasetColumnConfigUpdateRequestApi,)
   }
 );}
 
@@ -37058,7 +37084,7 @@ export const getModelHubOptimizeDatasetPromptTemplateExploreCreateUrl = (modelId
 
 export const modelHubOptimizeDatasetPromptTemplateExploreCreate = async (modelId: string,
     optimizationId: string,
-    optimizeDatasetOperationRequestApi: OptimizeDatasetOperationRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetPromptTemplateExploreCreateResponse> => {
+    optimizeDatasetPageRequestApi: OptimizeDatasetPageRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetPromptTemplateExploreCreateResponse> => {
 
   return apiMutator<modelHubOptimizeDatasetPromptTemplateExploreCreateResponse>(getModelHubOptimizeDatasetPromptTemplateExploreCreateUrl(modelId,optimizationId),
   {
@@ -37066,7 +37092,7 @@ export const modelHubOptimizeDatasetPromptTemplateExploreCreate = async (modelId
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      optimizeDatasetOperationRequestApi,)
+      optimizeDatasetPageRequestApi,)
   }
 );}
 
@@ -37122,7 +37148,7 @@ export const getModelHubOptimizeDatasetPromptTemplateResultCreateUrl = (modelId:
 
 export const modelHubOptimizeDatasetPromptTemplateResultCreate = async (modelId: string,
     optimizationId: string,
-    optimizeDatasetOperationRequestApi: OptimizeDatasetOperationRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetPromptTemplateResultCreateResponse> => {
+    modelHubEmptyRequestApi: ModelHubEmptyRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetPromptTemplateResultCreateResponse> => {
 
   return apiMutator<modelHubOptimizeDatasetPromptTemplateResultCreateResponse>(getModelHubOptimizeDatasetPromptTemplateResultCreateUrl(modelId,optimizationId),
   {
@@ -37130,7 +37156,7 @@ export const modelHubOptimizeDatasetPromptTemplateResultCreate = async (modelId:
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      optimizeDatasetOperationRequestApi,)
+      modelHubEmptyRequestApi,)
   }
 );}
 
@@ -37186,7 +37212,7 @@ export const getModelHubOptimizeDatasetRightAnswersCreateUrl = (modelId: string,
 
 export const modelHubOptimizeDatasetRightAnswersCreate = async (modelId: string,
     optimizationId: string,
-    optimizeDatasetOperationRequestApi: OptimizeDatasetOperationRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetRightAnswersCreateResponse> => {
+    optimizeDatasetPageRequestApi: OptimizeDatasetPageRequestApi, options?: RequestInit): Promise<modelHubOptimizeDatasetRightAnswersCreateResponse> => {
 
   return apiMutator<modelHubOptimizeDatasetRightAnswersCreateResponse>(getModelHubOptimizeDatasetRightAnswersCreateUrl(modelId,optimizationId),
   {
@@ -37194,7 +37220,7 @@ export const modelHubOptimizeDatasetRightAnswersCreate = async (modelId: string,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      optimizeDatasetOperationRequestApi,)
+      optimizeDatasetPageRequestApi,)
   }
 );}
 
@@ -40606,17 +40632,24 @@ export type modelHubPromptMetricsListResponseError = (modelHubPromptMetricsListR
 
 export type modelHubPromptMetricsListResponse = (modelHubPromptMetricsListResponseSuccess | modelHubPromptMetricsListResponseError)
 
-export const getModelHubPromptMetricsListUrl = () => {
+export const getModelHubPromptMetricsListUrl = (params: ModelHubPromptMetricsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/prompt/metrics/`
+  return stringifiedParams.length > 0 ? `/model-hub/prompt/metrics/?${stringifiedParams}` : `/model-hub/prompt/metrics/`
 }
 
-export const modelHubPromptMetricsList = async ( options?: RequestInit): Promise<modelHubPromptMetricsListResponse> => {
+export const modelHubPromptMetricsList = async (params: ModelHubPromptMetricsListParams, options?: RequestInit): Promise<modelHubPromptMetricsListResponse> => {
 
-  return apiMutator<modelHubPromptMetricsListResponse>(getModelHubPromptMetricsListUrl(),
+  return apiMutator<modelHubPromptMetricsListResponse>(getModelHubPromptMetricsListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -40726,17 +40759,24 @@ export type modelHubPromptSpanMetricsListResponseError = (modelHubPromptSpanMetr
 
 export type modelHubPromptSpanMetricsListResponse = (modelHubPromptSpanMetricsListResponseSuccess | modelHubPromptSpanMetricsListResponseError)
 
-export const getModelHubPromptSpanMetricsListUrl = () => {
+export const getModelHubPromptSpanMetricsListUrl = (params: ModelHubPromptSpanMetricsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/prompt/span-metrics/`
+  return stringifiedParams.length > 0 ? `/model-hub/prompt/span-metrics/?${stringifiedParams}` : `/model-hub/prompt/span-metrics/`
 }
 
-export const modelHubPromptSpanMetricsList = async ( options?: RequestInit): Promise<modelHubPromptSpanMetricsListResponse> => {
+export const modelHubPromptSpanMetricsList = async (params: ModelHubPromptSpanMetricsListParams, options?: RequestInit): Promise<modelHubPromptSpanMetricsListResponse> => {
 
-  return apiMutator<modelHubPromptSpanMetricsListResponse>(getModelHubPromptSpanMetricsListUrl(),
+  return apiMutator<modelHubPromptSpanMetricsListResponse>(getModelHubPromptSpanMetricsListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -49951,7 +49991,7 @@ export const getTracerCustomEvalConfigListCustomEvalConfigsUrl = (params?: Trace
 }
 
 /**
- * List CustomEvalConfigs filtered by the filters provided in the request body.
+ * List CustomEvalConfigs filtered by canonical query parameters.
  */
 export const tracerCustomEvalConfigListCustomEvalConfigs = async (params?: TracerCustomEvalConfigListCustomEvalConfigsParams, options?: RequestInit): Promise<tracerCustomEvalConfigListCustomEvalConfigsResponse> => {
 
@@ -52527,17 +52567,24 @@ export type tracerGetAnnotationLabelsListResponseError = (tracerGetAnnotationLab
 
 export type tracerGetAnnotationLabelsListResponse = (tracerGetAnnotationLabelsListResponseSuccess | tracerGetAnnotationLabelsListResponseError)
 
-export const getTracerGetAnnotationLabelsListUrl = () => {
+export const getTracerGetAnnotationLabelsListUrl = (params?: TracerGetAnnotationLabelsListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/tracer/get-annotation-labels/`
+  return stringifiedParams.length > 0 ? `/tracer/get-annotation-labels/?${stringifiedParams}` : `/tracer/get-annotation-labels/`
 }
 
-export const tracerGetAnnotationLabelsList = async ( options?: RequestInit): Promise<tracerGetAnnotationLabelsListResponse> => {
+export const tracerGetAnnotationLabelsList = async (params?: TracerGetAnnotationLabelsListParams, options?: RequestInit): Promise<tracerGetAnnotationLabelsListResponse> => {
 
-  return apiMutator<tracerGetAnnotationLabelsListResponse>(getTracerGetAnnotationLabelsListUrl(),
+  return apiMutator<tracerGetAnnotationLabelsListResponse>(getTracerGetAnnotationLabelsListUrl(params),
   {
     ...options,
     method: 'GET'
@@ -53195,7 +53242,7 @@ export type tracerObservationSpanGetEvalAttributesListResponseSuccess = (tracerO
 
 export type tracerObservationSpanGetEvalAttributesListResponse = (tracerObservationSpanGetEvalAttributesListResponseSuccess)
 
-export const getTracerObservationSpanGetEvalAttributesListUrl = (params?: TracerObservationSpanGetEvalAttributesListParams,) => {
+export const getTracerObservationSpanGetEvalAttributesListUrl = (params: TracerObservationSpanGetEvalAttributesListParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -53217,7 +53264,7 @@ export const getTracerObservationSpanGetEvalAttributesListUrl = (params?: Tracer
               voiceCalls aliases to spans)
  * @summary Attribute paths the EvalPicker exposes per row_type.
  */
-export const tracerObservationSpanGetEvalAttributesList = async (params?: TracerObservationSpanGetEvalAttributesListParams, options?: RequestInit): Promise<tracerObservationSpanGetEvalAttributesListResponse> => {
+export const tracerObservationSpanGetEvalAttributesList = async (params: TracerObservationSpanGetEvalAttributesListParams, options?: RequestInit): Promise<tracerObservationSpanGetEvalAttributesListResponse> => {
 
   return apiMutator<tracerObservationSpanGetEvalAttributesListResponse>(getTracerObservationSpanGetEvalAttributesListUrl(params),
   {
@@ -53271,7 +53318,7 @@ export const tracerObservationSpanGetEvaluationDetails = async (params?: TracerO
 
 
 export type tracerObservationSpanGetGraphMethodsResponse201 = {
-  data: ObservationSpanApi
+  data: ObserveGraphDataRequestApi
   status: 201
 }
 
@@ -53293,7 +53340,7 @@ export const getTracerObservationSpanGetGraphMethodsUrl = () => {
 /**
  * Fetch data for the observe graph with optimized queries
  */
-export const tracerObservationSpanGetGraphMethods = async (observationSpanApi: NonReadonly<ObservationSpanApi>, options?: RequestInit): Promise<tracerObservationSpanGetGraphMethodsResponse> => {
+export const tracerObservationSpanGetGraphMethods = async (observeGraphDataRequestApi: ObserveGraphDataRequestApi, options?: RequestInit): Promise<tracerObservationSpanGetGraphMethodsResponse> => {
 
   return apiMutator<tracerObservationSpanGetGraphMethodsResponse>(getTracerObservationSpanGetGraphMethodsUrl(),
   {
@@ -53301,7 +53348,7 @@ export const tracerObservationSpanGetGraphMethods = async (observationSpanApi: N
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      observationSpanApi,)
+      observeGraphDataRequestApi,)
   }
 );}
 
@@ -53359,7 +53406,7 @@ export type tracerObservationSpanGetSpanAttributesListResponseSuccess = (tracerO
 
 export type tracerObservationSpanGetSpanAttributesListResponse = (tracerObservationSpanGetSpanAttributesListResponseSuccess)
 
-export const getTracerObservationSpanGetSpanAttributesListUrl = (params?: TracerObservationSpanGetSpanAttributesListParams,) => {
+export const getTracerObservationSpanGetSpanAttributesListUrl = (params: TracerObservationSpanGetSpanAttributesListParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -53379,7 +53426,7 @@ export const getTracerObservationSpanGetSpanAttributesListUrl = (params?: Tracer
     filters: JSON {"project_id": "<uuid>"} (required)
  * @summary Distinct span_attributes keys for a project (spans surface).
  */
-export const tracerObservationSpanGetSpanAttributesList = async (params?: TracerObservationSpanGetSpanAttributesListParams, options?: RequestInit): Promise<tracerObservationSpanGetSpanAttributesListResponse> => {
+export const tracerObservationSpanGetSpanAttributesList = async (params: TracerObservationSpanGetSpanAttributesListParams, options?: RequestInit): Promise<tracerObservationSpanGetSpanAttributesListResponse> => {
 
   return apiMutator<tracerObservationSpanGetSpanAttributesListResponse>(getTracerObservationSpanGetSpanAttributesListUrl(params),
   {
@@ -53444,7 +53491,7 @@ export type tracerObservationSpanGetTraceIdByIndexSpansAsBaseResponseSuccess = (
 
 export type tracerObservationSpanGetTraceIdByIndexSpansAsBaseResponse = (tracerObservationSpanGetTraceIdByIndexSpansAsBaseResponseSuccess)
 
-export const getTracerObservationSpanGetTraceIdByIndexSpansAsBaseUrl = (params?: TracerObservationSpanGetTraceIdByIndexSpansAsBaseParams,) => {
+export const getTracerObservationSpanGetTraceIdByIndexSpansAsBaseUrl = (params: TracerObservationSpanGetTraceIdByIndexSpansAsBaseParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -53463,7 +53510,7 @@ export const getTracerObservationSpanGetTraceIdByIndexSpansAsBaseUrl = (params?:
  * Get the previous and next span id by index for non-observe projects.
 Mirrors the query/filter logic of list_spans.
  */
-export const tracerObservationSpanGetTraceIdByIndexSpansAsBase = async (params?: TracerObservationSpanGetTraceIdByIndexSpansAsBaseParams, options?: RequestInit): Promise<tracerObservationSpanGetTraceIdByIndexSpansAsBaseResponse> => {
+export const tracerObservationSpanGetTraceIdByIndexSpansAsBase = async (params: TracerObservationSpanGetTraceIdByIndexSpansAsBaseParams, options?: RequestInit): Promise<tracerObservationSpanGetTraceIdByIndexSpansAsBaseResponse> => {
 
   return apiMutator<tracerObservationSpanGetTraceIdByIndexSpansAsBaseResponse>(getTracerObservationSpanGetTraceIdByIndexSpansAsBaseUrl(params),
   {
@@ -53488,7 +53535,7 @@ export type tracerObservationSpanGetTraceIdByIndexSpansAsObserveResponseSuccess 
 
 export type tracerObservationSpanGetTraceIdByIndexSpansAsObserveResponse = (tracerObservationSpanGetTraceIdByIndexSpansAsObserveResponseSuccess)
 
-export const getTracerObservationSpanGetTraceIdByIndexSpansAsObserveUrl = (params?: TracerObservationSpanGetTraceIdByIndexSpansAsObserveParams,) => {
+export const getTracerObservationSpanGetTraceIdByIndexSpansAsObserveUrl = (params: TracerObservationSpanGetTraceIdByIndexSpansAsObserveParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -53507,7 +53554,7 @@ export const getTracerObservationSpanGetTraceIdByIndexSpansAsObserveUrl = (param
  * Get the previous and next trace id by index for observe projects.
 Mirrors the query/filter logic of list_spans_as_observe.
  */
-export const tracerObservationSpanGetTraceIdByIndexSpansAsObserve = async (params?: TracerObservationSpanGetTraceIdByIndexSpansAsObserveParams, options?: RequestInit): Promise<tracerObservationSpanGetTraceIdByIndexSpansAsObserveResponse> => {
+export const tracerObservationSpanGetTraceIdByIndexSpansAsObserve = async (params: TracerObservationSpanGetTraceIdByIndexSpansAsObserveParams, options?: RequestInit): Promise<tracerObservationSpanGetTraceIdByIndexSpansAsObserveResponse> => {
 
   return apiMutator<tracerObservationSpanGetTraceIdByIndexSpansAsObserveResponse>(getTracerObservationSpanGetTraceIdByIndexSpansAsObserveUrl(params),
   {
@@ -53575,7 +53622,7 @@ export type tracerObservationSpanListSpansObserveResponseSuccess = (tracerObserv
 
 export type tracerObservationSpanListSpansObserveResponse = (tracerObservationSpanListSpansObserveResponseSuccess)
 
-export const getTracerObservationSpanListSpansObserveUrl = (params?: TracerObservationSpanListSpansObserveParams,) => {
+export const getTracerObservationSpanListSpansObserveUrl = (params: TracerObservationSpanListSpansObserveParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -53590,7 +53637,7 @@ export const getTracerObservationSpanListSpansObserveUrl = (params?: TracerObser
   return stringifiedParams.length > 0 ? `/tracer/observation-span/list_spans_observe/?${stringifiedParams}` : `/tracer/observation-span/list_spans_observe/`
 }
 
-export const tracerObservationSpanListSpansObserve = async (params?: TracerObservationSpanListSpansObserveParams, options?: RequestInit): Promise<tracerObservationSpanListSpansObserveResponse> => {
+export const tracerObservationSpanListSpansObserve = async (params: TracerObservationSpanListSpansObserveParams, options?: RequestInit): Promise<tracerObservationSpanListSpansObserveResponse> => {
 
   return apiMutator<tracerObservationSpanListSpansObserveResponse>(getTracerObservationSpanListSpansObserveUrl(params),
   {
@@ -54617,7 +54664,7 @@ export type tracerProjectGetGraphDataResponseSuccess = (tracerProjectGetGraphDat
 
 export type tracerProjectGetGraphDataResponse = (tracerProjectGetGraphDataResponseSuccess)
 
-export const getTracerProjectGetGraphDataUrl = (params?: TracerProjectGetGraphDataParams,) => {
+export const getTracerProjectGetGraphDataUrl = (params: TracerProjectGetGraphDataParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -54632,7 +54679,7 @@ export const getTracerProjectGetGraphDataUrl = (params?: TracerProjectGetGraphDa
   return stringifiedParams.length > 0 ? `/tracer/project/get_graph_data/?${stringifiedParams}` : `/tracer/project/get_graph_data/`
 }
 
-export const tracerProjectGetGraphData = async (params?: TracerProjectGetGraphDataParams, options?: RequestInit): Promise<tracerProjectGetGraphDataResponse> => {
+export const tracerProjectGetGraphData = async (params: TracerProjectGetGraphDataParams, options?: RequestInit): Promise<tracerProjectGetGraphDataResponse> => {
 
   return apiMutator<tracerProjectGetGraphDataResponse>(getTracerProjectGetGraphDataUrl(params),
   {
@@ -54646,7 +54693,7 @@ export const tracerProjectGetGraphData = async (params?: TracerProjectGetGraphDa
 
 
 export type tracerProjectGetUserGraphDataResponse201 = {
-  data: ProjectApi
+  data: ProjectUserGraphDataRequestApi
   status: 201
 }
 
@@ -54657,30 +54704,38 @@ export type tracerProjectGetUserGraphDataResponseSuccess = (tracerProjectGetUser
 
 export type tracerProjectGetUserGraphDataResponse = (tracerProjectGetUserGraphDataResponseSuccess)
 
-export const getTracerProjectGetUserGraphDataUrl = () => {
+export const getTracerProjectGetUserGraphDataUrl = (params: TracerProjectGetUserGraphDataParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/tracer/project/get_user_graph_data/`
+  return stringifiedParams.length > 0 ? `/tracer/project/get_user_graph_data/?${stringifiedParams}` : `/tracer/project/get_user_graph_data/`
 }
 
-export const tracerProjectGetUserGraphData = async (projectApi: NonReadonly<ProjectApi>, options?: RequestInit): Promise<tracerProjectGetUserGraphDataResponse> => {
+export const tracerProjectGetUserGraphData = async (projectUserGraphDataRequestApi: ProjectUserGraphDataRequestApi,
+    params: TracerProjectGetUserGraphDataParams, options?: RequestInit): Promise<tracerProjectGetUserGraphDataResponse> => {
 
-  return apiMutator<tracerProjectGetUserGraphDataResponse>(getTracerProjectGetUserGraphDataUrl(),
+  return apiMutator<tracerProjectGetUserGraphDataResponse>(getTracerProjectGetUserGraphDataUrl(params),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      projectApi,)
+      projectUserGraphDataRequestApi,)
   }
 );}
 
 
 
 export type tracerProjectGetUserMetricsResponse201 = {
-  data: ProjectApi
+  data: ProjectUserMetricsRequestApi
   status: 201
 }
 
@@ -54699,7 +54754,7 @@ export const getTracerProjectGetUserMetricsUrl = () => {
   return `/tracer/project/get_user_metrics/`
 }
 
-export const tracerProjectGetUserMetrics = async (projectApi: NonReadonly<ProjectApi>, options?: RequestInit): Promise<tracerProjectGetUserMetricsResponse> => {
+export const tracerProjectGetUserMetrics = async (projectUserMetricsRequestApi: ProjectUserMetricsRequestApi, options?: RequestInit): Promise<tracerProjectGetUserMetricsResponse> => {
 
   return apiMutator<tracerProjectGetUserMetricsResponse>(getTracerProjectGetUserMetricsUrl(),
   {
@@ -54707,14 +54762,14 @@ export const tracerProjectGetUserMetrics = async (projectApi: NonReadonly<Projec
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      projectApi,)
+      projectUserMetricsRequestApi,)
   }
 );}
 
 
 
 export type tracerProjectGetUsersAggregateGraphDataResponse201 = {
-  data: ProjectApi
+  data: ProjectUsersAggregateGraphDataRequestApi
   status: 201
 }
 
@@ -54738,7 +54793,7 @@ export const getTracerProjectGetUsersAggregateGraphDataUrl = () => {
 All metrics are aggregated at the user level.
  * @summary Fetch time-series aggregate user metrics for the observe graph.
  */
-export const tracerProjectGetUsersAggregateGraphData = async (projectApi: NonReadonly<ProjectApi>, options?: RequestInit): Promise<tracerProjectGetUsersAggregateGraphDataResponse> => {
+export const tracerProjectGetUsersAggregateGraphData = async (projectUsersAggregateGraphDataRequestApi: ProjectUsersAggregateGraphDataRequestApi, options?: RequestInit): Promise<tracerProjectGetUsersAggregateGraphDataResponse> => {
 
   return apiMutator<tracerProjectGetUsersAggregateGraphDataResponse>(getTracerProjectGetUsersAggregateGraphDataUrl(),
   {
@@ -54746,7 +54801,7 @@ export const tracerProjectGetUsersAggregateGraphData = async (projectApi: NonRea
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      projectApi,)
+      projectUsersAggregateGraphDataRequestApi,)
   }
 );}
 
@@ -56087,16 +56142,28 @@ export const tracerTraceAnnotationCreate = async (getTraceAnnotationApi: GetTrac
 
 
 export type tracerTraceAnnotationGetAnnotationValuesResponse200 = {
-  data: TracerTraceAnnotationGetAnnotationValues200
+  data: GetTraceAnnotationValuesResponseApi
   status: 200
+}
+
+export type tracerTraceAnnotationGetAnnotationValuesResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type tracerTraceAnnotationGetAnnotationValuesResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
 }
 
 export type tracerTraceAnnotationGetAnnotationValuesResponseSuccess = (tracerTraceAnnotationGetAnnotationValuesResponse200) & {
   headers: Headers;
 };
-;
+export type tracerTraceAnnotationGetAnnotationValuesResponseError = (tracerTraceAnnotationGetAnnotationValuesResponse400 | tracerTraceAnnotationGetAnnotationValuesResponse500) & {
+  headers: Headers;
+};
 
-export type tracerTraceAnnotationGetAnnotationValuesResponse = (tracerTraceAnnotationGetAnnotationValuesResponseSuccess)
+export type tracerTraceAnnotationGetAnnotationValuesResponse = (tracerTraceAnnotationGetAnnotationValuesResponseSuccess | tracerTraceAnnotationGetAnnotationValuesResponseError)
 
 export const getTracerTraceAnnotationGetAnnotationValuesUrl = (params?: TracerTraceAnnotationGetAnnotationValuesParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -56554,7 +56621,7 @@ Used by the filter panel's value picker for session-specific fields
 
 Query params:
     project_id: required
-    column: the session column name (camelCase, e.g. "sessionId")
+    column: canonical session column name, e.g. "session_id"
     search: optional search substring
     page: page number (0-based), default 0
     page_size: default 50
@@ -56573,7 +56640,7 @@ export const tracerTraceSessionGetSessionFilterValues = async (params?: TracerTr
 
 
 export type tracerTraceSessionGetSessionGraphDataResponse201 = {
-  data: TraceSessionApi
+  data: TraceSessionGraphDataRequestApi
   status: 201
 }
 
@@ -56602,7 +56669,7 @@ export const getTracerTraceSessionGetSessionGraphDataUrl = () => {
 Response shape matches trace graph: {metric_name, data: [{timestamp, value, primary_traffic}]}
  * @summary Fetch time-series session metrics for the observe graph.
  */
-export const tracerTraceSessionGetSessionGraphData = async (traceSessionApi: NonReadonly<TraceSessionApi>, options?: RequestInit): Promise<tracerTraceSessionGetSessionGraphDataResponse> => {
+export const tracerTraceSessionGetSessionGraphData = async (traceSessionGraphDataRequestApi: TraceSessionGraphDataRequestApi, options?: RequestInit): Promise<tracerTraceSessionGetSessionGraphDataResponse> => {
 
   return apiMutator<tracerTraceSessionGetSessionGraphDataResponse>(getTracerTraceSessionGetSessionGraphDataUrl(),
   {
@@ -56610,7 +56677,7 @@ export const tracerTraceSessionGetSessionGraphData = async (traceSessionApi: Non
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      traceSessionApi,)
+      traceSessionGraphDataRequestApi,)
   }
 );}
 
@@ -56864,7 +56931,7 @@ by ``target_type='session'`` — this endpoint is the only place
 they appear.
 
 Query params:
-    page (int, 1-indexed, default 1)
+    page (int, 0-indexed, default 0)
     page_size (int, default 25, max 100)
  * @summary Session-scoped eval log feed for TracesDrawer's "Evals" tab.
  */
@@ -56967,7 +57034,7 @@ export type tracerTraceAgentGraphResponseSuccess = (tracerTraceAgentGraphRespons
 
 export type tracerTraceAgentGraphResponse = (tracerTraceAgentGraphResponseSuccess)
 
-export const getTracerTraceAgentGraphUrl = (params?: TracerTraceAgentGraphParams,) => {
+export const getTracerTraceAgentGraphUrl = (params: TracerTraceAgentGraphParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -56987,7 +57054,7 @@ export const getTracerTraceAgentGraphUrl = (params?: TracerTraceAgentGraphParams
 transitions) across all traces in the given time window.
  * @summary Return the aggregate agent graph for a project.
  */
-export const tracerTraceAgentGraph = async (params?: TracerTraceAgentGraphParams, options?: RequestInit): Promise<tracerTraceAgentGraphResponse> => {
+export const tracerTraceAgentGraph = async (params: TracerTraceAgentGraphParams, options?: RequestInit): Promise<tracerTraceAgentGraphResponse> => {
 
   return apiMutator<tracerTraceAgentGraphResponse>(getTracerTraceAgentGraphUrl(params),
   {
@@ -57115,7 +57182,7 @@ export const tracerTraceGetEvalNames = async (params?: TracerTraceGetEvalNamesPa
 
 
 export type tracerTraceGetGraphMethodsResponse201 = {
-  data: TraceApi
+  data: ObserveGraphDataRequestApi
   status: 201
 }
 
@@ -57137,7 +57204,7 @@ export const getTracerTraceGetGraphMethodsUrl = () => {
 /**
  * Fetch data for the observe graph with optimized queries
  */
-export const tracerTraceGetGraphMethods = async (traceApi: NonReadonly<TraceApi>, options?: RequestInit): Promise<tracerTraceGetGraphMethodsResponse> => {
+export const tracerTraceGetGraphMethods = async (observeGraphDataRequestApi: ObserveGraphDataRequestApi, options?: RequestInit): Promise<tracerTraceGetGraphMethodsResponse> => {
 
   return apiMutator<tracerTraceGetGraphMethodsResponse>(getTracerTraceGetGraphMethodsUrl(),
   {
@@ -57145,7 +57212,7 @@ export const tracerTraceGetGraphMethods = async (traceApi: NonReadonly<TraceApi>
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      traceApi,)
+      observeGraphDataRequestApi,)
   }
 );}
 
@@ -57250,7 +57317,7 @@ export type tracerTraceGetTraceIdByIndexResponseSuccess = (tracerTraceGetTraceId
 
 export type tracerTraceGetTraceIdByIndexResponse = (tracerTraceGetTraceIdByIndexResponseSuccess)
 
-export const getTracerTraceGetTraceIdByIndexUrl = (params?: TracerTraceGetTraceIdByIndexParams,) => {
+export const getTracerTraceGetTraceIdByIndexUrl = (params: TracerTraceGetTraceIdByIndexParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -57268,7 +57335,7 @@ export const getTracerTraceGetTraceIdByIndexUrl = (params?: TracerTraceGetTraceI
 /**
  * Get the previous and next trace id by index using efficient database queries.
  */
-export const tracerTraceGetTraceIdByIndex = async (params?: TracerTraceGetTraceIdByIndexParams, options?: RequestInit): Promise<tracerTraceGetTraceIdByIndexResponse> => {
+export const tracerTraceGetTraceIdByIndex = async (params: TracerTraceGetTraceIdByIndexParams, options?: RequestInit): Promise<tracerTraceGetTraceIdByIndexResponse> => {
 
   return apiMutator<tracerTraceGetTraceIdByIndexResponse>(getTracerTraceGetTraceIdByIndexUrl(params),
   {
@@ -57293,7 +57360,7 @@ export type tracerTraceGetTraceIdByIndexObserveResponseSuccess = (tracerTraceGet
 
 export type tracerTraceGetTraceIdByIndexObserveResponse = (tracerTraceGetTraceIdByIndexObserveResponseSuccess)
 
-export const getTracerTraceGetTraceIdByIndexObserveUrl = (params?: TracerTraceGetTraceIdByIndexObserveParams,) => {
+export const getTracerTraceGetTraceIdByIndexObserveUrl = (params: TracerTraceGetTraceIdByIndexObserveParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -57311,7 +57378,7 @@ export const getTracerTraceGetTraceIdByIndexObserveUrl = (params?: TracerTraceGe
 /**
  * Get the previous and next trace id by index.
  */
-export const tracerTraceGetTraceIdByIndexObserve = async (params?: TracerTraceGetTraceIdByIndexObserveParams, options?: RequestInit): Promise<tracerTraceGetTraceIdByIndexObserveResponse> => {
+export const tracerTraceGetTraceIdByIndexObserve = async (params: TracerTraceGetTraceIdByIndexObserveParams, options?: RequestInit): Promise<tracerTraceGetTraceIdByIndexObserveResponse> => {
 
   return apiMutator<tracerTraceGetTraceIdByIndexObserveResponse>(getTracerTraceGetTraceIdByIndexObserveUrl(params),
   {
@@ -57336,7 +57403,7 @@ export type tracerTraceListTracesResponseSuccess = (tracerTraceListTracesRespons
 
 export type tracerTraceListTracesResponse = (tracerTraceListTracesResponseSuccess)
 
-export const getTracerTraceListTracesUrl = (params?: TracerTraceListTracesParams,) => {
+export const getTracerTraceListTracesUrl = (params: TracerTraceListTracesParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -57354,7 +57421,7 @@ export const getTracerTraceListTracesUrl = (params?: TracerTraceListTracesParams
 /**
  * List traces filtered by project ID and project version ID with optimized queries.
  */
-export const tracerTraceListTraces = async (params?: TracerTraceListTracesParams, options?: RequestInit): Promise<tracerTraceListTracesResponse> => {
+export const tracerTraceListTraces = async (params: TracerTraceListTracesParams, options?: RequestInit): Promise<tracerTraceListTracesResponse> => {
 
   return apiMutator<tracerTraceListTracesResponse>(getTracerTraceListTracesUrl(params),
   {

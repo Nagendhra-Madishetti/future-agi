@@ -14833,14 +14833,21 @@
                         "name": "source_type",
                         "in": "query",
                         "required": false,
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "call_execution",
+                            "dataset_row",
+                            "observation_span",
+                            "prototype_run",
+                            "trace",
+                            "trace_session"
+                        ]
                     },
                     {
                         "name": "source_id",
                         "in": "query",
                         "required": false,
-                        "type": "string",
-                        "format": "uuid"
+                        "type": "string"
                     },
                     {
                         "name": "sources",
@@ -15358,16 +15365,6 @@
                 "parameters": [
                     {
                         "name": "export_format",
-                        "in": "query",
-                        "required": false,
-                        "type": "string",
-                        "enum": [
-                            "json",
-                            "csv"
-                        ]
-                    },
-                    {
-                        "name": "format",
                         "in": "query",
                         "required": false,
                         "type": "string",
@@ -16459,6 +16456,12 @@
                         "in": "query",
                         "required": false,
                         "type": "string"
+                    },
+                    {
+                        "name": "include_all_annotations",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean"
                     }
                 ],
                 "responses": {
@@ -16634,12 +16637,6 @@
                         "type": "string"
                     },
                     {
-                        "name": "mode",
-                        "in": "query",
-                        "required": false,
-                        "type": "string"
-                    },
-                    {
                         "name": "review_status",
                         "in": "query",
                         "required": false,
@@ -16653,6 +16650,12 @@
                     },
                     {
                         "name": "include_all_annotations",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "reserve",
                         "in": "query",
                         "required": false,
                         "type": "boolean"
@@ -30469,7 +30472,65 @@
             "get": {
                 "operationId": "model-hub_get-eval-logs-details_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "eval_template_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "current_page_index",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "source",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "logs",
+                            "feedback",
+                            "eval_playground"
+                        ],
+                        "default": "logs"
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": ""
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -30518,7 +30579,23 @@
             "get": {
                 "operationId": "model-hub_get-eval-metrics_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "eval_template_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -32561,7 +32638,32 @@
             "get": {
                 "operationId": "model-hub_optimize-dataset_read",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 1,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 15,
+                        "minimum": 1
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -32724,7 +32826,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/OptimizeDatasetOperationRequest"
+                            "$ref": "#/definitions/OptimizeDatasetColumnConfigUpdateRequest"
                         }
                     }
                 ],
@@ -32835,7 +32937,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/OptimizeDatasetOperationRequest"
+                            "$ref": "#/definitions/OptimizeDatasetColumnConfigUpdateRequest"
                         }
                     }
                 ],
@@ -32952,7 +33054,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/OptimizeDatasetOperationRequest"
+                            "$ref": "#/definitions/OptimizeDatasetColumnConfigUpdateRequest"
                         }
                     }
                 ],
@@ -33023,7 +33125,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/OptimizeDatasetOperationRequest"
+                            "$ref": "#/definitions/OptimizeDatasetPageRequest"
                         }
                     }
                 ],
@@ -33147,7 +33249,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/OptimizeDatasetOperationRequest"
+                            "$ref": "#/definitions/ModelHubEmptyRequest"
                         }
                     }
                 ],
@@ -33218,7 +33320,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/OptimizeDatasetOperationRequest"
+                            "$ref": "#/definitions/OptimizeDatasetPageRequest"
                         }
                     }
                 ],
@@ -36668,7 +36770,47 @@
             "get": {
                 "operationId": "model-hub_prompt_metrics_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "prompt_template_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "search_term",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": ""
+                    },
+                    {
+                        "name": "page_number",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -36766,7 +36908,47 @@
             "get": {
                 "operationId": "model-hub_prompt_span-metrics_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "prompt_template_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "search_term",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": ""
+                    },
+                    {
+                        "name": "page_number",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "maximum": 100,
+                        "minimum": 1
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -44793,7 +44975,7 @@
         "/tracer/custom-eval-config/list_custom_eval_configs/": {
             "get": {
                 "operationId": "tracer_custom-eval-config_list_custom_eval_configs",
-                "description": "List CustomEvalConfigs filtered by the filters provided in the request body.",
+                "description": "List CustomEvalConfigs filtered by canonical query parameters.",
                 "parameters": [
                     {
                         "name": "page",
@@ -47260,7 +47442,15 @@
             "get": {
                 "operationId": "tracer_get-annotation-labels_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -47827,6 +48017,26 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "row_type",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "spans",
+                            "traces",
+                            "sessions",
+                            "voiceCalls"
+                        ],
+                        "default": "spans"
                     }
                 ],
                 "responses": {
@@ -47937,7 +48147,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ObservationSpan"
+                            "$ref": "#/definitions/ObserveGraphDataRequest"
                         }
                     }
                 ],
@@ -47945,7 +48155,7 @@
                     "201": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ObservationSpan"
+                            "$ref": "#/definitions/ObserveGraphDataRequest"
                         }
                     }
                 },
@@ -48033,6 +48243,26 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "row_type",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "spans",
+                            "traces",
+                            "sessions",
+                            "voiceCalls"
+                        ],
+                        "default": "spans"
                     }
                 ],
                 "responses": {
@@ -48151,6 +48381,28 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "span_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "project_version_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
                     }
                 ],
                 "responses": {
@@ -48210,6 +48462,34 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "span_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
                     }
                 ],
                 "responses": {
@@ -48328,6 +48608,44 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "page_number",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 30,
+                        "maximum": 500,
+                        "minimum": 1
                     }
                 ],
                 "responses": {
@@ -49356,6 +49674,29 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "interval",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "hour",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
                     }
                 ],
                 "responses": {
@@ -49407,15 +49748,29 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/Project"
+                            "$ref": "#/definitions/ProjectUserGraphDataRequest"
                         }
+                    },
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "end_user_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
                     }
                 ],
                 "responses": {
                     "201": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/Project"
+                            "$ref": "#/definitions/ProjectUserGraphDataRequest"
                         }
                     }
                 },
@@ -49435,7 +49790,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/Project"
+                            "$ref": "#/definitions/ProjectUserMetricsRequest"
                         }
                     }
                 ],
@@ -49443,7 +49798,7 @@
                     "201": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/Project"
+                            "$ref": "#/definitions/ProjectUserMetricsRequest"
                         }
                     }
                 },
@@ -49464,7 +49819,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/Project"
+                            "$ref": "#/definitions/ProjectUsersAggregateGraphDataRequest"
                         }
                     }
                 ],
@@ -49472,7 +49827,7 @@
                     "201": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/Project"
+                            "$ref": "#/definitions/ProjectUsersAggregateGraphDataRequest"
                         }
                     }
                 },
@@ -50634,38 +50989,56 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "observation_span_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "x-nullable": true
+                    },
+                    {
+                        "name": "trace_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid",
+                        "x-nullable": true
+                    },
+                    {
+                        "name": "annotators",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": []
+                    },
+                    {
+                        "name": "exclude_annotators",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": []
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "",
                         "schema": {
-                            "required": [
-                                "count",
-                                "results"
-                            ],
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "next": {
-                                    "type": "string",
-                                    "format": "uri",
-                                    "x-nullable": true
-                                },
-                                "previous": {
-                                    "type": "string",
-                                    "format": "uri",
-                                    "x-nullable": true
-                                },
-                                "results": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/GetTraceAnnotation"
-                                    }
-                                }
-                            }
+                            "$ref": "#/definitions/GetTraceAnnotationValuesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ApiErrorResponse"
                         }
                     }
                 },
@@ -51001,7 +51374,7 @@
         "/tracer/trace-session/get_session_filter_values/": {
             "get": {
                 "operationId": "tracer_trace-session_get_session_filter_values",
-                "description": "Return distinct values for a session-level column.\nUsed by the filter panel's value picker for session-specific fields\n(session_id, user_id, first_message, etc.).\n\nQuery params:\n    project_id: required\n    column: the session column name (camelCase, e.g. \"sessionId\")\n    search: optional search substring\n    page: page number (0-based), default 0\n    page_size: default 50",
+                "description": "Return distinct values for a session-level column.\nUsed by the filter panel's value picker for session-specific fields\n(session_id, user_id, first_message, etc.).\n\nQuery params:\n    project_id: required\n    column: canonical session column name, e.g. \"session_id\"\n    search: optional search substring\n    page: page number (0-based), default 0\n    page_size: default 50",
                 "parameters": [
                     {
                         "name": "page",
@@ -51068,7 +51441,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/TraceSession"
+                            "$ref": "#/definitions/TraceSessionGraphDataRequest"
                         }
                     }
                 ],
@@ -51076,7 +51449,7 @@
                     "201": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/TraceSession"
+                            "$ref": "#/definitions/TraceSessionGraphDataRequest"
                         }
                     }
                 },
@@ -51163,6 +51536,65 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "bookmarked",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "x-nullable": true
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "sort_params",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "page_number",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 30,
+                        "maximum": 500,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "interval",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
                     }
                 ],
                 "responses": {
@@ -51297,7 +51729,7 @@
             "get": {
                 "operationId": "tracer_trace-session_eval_logs",
                 "summary": "Session-scoped eval log feed for TracesDrawer's \"Evals\" tab.",
-                "description": "Session-level eval results are walled off from span/trace surfaces\nby ``target_type='session'`` — this endpoint is the only place\nthey appear.\n\nQuery params:\n    page (int, 1-indexed, default 1)\n    page_size (int, default 25, max 100)",
+                "description": "Session-level eval results are walled off from span/trace surfaces\nby ``target_type='session'`` — this endpoint is the only place\nthey appear.\n\nQuery params:\n    page (int, 0-indexed, default 0)\n    page_size (int, default 25, max 100)",
                 "parameters": [],
                 "responses": {
                     "200": {
@@ -51423,6 +51855,21 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
                     }
                 ],
                 "responses": {
@@ -51589,7 +52036,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/Trace"
+                            "$ref": "#/definitions/ObserveGraphDataRequest"
                         }
                     }
                 ],
@@ -51597,7 +52044,7 @@
                     "201": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/Trace"
+                            "$ref": "#/definitions/ObserveGraphDataRequest"
                         }
                     }
                 },
@@ -51743,6 +52190,28 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "trace_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "project_version_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
                     }
                 ],
                 "responses": {
@@ -51802,6 +52271,28 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "trace_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
                     }
                 ],
                 "responses": {
@@ -51861,6 +52352,53 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "project_version_id",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "trace_ids",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": []
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "sort_params",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "page_number",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 30,
+                        "maximum": 500,
+                        "minimum": 1
                     }
                 ],
                 "responses": {
@@ -51920,6 +52458,58 @@
                         "description": "Number of results to return per page.",
                         "required": false,
                         "type": "integer"
+                    },
+                    {
+                        "name": "project_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "project_version_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "session_id",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "page_number",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 30,
+                        "maximum": 500,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "interval",
+                        "in": "query",
+                        "required": false,
+                        "type": "string"
                     }
                 ],
                 "responses": {
@@ -74617,6 +75207,32 @@
                 }
             }
         },
+        "AddQueueItem": {
+            "required": [
+                "source_type",
+                "source_id"
+            ],
+            "type": "object",
+            "properties": {
+                "source_type": {
+                    "title": "Source type",
+                    "type": "string",
+                    "enum": [
+                        "call_execution",
+                        "dataset_row",
+                        "observation_span",
+                        "prototype_run",
+                        "trace",
+                        "trace_session"
+                    ]
+                },
+                "source_id": {
+                    "title": "Source id",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
         "Selection": {
             "required": [
                 "mode",
@@ -74659,6 +75275,14 @@
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                            },
+                            "output_type": {
+                                "type": "string",
+                                "description": "Optional metric output type metadata used by eval and annotation filters."
                             },
                             "filter_config": {
                                 "type": "object",
@@ -74720,11 +75344,7 @@
                 "items": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string",
-                            "x-nullable": true
-                        }
+                        "$ref": "#/definitions/AddQueueItem"
                     }
                 },
                 "selection": {
@@ -74833,12 +75453,6 @@
                         "format": "uuid"
                     },
                     "default": []
-                },
-                "user_id": {
-                    "title": "User id",
-                    "type": "string",
-                    "format": "uuid",
-                    "x-nullable": true
                 },
                 "action": {
                     "title": "Action",
@@ -75263,6 +75877,28 @@
                 }
             }
         },
+        "SubmitAnnotationEntry": {
+            "required": [
+                "label_id",
+                "value"
+            ],
+            "type": "object",
+            "properties": {
+                "label_id": {
+                    "title": "Label id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "value": {
+                    "title": "Value",
+                    "type": "object"
+                },
+                "notes": {
+                    "title": "Notes",
+                    "type": "string"
+                }
+            }
+        },
         "SubmitAnnotations": {
             "required": [
                 "annotations"
@@ -75272,13 +75908,8 @@
                 "annotations": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string",
-                            "x-nullable": true
-                        }
-                    },
-                    "minItems": 1
+                        "$ref": "#/definitions/SubmitAnnotationEntry"
+                    }
                 },
                 "notes": {
                     "title": "Notes",
@@ -75433,17 +76064,8 @@
                     "title": "Comment",
                     "type": "string"
                 },
-                "content": {
-                    "title": "Content",
-                    "type": "string"
-                },
                 "label_id": {
                     "title": "Label id",
-                    "type": "string",
-                    "format": "uuid"
-                },
-                "label": {
-                    "title": "Label",
                     "type": "string",
                     "format": "uuid"
                 },
@@ -75457,24 +76079,13 @@
                     "type": "string",
                     "format": "uuid"
                 },
-                "thread": {
-                    "title": "Thread",
-                    "type": "string",
-                    "format": "uuid"
-                },
                 "mentioned_user_ids": {
-                    "title": "Mentioned user ids",
                     "type": "array",
                     "items": {
-                        "type": "string"
-                    }
-                },
-                "mentions": {
-                    "title": "Mentions",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "default": []
                 }
             }
         },
@@ -75483,11 +76094,6 @@
             "properties": {
                 "emoji": {
                     "title": "Emoji",
-                    "type": "string",
-                    "maxLength": 16
-                },
-                "reaction": {
-                    "title": "Reaction",
                     "type": "string",
                     "maxLength": 16
                 }
@@ -75538,27 +76144,13 @@
                     "type": "string",
                     "format": "uuid"
                 },
-                "label": {
-                    "title": "Label",
-                    "type": "string",
-                    "format": "uuid"
-                },
                 "target_annotator_id": {
                     "title": "Target annotator id",
                     "type": "string",
                     "format": "uuid"
                 },
-                "annotator_id": {
-                    "title": "Annotator id",
-                    "type": "string",
-                    "format": "uuid"
-                },
                 "comment": {
                     "title": "Comment",
-                    "type": "string"
-                },
-                "notes": {
-                    "title": "Notes",
                     "type": "string"
                 }
             },
@@ -81719,14 +82311,78 @@
                 "filters": {
                     "type": "array",
                     "items": {
-                        "type": "object"
+                        "type": "object",
+                        "properties": {
+                            "column_id": {
+                                "type": "string",
+                                "description": "Column or attribute id to filter on."
+                            },
+                            "display_name": {
+                                "type": "string",
+                                "description": "Optional UI label for chips and saved views."
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                            },
+                            "output_type": {
+                                "type": "string",
+                                "description": "Optional metric output type metadata used by eval and annotation filters."
+                            },
+                            "filter_config": {
+                                "type": "object",
+                                "properties": {
+                                    "filter_type": {
+                                        "type": "string",
+                                        "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                                    },
+                                    "filter_op": {
+                                        "type": "string",
+                                        "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                                    },
+                                    "filter_value": {
+                                        "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                                    },
+                                    "col_type": {
+                                        "type": "string",
+                                        "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                                    }
+                                },
+                                "required": [
+                                    "filter_type",
+                                    "filter_op"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": [
+                            "column_id",
+                            "filter_config"
+                        ],
+                        "additionalProperties": false
                     },
                     "default": []
                 },
                 "sort": {
                     "type": "array",
                     "items": {
-                        "type": "object"
+                        "type": "object",
+                        "properties": {
+                            "column_id": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "ascending",
+                                    "descending"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "column_id"
+                        ],
+                        "additionalProperties": false
                     },
                     "default": []
                 },
@@ -82215,8 +82871,9 @@
                 },
                 "new_value": {
                     "title": "New value",
-                    "type": "object",
-                    "x-nullable": true
+                    "type": "string",
+                    "x-nullable": true,
+                    "description": "New cell value. Accepts JSON primitives or multipart file uploads."
                 }
             }
         },
@@ -88049,7 +88706,55 @@
                 "filters": {
                     "type": "array",
                     "items": {
-                        "type": "object"
+                        "type": "object",
+                        "properties": {
+                            "column_id": {
+                                "type": "string",
+                                "description": "Column or attribute id to filter on."
+                            },
+                            "display_name": {
+                                "type": "string",
+                                "description": "Optional UI label for chips and saved views."
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                            },
+                            "output_type": {
+                                "type": "string",
+                                "description": "Optional metric output type metadata used by eval and annotation filters."
+                            },
+                            "filter_config": {
+                                "type": "object",
+                                "properties": {
+                                    "filter_type": {
+                                        "type": "string",
+                                        "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                                    },
+                                    "filter_op": {
+                                        "type": "string",
+                                        "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                                    },
+                                    "filter_value": {
+                                        "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                                    },
+                                    "col_type": {
+                                        "type": "string",
+                                        "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                                    }
+                                },
+                                "required": [
+                                    "filter_type",
+                                    "filter_op"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": [
+                            "column_id",
+                            "filter_config"
+                        ],
+                        "additionalProperties": false
                     },
                     "default": []
                 }
@@ -90038,6 +90743,16 @@
             }
         },
         "OptimizeDatasetMutationRequest": {
+            "required": [
+                "name",
+                "start_date",
+                "end_date",
+                "model",
+                "optimize_type",
+                "environment",
+                "version",
+                "metrics"
+            ],
             "type": "object",
             "properties": {
                 "name": {
@@ -90074,8 +90789,7 @@
                     "items": {
                         "type": "string",
                         "format": "uuid"
-                    },
-                    "default": []
+                    }
                 },
                 "prompt": {
                     "title": "Prompt",
@@ -90144,40 +90858,17 @@
                 }
             }
         },
-        "OptimizeDatasetOperationRequest": {
+        "OptimizeDatasetColumnConfigUpdateRequest": {
+            "required": [
+                "columns"
+            ],
             "type": "object",
             "properties": {
-                "filters": {
-                    "title": "Filters",
-                    "type": "object"
-                },
-                "order": {
-                    "title": "Order",
-                    "type": "object"
-                },
-                "page_number": {
-                    "title": "Page number",
-                    "type": "integer"
-                },
-                "page_size": {
-                    "title": "Page size",
-                    "type": "integer"
-                },
                 "columns": {
-                    "title": "Columns",
-                    "type": "object"
-                },
-                "prompt_template": {
-                    "title": "Prompt template",
-                    "type": "string"
-                },
-                "prompt": {
-                    "title": "Prompt",
-                    "type": "string"
-                },
-                "variables": {
-                    "title": "Variables",
-                    "type": "object"
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
                 }
             }
         },
@@ -90197,6 +90888,23 @@
                     "title": "Status",
                     "type": "string",
                     "minLength": 1
+                }
+            }
+        },
+        "OptimizeDatasetPageRequest": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "title": "Page",
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 1
+                },
+                "limit": {
+                    "title": "Limit",
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 1
                 }
             }
         },
@@ -90401,35 +91109,127 @@
                 }
             }
         },
-        "PerformanceDetailsRequest": {
+        "PerformanceFilter": {
             "required": [
-                "dataset"
+                "type",
+                "datatype",
+                "operator",
+                "key",
+                "key_id"
             ],
             "type": "object",
             "properties": {
-                "dataset": {
-                    "title": "Dataset",
-                    "type": "object"
+                "type": {
+                    "title": "Type",
+                    "type": "string",
+                    "enum": [
+                        "property",
+                        "performanceMetric",
+                        "performanceTag"
+                    ]
                 },
-                "filters": {
+                "datatype": {
+                    "title": "Datatype",
+                    "type": "string",
+                    "enum": [
+                        "string",
+                        "number"
+                    ]
+                },
+                "operator": {
+                    "title": "Operator",
+                    "type": "string",
+                    "enum": [
+                        "equal",
+                        "notEqual",
+                        "greaterThan",
+                        "greaterThanEqualTo",
+                        "lessThan",
+                        "lessThanEqualTo"
+                    ]
+                },
+                "values": {
                     "type": "array",
                     "items": {
                         "type": "object"
                     },
                     "default": []
                 },
+                "key": {
+                    "title": "Key",
+                    "type": "string"
+                },
+                "key_id": {
+                    "title": "Key id",
+                    "type": "string"
+                }
+            }
+        },
+        "PerformanceDataset": {
+            "required": [
+                "environment",
+                "version",
+                "metric_id"
+            ],
+            "type": "object",
+            "properties": {
+                "environment": {
+                    "title": "Environment",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "version": {
+                    "title": "Version",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "metric_id": {
+                    "title": "Metric id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PerformanceFilter"
+                    },
+                    "default": []
+                }
+            }
+        },
+        "PerformanceDetailsRequest": {
+            "required": [
+                "dataset",
+                "start_date",
+                "end_date"
+            ],
+            "type": "object",
+            "properties": {
+                "dataset": {
+                    "$ref": "#/definitions/PerformanceDataset"
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PerformanceFilter"
+                    },
+                    "default": []
+                },
                 "page": {
                     "title": "Page",
                     "type": "integer",
-                    "default": 1
+                    "default": 1,
+                    "minimum": 1
                 },
                 "start_date": {
                     "title": "Start date",
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 },
                 "end_date": {
                     "title": "End date",
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },
@@ -90469,17 +91269,31 @@
         },
         "PerformanceExportRequest": {
             "required": [
-                "dataset"
+                "dataset",
+                "start_date",
+                "end_date"
             ],
             "type": "object",
             "properties": {
                 "dataset": {
-                    "title": "Dataset",
-                    "type": "object"
+                    "$ref": "#/definitions/PerformanceDataset"
                 },
-                "metric": {
-                    "title": "Metric",
-                    "type": "object"
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PerformanceFilter"
+                    },
+                    "default": []
+                },
+                "start_date": {
+                    "title": "Start date",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "end_date": {
+                    "title": "End date",
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },
@@ -90778,74 +91592,122 @@
         },
         "PerformanceTagDistributionRequest": {
             "required": [
-                "dataset"
+                "dataset",
+                "agg_by",
+                "start_date",
+                "end_date",
+                "graph_type"
             ],
             "type": "object",
             "properties": {
                 "dataset": {
-                    "title": "Dataset",
-                    "type": "object"
+                    "$ref": "#/definitions/PerformanceDataset"
                 },
                 "filters": {
                     "type": "array",
                     "items": {
-                        "type": "object"
+                        "$ref": "#/definitions/PerformanceFilter"
                     },
                     "default": []
                 },
                 "agg_by": {
                     "title": "Agg by",
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "hourly",
+                        "daily",
+                        "weekly",
+                        "monthly"
+                    ]
                 },
                 "start_date": {
                     "title": "Start date",
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 },
                 "end_date": {
                     "title": "End date",
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 },
                 "graph_type": {
                     "title": "Graph type",
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "all",
+                        "good",
+                        "bad"
+                    ]
+                }
+            }
+        },
+        "PerformanceBreakdown": {
+            "required": [
+                "key",
+                "key_id"
+            ],
+            "type": "object",
+            "properties": {
+                "key": {
+                    "title": "Key",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "key_id": {
+                    "title": "Key id",
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },
         "PerformanceQueryRequest": {
+            "required": [
+                "datasets",
+                "agg_by",
+                "start_date",
+                "end_date"
+            ],
             "type": "object",
             "properties": {
                 "datasets": {
                     "type": "array",
                     "items": {
-                        "type": "object"
-                    },
-                    "default": []
+                        "$ref": "#/definitions/PerformanceDataset"
+                    }
                 },
                 "filters": {
                     "type": "array",
                     "items": {
-                        "type": "object"
+                        "$ref": "#/definitions/PerformanceFilter"
                     },
                     "default": []
                 },
                 "breakdown": {
                     "type": "array",
                     "items": {
-                        "type": "object"
+                        "$ref": "#/definitions/PerformanceBreakdown"
                     },
                     "default": []
                 },
                 "agg_by": {
                     "title": "Agg by",
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "hourly",
+                        "daily",
+                        "weekly",
+                        "monthly"
+                    ]
                 },
                 "start_date": {
                     "title": "Start date",
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 },
                 "end_date": {
                     "title": "End date",
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },
@@ -91784,6 +92646,40 @@
                 }
             }
         },
+        "BulkCreateScoreItem": {
+            "required": [
+                "label_id",
+                "value"
+            ],
+            "type": "object",
+            "properties": {
+                "label_id": {
+                    "title": "Label id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "value": {
+                    "title": "Value",
+                    "type": "object"
+                },
+                "notes": {
+                    "title": "Notes",
+                    "type": "string",
+                    "default": ""
+                },
+                "score_source": {
+                    "title": "Score source",
+                    "type": "string",
+                    "enum": [
+                        "human",
+                        "api",
+                        "auto",
+                        "imported"
+                    ],
+                    "default": "human"
+                }
+            }
+        },
         "BulkCreateScores": {
             "required": [
                 "source_type",
@@ -91812,13 +92708,8 @@
                 "scores": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string",
-                            "x-nullable": true
-                        }
-                    },
-                    "minItems": 1
+                        "$ref": "#/definitions/BulkCreateScoreItem"
+                    }
                 },
                 "notes": {
                     "title": "Notes",
@@ -102618,13 +103509,15 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/BulkAnnotationAnnotationRequest"
-                    }
+                    },
+                    "default": []
                 },
                 "notes": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/BulkAnnotationNoteRequest"
-                    }
+                    },
+                    "default": []
                 }
             }
         },
@@ -102718,8 +103611,6 @@
         "FetchGraph": {
             "required": [
                 "interval",
-                "filters",
-                "property",
                 "req_data_config",
                 "project_id"
             ],
@@ -102742,6 +103633,14 @@
                             "display_name": {
                                 "type": "string",
                                 "description": "Optional UI label for chips and saved views."
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                            },
+                            "output_type": {
+                                "type": "string",
+                                "description": "Optional metric output type metadata used by eval and annotation filters."
                             },
                             "filter_config": {
                                 "type": "object",
@@ -102774,21 +103673,22 @@
                             "filter_config"
                         ],
                         "additionalProperties": false
-                    }
+                    },
+                    "default": []
                 },
                 "property": {
                     "title": "Property",
                     "type": "string",
-                    "minLength": 1
+                    "default": "average"
                 },
                 "req_data_config": {
                     "title": "Req data config",
-                    "type": "object"
+                    "type": "string"
                 },
                 "project_id": {
                     "title": "Project id",
                     "type": "string",
-                    "minLength": 1
+                    "format": "uuid"
                 }
             }
         },
@@ -103129,6 +104029,14 @@
                                     "display_name": {
                                         "type": "string",
                                         "description": "Optional UI label for chips and saved views."
+                                    },
+                                    "source": {
+                                        "type": "string",
+                                        "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                                    },
+                                    "output_type": {
+                                        "type": "string",
+                                        "description": "Optional metric output type metadata used by eval and annotation filters."
                                     },
                                     "filter_config": {
                                         "type": "object",
@@ -105271,6 +106179,125 @@
                 }
             }
         },
+        "ObserveGraphDataRequest": {
+            "required": [
+                "project_id",
+                "req_data_config"
+            ],
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "title": "Project id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "column_id": {
+                                "type": "string",
+                                "description": "Column or attribute id to filter on."
+                            },
+                            "display_name": {
+                                "type": "string",
+                                "description": "Optional UI label for chips and saved views."
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                            },
+                            "output_type": {
+                                "type": "string",
+                                "description": "Optional metric output type metadata used by eval and annotation filters."
+                            },
+                            "filter_config": {
+                                "type": "object",
+                                "properties": {
+                                    "filter_type": {
+                                        "type": "string",
+                                        "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                                    },
+                                    "filter_op": {
+                                        "type": "string",
+                                        "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                                    },
+                                    "filter_value": {
+                                        "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                                    },
+                                    "col_type": {
+                                        "type": "string",
+                                        "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                                    }
+                                },
+                                "required": [
+                                    "filter_type",
+                                    "filter_op"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": [
+                            "column_id",
+                            "filter_config"
+                        ],
+                        "additionalProperties": false
+                    },
+                    "default": []
+                },
+                "interval": {
+                    "title": "Interval",
+                    "type": "string",
+                    "enum": [
+                        "hour",
+                        "day",
+                        "week",
+                        "month"
+                    ],
+                    "default": "day"
+                },
+                "property": {
+                    "title": "Property",
+                    "type": "string",
+                    "default": "average"
+                },
+                "req_data_config": {
+                    "title": "Req data config",
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "SYSTEM_METRIC",
+                                "EVAL",
+                                "ANNOTATION"
+                            ]
+                        },
+                        "output_type": {
+                            "type": "string"
+                        },
+                        "eval_output_type": {
+                            "type": "string"
+                        },
+                        "choices": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": [
+                        "id",
+                        "type"
+                    ],
+                    "additionalProperties": true
+                }
+            }
+        },
         "ProjectVersion": {
             "required": [
                 "project",
@@ -105440,6 +106467,240 @@
                 "tags": {
                     "title": "Tags",
                     "type": "object"
+                }
+            }
+        },
+        "ProjectUserGraphDataRequest": {
+            "type": "object",
+            "properties": {
+                "interval": {
+                    "title": "Interval",
+                    "type": "string",
+                    "default": "hour",
+                    "minLength": 1
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "column_id": {
+                                "type": "string",
+                                "description": "Column or attribute id to filter on."
+                            },
+                            "display_name": {
+                                "type": "string",
+                                "description": "Optional UI label for chips and saved views."
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                            },
+                            "output_type": {
+                                "type": "string",
+                                "description": "Optional metric output type metadata used by eval and annotation filters."
+                            },
+                            "filter_config": {
+                                "type": "object",
+                                "properties": {
+                                    "filter_type": {
+                                        "type": "string",
+                                        "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                                    },
+                                    "filter_op": {
+                                        "type": "string",
+                                        "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                                    },
+                                    "filter_value": {
+                                        "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                                    },
+                                    "col_type": {
+                                        "type": "string",
+                                        "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                                    }
+                                },
+                                "required": [
+                                    "filter_type",
+                                    "filter_op"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": [
+                            "column_id",
+                            "filter_config"
+                        ],
+                        "additionalProperties": false
+                    },
+                    "default": []
+                }
+            }
+        },
+        "ProjectUserMetricsRequest": {
+            "required": [
+                "end_user_id",
+                "project_id"
+            ],
+            "type": "object",
+            "properties": {
+                "end_user_id": {
+                    "title": "End user id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "project_id": {
+                    "title": "Project id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "interval": {
+                    "title": "Interval",
+                    "type": "string",
+                    "default": "day",
+                    "minLength": 1
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "column_id": {
+                                "type": "string",
+                                "description": "Column or attribute id to filter on."
+                            },
+                            "display_name": {
+                                "type": "string",
+                                "description": "Optional UI label for chips and saved views."
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                            },
+                            "output_type": {
+                                "type": "string",
+                                "description": "Optional metric output type metadata used by eval and annotation filters."
+                            },
+                            "filter_config": {
+                                "type": "object",
+                                "properties": {
+                                    "filter_type": {
+                                        "type": "string",
+                                        "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                                    },
+                                    "filter_op": {
+                                        "type": "string",
+                                        "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                                    },
+                                    "filter_value": {
+                                        "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                                    },
+                                    "col_type": {
+                                        "type": "string",
+                                        "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                                    }
+                                },
+                                "required": [
+                                    "filter_type",
+                                    "filter_op"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": [
+                            "column_id",
+                            "filter_config"
+                        ],
+                        "additionalProperties": false
+                    },
+                    "default": []
+                }
+            }
+        },
+        "ProjectUsersAggregateGraphDataRequest": {
+            "required": [
+                "project_id"
+            ],
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "title": "Project id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "interval": {
+                    "title": "Interval",
+                    "type": "string",
+                    "default": "day",
+                    "minLength": 1
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "column_id": {
+                                "type": "string",
+                                "description": "Column or attribute id to filter on."
+                            },
+                            "display_name": {
+                                "type": "string",
+                                "description": "Optional UI label for chips and saved views."
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                            },
+                            "output_type": {
+                                "type": "string",
+                                "description": "Optional metric output type metadata used by eval and annotation filters."
+                            },
+                            "filter_config": {
+                                "type": "object",
+                                "properties": {
+                                    "filter_type": {
+                                        "type": "string",
+                                        "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                                    },
+                                    "filter_op": {
+                                        "type": "string",
+                                        "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                                    },
+                                    "filter_value": {
+                                        "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                                    },
+                                    "col_type": {
+                                        "type": "string",
+                                        "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                                    }
+                                },
+                                "required": [
+                                    "filter_type",
+                                    "filter_op"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": [
+                            "column_id",
+                            "filter_config"
+                        ],
+                        "additionalProperties": false
+                    },
+                    "default": []
+                },
+                "property": {
+                    "title": "Property",
+                    "type": "string",
+                    "default": "average",
+                    "minLength": 1
+                },
+                "req_data_config": {
+                    "title": "Req data config",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object"
+                    },
+                    "default": {}
                 }
             }
         },
@@ -106314,20 +107575,160 @@
                     "x-nullable": true
                 },
                 "annotators": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "x-nullable": true
+                    "title": "Annotators",
+                    "type": "string",
+                    "default": [],
+                    "description": "JSON-encoded UUID list."
                 },
                 "exclude_annotators": {
+                    "title": "Exclude annotators",
+                    "type": "string",
+                    "default": [],
+                    "description": "JSON-encoded UUID list."
+                }
+            }
+        },
+        "TraceAnnotationValueResponse": {
+            "required": [
+                "id",
+                "annotation_label_name",
+                "annotation_value",
+                "annotation_label_id",
+                "annotation_type"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "annotation_label_name": {
+                    "title": "Annotation label name",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "annotation_value": {
+                    "title": "Annotation value",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "annotation_label_id": {
+                    "title": "Annotation label id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "annotator": {
+                    "title": "Annotator",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "annotator_id": {
+                    "title": "Annotator id",
+                    "type": "string",
+                    "format": "uuid",
+                    "x-nullable": true
+                },
+                "updated_by": {
+                    "title": "Updated by",
+                    "type": "string",
+                    "minLength": 1,
+                    "x-nullable": true
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": true
+                },
+                "annotation_type": {
+                    "title": "Annotation type",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "settings": {
+                    "title": "Settings",
+                    "type": "object"
+                }
+            }
+        },
+        "TraceAnnotationNoteResponse": {
+            "required": [
+                "id",
+                "notes",
+                "created_by_annotator",
+                "created_by_user",
+                "created_by_user_id",
+                "updated_at"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "title": "Id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "notes": {
+                    "title": "Notes",
+                    "type": "string"
+                },
+                "created_by_annotator": {
+                    "title": "Created by annotator",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "created_by_user": {
+                    "title": "Created by user",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "created_by_user_id": {
+                    "title": "Created by user id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "updated_at": {
+                    "title": "Updated at",
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "GetTraceAnnotationValuesResult": {
+            "required": [
+                "annotations",
+                "notes"
+            ],
+            "type": "object",
+            "properties": {
+                "annotations": {
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "x-nullable": true
+                        "$ref": "#/definitions/TraceAnnotationValueResponse"
+                    }
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/TraceAnnotationNoteResponse"
+                    }
+                }
+            }
+        },
+        "GetTraceAnnotationValuesResponse": {
+            "required": [
+                "result"
+            ],
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": true
+                },
+                "result": {
+                    "$ref": "#/definitions/GetTraceAnnotationValuesResult"
                 }
             }
         },
@@ -106615,6 +108016,125 @@
                     "type": "string",
                     "format": "date-time",
                     "readOnly": true
+                }
+            }
+        },
+        "TraceSessionGraphDataRequest": {
+            "required": [
+                "project_id",
+                "req_data_config"
+            ],
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "title": "Project id",
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "column_id": {
+                                "type": "string",
+                                "description": "Column or attribute id to filter on."
+                            },
+                            "display_name": {
+                                "type": "string",
+                                "description": "Optional UI label for chips and saved views."
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Optional source surface for mixed-source filters, for example traces, datasets, or simulation."
+                            },
+                            "output_type": {
+                                "type": "string",
+                                "description": "Optional metric output type metadata used by eval and annotation filters."
+                            },
+                            "filter_config": {
+                                "type": "object",
+                                "properties": {
+                                    "filter_type": {
+                                        "type": "string",
+                                        "description": "Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array."
+                                    },
+                                    "filter_op": {
+                                        "type": "string",
+                                        "description": "Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null."
+                                    },
+                                    "filter_value": {
+                                        "description": "Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type."
+                                    },
+                                    "col_type": {
+                                        "type": "string",
+                                        "description": "Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL."
+                                    }
+                                },
+                                "required": [
+                                    "filter_type",
+                                    "filter_op"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": [
+                            "column_id",
+                            "filter_config"
+                        ],
+                        "additionalProperties": false
+                    },
+                    "default": []
+                },
+                "interval": {
+                    "title": "Interval",
+                    "type": "string",
+                    "enum": [
+                        "hour",
+                        "day",
+                        "week",
+                        "month"
+                    ],
+                    "default": "day"
+                },
+                "property": {
+                    "title": "Property",
+                    "type": "string",
+                    "default": "average"
+                },
+                "req_data_config": {
+                    "title": "Req data config",
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "SYSTEM_METRIC",
+                                "EVAL",
+                                "ANNOTATION"
+                            ]
+                        },
+                        "output_type": {
+                            "type": "string"
+                        },
+                        "eval_output_type": {
+                            "type": "string"
+                        },
+                        "choices": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": [
+                        "id",
+                        "type"
+                    ],
+                    "additionalProperties": true
                 }
             }
         },

@@ -5065,7 +5065,7 @@ class UpdateCellValueView(APIView):
         pass
 
     def _convert_file_to_base64(self, request):
-        file = request.FILES.get("new_value") or request.FILES.get("newValue")
+        file = request.FILES.get("new_value")
 
         if file:
             try:
@@ -5101,7 +5101,7 @@ class UpdateCellValueView(APIView):
                 raise ValueError(f"Failed to convert file to base64: {str(e)}") from e
         else:
             # If no file, check if new_value is already a base64 string in request.data
-            new_value = request.data.get("new_value") or request.data.get("newValue")
+            new_value = request.data.get("new_value")
             if (
                 new_value
                 and isinstance(new_value, str)
@@ -5126,7 +5126,7 @@ class UpdateCellValueView(APIView):
                 return None
 
     def _convert_to_base64(self, request):
-        file = request.FILES.get("new_value") or request.FILES.get("newValue")
+        file = request.FILES.get("new_value")
 
         if file:
             audio_content = file.read()
@@ -5149,11 +5149,14 @@ class UpdateCellValueView(APIView):
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
-            row_id = request.data.get("row_id") or request.data.get("rowId")
-            column_id = request.data.get("column_id") or request.data.get("columnId")
-            new_value = request.data.get("new_value", "") or request.data.get(
-                "newValue", ""
-            )
+            serializer = DatasetUpdateCellValueRequestSerializer(data=request.data)
+            if not serializer.is_valid():
+                return self._gm.bad_request(serializer.errors)
+
+            payload = serializer.validated_data
+            row_id = payload.get("row_id")
+            column_id = payload.get("column_id")
+            new_value = payload.get("new_value", "")
 
             if not all([row_id, column_id]):
                 return self._gm.bad_request(
