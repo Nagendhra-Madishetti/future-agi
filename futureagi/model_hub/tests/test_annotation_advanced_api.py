@@ -1008,7 +1008,18 @@ class TestAutomationRules:
             {
                 "name": "Low quality filter",
                 "source_type": "dataset_row",
-                "conditions": {"rules": [{"field": "order", "op": "gte", "value": 1}]},
+                "conditions": {
+                    "filter": [
+                        {
+                            "column_id": "order",
+                            "filter_config": {
+                                "filter_type": "number",
+                                "filter_op": "greater_than_or_equal",
+                                "filter_value": 1,
+                            },
+                        }
+                    ]
+                },
                 "enabled": True,
             },
             format="json",
@@ -1195,7 +1206,18 @@ class TestAutomationRules:
             {
                 "name": "Add all rows",
                 "source_type": "dataset_row",
-                "conditions": {"rules": [{"field": "order", "op": "gte", "value": 1}]},
+                "conditions": {
+                    "filter": [
+                        {
+                            "column_id": "order",
+                            "filter_config": {
+                                "filter_type": "number",
+                                "filter_op": "greater_than_or_equal",
+                                "filter_value": 1,
+                            },
+                        }
+                    ]
+                },
             },
             format="json",
         )
@@ -1221,7 +1243,18 @@ class TestAutomationRules:
             {
                 "name": "Dup rule",
                 "source_type": "dataset_row",
-                "conditions": {"rules": [{"field": "order", "op": "eq", "value": 1}]},
+                "conditions": {
+                    "filter": [
+                        {
+                            "column_id": "order",
+                            "filter_config": {
+                                "filter_type": "number",
+                                "filter_op": "equals",
+                                "filter_value": 1,
+                            },
+                        }
+                    ]
+                },
             },
             format="json",
         )
@@ -1243,7 +1276,18 @@ class TestAutomationRules:
             {
                 "name": "Preview rule",
                 "source_type": "dataset_row",
-                "conditions": {"rules": [{"field": "order", "op": "gte", "value": 1}]},
+                "conditions": {
+                    "filter": [
+                        {
+                            "column_id": "order",
+                            "filter_config": {
+                                "filter_type": "number",
+                                "filter_op": "greater_than_or_equal",
+                                "filter_value": 1,
+                            },
+                        }
+                    ]
+                },
             },
             format="json",
         )

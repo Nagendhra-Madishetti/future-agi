@@ -2863,7 +2863,7 @@ class TestAutomationRulesE2E:
             {
                 "name": "Race rule",
                 "source_type": "trace",
-                "conditions": {"rules": []},
+                "conditions": {"filter": []},
                 "enabled": True,
             },
             format="json",
