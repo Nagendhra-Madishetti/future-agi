@@ -182,8 +182,8 @@ const ID_ONLY_OPS = [{ value: "equals", label: "is" }];
 const ARRAY_OPS = [
   { value: "contains", label: "contains" },
   { value: "not_contains", label: "not contains" },
-  { value: "is_empty", label: "is empty" },
-  { value: "is_not_empty", label: "is not empty" },
+  { value: "is_null", label: "is empty" },
+  { value: "is_not_null", label: "is not empty" },
 ];
 
 const CATEGORICAL_OPS = [
@@ -306,12 +306,7 @@ const DEFAULT_OP_FOR_TYPE = {
 // the same canonical `in` / `not_in` API shape.
 const HYDRATE_STRING_OP = { equals: "in", not_equals: "not_in" };
 
-const NO_VALUE_OPS = new Set([
-  "is_empty",
-  "is_not_empty",
-  "is_null",
-  "is_not_null",
-]);
+const NO_VALUE_OPS = new Set(["is_null", "is_not_null"]);
 
 // Scalar ops — value picker forces single-select. Multi-value goes via in/not_in.
 const SINGLE_VALUE_OPS = new Set([

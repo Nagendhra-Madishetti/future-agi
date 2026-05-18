@@ -221,7 +221,7 @@ describe("create rule Observe filter serialization", () => {
       {},
     );
 
-    expect(conditions.rules[0].field).toBe("latency_ms");
+    expect(conditions).not.toHaveProperty("rules");
     expect(conditions.filter[0].column_id).toBe("latency_ms");
   });
 

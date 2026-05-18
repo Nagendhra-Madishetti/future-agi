@@ -19,7 +19,7 @@ describe("annotation queue API filter converters", () => {
       filter_config: {
         filter_type: "number",
         filter_op: "greater_than",
-        filter_value: "80",
+        filter_value: 80,
         col_type: "EVAL_METRIC",
       },
     });
@@ -34,7 +34,7 @@ describe("annotation queue API filter converters", () => {
         fieldName: "Customer Tier",
         fieldCategory: "attribute",
         fieldType: "string",
-        operator: "is",
+        operator: "in",
         value: ["vip"],
       },
       { includeMeta: true },
@@ -50,6 +50,18 @@ describe("annotation queue API filter converters", () => {
       },
       _meta: { parentProperty: "" },
     });
+  });
+
+  it("rejects legacy panel-only operators before the API call", () => {
+    expect(() =>
+      panelFilterToApi({
+        field: "customer_tier",
+        fieldCategory: "attribute",
+        fieldType: "string",
+        operator: "is",
+        value: ["vip"],
+      }),
+    ).toThrow(/Unsupported filter operator/);
   });
 
   it("hydrates canonical API filters back to panel rows", () => {

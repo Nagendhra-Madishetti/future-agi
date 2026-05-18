@@ -159,7 +159,7 @@ const SESSION_RULE_FILTER_FIELDS = [
   { id: "end_time", name: "End Time", category: "system", type: "date" },
 ];
 
-const MULTI_VALUE_OPS = new Set(["is", "is_not", "in", "not_in"]);
+const MULTI_VALUE_OPS = new Set(["in", "not_in"]);
 
 function getQueueScopeId(queue, key) {
   const value = queue?.[key];
@@ -194,8 +194,8 @@ function filterWithValue(filter) {
 }
 
 function getSubmittableFilters(filters) {
-  // Drop rows that don't carry a value (or aren't a unary op like
-  // is_null / is_empty). Without this, a half-filled row with just a
+  // Drop rows that don't carry a value (or aren't a unary op like is_null).
+  // Without this, a half-filled row with just a
   // columnId selected serialises into the API payload's `filter:` array
   // and the backend's evaluator silently match-everythings.
   return (filters || [])

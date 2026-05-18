@@ -20,20 +20,27 @@ import { panelFilterToStore, unwrapScalarValue } from "../DevelopFilterBox";
 import { transformFilter } from "../common";
 
 describe("unwrapScalarValue", () => {
-  it("unwraps single-element arrays for scalar string fields", () => {
-    expect(unwrapScalarValue(["english"], "string", "is")).toBe("english");
+  it("preserves arrays for canonical list operators", () => {
+    expect(unwrapScalarValue(["english"], "string", "in")).toEqual(["english"]);
+    expect(unwrapScalarValue(["draft"], "string", "not_in")).toEqual(["draft"]);
+  });
+
+  it("unwraps single-element arrays for scalar string equality", () => {
+    expect(unwrapScalarValue(["english"], "string", "equals")).toBe("english");
   });
 
   it("unwraps single-element arrays for number fields", () => {
-    expect(unwrapScalarValue([5], "number", "equal_to")).toBe(5);
+    expect(unwrapScalarValue([5], "number", "equals")).toBe(5);
   });
 
   it("unwraps single-element arrays for boolean fields", () => {
-    expect(unwrapScalarValue([true], "boolean", "is")).toBe(true);
+    expect(unwrapScalarValue([true], "boolean", "equals")).toBe(true);
   });
 
   it("unwraps single-element arrays for date fields", () => {
-    expect(unwrapScalarValue(["2026-04-21"], "date", "on")).toBe("2026-04-21");
+    expect(unwrapScalarValue(["2026-04-21"], "date", "equals")).toBe(
+      "2026-04-21",
+    );
   });
 
   it("preserves arrays for `array` fieldType", () => {
@@ -55,31 +62,46 @@ describe("unwrapScalarValue", () => {
   it("coerces empty arrays to '' so validateFilter rejects the row", () => {
     // Prevents `undefined` leaking into the store and hitting the
     // backend as `null` — `validateFilter` only checks `!== ''`.
-    expect(unwrapScalarValue([], "string", "is")).toBe("");
-    expect(unwrapScalarValue([undefined], "string", "is")).toBe("");
-    expect(unwrapScalarValue([null], "string", "is")).toBe("");
+    expect(unwrapScalarValue([], "string", "in")).toBe("");
+    expect(unwrapScalarValue([undefined], "string", "equals")).toBe("");
+    expect(unwrapScalarValue([null], "string", "equals")).toBe("");
   });
 
   it("passes non-array scalars through untouched", () => {
-    expect(unwrapScalarValue("casual", "string", "is")).toBe("casual");
-    expect(unwrapScalarValue(5, "number", "equal_to")).toBe(5);
-    expect(unwrapScalarValue(false, "boolean", "is")).toBe(false);
+    expect(unwrapScalarValue("casual", "string", "in")).toBe("casual");
+    expect(unwrapScalarValue(5, "number", "equals")).toBe(5);
+    expect(unwrapScalarValue(false, "boolean", "equals")).toBe(false);
   });
 });
 
 describe("panelFilterToStore — AI-path regression (TH-4400)", () => {
-  it("unwraps array-wrapped scalar text values", () => {
+  it("keeps canonical list text values as arrays", () => {
     // This is exactly what TraceFilterPanel.handleAiFilter emits for a
     // dataset text column after the LLM returns `value: "english"`.
     const panel = {
       field: "col_lang",
       fieldCategory: "dataset",
       fieldType: "string",
-      operator: "is",
+      operator: "in",
       value: ["english"],
     };
     const out = panelFilterToStore(panel);
     expect(out.columnId).toBe("col_lang");
+    expect(out.filterConfig).toMatchObject({
+      filterType: "text",
+      filterOp: "in",
+      filterValue: ["english"],
+    });
+  });
+
+  it("unwraps array-wrapped scalar equality values", () => {
+    const out = panelFilterToStore({
+      field: "col_lang",
+      fieldCategory: "dataset",
+      fieldType: "string",
+      operator: "equals",
+      value: ["english"],
+    });
     expect(out.filterConfig).toMatchObject({
       filterType: "text",
       filterOp: "equals",
@@ -92,7 +114,7 @@ describe("panelFilterToStore — AI-path regression (TH-4400)", () => {
       field: "col_score",
       fieldCategory: "dataset",
       fieldType: "number",
-      operator: "equal_to",
+      operator: "equals",
       value: [0.8],
     });
     expect(out.filterConfig).toMatchObject({
@@ -148,7 +170,7 @@ describe("panelFilterToStore — AI-path regression (TH-4400)", () => {
     const out = panelFilterToStore({
       field: "col_lang",
       fieldType: "string",
-      operator: "is",
+      operator: "in",
       value: [undefined],
     });
     expect(out.filterConfig.filterValue).toBe("");

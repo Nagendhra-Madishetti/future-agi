@@ -1,12 +1,11 @@
 import {
+  buildApiFilterFromPanelRow,
   normalizeColumnType,
   normalizeFilterType,
 } from "src/api/contracts/filter-contract";
 import {
-  apiOpToPanel,
   isRangeFilterOp,
   normalizeApiFilterOp,
-  panelOperatorAndValueToApi,
 } from "src/sections/annotations/queues/utils/filter-operators";
 
 const COL_TYPE_TO_PANEL_CAT = {
@@ -32,23 +31,13 @@ export function formatDateInputValue(value) {
 }
 
 export function panelFilterToApi(panel, { includeMeta = false } = {}) {
-  const { filterOp, filterValue } = panelOperatorAndValueToApi(
-    panel.operator,
-    panel.value,
-  );
-  const filterType = normalizeFilterType(panel.fieldType);
-  const colType = normalizeColumnType(panel.fieldCategory);
-  return {
-    column_id: panel.field,
-    ...(panel.fieldName && { display_name: panel.fieldName }),
-    filter_config: {
-      filter_type: filterType,
-      filter_op: filterOp,
-      filter_value: filterValue,
-      ...(colType && { col_type: colType }),
-    },
-    ...(includeMeta && { _meta: { parentProperty: "" } }),
-  };
+  const apiFilter = buildApiFilterFromPanelRow({
+    ...panel,
+    apiColType: normalizeColumnType(panel.apiColType || panel.fieldCategory),
+  });
+  return includeMeta
+    ? { ...apiFilter, _meta: { parentProperty: "" } }
+    : apiFilter;
 }
 
 export function apiFilterToPanel(
@@ -121,7 +110,7 @@ export function apiFilterToPanel(
       property?.category ||
       defaultCategory,
     fieldType,
-    operator: apiOpToPanel(canonicalOp, fieldType),
+    operator: canonicalOp,
     value,
   };
 }
