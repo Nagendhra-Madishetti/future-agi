@@ -2556,6 +2556,29 @@ class ComparePreviewRunEvalRequestSerializer(serializers.Serializer):
     )
 
 
+class CompareExperimentEvalRequestSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=50)
+    template_id = serializers.CharField(max_length=500)
+    config = serializers.JSONField()
+    kb_id = serializers.UUIDField(required=False)
+    error_localizer = serializers.BooleanField(required=False, default=False)
+    model = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    eval_type = serializers.CharField(required=False, allow_blank=True)
+    run = serializers.BooleanField(required=False, default=False)
+    save_as_template = serializers.BooleanField(required=False, default=False)
+    experiment_id = serializers.UUIDField(required=False)
+    composite_weight_overrides = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+    dataset_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+    )
+
+
 class DatasetRowSelectionRequestSerializer(serializers.Serializer):
     row_ids = serializers.ListField(
         child=serializers.UUIDField(),
@@ -2724,6 +2747,29 @@ class UserEvalMutationRequestSerializer(serializers.Serializer):
     kb_id = serializers.UUIDField(required=False)
     error_localizer = serializers.BooleanField(required=False, default=False)
     model = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    eval_type = serializers.CharField(required=False, allow_blank=True)
+    run = serializers.BooleanField(required=False, default=False)
+    save_as_template = serializers.BooleanField(required=False, default=False)
+    experiment_id = serializers.UUIDField(required=False)
+    composite_weight_overrides = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+
+
+class UserEvalUpdateRequestSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    template_id = serializers.CharField(
+        max_length=500,
+        required=False,
+        allow_blank=True,
+    )
+    config = serializers.JSONField()
+    kb_id = serializers.UUIDField(required=False)
+    error_localizer = serializers.BooleanField(required=False, default=False)
+    model = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    eval_type = serializers.CharField(required=False, allow_blank=True)
     run = serializers.BooleanField(required=False, default=False)
     save_as_template = serializers.BooleanField(required=False, default=False)
     experiment_id = serializers.UUIDField(required=False)
@@ -2750,6 +2796,7 @@ class PreviewRunEvalRequestSerializer(serializers.Serializer):
     model = serializers.CharField(required=False, allow_blank=True)
     sdk_uuid = serializers.CharField(required=False, allow_blank=True)
     source = serializers.CharField(required=False, allow_blank=True)
+    protect_flash = serializers.BooleanField(required=False, default=False)
 
 
 class ExperimentRerunRequestSerializer(serializers.Serializer):

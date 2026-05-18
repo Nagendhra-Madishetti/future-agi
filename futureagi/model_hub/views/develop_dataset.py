@@ -128,6 +128,7 @@ from model_hub.serializers.contracts import (
     ColumnConfigResponseSerializer,
     CompareDatasetStatsRequestSerializer,
     CompareEvalsListRequestSerializer,
+    CompareExperimentEvalRequestSerializer,
     ComparePreviewRunEvalRequestSerializer,
     CompareStartEvalsRequestSerializer,
     DatasetAddColumnsRequestSerializer,
@@ -176,6 +177,7 @@ from model_hub.serializers.contracts import (
     StartEvalsProcessRequestSerializer,
     StopUserEvalRequestSerializer,
     UserEvalMutationRequestSerializer,
+    UserEvalUpdateRequestSerializer,
 )
 from model_hub.serializers.develop_dataset_contracts import (
     ColumnTypeConversionResponseSerializer,
@@ -6971,19 +6973,16 @@ class GetEvalConfigView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=EvalConfigQuerySerializer,
         responses={
             200: ModelHubEvalConfigResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
-        }
+        },
     )
     def get(self, request, *args, **kwargs):
         try:
-            query_serializer = EvalConfigQuerySerializer(data=request.query_params)
-            if not query_serializer.is_valid():
-                return self._gm.bad_request(query_serializer.errors)
-            eval_id = query_serializer.validated_data["eval_id"]
+            eval_id = request.validated_query_data["eval_id"]
 
             try:
                 template = EvalTemplate.no_workspace_objects.get(id=eval_id)
@@ -7141,7 +7140,7 @@ class GetEvalStructureView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=EvalStructureQuerySerializer,
         responses={200: EvalStructureResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
     )
@@ -7149,10 +7148,7 @@ class GetEvalStructureView(APIView):
         self, request, eval_id, dataset_id=None, *args, **kwargs
     ):  # Changed from 'post' to 'get'
         try:
-            query_serializer = EvalStructureQuerySerializer(data=request.query_params)
-            if not query_serializer.is_valid():
-                return self._gm.bad_request(query_serializer.errors)
-            eval_type = query_serializer.validated_data["eval_type"]
+            eval_type = request.validated_query_data["eval_type"]
 
             if eval_type == "preset" or eval_type == "previously_configured":
                 return self._get_preset_structure(
@@ -7309,8 +7305,8 @@ class StartEvalsProcess(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=StartEvalsProcessRequestSerializer,
+    @validated_request(
+        request_serializer=StartEvalsProcessRequestSerializer,
         responses={
             200: DevelopDatasetMessageResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -7318,8 +7314,9 @@ class StartEvalsProcess(APIView):
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
-            user_eval_ids = request.data.get("user_eval_ids", [])
-            experiment_id = request.data.get("experiment_id")
+            request_data = request.validated_data
+            user_eval_ids = request_data.get("user_eval_ids", [])
+            experiment_id = request_data.get("experiment_id")
 
             # Experiment evals are orchestrated by a Temporal workflow — delegate
             # to the experiment rerun-cells view so the workflow fires correctly
@@ -7331,7 +7328,7 @@ class StartEvalsProcess(APIView):
 
                 request._full_data = {
                     "user_eval_metric_ids": user_eval_ids,
-                    "failed_only": request.data.get("failed_only", False),
+                    "failed_only": request_data.get("failed_only", False),
                 }
                 return ExperimentRerunCellsV2View().post(
                     request, experiment_id=experiment_id
@@ -7654,8 +7651,8 @@ class EditAndRunUserEvalView(APIView):
             return value.strip().lower() not in {"false", "0", "no", ""}
         return bool(value)
 
-    @swagger_auto_schema(
-        request_body=UserEvalMutationRequestSerializer,
+    @validated_request(
+        request_serializer=UserEvalUpdateRequestSerializer,
         responses={
             200: DevelopDatasetMessageResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -7664,18 +7661,19 @@ class EditAndRunUserEvalView(APIView):
     def post(self, request, dataset_id, eval_id, *args, **kwargs):
         from tfc.ee_gates import turing_oss_gate_for_template
 
+        request_data = request.validated_data
         gate = turing_oss_gate_for_template(
-            request.data.get("model"),
-            template_id=request.data.get("template_id"),
-            eval_type=request.data.get("eval_type"),
+            request_data.get("model"),
+            template_id=request_data.get("template_id"),
+            eval_type=request_data.get("eval_type"),
         )
         if gate is not None:
             return gate
 
         try:
-            run = request.data.get("run", False)
-            save_as_template = request.data.get("save_as_template", False)
-            experiment_id = request.data.get("experiment_id")
+            run = request_data.get("run", False)
+            save_as_template = request_data.get("save_as_template", False)
+            experiment_id = request_data.get("experiment_id")
             organization = (
                 getattr(request, "organization", None) or request.user.organization
             )
@@ -7700,7 +7698,7 @@ class EditAndRunUserEvalView(APIView):
                 from model_hub.utils.eval_validators import validate_eval_name
 
                 try:
-                    template_name = validate_eval_name(request.data.get("name", ""))
+                    template_name = validate_eval_name(request_data.get("name", ""))
                 except ValueError as e:
                     return self._gm.bad_request(str(e))
 
@@ -7734,7 +7732,7 @@ class EditAndRunUserEvalView(APIView):
                 )
                 new_config = template.config
                 runtime_config = normalize_eval_runtime_config(
-                    template.config, request.data.get("config", {})
+                    template.config, request_data.get("config", {})
                 )
                 input_config = runtime_config.get("config", {})
                 input_params = runtime_config.get("params", {})
@@ -7751,7 +7749,7 @@ class EditAndRunUserEvalView(APIView):
                 eval_metric.save()
 
             # Update the config if provided in request
-            new_config = request.data.get("config")
+            new_config = request_data.get("config")
             if new_config:
                 new_config = normalize_eval_runtime_config(
                     eval_metric.template.config, new_config
@@ -7761,14 +7759,14 @@ class EditAndRunUserEvalView(APIView):
                 if "reason_column" not in new_config:
                     new_config["reason_column"] = True
                 eval_metric.config = new_config
-            eval_metric.kb_id = request.data.get("kb_id") or eval_metric.kb_id
+            eval_metric.kb_id = request_data.get("kb_id") or eval_metric.kb_id
             if "error_localizer" in request.data:
                 eval_metric.error_localizer = self._coerce_bool(
-                    request.data.get("error_localizer")
+                    request_data.get("error_localizer")
                 )
             elif (
-                isinstance(request.data.get("config"), dict)
-                and request.data["config"]
+                isinstance(request_data.get("config"), dict)
+                and request_data["config"]
                 .get("run_config", {})
                 .get("error_localizer_enabled")
                 is not None
@@ -7777,9 +7775,9 @@ class EditAndRunUserEvalView(APIView):
                 # path) nest the flag inside config.run_config instead of
                 # surfacing it at the top level.
                 eval_metric.error_localizer = bool(
-                    request.data["config"]["run_config"]["error_localizer_enabled"]
+                    request_data["config"]["run_config"]["error_localizer_enabled"]
                 )
-            eval_metric.model = request.data.get("model") or eval_metric.model
+            eval_metric.model = request_data.get("model") or eval_metric.model
 
             # Reason-column reconciliation differs by scope:
             #  * dataset: exactly one EVALUATION column (source_id == eval_metric.id)
@@ -7923,8 +7921,8 @@ class AddUserEvalView(CreateAPIView):
             return value.strip().lower() not in {"false", "0", "no", ""}
         return bool(value)
 
-    @swagger_auto_schema(
-        request_body=UserEvalMutationRequestSerializer,
+    @validated_request(
+        request_serializer=UserEvalMutationRequestSerializer,
         responses={
             200: DevelopDatasetMessageResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -7933,10 +7931,11 @@ class AddUserEvalView(CreateAPIView):
     def post(self, request, dataset_id, *args, **kwargs):
         from tfc.ee_gates import turing_oss_gate_for_template
 
+        request_data = request.validated_data
         gate = turing_oss_gate_for_template(
-            request.data.get("model"),
-            template_id=request.data.get("template_id"),
-            eval_type=request.data.get("eval_type"),
+            request_data.get("model"),
+            template_id=request_data.get("template_id"),
+            eval_type=request_data.get("eval_type"),
         )
         if gate is not None:
             return gate
@@ -7955,9 +7954,9 @@ class AddUserEvalView(CreateAPIView):
         except Dataset.DoesNotExist:
             return self._gm.not_found("Dataset not found")
 
-        serializer = UserEvalSerializer(data=request.data)
-        run = request.data.get("run", False)
-        save_as_template = request.data.get("save_as_template", False)
+        serializer = UserEvalSerializer(data=request_data)
+        run = request_data.get("run", False)
+        save_as_template = request_data.get("save_as_template", False)
         if serializer.is_valid():
             validated_data = serializer.validated_data
             id1 = dataset_id
@@ -8046,7 +8045,7 @@ class AddUserEvalView(CreateAPIView):
             # Inherit template-level enablement unless caller explicitly overrides.
             if "error_localizer" in request.data:
                 error_localizer = self._coerce_bool(
-                    request.data.get("error_localizer", False)
+                    request_data.get("error_localizer", False)
                 )
             else:
                 error_localizer = bool(
@@ -8158,8 +8157,8 @@ class StopUserEvalView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=StopUserEvalRequestSerializer,
+    @validated_request(
+        request_serializer=StopUserEvalRequestSerializer,
         responses={
             200: DevelopDatasetMessageResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -8167,7 +8166,7 @@ class StopUserEvalView(APIView):
     )
     def post(self, request, dataset_id, eval_id, *args, **kwargs):
         try:
-            experiment_id = request.data.get("experiment_id")
+            experiment_id = request.validated_data.get("experiment_id")
             organization = (
                 getattr(request, "organization", None) or request.user.organization
             )
@@ -8232,25 +8231,26 @@ class PreviewRunEvalView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=PreviewRunEvalRequestSerializer,
+    @validated_request(
+        request_serializer=PreviewRunEvalRequestSerializer,
         responses={200: EvalPreviewResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
-            config = request.data.get("config")
+            request_data = request.validated_data
+            config = request_data.get("config")
             if not config:
                 return self._gm.bad_request("config is required")
             if "mapping" not in config:
                 return self._gm.bad_request("mapping is required in config")
-            template_id = request.data.get("template_id")
-            model = request.data.get("model", ModelChoices.TURING_LARGE.value)
+            template_id = str(request_data.get("template_id"))
+            model = request_data.get("model", ModelChoices.TURING_LARGE.value)
             call_type = config["mapping"].get("call_type", None)
-            sdk_uuid = request.data.get("sdk_uuid", None)
+            sdk_uuid = request_data.get("sdk_uuid", None)
 
             protect = False
             # Get protect_flash parameter from request (defaults to False)
-            protect_flash = request.data.get("protect_flash", False)
+            protect_flash = request_data.get("protect_flash", False)
             is_only_eval = True
             if call_type:
                 if call_type == "protect":
@@ -8289,7 +8289,7 @@ class PreviewRunEvalView(APIView):
                 is_only_eval=is_only_eval,
                 format_output=True,
                 futureagi_eval=self.futureagi_eval,
-                source=request.data.get("source", "dataset_evaluation"),
+                source=request_data.get("source", "dataset_evaluation"),
                 source_id=template_id,
                 protect=protect,
                 protect_flash=protect_flash,
@@ -8408,8 +8408,8 @@ class GetHuggingFaceDatasetListView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
-    @swagger_auto_schema(
-        request_body=HuggingFaceDatasetListRequestSerializer,
+    @validated_request(
+        request_serializer=HuggingFaceDatasetListRequestSerializer,
         responses={
             200: HuggingFaceDatasetListResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -8417,9 +8417,10 @@ class GetHuggingFaceDatasetListView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            search_query = request.data.get("search_query", "")
+            request_data = request.validated_data
+            search_query = request_data.get("search_query", "")
 
-            filter_params = request.data.get("filter_params", {})
+            filter_params = request_data.get("filter_params", {})
             try:
                 parsed_filters = parse_huggingface_filter_params(filter_params)
             except Exception:
@@ -8612,8 +8613,8 @@ class GetHuggingFaceDatasetDetailView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
-    @swagger_auto_schema(
-        request_body=HuggingFaceDatasetDetailRequestSerializer,
+    @validated_request(
+        request_serializer=HuggingFaceDatasetDetailRequestSerializer,
         responses={
             200: HuggingFaceDatasetDetailResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -8621,7 +8622,7 @@ class GetHuggingFaceDatasetDetailView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            dataset_id = request.data.get("dataset_id", "")
+            dataset_id = request.validated_data.get("dataset_id", "")
 
             try:
                 if not dataset_id:
@@ -11059,8 +11060,8 @@ class SingleRowEvaluationView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=SingleRowEvaluationRequestSerializer,
+    @validated_request(
+        request_serializer=SingleRowEvaluationRequestSerializer,
         responses={
             200: SingleRowEvaluationResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -11068,10 +11069,14 @@ class SingleRowEvaluationView(APIView):
     )
     def post(self, request):
         try:
+            request_data = request.validated_data
             # Extract the user_eval_metric_ids and row_ids from the request data
-            user_eval_metric_ids = request.data.get("user_eval_metric_ids", [])
-            row_ids = request.data.get("row_ids", [])
-            selected_all_rows = request.data.get("selected_all_rows", False)
+            user_eval_metric_ids = [
+                str(metric_id)
+                for metric_id in request_data.get("user_eval_metric_ids", [])
+            ]
+            row_ids = [str(row_id) for row_id in request_data.get("row_ids", [])]
+            selected_all_rows = request_data.get("selected_all_rows", False)
             if not user_eval_metric_ids:
                 return self._gm.bad_request(
                     get_error_message("USER_EVAL_METRIC_IDs_REQUIRED")
@@ -11308,15 +11313,16 @@ class DuplicateRowsView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=DuplicateRowsRequestSerializer,
+    @validated_request(
+        request_serializer=DuplicateRowsRequestSerializer,
         responses={200: DuplicateRowsResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
-            row_ids = request.data.get("row_ids", [])
-            selected_all_rows = request.data.get("selected_all_rows", False)
-            num_copies = request.data.get("num_copies", 1)
+            request_data = request.validated_data
+            row_ids = request_data.get("row_ids", [])
+            selected_all_rows = request_data.get("selected_all_rows", False)
+            num_copies = request_data.get("num_copies", 1)
 
             if not row_ids and not selected_all_rows:
                 return self._gm.bad_request(get_error_message("MISSING_ROW_IDS"))
@@ -11439,8 +11445,8 @@ class DuplicateDatasetView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=DuplicateDatasetRequestSerializer,
+    @validated_request(
+        request_serializer=DuplicateDatasetRequestSerializer,
         responses={
             200: DuplicateDatasetResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -11448,9 +11454,10 @@ class DuplicateDatasetView(APIView):
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
-            new_name = request.data.get("name")
-            row_ids = request.data.get("row_ids", [])
-            selected_all_rows = request.data.get("selected_all_rows", False)
+            request_data = request.validated_data
+            new_name = request_data.get("name")
+            row_ids = request_data.get("row_ids", [])
+            selected_all_rows = request_data.get("selected_all_rows", False)
             if not new_name:
                 return self._gm.bad_request(
                     get_error_message("MISSING_NEW_DATASET_NAME")
@@ -11654,15 +11661,16 @@ class MergeDatasetView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=MergeDatasetRequestSerializer,
+    @validated_request(
+        request_serializer=MergeDatasetRequestSerializer,
         responses={200: MergeDatasetResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
-            target_dataset_id = request.data.get("target_dataset_id")
-            row_ids = request.data.get("row_ids") or []
-            selected_all_rows = request.data.get("selected_all_rows", False)
+            request_data = request.validated_data
+            target_dataset_id = request_data.get("target_dataset_id")
+            row_ids = request_data.get("row_ids") or []
+            selected_all_rows = request_data.get("selected_all_rows", False)
             if not target_dataset_id:
                 return self._gm.bad_request(
                     get_error_message("MISSING_SOURCE_DATASET_ID")
@@ -12888,23 +12896,23 @@ class CompareDatasetsView(APIView):
 
         return result
 
-    @swagger_auto_schema(
-        request_body=CompareDatasetSerializer,
+    @validated_request(
+        request_serializer=CompareDatasetSerializer,
         responses={200: CompareDatasetResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
             start_time = time.time()
             # Pagination parameters
-            serializer = CompareDatasetSerializer(data=request.data)
-            if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
-
-            validated_data = serializer.validated_data
+            validated_data = request.validated_data
             page_size = validated_data["page_size"]
             current_page = validated_data["current_page_index"]
             base_column_name = validated_data["base_column_name"]
-            compare_id = validated_data["compare_id"]
+            compare_id = (
+                str(validated_data["compare_id"])
+                if validated_data.get("compare_id")
+                else None
+            )
 
             if not compare_id:
                 compare_id = str(uuid.uuid4())
@@ -12959,7 +12967,7 @@ class CompareDatasetsView(APIView):
                     // page_size,
                 }
 
-                dataset_ids = validated_data["dataset_ids"]
+                dataset_ids = [str(did) for did in validated_data["dataset_ids"]]
                 if not dataset_ids:
                     return self._gm.bad_request("No dataset IDs provided.")
                 ordered_ids = [dataset_id] + [str(did) for did in dataset_ids]
@@ -13075,7 +13083,7 @@ class CompareDatasetsView(APIView):
 
                 common_columns = set(common_column_names)
             else:
-                dataset_ids = validated_data["dataset_ids"]
+                dataset_ids = [str(did) for did in validated_data["dataset_ids"]]
                 if not dataset_ids:
                     return self._gm.bad_request("No dataset IDs provided.")
 
@@ -13337,8 +13345,8 @@ class DownloadComparisonDatasetView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=CompareDatasetSerializer,
+    @validated_request(
+        request_serializer=CompareDatasetSerializer,
         responses={
             200: openapi.Response(
                 "CSV export",
@@ -13351,15 +13359,16 @@ class DownloadComparisonDatasetView(APIView):
         try:
             # Get main dataset and validate request data
             get_object_or_404(Dataset, id=dataset_id, deleted=False)
-            serializer = CompareDatasetSerializer(data=request.data)
-            compare_id = request.data.get("compare_id", None)
-
-            if not serializer.is_valid():
-                return self._gm.bad_request(serializer.errors)
-
-            validated_data = serializer.validated_data
+            validated_data = request.validated_data
+            compare_id = (
+                str(validated_data["compare_id"])
+                if validated_data.get("compare_id")
+                else None
+            )
             base_column_name = validated_data["base_column_name"]
-            dataset_ids = validated_data["dataset_ids"]
+            dataset_ids = [str(did) for did in validated_data["dataset_ids"]]
+            dataset_info = validated_data.get("dataset_info", {})
+            common_column_names = validated_data.get("common_column_names", [])
             if compare_id:
                 if os.path.exists(f"compare/{compare_id}"):
                     metadata = {"status ": "processing"}
@@ -13462,8 +13471,8 @@ class CompareDatasetsStatsView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=CompareDatasetStatsRequestSerializer,
+    @validated_request(
+        request_serializer=CompareDatasetStatsRequestSerializer,
         responses={
             200: CompareDatasetStatsResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -13472,10 +13481,10 @@ class CompareDatasetsStatsView(APIView):
     def post(self, request, dataset_id, *args, **kwargs):
         try:
             # Extract parameters from the request
-
-            base_column_name = request.data.get("base_column_name")
-            dataset_ids = request.data.get("dataset_ids", [])
-            stat_type = request.data.get("stat_type", "evaluation")
+            request_data = request.validated_data
+            base_column_name = request_data.get("base_column_name")
+            dataset_ids = [str(did) for did in request_data.get("dataset_ids", [])]
+            stat_type = request_data.get("stat_type", "evaluation")
 
             if str(dataset_id) not in dataset_ids:
                 dataset_ids.insert(0, str(dataset_id))
@@ -13579,8 +13588,8 @@ class AddCompareExperimentEvalView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=UserEvalSerializer,
+    @validated_request(
+        request_serializer=CompareExperimentEvalRequestSerializer,
         responses={
             200: DevelopDatasetMessageResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -13591,12 +13600,13 @@ class AddCompareExperimentEvalView(APIView):
             getattr(request, "organization", None) or request.user.organization
         )
 
-        serializer = UserEvalSerializer(data=request.data)
-        run = request.data.get("run", False)
-        save_as_template = request.data.get("save_as_template", False)
+        request_data = request.validated_data
+        serializer = UserEvalSerializer(data=request_data)
+        run = request_data.get("run", False)
+        save_as_template = request_data.get("save_as_template", False)
         if serializer.is_valid():
             validated_data = serializer.validated_data
-            dataset_ids = request.data.get("dataset_ids", [])
+            dataset_ids = [str(did) for did in request_data.get("dataset_ids", [])]
 
             if str(dataset_id) not in dataset_ids:
                 dataset_ids.append(str(dataset_id))
@@ -13769,8 +13779,8 @@ class CompareDatasetsStartEvalsProcess(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=CompareStartEvalsRequestSerializer,
+    @validated_request(
+        request_serializer=CompareStartEvalsRequestSerializer,
         responses={
             200: DevelopDatasetMessageResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -13778,8 +13788,9 @@ class CompareDatasetsStartEvalsProcess(APIView):
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
-            user_eval_names = request.data.get("user_eval_names", [])
-            dataset_ids = request.data.get("dataset_ids", [])
+            request_data = request.validated_data
+            user_eval_names = request_data.get("user_eval_names", [])
+            dataset_ids = [str(did) for did in request_data.get("dataset_ids", [])]
 
             if not user_eval_names:
                 return self._gm.bad_request(get_error_message("MISSSING_EVAL_IDS"))
@@ -13878,15 +13889,16 @@ class GetCompareEvalsListView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=CompareEvalsListRequestSerializer,
+    @validated_request(
+        request_serializer=CompareEvalsListRequestSerializer,
         responses={200: CompareEvalListResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def post(self, request, *args, **kwargs):
         try:
-            search_text = request.data.get("search_text", "").strip()
-            eval_type = request.data.get("eval_type")
-            dataset_ids = request.data.get("dataset_ids", [])
+            request_data = request.validated_data
+            search_text = request_data.get("search_text", "").strip()
+            eval_type = request_data.get("eval_type")
+            dataset_ids = [str(did) for did in request_data.get("dataset_ids", [])]
             if not eval_type or eval_type != "user":
                 return self._gm.bad_request(
                     get_error_message("INVALID_OR_MISSING_EVAL_TYPE")
@@ -13971,17 +13983,18 @@ class ComparePreviewRunEvalView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=ComparePreviewRunEvalRequestSerializer,
+    @validated_request(
+        request_serializer=ComparePreviewRunEvalRequestSerializer,
         responses={200: EvalPreviewResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def post(self, request, *args, **kwargs):
         try:
-            config = request.data.get("config")
-            model = request.data.get("model", ModelChoices.TURING_LARGE.value)
-            template_id = request.data.get("template_id")
-            dataset_ids = request.data.get("dataset_ids", [])
-            dataset_info = request.data.get("dataset_info", {})
+            request_data = request.validated_data
+            config = request_data.get("config")
+            model = request_data.get("model", ModelChoices.TURING_LARGE.value)
+            template_id = str(request_data.get("template_id"))
+            dataset_ids = [str(did) for did in request_data.get("dataset_ids", [])]
+            dataset_info = request_data.get("dataset_info", {})
 
             protect = False
             is_only_eval = True
@@ -14006,7 +14019,7 @@ class ComparePreviewRunEvalView(APIView):
                 is_only_eval=is_only_eval,
                 format_output=True,
                 futureagi_eval=self.futureagi_eval,
-                source=request.data.get("source", "dataset_evaluation"),
+                source=request_data.get("source", "dataset_evaluation"),
                 source_id=template_id,
                 protect=protect,
             )
@@ -14477,8 +14490,8 @@ class CreateKnowledgeBaseView(APIView):
                 "Error in getting the kb sdk code"
             )
 
-    @swagger_auto_schema(
-        request_body=LegacyKnowledgeBaseMutationRequestSerializer,
+    @validated_request(
+        request_serializer=LegacyKnowledgeBaseMutationRequestSerializer,
         responses={
             200: LegacyKnowledgeBaseCreateResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -14491,7 +14504,7 @@ class CreateKnowledgeBaseView(APIView):
             org = getattr(request, "organization", None) or request.user.organization
             kb_name = None
 
-            data = request.data
+            data = request.validated_data
             created_by = User.objects.get(id=request.user.id).name
             uploaded_files = request.FILES.getlist("file")
             file_names = {file.name for file in uploaded_files}
@@ -14618,8 +14631,8 @@ class CreateKnowledgeBaseView(APIView):
             )
 
     # Update knowledge base name and/or Add files
-    @swagger_auto_schema(
-        request_body=LegacyKnowledgeBaseMutationRequestSerializer,
+    @validated_request(
+        request_serializer=LegacyKnowledgeBaseMutationRequestSerializer,
         responses={
             200: LegacyKnowledgeBaseMutationResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -14628,7 +14641,8 @@ class CreateKnowledgeBaseView(APIView):
     def patch(self, request, *args, **kwargs):
         try:
             org = getattr(request, "organization", None) or request.user.organization
-            kb_id = request.data.get("kb_id")
+            request_data = request.validated_data
+            kb_id = request_data.get("kb_id")
             files = request.FILES.getlist("file")
             kb_name = None
             user = request.user.name
@@ -14675,10 +14689,10 @@ class CreateKnowledgeBaseView(APIView):
             ).exists():
                 return self._gm.bad_request(get_error_message("FILE_ALREADY_EXISTS"))
 
-            if request.data.get("name") and not (
-                request.data.get("name").strip() == kb_instance.name.strip()
+            if request_data.get("name") and not (
+                request_data.get("name").strip() == kb_instance.name.strip()
             ):
-                kb_name = request.data.get("name").strip()
+                kb_name = request_data.get("name").strip()
 
                 if KnowledgeBaseFile.objects.filter(
                     name=kb_name, organization=org, deleted=False
@@ -14687,7 +14701,7 @@ class CreateKnowledgeBaseView(APIView):
                         get_error_message("KNOWLEDGE_BASE_ALREADY_EXISTS")
                     )
 
-            if not request.data.get("name"):
+            if not request_data.get("name"):
                 kb_name = self._generate_unique_name(org)
 
             # Validate ALL files FIRST (same as POST)
@@ -14984,8 +14998,8 @@ class ExistingKnowledgeBaseView(APIView):
     permission_classes = [IsAuthenticated]
 
     # List files present in the KB
-    @swagger_auto_schema(
-        request_body=LegacyKnowledgeBaseFilesRequestSerializer,
+    @validated_request(
+        request_serializer=LegacyKnowledgeBaseFilesRequestSerializer,
         responses={
             200: LegacyKnowledgeBaseFilesResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
@@ -14994,11 +15008,12 @@ class ExistingKnowledgeBaseView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             org = getattr(request, "organization", None) or request.user.organization
-            kb_id = request.data.get("kb_id", None)
-            search = request.data.get("search", None)
-            sort_config = request.data.get("sort", [])
-            page_number = int(request.data.get("page_number", 0))
-            page_size = int(request.data.get("page_size", 10))
+            request_data = request.validated_data
+            kb_id = request_data.get("kb_id", None)
+            search = request_data.get("search", None)
+            sort_config = request_data.get("sort", [])
+            page_number = request_data.get("page_number", 0)
+            page_size = request_data.get("page_size", 10)
 
             if not kb_id or not org:
                 return self._gm.bad_request(
@@ -15245,8 +15260,8 @@ class RefreshDatasetExplanationSummary(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=ModelHubEmptyRequestSerializer,
+    @validated_request(
+        request_serializer=ModelHubEmptyRequestSerializer,
         responses={
             200: DatasetExplanationSummaryResponseSerializer,
             **MODEL_HUB_ERROR_RESPONSES,
