@@ -713,6 +713,7 @@ import type {
   ModelHubStatusResponseApi,
   ModelHubStringResultResponseApi,
   ModelHubSuccessMessageResponseApi,
+  ModelHubTextErrorResponseApi,
   ModelHubToolsList200,
   ModelHubToolsListParams,
   ModelHubTtsVoicesList200,
@@ -39530,12 +39531,39 @@ export type modelHubPromptLabelsListResponse200 = {
   status: 200
 }
 
+export type modelHubPromptLabelsListResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsListResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsListResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsListResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsListResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsListResponseSuccess = (modelHubPromptLabelsListResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsListResponseError = (modelHubPromptLabelsListResponse400 | modelHubPromptLabelsListResponse403 | modelHubPromptLabelsListResponse404 | modelHubPromptLabelsListResponse409 | modelHubPromptLabelsListResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsListResponse = (modelHubPromptLabelsListResponseSuccess)
+export type modelHubPromptLabelsListResponse = (modelHubPromptLabelsListResponseSuccess | modelHubPromptLabelsListResponseError)
 
 export const getModelHubPromptLabelsListUrl = (params?: ModelHubPromptLabelsListParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -39570,12 +39598,39 @@ export type modelHubPromptLabelsCreateResponse201 = {
   status: 201
 }
 
+export type modelHubPromptLabelsCreateResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsCreateResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsCreateResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsCreateResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsCreateResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsCreateResponseSuccess = (modelHubPromptLabelsCreateResponse201) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsCreateResponseError = (modelHubPromptLabelsCreateResponse400 | modelHubPromptLabelsCreateResponse403 | modelHubPromptLabelsCreateResponse404 | modelHubPromptLabelsCreateResponse409 | modelHubPromptLabelsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsCreateResponse = (modelHubPromptLabelsCreateResponseSuccess)
+export type modelHubPromptLabelsCreateResponse = (modelHubPromptLabelsCreateResponseSuccess | modelHubPromptLabelsCreateResponseError)
 
 export const getModelHubPromptLabelsCreateUrl = () => {
 
@@ -39604,12 +39659,39 @@ export type modelHubPromptLabelsAssignMultipleLabelsResponse201 = {
   status: 201
 }
 
+export type modelHubPromptLabelsAssignMultipleLabelsResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsAssignMultipleLabelsResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsAssignMultipleLabelsResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsAssignMultipleLabelsResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsAssignMultipleLabelsResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsAssignMultipleLabelsResponseSuccess = (modelHubPromptLabelsAssignMultipleLabelsResponse201) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsAssignMultipleLabelsResponseError = (modelHubPromptLabelsAssignMultipleLabelsResponse400 | modelHubPromptLabelsAssignMultipleLabelsResponse403 | modelHubPromptLabelsAssignMultipleLabelsResponse404 | modelHubPromptLabelsAssignMultipleLabelsResponse409 | modelHubPromptLabelsAssignMultipleLabelsResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsAssignMultipleLabelsResponse = (modelHubPromptLabelsAssignMultipleLabelsResponseSuccess)
+export type modelHubPromptLabelsAssignMultipleLabelsResponse = (modelHubPromptLabelsAssignMultipleLabelsResponseSuccess | modelHubPromptLabelsAssignMultipleLabelsResponseError)
 
 export const getModelHubPromptLabelsAssignMultipleLabelsUrl = () => {
 
@@ -39638,12 +39720,39 @@ export type modelHubPromptLabelsCreateSystemLabelsResponse201 = {
   status: 201
 }
 
+export type modelHubPromptLabelsCreateSystemLabelsResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsCreateSystemLabelsResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsCreateSystemLabelsResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsCreateSystemLabelsResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsCreateSystemLabelsResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsCreateSystemLabelsResponseSuccess = (modelHubPromptLabelsCreateSystemLabelsResponse201) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsCreateSystemLabelsResponseError = (modelHubPromptLabelsCreateSystemLabelsResponse400 | modelHubPromptLabelsCreateSystemLabelsResponse403 | modelHubPromptLabelsCreateSystemLabelsResponse404 | modelHubPromptLabelsCreateSystemLabelsResponse409 | modelHubPromptLabelsCreateSystemLabelsResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsCreateSystemLabelsResponse = (modelHubPromptLabelsCreateSystemLabelsResponseSuccess)
+export type modelHubPromptLabelsCreateSystemLabelsResponse = (modelHubPromptLabelsCreateSystemLabelsResponseSuccess | modelHubPromptLabelsCreateSystemLabelsResponseError)
 
 export const getModelHubPromptLabelsCreateSystemLabelsUrl = () => {
 
@@ -39675,12 +39784,39 @@ export type modelHubPromptLabelsGetByNameResponse200 = {
   status: 200
 }
 
+export type modelHubPromptLabelsGetByNameResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsGetByNameResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsGetByNameResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsGetByNameResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsGetByNameResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsGetByNameResponseSuccess = (modelHubPromptLabelsGetByNameResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsGetByNameResponseError = (modelHubPromptLabelsGetByNameResponse400 | modelHubPromptLabelsGetByNameResponse403 | modelHubPromptLabelsGetByNameResponse404 | modelHubPromptLabelsGetByNameResponse409 | modelHubPromptLabelsGetByNameResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsGetByNameResponse = (modelHubPromptLabelsGetByNameResponseSuccess)
+export type modelHubPromptLabelsGetByNameResponse = (modelHubPromptLabelsGetByNameResponseSuccess | modelHubPromptLabelsGetByNameResponseError)
 
 export const getModelHubPromptLabelsGetByNameUrl = (params?: ModelHubPromptLabelsGetByNameParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -39722,12 +39858,39 @@ export type modelHubPromptLabelsRemoveLabelFromVersionResponse201 = {
   status: 201
 }
 
+export type modelHubPromptLabelsRemoveLabelFromVersionResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsRemoveLabelFromVersionResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsRemoveLabelFromVersionResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsRemoveLabelFromVersionResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsRemoveLabelFromVersionResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsRemoveLabelFromVersionResponseSuccess = (modelHubPromptLabelsRemoveLabelFromVersionResponse201) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsRemoveLabelFromVersionResponseError = (modelHubPromptLabelsRemoveLabelFromVersionResponse400 | modelHubPromptLabelsRemoveLabelFromVersionResponse403 | modelHubPromptLabelsRemoveLabelFromVersionResponse404 | modelHubPromptLabelsRemoveLabelFromVersionResponse409 | modelHubPromptLabelsRemoveLabelFromVersionResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsRemoveLabelFromVersionResponse = (modelHubPromptLabelsRemoveLabelFromVersionResponseSuccess)
+export type modelHubPromptLabelsRemoveLabelFromVersionResponse = (modelHubPromptLabelsRemoveLabelFromVersionResponseSuccess | modelHubPromptLabelsRemoveLabelFromVersionResponseError)
 
 export const getModelHubPromptLabelsRemoveLabelFromVersionUrl = () => {
 
@@ -39759,12 +39922,39 @@ export type modelHubPromptLabelsSetDefaultResponse201 = {
   status: 201
 }
 
+export type modelHubPromptLabelsSetDefaultResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsSetDefaultResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsSetDefaultResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsSetDefaultResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsSetDefaultResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsSetDefaultResponseSuccess = (modelHubPromptLabelsSetDefaultResponse201) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsSetDefaultResponseError = (modelHubPromptLabelsSetDefaultResponse400 | modelHubPromptLabelsSetDefaultResponse403 | modelHubPromptLabelsSetDefaultResponse404 | modelHubPromptLabelsSetDefaultResponse409 | modelHubPromptLabelsSetDefaultResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsSetDefaultResponse = (modelHubPromptLabelsSetDefaultResponseSuccess)
+export type modelHubPromptLabelsSetDefaultResponse = (modelHubPromptLabelsSetDefaultResponseSuccess | modelHubPromptLabelsSetDefaultResponseError)
 
 export const getModelHubPromptLabelsSetDefaultUrl = () => {
 
@@ -39796,12 +39986,39 @@ export type modelHubPromptLabelsTemplateLabelsResponse200 = {
   status: 200
 }
 
+export type modelHubPromptLabelsTemplateLabelsResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsTemplateLabelsResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsTemplateLabelsResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsTemplateLabelsResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsTemplateLabelsResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsTemplateLabelsResponseSuccess = (modelHubPromptLabelsTemplateLabelsResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsTemplateLabelsResponseError = (modelHubPromptLabelsTemplateLabelsResponse400 | modelHubPromptLabelsTemplateLabelsResponse403 | modelHubPromptLabelsTemplateLabelsResponse404 | modelHubPromptLabelsTemplateLabelsResponse409 | modelHubPromptLabelsTemplateLabelsResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsTemplateLabelsResponse = (modelHubPromptLabelsTemplateLabelsResponseSuccess)
+export type modelHubPromptLabelsTemplateLabelsResponse = (modelHubPromptLabelsTemplateLabelsResponseSuccess | modelHubPromptLabelsTemplateLabelsResponseError)
 
 export const getModelHubPromptLabelsTemplateLabelsUrl = (params?: ModelHubPromptLabelsTemplateLabelsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -39839,12 +40056,39 @@ export type modelHubPromptLabelsReadResponse200 = {
   status: 200
 }
 
+export type modelHubPromptLabelsReadResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsReadResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsReadResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsReadResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsReadResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsReadResponseSuccess = (modelHubPromptLabelsReadResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsReadResponseError = (modelHubPromptLabelsReadResponse400 | modelHubPromptLabelsReadResponse403 | modelHubPromptLabelsReadResponse404 | modelHubPromptLabelsReadResponse409 | modelHubPromptLabelsReadResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsReadResponse = (modelHubPromptLabelsReadResponseSuccess)
+export type modelHubPromptLabelsReadResponse = (modelHubPromptLabelsReadResponseSuccess | modelHubPromptLabelsReadResponseError)
 
 export const getModelHubPromptLabelsReadUrl = (id: string,) => {
 
@@ -39872,12 +40116,39 @@ export type modelHubPromptLabelsUpdateResponse200 = {
   status: 200
 }
 
+export type modelHubPromptLabelsUpdateResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsUpdateResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsUpdateResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsUpdateResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsUpdateResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsUpdateResponseSuccess = (modelHubPromptLabelsUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsUpdateResponseError = (modelHubPromptLabelsUpdateResponse400 | modelHubPromptLabelsUpdateResponse403 | modelHubPromptLabelsUpdateResponse404 | modelHubPromptLabelsUpdateResponse409 | modelHubPromptLabelsUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsUpdateResponse = (modelHubPromptLabelsUpdateResponseSuccess)
+export type modelHubPromptLabelsUpdateResponse = (modelHubPromptLabelsUpdateResponseSuccess | modelHubPromptLabelsUpdateResponseError)
 
 export const getModelHubPromptLabelsUpdateUrl = (id: string,) => {
 
@@ -39907,12 +40178,39 @@ export type modelHubPromptLabelsPartialUpdateResponse200 = {
   status: 200
 }
 
+export type modelHubPromptLabelsPartialUpdateResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsPartialUpdateResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsPartialUpdateResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsPartialUpdateResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsPartialUpdateResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsPartialUpdateResponseSuccess = (modelHubPromptLabelsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsPartialUpdateResponseError = (modelHubPromptLabelsPartialUpdateResponse400 | modelHubPromptLabelsPartialUpdateResponse403 | modelHubPromptLabelsPartialUpdateResponse404 | modelHubPromptLabelsPartialUpdateResponse409 | modelHubPromptLabelsPartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsPartialUpdateResponse = (modelHubPromptLabelsPartialUpdateResponseSuccess)
+export type modelHubPromptLabelsPartialUpdateResponse = (modelHubPromptLabelsPartialUpdateResponseSuccess | modelHubPromptLabelsPartialUpdateResponseError)
 
 export const getModelHubPromptLabelsPartialUpdateUrl = (id: string,) => {
 
@@ -39942,12 +40240,39 @@ export type modelHubPromptLabelsDeleteResponse204 = {
   status: 204
 }
 
+export type modelHubPromptLabelsDeleteResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsDeleteResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsDeleteResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsDeleteResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsDeleteResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsDeleteResponseSuccess = (modelHubPromptLabelsDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsDeleteResponseError = (modelHubPromptLabelsDeleteResponse400 | modelHubPromptLabelsDeleteResponse403 | modelHubPromptLabelsDeleteResponse404 | modelHubPromptLabelsDeleteResponse409 | modelHubPromptLabelsDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsDeleteResponse = (modelHubPromptLabelsDeleteResponseSuccess)
+export type modelHubPromptLabelsDeleteResponse = (modelHubPromptLabelsDeleteResponseSuccess | modelHubPromptLabelsDeleteResponseError)
 
 export const getModelHubPromptLabelsDeleteUrl = (id: string,) => {
 
@@ -39975,12 +40300,39 @@ export type modelHubPromptLabelsAssignLabelByIdResponse201 = {
   status: 201
 }
 
+export type modelHubPromptLabelsAssignLabelByIdResponse400 = {
+  data: ModelHubTextErrorResponseApi
+  status: 400
+}
+
+export type modelHubPromptLabelsAssignLabelByIdResponse403 = {
+  data: ModelHubTextErrorResponseApi
+  status: 403
+}
+
+export type modelHubPromptLabelsAssignLabelByIdResponse404 = {
+  data: ModelHubTextErrorResponseApi
+  status: 404
+}
+
+export type modelHubPromptLabelsAssignLabelByIdResponse409 = {
+  data: ModelHubTextErrorResponseApi
+  status: 409
+}
+
+export type modelHubPromptLabelsAssignLabelByIdResponse500 = {
+  data: ModelHubTextErrorResponseApi
+  status: 500
+}
+
 export type modelHubPromptLabelsAssignLabelByIdResponseSuccess = (modelHubPromptLabelsAssignLabelByIdResponse201) & {
   headers: Headers;
 };
-;
+export type modelHubPromptLabelsAssignLabelByIdResponseError = (modelHubPromptLabelsAssignLabelByIdResponse400 | modelHubPromptLabelsAssignLabelByIdResponse403 | modelHubPromptLabelsAssignLabelByIdResponse404 | modelHubPromptLabelsAssignLabelByIdResponse409 | modelHubPromptLabelsAssignLabelByIdResponse500) & {
+  headers: Headers;
+};
 
-export type modelHubPromptLabelsAssignLabelByIdResponse = (modelHubPromptLabelsAssignLabelByIdResponseSuccess)
+export type modelHubPromptLabelsAssignLabelByIdResponse = (modelHubPromptLabelsAssignLabelByIdResponseSuccess | modelHubPromptLabelsAssignLabelByIdResponseError)
 
 export const getModelHubPromptLabelsAssignLabelByIdUrl = (templateId: string,
     labelId: string,) => {

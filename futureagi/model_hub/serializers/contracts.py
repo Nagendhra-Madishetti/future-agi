@@ -2,20 +2,19 @@ import json
 
 from rest_framework import serializers
 
-from tracer.serializers.filters import (
-    StrictInputSerializer,
-    SortParamField,
-    filter_list_field,
-    filter_list_query_param_field,
-    json_object_query_param_field,
-    parse_filter_list_payload,
-)
-
 from model_hub.serializers.optimize_dataset import (
     OptimizeDatasetKbSerializer,
     OptimizeDatasetSerializer,
 )
 from model_hub.serializers.performance_report import PerformanceReportSerializer
+from tracer.serializers.filters import (
+    SortParamField,
+    StrictInputSerializer,
+    filter_list_field,
+    filter_list_query_param_field,
+    json_object_query_param_field,
+    parse_filter_list_payload,
+)
 
 
 class ModelHubEmptyRequestSerializer(StrictInputSerializer):
@@ -45,12 +44,29 @@ class ModelHubErrorResponseSerializer(serializers.Serializer):
     detail = serializers.JSONField(required=False)
 
 
+class ModelHubTextErrorResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=False)
+    result = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    detail = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
 MODEL_HUB_ERROR_RESPONSES = {
     400: ModelHubErrorResponseSerializer,
     403: ModelHubErrorResponseSerializer,
     404: ModelHubErrorResponseSerializer,
     409: ModelHubErrorResponseSerializer,
     500: ModelHubErrorResponseSerializer,
+}
+
+
+MODEL_HUB_TEXT_ERROR_RESPONSES = {
+    400: ModelHubTextErrorResponseSerializer,
+    403: ModelHubTextErrorResponseSerializer,
+    404: ModelHubTextErrorResponseSerializer,
+    409: ModelHubTextErrorResponseSerializer,
+    500: ModelHubTextErrorResponseSerializer,
 }
 
 

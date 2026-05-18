@@ -18965,6 +18965,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       },
@@ -18977,6 +18992,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/PromptLabel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       }
@@ -18991,6 +19021,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/PromptLabel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       }
@@ -19005,6 +19050,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/PromptLabel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       }
@@ -19055,6 +19115,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       }
@@ -19069,6 +19144,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/PromptLabel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       }
@@ -19083,6 +19173,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/PromptLabel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       }
@@ -19133,6 +19238,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       }
@@ -19145,6 +19265,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/PromptLabel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       },
@@ -19157,6 +19292,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/PromptLabel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       },
@@ -19169,6 +19319,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/PromptLabel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       },
@@ -19176,7 +19341,23 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "model-hub_prompt-labels_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          }
+        }
       }
     },
     "/model-hub/prompt-labels/{template_id}/{label_id}/assign-label-by-id/": {
@@ -19189,6 +19370,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/PromptLabel"
+          },
+          "400": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "409": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ModelHubTextErrorResponse"
           }
         }
       }
@@ -50964,6 +51160,36 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "result": {
           "$ref": "#/definitions/ModelHubSuccessMessageResult"
+        }
+      }
+    },
+    "ModelHubTextErrorResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string",
+          "x-nullable": true
         }
       }
     },

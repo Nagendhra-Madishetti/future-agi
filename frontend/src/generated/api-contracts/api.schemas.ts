@@ -11621,6 +11621,14 @@ export interface PromptLabelApi {
   readonly updated_at?: string;
 }
 
+export interface ModelHubTextErrorResponseApi {
+  status?: boolean;
+  result?: string;
+  message?: string;
+  error?: string;
+  detail?: string;
+}
+
 export type PromptTemplateApiVariableNames = { [key: string]: unknown };
 
 export type PromptTemplateApiPlaceholders = { [key: string]: unknown };
