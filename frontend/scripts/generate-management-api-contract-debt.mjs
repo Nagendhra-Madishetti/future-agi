@@ -264,6 +264,21 @@ const broadErrorResponseSchemas = operations.flatMap((record) => {
   );
 });
 
+if (process.argv.includes("--print-error-details")) {
+  console.log(
+    JSON.stringify(
+      {
+        operations_without_error_response_schema:
+          operationsWithoutErrorResponseSchema,
+        broad_error_response_schemas: broadErrorResponseSchemas,
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
+}
+
 const byGroup = {};
 for (const pathName of Object.keys(paths).sort()) {
   const group = groupForPath(pathName);

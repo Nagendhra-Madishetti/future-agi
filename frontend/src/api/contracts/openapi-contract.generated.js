@@ -3026,10 +3026,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "$ref": "#/definitions/NodeExecutionDetailResponse"
           },
           "404": {
-            "$ref": "#/definitions/ApiErrorResponse"
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           },
           "500": {
-            "$ref": "#/definitions/ApiErrorResponse"
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3080,6 +3080,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3092,6 +3101,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/GraphCreate"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3106,6 +3124,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/GraphList"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3122,13 +3149,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "$ref": "#/definitions/TraceToGraphResponse"
           },
           "400": {
-            "$ref": "#/definitions/ApiErrorResponse"
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           },
           "404": {
-            "$ref": "#/definitions/ApiErrorResponse"
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           },
           "500": {
-            "$ref": "#/definitions/ApiErrorResponse"
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3141,6 +3168,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/CellUpdate"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3155,6 +3191,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/CellUpdate"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3169,6 +3214,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/ExecuteRequest"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3183,6 +3237,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/CellUpdate"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3192,7 +3255,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agent-playground_graphs_dataset_rows_delete_rows",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          }
+        }
       }
     },
     "/agent-playground/graphs/{graph_id}/executions/": {
@@ -3218,7 +3291,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "$ref": "#/definitions/GraphExecutionListResponse"
           },
           "500": {
-            "$ref": "#/definitions/ApiErrorResponse"
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3233,10 +3306,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "$ref": "#/definitions/GraphExecutionDetailResponse"
           },
           "404": {
-            "$ref": "#/definitions/ApiErrorResponse"
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           },
           "500": {
-            "$ref": "#/definitions/ApiErrorResponse"
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3249,6 +3322,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/GraphDetail"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3261,6 +3343,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/GraphUpdate"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3273,6 +3364,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/GraphUpdate"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3280,7 +3380,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agent-playground_graphs_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          }
+        }
       }
     },
     "/agent-playground/graphs/{id}/referenceable-graphs/": {
@@ -3291,6 +3401,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/GraphList"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3341,6 +3460,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3353,6 +3481,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/GraphList"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3403,6 +3540,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3415,6 +3561,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/GraphList"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3427,6 +3582,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/GraphList"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3434,7 +3598,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agent-playground_graphs_versions_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          }
+        }
       }
     },
     "/agent-playground/graphs/{id}/versions/{version_id}/activate/": {
@@ -3447,6 +3621,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/GraphList"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3461,6 +3644,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/CreateNodeConnection"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3470,7 +3662,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agent-playground_graphs_versions_node-connections_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          }
+        }
       }
     },
     "/agent-playground/graphs/{id}/versions/{version_id}/nodes/": {
@@ -3483,6 +3685,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "201": {
             "$ref": "#/definitions/CreateNode"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3495,6 +3706,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/NodeRead"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3507,6 +3727,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/UpdateNode"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       },
@@ -3514,7 +3743,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "operationId": "agent-playground_graphs_versions_nodes_delete",
         "requestBody": null,
         "queryParameters": {},
-        "responses": {}
+        "responses": {
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          }
+        }
       }
     },
     "/agent-playground/graphs/{id}/versions/{version_id}/nodes/{node_id}/possible-edge-mappings/": {
@@ -3563,6 +3802,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3577,6 +3825,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/UpdatePort"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3627,6 +3884,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -3639,6 +3905,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/NodeTemplateDetail"
+          },
+          "400": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
           }
         }
       }
@@ -35483,6 +35758,31 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Livekit max concurrency",
           "type": "string",
           "readOnly": true
+        }
+      }
+    },
+    "AgentPlaygroundErrorResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": false
+        },
+        "result": {
+          "title": "Result",
+          "type": "string",
+          "x-nullable": true
+        },
+        "message": {
+          "title": "Message",
+          "type": "string",
+          "x-nullable": true
+        },
+        "error": {
+          "title": "Error",
+          "type": "string",
+          "x-nullable": true
         }
       }
     },

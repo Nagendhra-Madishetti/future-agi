@@ -68,6 +68,7 @@ import type {
   AgentDefinitionEditResponseApi,
   AgentDefinitionListResponseApi,
   AgentDefinitionResponseApi,
+  AgentPlaygroundErrorResponseApi,
   AgentPlaygroundGraphsExecutionsListParams,
   AgentPlaygroundGraphsList200,
   AgentPlaygroundGraphsListParams,
@@ -7246,12 +7247,12 @@ export type agentPlaygroundExecutionsNodeDetailResponse200 = {
 }
 
 export type agentPlaygroundExecutionsNodeDetailResponse404 = {
-  data: ApiErrorResponseApi
+  data: AgentPlaygroundErrorResponseApi
   status: 404
 }
 
 export type agentPlaygroundExecutionsNodeDetailResponse500 = {
-  data: ApiErrorResponseApi
+  data: AgentPlaygroundErrorResponseApi
   status: 500
 }
 
@@ -7296,12 +7297,29 @@ export type agentPlaygroundGraphsListResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsListResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsListResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsListResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsListResponseSuccess = (agentPlaygroundGraphsListResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsListResponseError = (agentPlaygroundGraphsListResponse400 | agentPlaygroundGraphsListResponse404 | agentPlaygroundGraphsListResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsListResponse = (agentPlaygroundGraphsListResponseSuccess)
+export type agentPlaygroundGraphsListResponse = (agentPlaygroundGraphsListResponseSuccess | agentPlaygroundGraphsListResponseError)
 
 export const getAgentPlaygroundGraphsListUrl = (params?: AgentPlaygroundGraphsListParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -7339,12 +7357,29 @@ export type agentPlaygroundGraphsCreateResponse201 = {
   status: 201
 }
 
+export type agentPlaygroundGraphsCreateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsCreateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsCreateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsCreateResponseSuccess = (agentPlaygroundGraphsCreateResponse201) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsCreateResponseError = (agentPlaygroundGraphsCreateResponse400 | agentPlaygroundGraphsCreateResponse404 | agentPlaygroundGraphsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsCreateResponse = (agentPlaygroundGraphsCreateResponseSuccess)
+export type agentPlaygroundGraphsCreateResponse = (agentPlaygroundGraphsCreateResponseSuccess | agentPlaygroundGraphsCreateResponseError)
 
 export const getAgentPlaygroundGraphsCreateUrl = () => {
 
@@ -7377,12 +7412,29 @@ export type agentPlaygroundGraphsBulkDeleteResponse201 = {
   status: 201
 }
 
+export type agentPlaygroundGraphsBulkDeleteResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsBulkDeleteResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsBulkDeleteResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsBulkDeleteResponseSuccess = (agentPlaygroundGraphsBulkDeleteResponse201) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsBulkDeleteResponseError = (agentPlaygroundGraphsBulkDeleteResponse400 | agentPlaygroundGraphsBulkDeleteResponse404 | agentPlaygroundGraphsBulkDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsBulkDeleteResponse = (agentPlaygroundGraphsBulkDeleteResponseSuccess)
+export type agentPlaygroundGraphsBulkDeleteResponse = (agentPlaygroundGraphsBulkDeleteResponseSuccess | agentPlaygroundGraphsBulkDeleteResponseError)
 
 export const getAgentPlaygroundGraphsBulkDeleteUrl = () => {
 
@@ -7418,17 +7470,17 @@ export type agentPlaygroundGraphsFromTraceCreateResponse201 = {
 }
 
 export type agentPlaygroundGraphsFromTraceCreateResponse400 = {
-  data: ApiErrorResponseApi
+  data: AgentPlaygroundErrorResponseApi
   status: 400
 }
 
 export type agentPlaygroundGraphsFromTraceCreateResponse404 = {
-  data: ApiErrorResponseApi
+  data: AgentPlaygroundErrorResponseApi
   status: 404
 }
 
 export type agentPlaygroundGraphsFromTraceCreateResponse500 = {
-  data: ApiErrorResponseApi
+  data: AgentPlaygroundErrorResponseApi
   status: 500
 }
 
@@ -7472,12 +7524,29 @@ export type agentPlaygroundGraphsDatasetReadResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsDatasetReadResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsDatasetReadResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsDatasetReadResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsDatasetReadResponseSuccess = (agentPlaygroundGraphsDatasetReadResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsDatasetReadResponseError = (agentPlaygroundGraphsDatasetReadResponse400 | agentPlaygroundGraphsDatasetReadResponse404 | agentPlaygroundGraphsDatasetReadResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsDatasetReadResponse = (agentPlaygroundGraphsDatasetReadResponseSuccess)
+export type agentPlaygroundGraphsDatasetReadResponse = (agentPlaygroundGraphsDatasetReadResponseSuccess | agentPlaygroundGraphsDatasetReadResponseError)
 
 export const getAgentPlaygroundGraphsDatasetReadUrl = (graphId: string,) => {
 
@@ -7512,12 +7581,29 @@ export type agentPlaygroundGraphsDatasetUpdateCellResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsDatasetUpdateCellResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsDatasetUpdateCellResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsDatasetUpdateCellResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsDatasetUpdateCellResponseSuccess = (agentPlaygroundGraphsDatasetUpdateCellResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsDatasetUpdateCellResponseError = (agentPlaygroundGraphsDatasetUpdateCellResponse400 | agentPlaygroundGraphsDatasetUpdateCellResponse404 | agentPlaygroundGraphsDatasetUpdateCellResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsDatasetUpdateCellResponse = (agentPlaygroundGraphsDatasetUpdateCellResponseSuccess)
+export type agentPlaygroundGraphsDatasetUpdateCellResponse = (agentPlaygroundGraphsDatasetUpdateCellResponseSuccess | agentPlaygroundGraphsDatasetUpdateCellResponseError)
 
 export const getAgentPlaygroundGraphsDatasetUpdateCellUrl = (graphId: string,
     cellId: string,) => {
@@ -7552,12 +7638,29 @@ export type agentPlaygroundGraphsDatasetExecuteResponse201 = {
   status: 201
 }
 
+export type agentPlaygroundGraphsDatasetExecuteResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsDatasetExecuteResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsDatasetExecuteResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsDatasetExecuteResponseSuccess = (agentPlaygroundGraphsDatasetExecuteResponse201) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsDatasetExecuteResponseError = (agentPlaygroundGraphsDatasetExecuteResponse400 | agentPlaygroundGraphsDatasetExecuteResponse404 | agentPlaygroundGraphsDatasetExecuteResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsDatasetExecuteResponse = (agentPlaygroundGraphsDatasetExecuteResponseSuccess)
+export type agentPlaygroundGraphsDatasetExecuteResponse = (agentPlaygroundGraphsDatasetExecuteResponseSuccess | agentPlaygroundGraphsDatasetExecuteResponseError)
 
 export const getAgentPlaygroundGraphsDatasetExecuteUrl = (graphId: string,) => {
 
@@ -7590,12 +7693,29 @@ export type agentPlaygroundGraphsDatasetCreateRowResponse201 = {
   status: 201
 }
 
+export type agentPlaygroundGraphsDatasetCreateRowResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsDatasetCreateRowResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsDatasetCreateRowResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsDatasetCreateRowResponseSuccess = (agentPlaygroundGraphsDatasetCreateRowResponse201) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsDatasetCreateRowResponseError = (agentPlaygroundGraphsDatasetCreateRowResponse400 | agentPlaygroundGraphsDatasetCreateRowResponse404 | agentPlaygroundGraphsDatasetCreateRowResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsDatasetCreateRowResponse = (agentPlaygroundGraphsDatasetCreateRowResponseSuccess)
+export type agentPlaygroundGraphsDatasetCreateRowResponse = (agentPlaygroundGraphsDatasetCreateRowResponseSuccess | agentPlaygroundGraphsDatasetCreateRowResponseError)
 
 export const getAgentPlaygroundGraphsDatasetCreateRowUrl = (graphId: string,) => {
 
@@ -7628,12 +7748,29 @@ export type agentPlaygroundGraphsDatasetRowsDeleteRowsResponse204 = {
   status: 204
 }
 
+export type agentPlaygroundGraphsDatasetRowsDeleteRowsResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsDatasetRowsDeleteRowsResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsDatasetRowsDeleteRowsResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsDatasetRowsDeleteRowsResponseSuccess = (agentPlaygroundGraphsDatasetRowsDeleteRowsResponse204) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsDatasetRowsDeleteRowsResponseError = (agentPlaygroundGraphsDatasetRowsDeleteRowsResponse400 | agentPlaygroundGraphsDatasetRowsDeleteRowsResponse404 | agentPlaygroundGraphsDatasetRowsDeleteRowsResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsDatasetRowsDeleteRowsResponse = (agentPlaygroundGraphsDatasetRowsDeleteRowsResponseSuccess)
+export type agentPlaygroundGraphsDatasetRowsDeleteRowsResponse = (agentPlaygroundGraphsDatasetRowsDeleteRowsResponseSuccess | agentPlaygroundGraphsDatasetRowsDeleteRowsResponseError)
 
 export const getAgentPlaygroundGraphsDatasetRowsDeleteRowsUrl = (graphId: string,) => {
 
@@ -7665,7 +7802,7 @@ export type agentPlaygroundGraphsExecutionsListResponse200 = {
 }
 
 export type agentPlaygroundGraphsExecutionsListResponse500 = {
-  data: ApiErrorResponseApi
+  data: AgentPlaygroundErrorResponseApi
   status: 500
 }
 
@@ -7717,12 +7854,12 @@ export type agentPlaygroundGraphsExecutionsReadResponse200 = {
 }
 
 export type agentPlaygroundGraphsExecutionsReadResponse404 = {
-  data: ApiErrorResponseApi
+  data: AgentPlaygroundErrorResponseApi
   status: 404
 }
 
 export type agentPlaygroundGraphsExecutionsReadResponse500 = {
-  data: ApiErrorResponseApi
+  data: AgentPlaygroundErrorResponseApi
   status: 500
 }
 
@@ -7770,12 +7907,29 @@ export type agentPlaygroundGraphsReadResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsReadResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsReadResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsReadResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsReadResponseSuccess = (agentPlaygroundGraphsReadResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsReadResponseError = (agentPlaygroundGraphsReadResponse400 | agentPlaygroundGraphsReadResponse404 | agentPlaygroundGraphsReadResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsReadResponse = (agentPlaygroundGraphsReadResponseSuccess)
+export type agentPlaygroundGraphsReadResponse = (agentPlaygroundGraphsReadResponseSuccess | agentPlaygroundGraphsReadResponseError)
 
 export const getAgentPlaygroundGraphsReadUrl = (id: string,) => {
 
@@ -7807,12 +7961,29 @@ export type agentPlaygroundGraphsUpdateResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsUpdateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsUpdateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsUpdateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsUpdateResponseSuccess = (agentPlaygroundGraphsUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsUpdateResponseError = (agentPlaygroundGraphsUpdateResponse400 | agentPlaygroundGraphsUpdateResponse404 | agentPlaygroundGraphsUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsUpdateResponse = (agentPlaygroundGraphsUpdateResponseSuccess)
+export type agentPlaygroundGraphsUpdateResponse = (agentPlaygroundGraphsUpdateResponseSuccess | agentPlaygroundGraphsUpdateResponseError)
 
 export const getAgentPlaygroundGraphsUpdateUrl = (id: string,) => {
 
@@ -7845,12 +8016,29 @@ export type agentPlaygroundGraphsPartialUpdateResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsPartialUpdateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsPartialUpdateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsPartialUpdateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsPartialUpdateResponseSuccess = (agentPlaygroundGraphsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsPartialUpdateResponseError = (agentPlaygroundGraphsPartialUpdateResponse400 | agentPlaygroundGraphsPartialUpdateResponse404 | agentPlaygroundGraphsPartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsPartialUpdateResponse = (agentPlaygroundGraphsPartialUpdateResponseSuccess)
+export type agentPlaygroundGraphsPartialUpdateResponse = (agentPlaygroundGraphsPartialUpdateResponseSuccess | agentPlaygroundGraphsPartialUpdateResponseError)
 
 export const getAgentPlaygroundGraphsPartialUpdateUrl = (id: string,) => {
 
@@ -7884,12 +8072,29 @@ export type agentPlaygroundGraphsDeleteResponse204 = {
   status: 204
 }
 
+export type agentPlaygroundGraphsDeleteResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsDeleteResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsDeleteResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsDeleteResponseSuccess = (agentPlaygroundGraphsDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsDeleteResponseError = (agentPlaygroundGraphsDeleteResponse400 | agentPlaygroundGraphsDeleteResponse404 | agentPlaygroundGraphsDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsDeleteResponse = (agentPlaygroundGraphsDeleteResponseSuccess)
+export type agentPlaygroundGraphsDeleteResponse = (agentPlaygroundGraphsDeleteResponseSuccess | agentPlaygroundGraphsDeleteResponseError)
 
 export const getAgentPlaygroundGraphsDeleteUrl = (id: string,) => {
 
@@ -7920,12 +8125,29 @@ export type agentPlaygroundGraphsReferenceableGraphsResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsReferenceableGraphsResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsReferenceableGraphsResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsReferenceableGraphsResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsReferenceableGraphsResponseSuccess = (agentPlaygroundGraphsReferenceableGraphsResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsReferenceableGraphsResponseError = (agentPlaygroundGraphsReferenceableGraphsResponse400 | agentPlaygroundGraphsReferenceableGraphsResponse404 | agentPlaygroundGraphsReferenceableGraphsResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsReferenceableGraphsResponse = (agentPlaygroundGraphsReferenceableGraphsResponseSuccess)
+export type agentPlaygroundGraphsReferenceableGraphsResponse = (agentPlaygroundGraphsReferenceableGraphsResponseSuccess | agentPlaygroundGraphsReferenceableGraphsResponseError)
 
 export const getAgentPlaygroundGraphsReferenceableGraphsUrl = (id: string,) => {
 
@@ -7957,12 +8179,29 @@ export type agentPlaygroundGraphsVersionsReadResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsVersionsReadResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsReadResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsReadResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsReadResponseSuccess = (agentPlaygroundGraphsVersionsReadResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsReadResponseError = (agentPlaygroundGraphsVersionsReadResponse400 | agentPlaygroundGraphsVersionsReadResponse404 | agentPlaygroundGraphsVersionsReadResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsReadResponse = (agentPlaygroundGraphsVersionsReadResponseSuccess)
+export type agentPlaygroundGraphsVersionsReadResponse = (agentPlaygroundGraphsVersionsReadResponseSuccess | agentPlaygroundGraphsVersionsReadResponseError)
 
 export const getAgentPlaygroundGraphsVersionsReadUrl = (id: string,
     versionId: string,
@@ -8004,12 +8243,29 @@ export type agentPlaygroundGraphsVersionsCreateResponse201 = {
   status: 201
 }
 
+export type agentPlaygroundGraphsVersionsCreateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsCreateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsCreateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsCreateResponseSuccess = (agentPlaygroundGraphsVersionsCreateResponse201) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsCreateResponseError = (agentPlaygroundGraphsVersionsCreateResponse400 | agentPlaygroundGraphsVersionsCreateResponse404 | agentPlaygroundGraphsVersionsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsCreateResponse = (agentPlaygroundGraphsVersionsCreateResponseSuccess)
+export type agentPlaygroundGraphsVersionsCreateResponse = (agentPlaygroundGraphsVersionsCreateResponseSuccess | agentPlaygroundGraphsVersionsCreateResponseError)
 
 export const getAgentPlaygroundGraphsVersionsCreateUrl = (id: string,) => {
 
@@ -8042,12 +8298,29 @@ export type agentPlaygroundGraphsVersionsUpdateResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsVersionsUpdateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsUpdateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsUpdateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsUpdateResponseSuccess = (agentPlaygroundGraphsVersionsUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsUpdateResponseError = (agentPlaygroundGraphsVersionsUpdateResponse400 | agentPlaygroundGraphsVersionsUpdateResponse404 | agentPlaygroundGraphsVersionsUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsUpdateResponse = (agentPlaygroundGraphsVersionsUpdateResponseSuccess)
+export type agentPlaygroundGraphsVersionsUpdateResponse = (agentPlaygroundGraphsVersionsUpdateResponseSuccess | agentPlaygroundGraphsVersionsUpdateResponseError)
 
 export const getAgentPlaygroundGraphsVersionsUpdateUrl = (id: string,
     versionId: string,) => {
@@ -8084,12 +8357,29 @@ export type agentPlaygroundGraphsVersionsPartialUpdateResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsVersionsPartialUpdateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsPartialUpdateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsPartialUpdateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsPartialUpdateResponseSuccess = (agentPlaygroundGraphsVersionsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsPartialUpdateResponseError = (agentPlaygroundGraphsVersionsPartialUpdateResponse400 | agentPlaygroundGraphsVersionsPartialUpdateResponse404 | agentPlaygroundGraphsVersionsPartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsPartialUpdateResponse = (agentPlaygroundGraphsVersionsPartialUpdateResponseSuccess)
+export type agentPlaygroundGraphsVersionsPartialUpdateResponse = (agentPlaygroundGraphsVersionsPartialUpdateResponseSuccess | agentPlaygroundGraphsVersionsPartialUpdateResponseError)
 
 export const getAgentPlaygroundGraphsVersionsPartialUpdateUrl = (id: string,
     versionId: string,) => {
@@ -8126,12 +8416,29 @@ export type agentPlaygroundGraphsVersionsDeleteResponse204 = {
   status: 204
 }
 
+export type agentPlaygroundGraphsVersionsDeleteResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsDeleteResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsDeleteResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsDeleteResponseSuccess = (agentPlaygroundGraphsVersionsDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsDeleteResponseError = (agentPlaygroundGraphsVersionsDeleteResponse400 | agentPlaygroundGraphsVersionsDeleteResponse404 | agentPlaygroundGraphsVersionsDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsDeleteResponse = (agentPlaygroundGraphsVersionsDeleteResponseSuccess)
+export type agentPlaygroundGraphsVersionsDeleteResponse = (agentPlaygroundGraphsVersionsDeleteResponseSuccess | agentPlaygroundGraphsVersionsDeleteResponseError)
 
 export const getAgentPlaygroundGraphsVersionsDeleteUrl = (id: string,
     versionId: string,) => {
@@ -8166,12 +8473,29 @@ export type agentPlaygroundGraphsVersionsActivateVersionResponse201 = {
   status: 201
 }
 
+export type agentPlaygroundGraphsVersionsActivateVersionResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsActivateVersionResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsActivateVersionResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsActivateVersionResponseSuccess = (agentPlaygroundGraphsVersionsActivateVersionResponse201) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsActivateVersionResponseError = (agentPlaygroundGraphsVersionsActivateVersionResponse400 | agentPlaygroundGraphsVersionsActivateVersionResponse404 | agentPlaygroundGraphsVersionsActivateVersionResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsActivateVersionResponse = (agentPlaygroundGraphsVersionsActivateVersionResponseSuccess)
+export type agentPlaygroundGraphsVersionsActivateVersionResponse = (agentPlaygroundGraphsVersionsActivateVersionResponseSuccess | agentPlaygroundGraphsVersionsActivateVersionResponseError)
 
 export const getAgentPlaygroundGraphsVersionsActivateVersionUrl = (id: string,
     versionId: string,) => {
@@ -8208,12 +8532,29 @@ export type agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse201 = {
   status: 201
 }
 
+export type agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsNodeConnectionsCreateResponseSuccess = (agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse201) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsNodeConnectionsCreateResponseError = (agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse400 | agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse404 | agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse = (agentPlaygroundGraphsVersionsNodeConnectionsCreateResponseSuccess)
+export type agentPlaygroundGraphsVersionsNodeConnectionsCreateResponse = (agentPlaygroundGraphsVersionsNodeConnectionsCreateResponseSuccess | agentPlaygroundGraphsVersionsNodeConnectionsCreateResponseError)
 
 export const getAgentPlaygroundGraphsVersionsNodeConnectionsCreateUrl = (id: string,
     versionId: string,) => {
@@ -8248,12 +8589,29 @@ export type agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse204 = {
   status: 204
 }
 
+export type agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponseSuccess = (agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponseError = (agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse400 | agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse404 | agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse = (agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponseSuccess)
+export type agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponse = (agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponseSuccess | agentPlaygroundGraphsVersionsNodeConnectionsDeleteResponseError)
 
 export const getAgentPlaygroundGraphsVersionsNodeConnectionsDeleteUrl = (id: string,
     versionId: string,
@@ -8288,12 +8646,29 @@ export type agentPlaygroundGraphsVersionsNodesCreateResponse201 = {
   status: 201
 }
 
+export type agentPlaygroundGraphsVersionsNodesCreateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsNodesCreateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsNodesCreateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsNodesCreateResponseSuccess = (agentPlaygroundGraphsVersionsNodesCreateResponse201) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsNodesCreateResponseError = (agentPlaygroundGraphsVersionsNodesCreateResponse400 | agentPlaygroundGraphsVersionsNodesCreateResponse404 | agentPlaygroundGraphsVersionsNodesCreateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsNodesCreateResponse = (agentPlaygroundGraphsVersionsNodesCreateResponseSuccess)
+export type agentPlaygroundGraphsVersionsNodesCreateResponse = (agentPlaygroundGraphsVersionsNodesCreateResponseSuccess | agentPlaygroundGraphsVersionsNodesCreateResponseError)
 
 export const getAgentPlaygroundGraphsVersionsNodesCreateUrl = (id: string,
     versionId: string,) => {
@@ -8328,12 +8703,29 @@ export type agentPlaygroundGraphsVersionsNodesReadResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsVersionsNodesReadResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsNodesReadResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsNodesReadResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsNodesReadResponseSuccess = (agentPlaygroundGraphsVersionsNodesReadResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsNodesReadResponseError = (agentPlaygroundGraphsVersionsNodesReadResponse400 | agentPlaygroundGraphsVersionsNodesReadResponse404 | agentPlaygroundGraphsVersionsNodesReadResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsNodesReadResponse = (agentPlaygroundGraphsVersionsNodesReadResponseSuccess)
+export type agentPlaygroundGraphsVersionsNodesReadResponse = (agentPlaygroundGraphsVersionsNodesReadResponseSuccess | agentPlaygroundGraphsVersionsNodesReadResponseError)
 
 export const getAgentPlaygroundGraphsVersionsNodesReadUrl = (id: string,
     versionId: string,
@@ -8368,12 +8760,29 @@ export type agentPlaygroundGraphsVersionsNodesPartialUpdateResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsVersionsNodesPartialUpdateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsNodesPartialUpdateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsNodesPartialUpdateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsNodesPartialUpdateResponseSuccess = (agentPlaygroundGraphsVersionsNodesPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsNodesPartialUpdateResponseError = (agentPlaygroundGraphsVersionsNodesPartialUpdateResponse400 | agentPlaygroundGraphsVersionsNodesPartialUpdateResponse404 | agentPlaygroundGraphsVersionsNodesPartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsNodesPartialUpdateResponse = (agentPlaygroundGraphsVersionsNodesPartialUpdateResponseSuccess)
+export type agentPlaygroundGraphsVersionsNodesPartialUpdateResponse = (agentPlaygroundGraphsVersionsNodesPartialUpdateResponseSuccess | agentPlaygroundGraphsVersionsNodesPartialUpdateResponseError)
 
 export const getAgentPlaygroundGraphsVersionsNodesPartialUpdateUrl = (id: string,
     versionId: string,
@@ -8410,12 +8819,29 @@ export type agentPlaygroundGraphsVersionsNodesDeleteResponse204 = {
   status: 204
 }
 
+export type agentPlaygroundGraphsVersionsNodesDeleteResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsNodesDeleteResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsNodesDeleteResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsNodesDeleteResponseSuccess = (agentPlaygroundGraphsVersionsNodesDeleteResponse204) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsNodesDeleteResponseError = (agentPlaygroundGraphsVersionsNodesDeleteResponse400 | agentPlaygroundGraphsVersionsNodesDeleteResponse404 | agentPlaygroundGraphsVersionsNodesDeleteResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsNodesDeleteResponse = (agentPlaygroundGraphsVersionsNodesDeleteResponseSuccess)
+export type agentPlaygroundGraphsVersionsNodesDeleteResponse = (agentPlaygroundGraphsVersionsNodesDeleteResponseSuccess | agentPlaygroundGraphsVersionsNodesDeleteResponseError)
 
 export const getAgentPlaygroundGraphsVersionsNodesDeleteUrl = (id: string,
     versionId: string,
@@ -8450,12 +8876,29 @@ export type agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse200 = 
   status: 200
 }
 
+export type agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponseSuccess = (agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponseError = (agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse400 | agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse404 | agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse = (agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponseSuccess)
+export type agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponse = (agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponseSuccess | agentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsResponseError)
 
 export const getAgentPlaygroundGraphsVersionsNodesPossibleEdgeMappingsUrl = (id: string,
     versionId: string,
@@ -8502,12 +8945,29 @@ export type agentPlaygroundGraphsVersionsPortsPartialUpdateResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundGraphsVersionsPortsPartialUpdateResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundGraphsVersionsPortsPartialUpdateResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundGraphsVersionsPortsPartialUpdateResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundGraphsVersionsPortsPartialUpdateResponseSuccess = (agentPlaygroundGraphsVersionsPortsPartialUpdateResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundGraphsVersionsPortsPartialUpdateResponseError = (agentPlaygroundGraphsVersionsPortsPartialUpdateResponse400 | agentPlaygroundGraphsVersionsPortsPartialUpdateResponse404 | agentPlaygroundGraphsVersionsPortsPartialUpdateResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundGraphsVersionsPortsPartialUpdateResponse = (agentPlaygroundGraphsVersionsPortsPartialUpdateResponseSuccess)
+export type agentPlaygroundGraphsVersionsPortsPartialUpdateResponse = (agentPlaygroundGraphsVersionsPortsPartialUpdateResponseSuccess | agentPlaygroundGraphsVersionsPortsPartialUpdateResponseError)
 
 export const getAgentPlaygroundGraphsVersionsPortsPartialUpdateUrl = (id: string,
     versionId: string,
@@ -8544,12 +9004,29 @@ export type agentPlaygroundNodeTemplatesListResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundNodeTemplatesListResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundNodeTemplatesListResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundNodeTemplatesListResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundNodeTemplatesListResponseSuccess = (agentPlaygroundNodeTemplatesListResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundNodeTemplatesListResponseError = (agentPlaygroundNodeTemplatesListResponse400 | agentPlaygroundNodeTemplatesListResponse404 | agentPlaygroundNodeTemplatesListResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundNodeTemplatesListResponse = (agentPlaygroundNodeTemplatesListResponseSuccess)
+export type agentPlaygroundNodeTemplatesListResponse = (agentPlaygroundNodeTemplatesListResponseSuccess | agentPlaygroundNodeTemplatesListResponseError)
 
 export const getAgentPlaygroundNodeTemplatesListUrl = (params?: AgentPlaygroundNodeTemplatesListParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -8588,12 +9065,29 @@ export type agentPlaygroundNodeTemplatesReadResponse200 = {
   status: 200
 }
 
+export type agentPlaygroundNodeTemplatesReadResponse400 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 400
+}
+
+export type agentPlaygroundNodeTemplatesReadResponse404 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 404
+}
+
+export type agentPlaygroundNodeTemplatesReadResponse500 = {
+  data: AgentPlaygroundErrorResponseApi
+  status: 500
+}
+
 export type agentPlaygroundNodeTemplatesReadResponseSuccess = (agentPlaygroundNodeTemplatesReadResponse200) & {
   headers: Headers;
 };
-;
+export type agentPlaygroundNodeTemplatesReadResponseError = (agentPlaygroundNodeTemplatesReadResponse400 | agentPlaygroundNodeTemplatesReadResponse404 | agentPlaygroundNodeTemplatesReadResponse500) & {
+  headers: Headers;
+};
 
-export type agentPlaygroundNodeTemplatesReadResponse = (agentPlaygroundNodeTemplatesReadResponseSuccess)
+export type agentPlaygroundNodeTemplatesReadResponse = (agentPlaygroundNodeTemplatesReadResponseSuccess | agentPlaygroundNodeTemplatesReadResponseError)
 
 export const getAgentPlaygroundNodeTemplatesReadUrl = (id: string,) => {
 

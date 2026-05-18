@@ -5851,13 +5851,13 @@
                     "404": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ApiErrorResponse"
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     },
                     "500": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ApiErrorResponse"
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -5931,6 +5931,24 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -5956,6 +5974,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/GraphCreate"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -5985,6 +6021,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/GraphList"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6019,19 +6073,19 @@
                     "400": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ApiErrorResponse"
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     },
                     "404": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ApiErrorResponse"
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     },
                     "500": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ApiErrorResponse"
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6052,6 +6106,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/CellUpdate"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6087,6 +6159,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/CellUpdate"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6129,6 +6219,24 @@
                         "schema": {
                             "$ref": "#/definitions/ExecuteRequest"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6164,6 +6272,24 @@
                         "schema": {
                             "$ref": "#/definitions/CellUpdate"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6187,6 +6313,24 @@
                 "responses": {
                     "204": {
                         "description": ""
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6232,7 +6376,7 @@
                     "500": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ApiErrorResponse"
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6265,13 +6409,13 @@
                     "404": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ApiErrorResponse"
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     },
                     "500": {
                         "description": "",
                         "schema": {
-                            "$ref": "#/definitions/ApiErrorResponse"
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6306,6 +6450,24 @@
                         "schema": {
                             "$ref": "#/definitions/GraphDetail"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6330,6 +6492,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/GraphUpdate"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6357,6 +6537,24 @@
                         "schema": {
                             "$ref": "#/definitions/GraphUpdate"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6370,6 +6568,24 @@
                 "responses": {
                     "204": {
                         "description": ""
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6395,6 +6611,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/GraphList"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6463,6 +6697,24 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6487,6 +6739,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/GraphList"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6554,6 +6824,24 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6579,6 +6867,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/GraphList"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -6606,6 +6912,24 @@
                         "schema": {
                             "$ref": "#/definitions/GraphList"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6620,6 +6944,24 @@
                 "responses": {
                     "204": {
                         "description": ""
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6662,6 +7004,24 @@
                         "schema": {
                             "$ref": "#/definitions/GraphList"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6703,6 +7063,24 @@
                         "schema": {
                             "$ref": "#/definitions/CreateNodeConnection"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6732,6 +7110,24 @@
                 "responses": {
                     "204": {
                         "description": ""
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6779,6 +7175,24 @@
                         "schema": {
                             "$ref": "#/definitions/CreateNode"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6811,6 +7225,24 @@
                         "schema": {
                             "$ref": "#/definitions/NodeRead"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6836,6 +7268,24 @@
                         "schema": {
                             "$ref": "#/definitions/UpdateNode"
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6849,6 +7299,24 @@
                 "responses": {
                     "204": {
                         "description": ""
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6928,6 +7396,24 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -6974,6 +7460,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/UpdatePort"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -7054,6 +7558,24 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
                     }
                 },
                 "tags": [
@@ -7073,6 +7595,24 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/NodeTemplateDetail"
+                        }
+                    },
+                    "400": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/AgentPlaygroundErrorResponse"
                         }
                     }
                 },
@@ -66083,7 +66623,7 @@
                 }
             }
         },
-        "ApiErrorResponse": {
+        "AgentPlaygroundErrorResponse": {
             "type": "object",
             "properties": {
                 "status": {
@@ -66093,17 +66633,17 @@
                 },
                 "result": {
                     "title": "Result",
-                    "type": "object",
+                    "type": "string",
                     "x-nullable": true
                 },
                 "message": {
                     "title": "Message",
-                    "type": "object",
+                    "type": "string",
                     "x-nullable": true
                 },
                 "error": {
                     "title": "Error",
-                    "type": "object",
+                    "type": "string",
                     "x-nullable": true
                 }
             }
@@ -70807,6 +71347,31 @@
                 "p95": {
                     "title": "P95",
                     "type": "number",
+                    "x-nullable": true
+                }
+            }
+        },
+        "ApiErrorResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "title": "Status",
+                    "type": "boolean",
+                    "default": false
+                },
+                "result": {
+                    "title": "Result",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "message": {
+                    "title": "Message",
+                    "type": "object",
+                    "x-nullable": true
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "object",
                     "x-nullable": true
                 }
             }

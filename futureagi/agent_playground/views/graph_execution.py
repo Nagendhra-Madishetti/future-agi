@@ -15,12 +15,12 @@ from agent_playground.serializers.graph_execution import (
     NodeExecutionBriefSerializer,
     NodeExecutionDetailResponseSerializer,
 )
+from agent_playground.serializers.contracts import AGENT_PLAYGROUND_ERROR_RESPONSES
 from agent_playground.serializers.graph_version import (
     GraphVersionDetailSerializer,
     prefetch_version_detail,
 )
 from common.utils.pagination import paginate_queryset
-from tfc.utils.api_serializers import ApiErrorResponseSerializer
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 
@@ -67,7 +67,7 @@ class GraphExecutionViewSet(GenericViewSet):
     @swagger_auto_schema(
         responses={
             200: GraphExecutionListResponseSerializer,
-            500: ApiErrorResponseSerializer,
+            500: AGENT_PLAYGROUND_ERROR_RESPONSES[500],
         },
     )
     def list(self, request, graph_id=None):
@@ -94,8 +94,8 @@ class GraphExecutionViewSet(GenericViewSet):
     @swagger_auto_schema(
         responses={
             200: GraphExecutionDetailResponseSerializer,
-            404: ApiErrorResponseSerializer,
-            500: ApiErrorResponseSerializer,
+            404: AGENT_PLAYGROUND_ERROR_RESPONSES[404],
+            500: AGENT_PLAYGROUND_ERROR_RESPONSES[500],
         },
     )
     def retrieve(self, request, *args, **kwargs):
@@ -166,8 +166,8 @@ class GraphExecutionViewSet(GenericViewSet):
     @swagger_auto_schema(
         responses={
             200: NodeExecutionDetailResponseSerializer,
-            404: ApiErrorResponseSerializer,
-            500: ApiErrorResponseSerializer,
+            404: AGENT_PLAYGROUND_ERROR_RESPONSES[404],
+            500: AGENT_PLAYGROUND_ERROR_RESPONSES[500],
         },
     )
     def node_detail(self, request, execution_id=None, node_execution_id=None):

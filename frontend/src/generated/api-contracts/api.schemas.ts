@@ -1575,17 +1575,11 @@ export interface NodeExecutionDetailResponseApi {
   result: NodeExecutionDetailResultApi;
 }
 
-export type ApiErrorResponseApiResult = { [key: string]: unknown };
-
-export type ApiErrorResponseApiMessage = { [key: string]: unknown };
-
-export type ApiErrorResponseApiError = { [key: string]: unknown };
-
-export interface ApiErrorResponseApi {
+export interface AgentPlaygroundErrorResponseApi {
   status?: boolean;
-  result?: ApiErrorResponseApiResult;
-  message?: ApiErrorResponseApiMessage;
-  error?: ApiErrorResponseApiError;
+  result?: string;
+  message?: string;
+  error?: string;
 }
 
 export interface UserBriefApi {
@@ -3426,6 +3420,19 @@ export interface SpanAttributeDetailResponseApi {
   avg?: number;
   p50?: number;
   p95?: number;
+}
+
+export type ApiErrorResponseApiResult = { [key: string]: unknown };
+
+export type ApiErrorResponseApiMessage = { [key: string]: unknown };
+
+export type ApiErrorResponseApiError = { [key: string]: unknown };
+
+export interface ApiErrorResponseApi {
+  status?: boolean;
+  result?: ApiErrorResponseApiResult;
+  message?: ApiErrorResponseApiMessage;
+  error?: ApiErrorResponseApiError;
 }
 
 export type SpanAttributeKeyApiType = typeof SpanAttributeKeyApiType[keyof typeof SpanAttributeKeyApiType];

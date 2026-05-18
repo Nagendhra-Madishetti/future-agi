@@ -7,9 +7,7 @@ def _repo_root():
 
 
 def _swagger():
-    with (
-        _repo_root() / "api_contracts" / "openapi" / "swagger.json"
-    ).open() as f:
+    with (_repo_root() / "api_contracts" / "openapi" / "swagger.json").open() as f:
         return json.load(f)
 
 
@@ -37,14 +35,12 @@ def _body_ref(operation):
 
 
 def _response_ref(operation, status_code="200"):
-    return (
-        operation["responses"][status_code]["schema"]["$ref"]
-        .rsplit("/", 1)[-1]
-    )
+    return operation["responses"][status_code]["schema"]["$ref"].rsplit("/", 1)[-1]
 
 
 def test_agent_playground_contract_debt_is_fully_burned_down():
     report = _debt_report()
+    agent_playground_report = report["by_group"]["agent-playground"]
 
     assert [
         item
@@ -56,6 +52,8 @@ def test_agent_playground_contract_debt_is_fully_burned_down():
         for item in report["operations_without_response_schema"]
         if item["tags"] == ["agent-playground"]
     ] == []
+    assert agent_playground_report["operations_without_error_response_schema"] == 0
+    assert agent_playground_report["broad_error_response_schemas"] == 0
 
 
 def test_agent_playground_execution_endpoints_have_contracts():
@@ -68,7 +66,9 @@ def test_agent_playground_execution_endpoints_have_contracts():
         == "TraceToGraphResponse"
     )
     assert (
-        _response_ref(_operation("/agent-playground/graphs/{graph_id}/executions/", "GET"))
+        _response_ref(
+            _operation("/agent-playground/graphs/{graph_id}/executions/", "GET")
+        )
         == "GraphExecutionListResponse"
     )
     assert (
@@ -88,4 +88,25 @@ def test_agent_playground_execution_endpoints_have_contracts():
             )
         )
         == "NodeExecutionDetailResponse"
+    )
+
+
+def test_agent_playground_error_responses_use_typed_contracts():
+    assert (
+        _response_ref(_operation("/agent-playground/graphs/", "GET"), "400")
+        == "AgentPlaygroundErrorResponse"
+    )
+    assert (
+        _response_ref(_operation("/agent-playground/graphs/from-trace/", "POST"), "404")
+        == "AgentPlaygroundErrorResponse"
+    )
+    assert (
+        _response_ref(
+            _operation(
+                "/agent-playground/graphs/{graph_id}/executions/{execution_id}/",
+                "GET",
+            ),
+            "500",
+        )
+        == "AgentPlaygroundErrorResponse"
     )
