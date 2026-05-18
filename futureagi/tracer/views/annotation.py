@@ -27,6 +27,7 @@ from tracer.serializers.annotation import (
     BulkAnnotationRequestSerializer,
     BulkAnnotationResponseSerializer,
     BulkAnnotationSerializer,
+    GetAnnotationLabelsQuerySerializer,
     GetAnnotationLabelsResponseSerializer,
     GetTraceAnnotationValuesResponseSerializer,
     GetTraceAnnotationSerializer,
@@ -1195,17 +1196,23 @@ class GetAnnotationLabelsView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
+        query_serializer=GetAnnotationLabelsQuerySerializer,
         responses={200: GetAnnotationLabelsResponseSerializer, **ERROR_RESPONSES},
     )
     def get(self, request):
         try:
+            serializer = GetAnnotationLabelsQuerySerializer(data=request.query_params)
+            if not serializer.is_valid():
+                return self._gm.bad_request(serializer.errors)
+            query_params = serializer.validated_data
+
             queryset = AnnotationsLabels.objects.filter(
                 organization=getattr(request, "organization", None)
                 or request.user.organization,
                 deleted=False,
             )
 
-            project_id = request.query_params.get("project_id")
+            project_id = query_params.get("project_id")
             if project_id:
                 queryset = queryset.filter(project_id=project_id)
 

@@ -187,3 +187,7 @@ class AnnotationLabelResponseSerializer(serializers.Serializer):
 class GetAnnotationLabelsResponseSerializer(serializers.Serializer):
     status = serializers.BooleanField(default=True)
     result = AnnotationLabelResponseSerializer(many=True)
+
+
+class GetAnnotationLabelsQuerySerializer(StrictInputSerializer):
+    project_id = serializers.UUIDField(required=False)

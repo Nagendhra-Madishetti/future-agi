@@ -2008,6 +2008,12 @@ class TestGetAnnotationLabelsLegacy:
         # star_label is project-scoped to ``project`` so it must appear
         assert str(star_label.id) in ids
 
+    def test_rejects_legacy_project_alias(self, api_client, user, project):
+        api_client.force_authenticate(user=user)
+        resp = api_client.get(TRACER_LABELS, {"projectId": str(project.id)})
+        assert resp.status_code == 400
+        assert "projectId" in str(resp.data)
+
 
 # ===========================================================================
 # 31. GET /tracer/trace-annotation/get_annotation_values/
