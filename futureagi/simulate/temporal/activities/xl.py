@@ -415,6 +415,48 @@ TRANSCRIPT_DOT_ALIASES = {
 }
 
 
+def _resolve_persona_for_call(call_execution):
+    """Pick the Persona used for this specific call.
+
+    Priority:
+    1. call_metadata.row_data.persona (UUID) — baked into the dataset row
+       at execution time by temporal/activities/test_execution.py.
+    2. First Persona referenced by scenario.metadata.persona_ids
+       (ordered by created_at — stable across runs).
+    3. None — `persona.*` keys resolve to "".
+    """
+    from simulate.models import Persona
+
+    metadata = call_execution.call_metadata or {}
+    row_data = metadata.get("row_data") or {}
+    row_persona_id = row_data.get("persona")
+    if row_persona_id:
+        try:
+            return Persona.no_workspace_objects.get(
+                id=row_persona_id, deleted=False
+            )
+        except (Persona.DoesNotExist, ValueError):
+            pass
+
+    scenario = getattr(call_execution, "scenario", None)
+    if not scenario:
+        return None
+    scenario_meta = scenario.metadata or {}
+    persona_ids = scenario_meta.get("persona_ids") or []
+    if not persona_ids:
+        return None
+    try:
+        return (
+            Persona.no_workspace_objects.filter(
+                id__in=persona_ids, deleted=False
+            )
+            .order_by("created_at")
+            .first()
+        )
+    except ValueError:
+        return None
+
+
 def _build_simulation_context_map(call_execution, agent_version):
     """
     Build a flat {key: string} map of simulation context that eval configs
