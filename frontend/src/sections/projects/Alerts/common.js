@@ -1,7 +1,8 @@
 import { endOfToday, sub } from "date-fns";
-import _, { filter } from "lodash";
+import _ from "lodash";
 import { formatDate } from "src/utils/report-utils";
 import { getYAxisUnit } from "../LLMTracing/GraphSection/common";
+import { apiFilterHasValue } from "src/sections/annotations/queues/utils/filter-operators";
 
 // Helper function to format y-axis values with proper precision
 const formatYAxisValue = (value) => {
@@ -786,7 +787,7 @@ export const convertFiltersToPayload = (filters) => {
   const observation_type = [];
   const span_attributes_filters = [];
 
-  if (filter?.length === 0)
+  if (filters?.length === 0)
     return {
       observation_type,
       span_attributes_filters,
@@ -801,11 +802,13 @@ export const convertFiltersToPayload = (filters) => {
     }
     if (property === "attributes") {
       span_attributes_filters.push({
-        filterConfig: {
-          ...filters[i]?.filterConfig,
-          colType: "SPAN_ATTRIBUTE",
+        column_id: filters[i]?.propertyId,
+        filter_config: {
+          filter_type: filters[i]?.filterConfig?.filterType,
+          filter_op: filters[i]?.filterConfig?.filterOp,
+          filter_value: filters[i]?.filterConfig?.filterValue,
+          col_type: "SPAN_ATTRIBUTE",
         },
-        columnId: filters[i]?.propertyId,
       });
     }
   }
@@ -819,10 +822,5 @@ export const convertFiltersToPayload = (filters) => {
 export const isSpanAttrFilterValid = (spanFilters = []) => {
   if (spanFilters.length === 0) return true;
 
-  return spanFilters.every(
-    (filter) =>
-      filter?.filterConfig?.filterValue !== undefined &&
-      filter?.filterConfig?.filterValue !== null &&
-      filter?.filterConfig?.filterValue !== "",
-  );
+  return spanFilters.every((filter) => apiFilterHasValue(filter));
 };

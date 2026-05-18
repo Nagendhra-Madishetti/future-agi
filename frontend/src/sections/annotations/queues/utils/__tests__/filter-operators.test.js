@@ -42,6 +42,11 @@ describe("annotation queue filter operator contract", () => {
     expect(apiOpToPanel("less_than", "date")).toBe("before");
   });
 
+  it("keeps canonical boolean operators when hydrating the panel", () => {
+    expect(apiOpToPanel("equals", "boolean")).toBe("equals");
+    expect(apiOpToPanel("not_equals", "boolean")).toBe("not_equals");
+  });
+
   it("classifies only canonical number/range operators", () => {
     expect(isNumberFilterOp("not_equals")).toBe(true);
     expect(isNumberFilterOp("not_equal_to")).toBe(false);

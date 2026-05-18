@@ -263,8 +263,7 @@ class FilterEngine:
         filtered_objects = self.objects
 
         for filter_item in filters:
-            column_id = filter_item.get("column_id")
-            filter_config = filter_item.get("filter_config", {})
+            column_id, filter_config = self._normalize_filter_params(filter_item)
             col_type = filter_config.get("col_type", ColType.NORMAL)
 
             if isinstance(col_type, str):
@@ -280,7 +279,11 @@ class FilterEngine:
                 filtered_objects = self._filter_number(
                     filtered_objects, column_id, filter_op, filter_value, col_type
                 )
-            elif filter_type in ["text", "array"]:
+            elif filter_type == "array":
+                filtered_objects = self._filter_array(
+                    filtered_objects, column_id, filter_op, filter_value, col_type
+                )
+            elif filter_type in ("text", "categorical", "thumbs", "annotator"):
                 filtered_objects = self._filter_text(
                     filtered_objects, column_id, filter_op, filter_value, col_type
                 )
@@ -290,10 +293,6 @@ class FilterEngine:
                 )
             elif filter_type == "datetime":
                 filtered_objects = self._filter_datetime(
-                    filtered_objects, column_id, filter_op, filter_value, col_type
-                )
-            elif filter_type == "array":
-                filtered_objects = self._filter_array(
                     filtered_objects, column_id, filter_op, filter_value, col_type
                 )
             else:
@@ -490,6 +489,17 @@ class FilterEngine:
         ]
 
     def _filter_array(self, objects, column_id, filter_op, filter_value, col_type):
+        expected_values = (
+            filter_value if isinstance(filter_value, list) else [filter_value]
+        )
+        expected_values = [value for value in expected_values if value not in (None, "")]
+        if filter_op in ("is_null", "is_not_null"):
+            return [
+                obj
+                for obj in objects
+                if (not obj.get(column_id)) == (filter_op == "is_null")
+            ]
+
         result = []
         for obj in objects:
             column_value = obj.get(column_id, [])
@@ -497,10 +507,10 @@ class FilterEngine:
                 continue
 
             if filter_op == "contains":
-                if filter_value in column_value:
+                if any(value in column_value for value in expected_values):
                     result.append(obj)
             elif filter_op == "not_contains":
-                if filter_value not in column_value:
+                if all(value not in column_value for value in expected_values):
                     result.append(obj)
 
         return result

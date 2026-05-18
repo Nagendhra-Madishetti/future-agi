@@ -1,7 +1,9 @@
 import json
 
 from tracer.serializers.eval_task import EditEvalTaskSerializer
+from tracer.serializers.dashboard import DashboardFilterValuesQuerySerializer
 from tracer.serializers.trace import UsersQuerySerializer
+from tracer.serializers.trace_session import TraceSessionFilterValuesQuerySerializer
 
 
 def _span_attr_filter(filter_op="equals", filter_value="alpha"):
@@ -107,3 +109,52 @@ class TestFilterSerializerContracts:
 
         assert not serializer.is_valid()
         assert "filters" in serializer.errors
+
+    def test_dashboard_filter_values_query_requires_explicit_source_choices(self):
+        serializer = DashboardFilterValuesQuerySerializer(
+            data={
+                "metric_name": "latency_ms",
+                "metric_type": "system_metric",
+                "source": "workflow",
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "source" in serializer.errors
+
+    def test_dashboard_filter_values_query_parses_project_ids(self):
+        serializer = DashboardFilterValuesQuerySerializer(
+            data={
+                "metric_name": "latency_ms",
+                "metric_type": "system_metric",
+                "source": "traces",
+                "project_ids": "project-a, project-b,,",
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["project_ids"] == [
+            "project-a",
+            "project-b",
+        ]
+
+    def test_session_filter_values_query_accepts_canonical_columns_only(self):
+        serializer = TraceSessionFilterValuesQuerySerializer(
+            data={
+                "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "column": "session_id",
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_session_filter_values_query_rejects_camel_case_columns(self):
+        serializer = TraceSessionFilterValuesQuerySerializer(
+            data={
+                "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "column": "sessionId",
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "column" in serializer.errors

@@ -1,7 +1,10 @@
 import { format } from "date-fns";
 import _ from "lodash";
 import {
+  FILTER_COLUMN_TYPES,
   FILTER_TYPE_ALLOWED_OPS,
+  LIST_FILTER_OPS,
+  NO_VALUE_FILTER_OPS,
   RANGE_FILTER_OPS,
 } from "src/api/contracts/filter-contract.generated";
 import { FilterTypeMapper } from "src/utils/constants";
@@ -11,6 +14,10 @@ import { z } from "zod";
 const AllowedOperators = Array.from(
   new Set(Object.values(FILTER_TYPE_ALLOWED_OPS).flat()),
 );
+const AllowedFilterTypes = Object.keys(FILTER_TYPE_ALLOWED_OPS);
+const AllowedColumnTypes = FILTER_COLUMN_TYPES;
+const ListOperators = new Set(LIST_FILTER_OPS);
+const NoValueOperators = new Set(NO_VALUE_FILTER_OPS);
 const RangeOperators = new Set(RANGE_FILTER_OPS);
 
 export const NULL_OPERATORS = ["is_null", "is_not_null"];
@@ -36,13 +43,10 @@ export const getComplexFilterValidation = (
             // @ts-ignore
             AllowedOperators,
           ),
-          filter_type: z.enum([
-            "number",
-            "text",
-            "datetime",
-            "boolean",
-            "array",
-          ]),
+          filter_type: z.enum(
+            // @ts-ignore
+            AllowedFilterTypes,
+          ),
           filter_value: z
             .union([
               z.string(),
@@ -52,16 +56,16 @@ export const getComplexFilterValidation = (
             ])
             .optional(),
           col_type: z
-            .enum(["SPAN_ATTRIBUTE", "ANNOTATION", "SYSTEM_METRIC"])
+            .enum(
+              // @ts-ignore
+              AllowedColumnTypes,
+            )
             .optional(),
         })
         .refine(
           (val) => {
             // Skip validation for null operators as they don't require filter_value
-            if (
-              val.filter_op === "is_null" ||
-              val.filter_op === "is_not_null"
-            ) {
+            if (NoValueOperators.has(val.filter_op)) {
               return true;
             }
 
@@ -124,6 +128,26 @@ export const getComplexFilterValidation = (
                 }
                 return true;
               case "text":
+              case "categorical":
+              case "thumbs":
+              case "annotator":
+                if (ListOperators.has(val.filter_op)) {
+                  return (
+                    Array.isArray(val.filter_value) &&
+                    val.filter_value.length > 0 &&
+                    val.filter_value.every(
+                      (item) => item !== "" && item != null,
+                    )
+                  );
+                }
+                if (Array.isArray(val.filter_value)) {
+                  return (
+                    val.filter_value.length > 0 &&
+                    val.filter_value.every(
+                      (item) => item !== "" && item != null,
+                    )
+                  );
+                }
                 return Boolean(
                   val.filter_value &&
                     typeof val.filter_value === "string" &&
@@ -131,6 +155,16 @@ export const getComplexFilterValidation = (
                 );
               case "boolean":
                 return typeof val.filter_value === "boolean";
+              case "array":
+                if (Array.isArray(val.filter_value)) {
+                  return (
+                    val.filter_value.length > 0 &&
+                    val.filter_value.every(
+                      (item) => item !== "" && item != null,
+                    )
+                  );
+                }
+                return val.filter_value !== "" && val.filter_value != null;
               default:
                 return true;
             }
@@ -141,13 +175,18 @@ export const getComplexFilterValidation = (
         ),
     })
     .transform((val) => {
-      // For null operators, set filter_value to empty string even if it exists in old data
-      const isNullOperator =
-        val.filter_config.filter_op === "is_null" ||
-        val.filter_config.filter_op === "is_not_null";
+      const isNullOperator = NoValueOperators.has(val.filter_config.filter_op);
 
       let finalFilters = {};
-      if (val.filter_config.filter_type === "number") {
+      if (isNullOperator) {
+        finalFilters = {
+          column_id: val.column_id,
+          filter_config: {
+            ...val.filter_config,
+            filter_value: null,
+          },
+        };
+      } else if (val.filter_config.filter_type === "number") {
         let newFilterValues;
         if (RangeOperators.has(val.filter_config.filter_op)) {
           newFilterValues = val.filter_config.filter_value.map((item) =>
@@ -186,7 +225,6 @@ export const getComplexFilterValidation = (
           column_id: val.column_id,
           filter_config: {
             ...val.filter_config,
-            ...(isNullOperator && { filter_value: "" }),
           },
         };
       }

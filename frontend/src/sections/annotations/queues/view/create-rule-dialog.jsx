@@ -44,14 +44,11 @@ import { useGetProjectDetails } from "src/api/project/project-detail";
 import { apiPath } from "src/api/contracts/api-surface";
 import { PROJECT_SOURCE } from "src/utils/constants";
 import { getRandomId } from "src/utils/utils";
+import { apiFilterHasValue } from "src/sections/annotations/queues/utils/filter-operators";
 import {
-  apiFilterHasValue,
-  apiOpToPanel,
-  isNumberFilterOp,
-  isRangeFilterOp,
-  normalizeApiFilterOp,
-  panelOperatorAndValueToApi,
-} from "src/sections/annotations/queues/utils/filter-operators";
+  apiFilterToPanel,
+  panelFilterToApi,
+} from "src/sections/annotations/queues/utils/api-filter-converters";
 import { SIMULATION_PERSONA_FILTER_FIELDS } from "src/sections/annotations/queues/utils/simulation-persona-filter-fields";
 
 export const SOURCE_OPTIONS = [
@@ -162,46 +159,7 @@ const SESSION_RULE_FILTER_FIELDS = [
   { id: "end_time", name: "End Time", category: "system", type: "date" },
 ];
 
-const PANEL_TYPE_TO_API = {
-  string: "text",
-  number: "number",
-  boolean: "boolean",
-  categorical: "categorical",
-  text: "text",
-  date: "datetime",
-  array: "array",
-};
-
-const PANEL_CAT_TO_COL_TYPE = {
-  attribute: "SPAN_ATTRIBUTE",
-  system: "SYSTEM_METRIC",
-  eval: "EVAL_METRIC",
-  annotation: "ANNOTATION",
-};
-
-const COL_TYPE_TO_PANEL_CAT = {
-  SPAN_ATTRIBUTE: "attribute",
-  SYSTEM_METRIC: "system",
-  EVAL_METRIC: "eval",
-  ANNOTATION: "annotation",
-};
-
 const MULTI_VALUE_OPS = new Set(["is", "is_not", "in", "not_in"]);
-
-function formatDateInputValue(value) {
-  if (!value) return "";
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 16);
-  }
-  const stringValue = String(value);
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(stringValue)) {
-    return stringValue.slice(0, 16);
-  }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(stringValue)) {
-    return `${stringValue}T00:00`;
-  }
-  return stringValue;
-}
 
 function getQueueScopeId(queue, key) {
   const value = queue?.[key];
@@ -229,74 +187,6 @@ export function defaultFiltersForSource(sourceType) {
     return [{ ...DatasetDefaultFilter, id: getRandomId() }];
   }
   return [{ ...DEFAULT_FILTER, id: getRandomId() }];
-}
-
-function panelFilterToApi(panel) {
-  const { filterOp, filterValue } = panelOperatorAndValueToApi(
-    panel.operator,
-    panel.value,
-  );
-  const filterType = PANEL_TYPE_TO_API[panel.fieldType] || "text";
-  const colType = PANEL_CAT_TO_COL_TYPE[panel.fieldCategory];
-  return {
-    column_id: panel.field,
-    ...(panel.fieldName && { display_name: panel.fieldName }),
-    filter_config: {
-      filter_type: filterType,
-      filter_op: filterOp,
-      filter_value: filterValue,
-      ...(colType && { col_type: colType }),
-    },
-  };
-}
-
-function apiFilterToPanel(api) {
-  const config = api?.filter_config || {};
-  const rawOp = config.filter_op || "equals";
-  const canonicalOp = normalizeApiFilterOp(rawOp);
-  const rawVal = config.filter_value;
-  const filterType = config.filter_type;
-  const isNumberOp = isNumberFilterOp(canonicalOp);
-  const isRange = isRangeFilterOp(canonicalOp);
-  const isDateType = filterType === "datetime" || filterType === "date";
-  let value;
-  if (isRange && rawVal) {
-    value = Array.isArray(rawVal)
-      ? rawVal.map((v) => (isDateType ? formatDateInputValue(v) : String(v)))
-      : String(rawVal)
-          .split(",")
-          .map((v) => (isDateType ? formatDateInputValue(v.trim()) : v.trim()));
-  } else if (isDateType) {
-    value = rawVal ? formatDateInputValue(rawVal) : "";
-  } else if (isNumberOp) {
-    value = rawVal != null ? String(rawVal) : "";
-  } else if (Array.isArray(rawVal)) {
-    value = rawVal.map((v) => String(v));
-  } else {
-    value = rawVal
-      ? String(rawVal)
-          .split(",")
-          .map((v) => v.trim())
-      : [];
-  }
-  const rawColType = config.col_type || api?.col_type || "SYSTEM_METRIC";
-  const fieldType = (() => {
-    if (isNumberOp || filterType === "number") return "number";
-    if (isDateType) return "date";
-    if (filterType === "boolean") return "boolean";
-    if (filterType === "array") return "array";
-    if (filterType === "categorical") return "categorical";
-    if (filterType === "text" && rawColType === "ANNOTATION") return "text";
-    return "string";
-  })();
-  return {
-    field: api.column_id,
-    fieldName: api.display_name,
-    fieldCategory: COL_TYPE_TO_PANEL_CAT[rawColType] || "system",
-    fieldType,
-    operator: apiOpToPanel(canonicalOp, fieldType),
-    value,
-  };
 }
 
 function filterWithValue(filter) {

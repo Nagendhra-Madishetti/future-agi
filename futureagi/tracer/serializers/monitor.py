@@ -174,12 +174,9 @@ class UserAlertMonitorSerializer(serializers.ModelSerializer):
                         }
                     )
             if span_attributes_filters:
-                if not isinstance(span_attributes_filters, list):
-                    raise serializers.ValidationError(
-                        {
-                            "span_attributes_filters": "span_attributes_filters must be a list of dictionaries."
-                        }
-                    )
+                filters["span_attributes_filters"] = filter_list_field().run_validation(
+                    span_attributes_filters
+                )
         return filters
 
     def validate(self, data):
@@ -210,8 +207,8 @@ class UserAlertMonitorSerializer(serializers.ModelSerializer):
         self._validate_unique_name(project, name)
         self._validate_metric_type(full_data)
         self._validate_threshold_type(full_data)
-        if filters:
-            self.validate_filters(filters)
+        if "filters" in validated_data and filters:
+            validated_data["filters"] = self.validate_filters(filters)
 
         return validated_data
 

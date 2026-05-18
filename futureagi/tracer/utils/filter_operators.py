@@ -36,6 +36,7 @@ FILTER_TYPE_ALLOWED_OPS: dict[str, set[str]] = {
     for filter_type, ops in _OPERATORS["filterTypeAllowed"].items()
 }
 FIELD_TYPE_ALIASES: dict[str, str] = dict(_CONTRACT["fieldTypes"]["aliases"])
+FILTER_COLUMN_TYPES: set[str] = set(_CONTRACT["columnTypes"]["allowed"])
 COL_TYPE_ALIASES: dict[str, str] = dict(_CONTRACT["columnTypes"]["aliases"])
 
 

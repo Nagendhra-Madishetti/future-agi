@@ -985,10 +985,8 @@ def _annotator_pair_agreement(item_label_map):
 
 
 # ---------------------------------------------------------------------------
-# Field mapping: view-level camelCase field IDs → Django ORM field names.
-# The frontend sends camelCase propertyIds (matching the tracing / session /
-# simulation filter UIs).  This mapping converts them to ORM lookups.
-# It also serves as an allowlist – unmapped fields are rejected.
+# Field mapping: canonical snake_case field IDs → Django ORM field names.
+# This serves as an allowlist; unmapped fields are rejected.
 # ---------------------------------------------------------------------------
 FIELD_MAPPING = {
     QueueItemSourceType.TRACE.value: {
@@ -1006,12 +1004,6 @@ FIELD_MAPPING = {
         "status": "status",  # annotated from root span
         "created_at": "created_at",
         "project__name": "project__name",
-        # Legacy camelCase
-        "traceId": "id",
-        "traceName": "name",
-        "nodeType": "node_type",
-        "userId": "user_id",
-        "projectName": "project__name",
     },
     QueueItemSourceType.OBSERVATION_SPAN.value: {
         # Snake_case (primary)
@@ -1029,12 +1021,6 @@ FIELD_MAPPING = {
         "status": "status",  # direct field on span
         "created_at": "created_at",
         "project__name": "project__name",
-        # Legacy camelCase
-        "traceId": "trace_id",
-        "traceName": "trace__name",
-        "nodeType": "observation_type",
-        "userId": "end_user__user_id",
-        "projectName": "project__name",
     },
     QueueItemSourceType.TRACE_SESSION.value: {
         # Snake_case (primary)
@@ -1047,12 +1033,6 @@ FIELD_MAPPING = {
         "name": "name",
         "created_at": "created_at",
         "project__name": "project__name",
-        # Legacy camelCase
-        "totalCost": "total_cost",
-        "startTime": "start_time",
-        "endTime": "end_time",
-        "userId": "user_id",
-        "projectName": "project__name",
     },
     QueueItemSourceType.CALL_EXECUTION.value: {
         # Snake_case (primary)
@@ -1064,9 +1044,6 @@ FIELD_MAPPING = {
         "duration_seconds": "duration_seconds",
         "overall_score": "overall_score",
         "created_at": "created_at",
-        # Legacy camelCase
-        "agentDefinition": "test_execution__agent_definition__name",
-        "callType": "simulation_call_type",
     },
     QueueItemSourceType.DATASET_ROW.value: {
         # Snake_case (primary)
@@ -1074,17 +1051,12 @@ FIELD_MAPPING = {
         "order": "order",
         "created_at": "created_at",
         "dataset__name": "dataset__name",
-        # Legacy camelCase
-        "datasetName": "dataset__name",
-        "createdAt": "created_at",
     },
     QueueItemSourceType.PROTOTYPE_RUN.value: {
         "name": "name",
         "model": "model",
         "status": "status",
         "created_at": "created_at",
-        # Legacy camelCase
-        "createdAt": "created_at",
     },
 }
 

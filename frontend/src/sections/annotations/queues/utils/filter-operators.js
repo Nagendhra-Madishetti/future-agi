@@ -60,6 +60,13 @@ const TEXT_API_TO_PANEL = {
   is_not_null: "is_not_empty",
 };
 
+const BOOLEAN_API_TO_PANEL = {
+  equals: "equals",
+  not_equals: "not_equals",
+  is_null: "is_null",
+  is_not_null: "is_not_null",
+};
+
 export const NUMBER_FILTER_OPS = new Set(Object.keys(NUMBER_API_TO_PANEL));
 export const RANGE_FILTER_OPS = new Set(["between", "not_between"]);
 const VALUELESS_FILTER_OPS = new Set([
@@ -125,6 +132,10 @@ export function apiOpToPanel(op, fieldType) {
 
   if (fieldType === "date" || fieldType === "datetime") {
     return DATE_API_TO_PANEL[canonicalOp] || canonicalOp;
+  }
+
+  if (fieldType === "boolean") {
+    return BOOLEAN_API_TO_PANEL[canonicalOp] || canonicalOp;
   }
 
   return TEXT_API_TO_PANEL[canonicalOp] || canonicalOp;

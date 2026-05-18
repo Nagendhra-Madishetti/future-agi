@@ -8,6 +8,7 @@ from tracer.utils.constants import (
     SPAN_ATTR_ALLOWED_OPS,
 )
 from tracer.utils.filter_operators import (
+    FILTER_COLUMN_TYPES,
     FILTER_TYPE_ALLOWED_OPS,
     normalize_filter_type,
     load_filter_contract,
@@ -49,6 +50,16 @@ class TestFilterContract:
 
     def test_contract_does_not_publish_operator_aliases(self):
         assert "aliases" not in load_filter_contract()["operators"]
+
+    def test_contract_exports_all_canonical_column_types(self):
+        assert {
+            "SYSTEM_METRIC",
+            "SPAN_ATTRIBUTE",
+            "EVAL_METRIC",
+            "ANNOTATION",
+            "VOICE_ANNOTATION",
+            "NORMAL",
+        }.issubset(FILTER_COLUMN_TYPES)
 
     def test_field_type_aliases_are_contract_backed(self):
         assert normalize_filter_type("string") == "text"

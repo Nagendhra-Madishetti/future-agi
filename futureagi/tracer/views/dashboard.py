@@ -11,6 +11,7 @@ from tracer.models.project import Project
 from tracer.serializers.dashboard import (
     DashboardCreateUpdateSerializer,
     DashboardDetailSerializer,
+    DashboardFilterValuesQuerySerializer,
     DashboardQuerySerializer,
     DashboardSerializer,
     DashboardWidgetSerializer,
@@ -1798,19 +1799,17 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
     @action(detail=False, methods=["get"])
     def filter_values(self, request):
         """Return distinct values for a given metric/attribute, for filter value picker."""
-        metric_name = request.query_params.get("metric_name", "")
-        metric_type = request.query_params.get("metric_type", "system_metric")
-        source = request.query_params.get("source", "")
-        # Backward compat: infer source from workflow
-        workflow = request.query_params.get("workflow", "")
-        if not source:
-            source = "datasets" if workflow == "dataset" else "traces"
+        query_serializer = DashboardFilterValuesQuerySerializer(
+            data=request.query_params
+        )
+        if not query_serializer.is_valid():
+            return self._gm.bad_request(query_serializer.errors)
 
-        project_ids_str = request.query_params.get("project_ids", "")
-        project_ids = [pid.strip() for pid in project_ids_str.split(",") if pid.strip()]
-
-        if not metric_name:
-            return self._gm.bad_request("metric_name is required")
+        query_params = query_serializer.validated_data
+        metric_name = query_params["metric_name"]
+        metric_type = query_params["metric_type"]
+        source = query_params["source"]
+        project_ids = query_params.get("project_ids", [])
 
         # Route by source
         if source == "datasets":
@@ -1821,7 +1820,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
             # frontend can reuse the same hook wiring as traces/datasets.
             return self._filter_values_dataset_column(
                 request,
-                dataset_id=request.query_params.get("dataset_id", ""),
+                dataset_id=str(query_params.get("dataset_id") or ""),
                 column_id=metric_name,
             )
         if source == "simulation":

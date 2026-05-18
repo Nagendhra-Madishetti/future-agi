@@ -151,3 +151,41 @@ class DashboardQuerySerializer(serializers.Serializer):
     breakdowns = serializers.ListField(
         child=serializers.DictField(), required=False, default=list
     )
+
+
+class CommaSeparatedListField(serializers.Field):
+    """Query-param helper for explicit comma-separated lists."""
+
+    def to_internal_value(self, data):
+        if data in (None, ""):
+            return []
+        if isinstance(data, (list, tuple)):
+            items = data
+        else:
+            items = str(data).split(",")
+        return [str(item).strip() for item in items if str(item).strip()]
+
+    def to_representation(self, value):
+        return value or []
+
+
+class DashboardFilterValuesQuerySerializer(serializers.Serializer):
+    metric_name = serializers.CharField(required=True, allow_blank=False)
+    metric_type = serializers.ChoiceField(
+        choices=[
+            "system_metric",
+            "eval_metric",
+            "annotation_metric",
+            "custom_attribute",
+            "custom_column",
+        ],
+        required=False,
+        default="system_metric",
+    )
+    source = serializers.ChoiceField(
+        choices=["traces", "datasets", "dataset_column", "simulation"],
+        required=False,
+        default="traces",
+    )
+    project_ids = CommaSeparatedListField(required=False, default=list)
+    dataset_id = serializers.UUIDField(required=False)

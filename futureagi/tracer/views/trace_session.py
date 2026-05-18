@@ -64,6 +64,7 @@ from tracer.models.trace_session import TraceSession
 from tfc.utils.pagination import ExtendedPageNumberPagination
 from tracer.serializers.eval_task import PaginationQuerySerializer
 from tracer.serializers.trace_session import (
+    TraceSessionFilterValuesQuerySerializer,
     TraceSessionExportSerializer,
     TraceSessionSerializer,
 )
@@ -624,20 +625,24 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
 
         Query params:
             project_id: required
-            column: the session column name (camelCase, e.g. "sessionId")
+            column: canonical session column name, e.g. "session_id"
             search: optional search substring
             page: page number (0-based), default 0
             page_size: default 50
         """
         try:
-            project_id = request.query_params.get("project_id")
-            column = request.query_params.get("column", "")
-            search = request.query_params.get("search", "")
-            page = int(request.query_params.get("page", 0))
-            page_size = int(request.query_params.get("page_size", 50))
+            query_serializer = TraceSessionFilterValuesQuerySerializer(
+                data=request.query_params
+            )
+            if not query_serializer.is_valid():
+                return self._gm.bad_request(query_serializer.errors)
 
-            if not project_id or not column:
-                return self._gm.bad_request("project_id and column are required")
+            query_params = query_serializer.validated_data
+            project_id = str(query_params["project_id"])
+            column = query_params["column"]
+            search = query_params.get("search", "")
+            page = query_params.get("page", 0)
+            page_size = query_params.get("page_size", 50)
 
             # Map frontend column names to ClickHouse expressions
             COLUMN_MAP = {
@@ -645,16 +650,11 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                 "user_id": "end_user_id",
                 "first_message": "first_message",
                 "last_message": "last_message",
-                # Legacy camelCase support
-                "sessionId": "trace_session_id",
-                "userId": "end_user_id",
-                "firstMessage": "first_message",
-                "lastMessage": "last_message",
             }
 
             ch_column = COLUMN_MAP.get(column)
             if not ch_column:
-                return self._gm.success_response({"values": []})
+                return self._gm.bad_request("Unsupported session filter column.")
 
             from tracer.services.clickhouse.query_service import (
                 AnalyticsQueryService,

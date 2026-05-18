@@ -35,6 +35,7 @@ export const RANGE_FILTER_OPS = Object.freeze(FILTER_CONTRACT.operators.range);
 export const SPAN_ATTRIBUTE_ALLOWED_OPS = Object.freeze(FILTER_CONTRACT.operators.spanAttributeAllowed);
 export const FILTER_TYPE_ALLOWED_OPS = Object.freeze(FILTER_CONTRACT.operators.filterTypeAllowed);
 export const FIELD_TYPE_ALIASES = Object.freeze(FILTER_CONTRACT.fieldTypes.aliases);
+export const FILTER_COLUMN_TYPES = Object.freeze(FILTER_CONTRACT.columnTypes.allowed);
 export const COLUMN_TYPE_ALIASES = Object.freeze(FILTER_CONTRACT.columnTypes.aliases);
 `;
 const body = await prettier.format(rawBody, { filepath: outputPath });

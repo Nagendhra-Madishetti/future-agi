@@ -27,3 +27,15 @@ class TraceSessionExportSerializer(serializers.Serializer):
 
     def validate_sort_params(self, value):
         return validate_sort_params_helper(value)
+
+
+class TraceSessionFilterValuesQuerySerializer(serializers.Serializer):
+    project_id = serializers.UUIDField(required=True)
+    column = serializers.ChoiceField(
+        choices=["session_id", "user_id", "first_message", "last_message"]
+    )
+    search = serializers.CharField(required=False, allow_blank=True, default="")
+    page = serializers.IntegerField(required=False, default=0, min_value=0)
+    page_size = serializers.IntegerField(
+        required=False, default=50, min_value=1, max_value=500
+    )

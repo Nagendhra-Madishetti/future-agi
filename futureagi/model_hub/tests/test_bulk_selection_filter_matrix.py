@@ -17,6 +17,7 @@ from model_hub.services.bulk_selection import (
     _filter_col_type,
     _filter_column_id,
 )
+from model_hub.utils import annotation_queue_helpers
 from tracer.utils.filter_operators import FILTER_TYPE_ALLOWED_OPS
 from tracer.utils.filters import FilterEngine, apply_created_at_filters
 
@@ -95,6 +96,14 @@ def test_filter_helpers_read_canonical_snake_filter_payloads_only():
     assert _filter_col_type(snake) == "ANNOTATION"
     assert _filter_column_id(camel) == ""
     assert _filter_col_type(camel) == ""
+
+
+def test_rule_field_mapping_uses_canonical_snake_case_ids_only():
+    for source_mapping in annotation_queue_helpers.FIELD_MAPPING.values():
+        assert not any(
+            any(char.isupper() for char in field_id)
+            for field_id in source_mapping
+        )
 
 
 @pytest.mark.parametrize("filter_op", sorted(FILTER_TYPE_ALLOWED_OPS["text"]))

@@ -1171,22 +1171,20 @@ def _apply_session_filters(base_sessions_qs, filters, *, project_id, organizatio
         elif filter_op == "is_null":
             aggregated = aggregated.exclude(Exists(base_score_q))
         else:
-            if isinstance(filter_val, str) and "," in filter_val:
-                filter_val = [v.strip() for v in filter_val.split(",") if v.strip()]
             if filter_op == "equals":
-                score_q = (
-                    base_score_q.filter(value__in=filter_val)
-                    if isinstance(filter_val, list)
-                    else base_score_q.filter(value=filter_val)
-                )
+                score_q = base_score_q.filter(value=filter_val)
                 aggregated = aggregated.filter(Exists(score_q))
             elif filter_op == "not_equals":
-                score_q = (
-                    base_score_q.filter(value__in=filter_val)
-                    if isinstance(filter_val, list)
-                    else base_score_q.filter(value=filter_val)
-                )
+                score_q = base_score_q.filter(value=filter_val)
                 aggregated = aggregated.exclude(Exists(score_q))
+            elif filter_op == "in" and isinstance(filter_val, list):
+                aggregated = aggregated.filter(
+                    Exists(base_score_q.filter(value__in=filter_val))
+                )
+            elif filter_op == "not_in" and isinstance(filter_val, list):
+                aggregated = aggregated.exclude(
+                    Exists(base_score_q.filter(value__in=filter_val))
+                )
             elif filter_op == "contains":
                 score_q = base_score_q.filter(value__icontains=filter_val)
                 aggregated = aggregated.filter(Exists(score_q))

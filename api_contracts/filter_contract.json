@@ -113,6 +113,17 @@
     }
   },
   "columnTypes": {
+    "allowed": [
+      "SYSTEM_METRIC",
+      "SPAN_ATTRIBUTE",
+      "EVAL_METRIC",
+      "ANNOTATION",
+      "ANNOTATION_RUNS",
+      "VOICE_ANNOTATION",
+      "NORMAL",
+      "PROMPT_METRIC",
+      "PROMPT_METRIC_RUNS"
+    ],
     "aliases": {
       "attribute": "SPAN_ATTRIBUTE",
       "system": "SYSTEM_METRIC",

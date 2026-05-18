@@ -72,6 +72,74 @@ class TestUserAlertMonitorCreateAPI:
         )
         assert response.status_code == status.HTTP_200_OK
 
+    def test_create_monitor_accepts_canonical_span_attribute_filters(
+        self, auth_client, observe_project
+    ):
+        response = auth_client.post(
+            "/tracer/user-alerts/",
+            {
+                "project": str(observe_project.id),
+                "name": "Canonical Filter Alert",
+                "metric_type": "count_of_errors",
+                "threshold_operator": "greater_than",
+                "threshold_type": "static",
+                "critical_threshold_value": 1,
+                "alert_frequency": 60,
+                "filters": {
+                    "span_attributes_filters": [
+                        {
+                            "column_id": "customer_tier",
+                            "filter_config": {
+                                "filter_type": "text",
+                                "filter_op": "equals",
+                                "filter_value": "enterprise",
+                                "col_type": "SPAN_ATTRIBUTE",
+                            },
+                        }
+                    ]
+                },
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        monitor = UserAlertMonitor.objects.get(name="Canonical Filter Alert")
+        assert monitor.filters["span_attributes_filters"][0]["column_id"] == (
+            "customer_tier"
+        )
+
+    def test_create_monitor_rejects_camel_case_span_attribute_filters(
+        self, auth_client, observe_project
+    ):
+        response = auth_client.post(
+            "/tracer/user-alerts/",
+            {
+                "project": str(observe_project.id),
+                "name": "Camel Filter Alert",
+                "metric_type": "count_of_errors",
+                "threshold_operator": "greater_than",
+                "threshold_type": "static",
+                "critical_threshold_value": 1,
+                "alert_frequency": 60,
+                "filters": {
+                    "span_attributes_filters": [
+                        {
+                            "columnId": "customer_tier",
+                            "filterConfig": {
+                                "filterType": "text",
+                                "filterOp": "equals",
+                                "filterValue": "enterprise",
+                                "colType": "SPAN_ATTRIBUTE",
+                            },
+                        }
+                    ]
+                },
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
 
 @pytest.mark.integration
 @pytest.mark.api
@@ -166,6 +234,58 @@ class TestUserAlertMonitorUpdateAPI:
         user_alert_monitor.refresh_from_db()
         assert user_alert_monitor.name == "Updated Alert Name"
         assert user_alert_monitor.critical_threshold_value == 0.2
+
+    def test_update_monitor_ignores_legacy_filters_when_filters_unchanged(
+        self, auth_client, user_alert_monitor
+    ):
+        """Unrelated edits should not fail because older saved filters predate the contract."""
+        user_alert_monitor.filters = {
+            "span_attributes_filters": [
+                {
+                    "columnId": "customer_tier",
+                    "filterConfig": {
+                        "filterType": "text",
+                        "filterOp": "equals",
+                        "filterValue": "enterprise",
+                        "colType": "SPAN_ATTRIBUTE",
+                    },
+                }
+            ]
+        }
+        user_alert_monitor.save(update_fields=["filters"])
+
+        response = auth_client.patch(
+            f"/tracer/user-alerts/{user_alert_monitor.id}/",
+            {"name": "Updated Alert Name"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_update_monitor_rejects_camel_case_filter_update(
+        self, auth_client, user_alert_monitor
+    ):
+        response = auth_client.patch(
+            f"/tracer/user-alerts/{user_alert_monitor.id}/",
+            {
+                "filters": {
+                    "span_attributes_filters": [
+                        {
+                            "columnId": "customer_tier",
+                            "filterConfig": {
+                                "filterType": "text",
+                                "filterOp": "equals",
+                                "filterValue": "enterprise",
+                                "colType": "SPAN_ATTRIBUTE",
+                            },
+                        }
+                    ]
+                }
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_update_eval_monitor_to_system_metric_clears_eval_fields(
         self,

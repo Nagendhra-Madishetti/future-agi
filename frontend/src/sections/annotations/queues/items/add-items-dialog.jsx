@@ -69,14 +69,11 @@ import CallLogsGrid from "src/sections/agents/CallLogs/CallLogsGrid";
 import SelectAllBanner from "src/sections/projects/LLMTracing/SelectAllBanner";
 import { useGetProjectDetails } from "src/api/project/project-detail";
 import { PROJECT_SOURCE } from "src/utils/constants";
+import { apiFilterHasValue } from "src/sections/annotations/queues/utils/filter-operators";
 import {
-  apiFilterHasValue,
-  apiOpToPanel,
-  isNumberFilterOp,
-  isRangeFilterOp,
-  normalizeApiFilterOp,
-  panelOperatorAndValueToApi,
-} from "src/sections/annotations/queues/utils/filter-operators";
+  apiFilterToPanel as apiFilterToPanelBase,
+  panelFilterToApi as panelFilterToApiBase,
+} from "src/sections/annotations/queues/utils/api-filter-converters";
 import { SIMULATION_PERSONA_FILTER_FIELDS } from "src/sections/annotations/queues/utils/simulation-persona-filter-fields";
 import {
   getSessionListColumnDef,
@@ -90,105 +87,15 @@ import {
 import "src/styles/clean-data-table.css";
 import { fetchRootSpans } from "src/api/project/llm-tracing";
 
-// ---------------------------------------------------------------------------
-// TraceFilterPanel ↔ API filter converters (mirror ObserveToolbar's inline
-// logic). Moved here so the dialog's Trace and Span selectors can mount the
-// same popover the main tracing page uses.
-// ---------------------------------------------------------------------------
-const PANEL_TYPE_TO_API = {
-  string: "text",
-  number: "number",
-  boolean: "boolean",
-  categorical: "categorical",
-  text: "text",
-  date: "datetime",
-  datetime: "datetime",
-  timestamp: "datetime",
-};
-const PANEL_CAT_TO_COL_TYPE = {
-  attribute: "SPAN_ATTRIBUTE",
-  system: "SYSTEM_METRIC",
-  eval: "EVAL_METRIC",
-  annotation: "ANNOTATION",
-};
-const COL_TYPE_TO_PANEL_CAT = {
-  SPAN_ATTRIBUTE: "attribute",
-  SYSTEM_METRIC: "system",
-  EVAL_METRIC: "eval",
-  ANNOTATION: "annotation",
-};
+const panelFilterToApi = (panel) =>
+  panelFilterToApiBase(panel, { includeMeta: true });
 
-function panelFilterToApi(panel) {
-  const { filterOp, filterValue } = panelOperatorAndValueToApi(
-    panel.operator,
-    panel.value,
-  );
-  const filterType = PANEL_TYPE_TO_API[panel.fieldType] || "text";
-  const colType = PANEL_CAT_TO_COL_TYPE[panel.fieldCategory];
-  return {
-    column_id: panel.field,
-    ...(panel.fieldName && { display_name: panel.fieldName }),
-    filter_config: {
-      filter_type: filterType,
-      filter_op: filterOp,
-      filter_value: filterValue,
-      ...(colType && { col_type: colType }),
-    },
-    _meta: { parentProperty: "" },
-  };
-}
-
-function apiFilterToPanel(api, propertiesById = {}) {
-  const property = propertiesById[api?.column_id];
-  const config = api?.filter_config || {};
-  const rawOp = config.filter_op || "equals";
-  const canonicalOp = normalizeApiFilterOp(rawOp);
-  const isNumberOp = isNumberFilterOp(canonicalOp);
-  const isRange = isRangeFilterOp(canonicalOp);
-  const rawVal = config.filter_value;
-  let value;
-  if (isRange && rawVal) {
-    value = Array.isArray(rawVal)
-      ? rawVal.map((v) => String(v))
-      : String(rawVal)
-          .split(",")
-          .map((v) => v.trim());
-  } else if (isNumberOp) {
-    value = rawVal != null ? String(rawVal) : "";
-  } else if (Array.isArray(rawVal)) {
-    value = rawVal.map((v) => String(v));
-  } else {
-    value = rawVal
-      ? String(rawVal)
-          .split(",")
-          .map((v) => v.trim())
-      : [];
-  }
-  const rawColType = config.col_type || api?.col_type;
-  const filterType = config.filter_type;
-  const fieldType = isNumberOp
-    ? "number"
-    : filterType === "number"
-      ? "number"
-      : filterType === "date" ||
-          filterType === "datetime" ||
-          filterType === "timestamp"
-        ? "datetime"
-        : filterType === "categorical"
-          ? "categorical"
-          : filterType === "text" && rawColType === "ANNOTATION"
-            ? "text"
-            : property?.type || "string";
-  return {
-    field: api.column_id,
-    fieldName: api.display_name || property?.name,
-    fieldCategory:
-      COL_TYPE_TO_PANEL_CAT[rawColType] || property?.category || "system",
-    fieldType,
-    operator: apiOpToPanel(canonicalOp, fieldType),
-    value,
-  };
-}
+const apiFilterToPanel = (api, propertiesById = {}) =>
+  apiFilterToPanelBase(api, {
+    propertiesById,
+    dateFieldType: "datetime",
+    formatDateValues: false,
+  });
 
 function hasAppliedAnnotatorFilter(filters) {
   return filters.some(

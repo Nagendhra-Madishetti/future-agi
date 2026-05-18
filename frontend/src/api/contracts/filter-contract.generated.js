@@ -131,6 +131,17 @@ export const FILTER_CONTRACT = Object.freeze({
     },
   },
   columnTypes: {
+    allowed: [
+      "SYSTEM_METRIC",
+      "SPAN_ATTRIBUTE",
+      "EVAL_METRIC",
+      "ANNOTATION",
+      "ANNOTATION_RUNS",
+      "VOICE_ANNOTATION",
+      "NORMAL",
+      "PROMPT_METRIC",
+      "PROMPT_METRIC_RUNS",
+    ],
     aliases: {
       attribute: "SPAN_ATTRIBUTE",
       system: "SYSTEM_METRIC",
@@ -155,6 +166,9 @@ export const FILTER_TYPE_ALLOWED_OPS = Object.freeze(
 );
 export const FIELD_TYPE_ALIASES = Object.freeze(
   FILTER_CONTRACT.fieldTypes.aliases,
+);
+export const FILTER_COLUMN_TYPES = Object.freeze(
+  FILTER_CONTRACT.columnTypes.allowed,
 );
 export const COLUMN_TYPE_ALIASES = Object.freeze(
   FILTER_CONTRACT.columnTypes.aliases,
