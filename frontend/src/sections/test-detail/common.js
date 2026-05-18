@@ -24,6 +24,7 @@ import { AGENT_TYPES } from "src/sections/agents/constants";
 import useKpis from "src/hooks/useKpis";
 import { useMemo } from "react";
 import { LoadingHeader } from "./CellRenderers/ScenarioCellRenderer";
+import { buildApiFilterFromPanelRow } from "src/api/contracts/filter-contract";
 
 const menuOrder = [
   "Pin Column",
@@ -827,14 +828,12 @@ export const getSelectedCallExecutionIdsFilter = () => {
   if (selectedCallExecutionIds.length > 0) {
     // if we have any selected call execution ids from fix my agent we need to add it to filter
     return [
-      {
-        column_id: "call_execution_id",
-        filter_config: {
-          filter_op: "in",
-          filter_type: "list",
-          filter_value: selectedCallExecutionIds,
-        },
-      },
+      buildApiFilterFromPanelRow({
+        field: "call_execution_id",
+        fieldType: "categorical",
+        operator: "in",
+        value: selectedCallExecutionIds,
+      }),
     ];
   }
 

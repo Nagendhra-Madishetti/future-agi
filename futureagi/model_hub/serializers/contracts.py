@@ -837,7 +837,11 @@ class OptimizeDatasetListQuerySerializer(StrictInputSerializer):
 class OptimizeDatasetKnowledgeBaseRequestSerializer(StrictInputSerializer):
     name = serializers.CharField(required=False, allow_blank=True)
     knowledge_base_metrics = serializers.JSONField(required=False)
-    knowledge_base_filters = serializers.JSONField(required=False)
+    knowledge_base_filters = serializers.ListField(
+        child=serializers.CharField(allow_blank=False),
+        required=False,
+        default=list,
+    )
     prompt = serializers.CharField(required=False, allow_blank=True)
     variables = serializers.JSONField(required=False)
 
@@ -909,7 +913,9 @@ class OptimizeDatasetKnowledgeBaseListResponseSerializer(serializers.Serializer)
 class OptimizeDatasetKnowledgeBaseDetailResultSerializer(serializers.Serializer):
     name = serializers.CharField()
     prompt = serializers.CharField(allow_blank=True, allow_null=True)
-    knowledge_base_filters = serializers.JSONField(allow_null=True)
+    knowledge_base_filters = serializers.ListField(
+        child=serializers.CharField(), allow_null=True
+    )
     knowledge_base_metrics = serializers.JSONField(allow_null=True)
     variables = serializers.JSONField(allow_null=True)
     status = serializers.CharField()
@@ -1458,7 +1464,7 @@ class DatasetTableQuerySerializer(StrictInputSerializer):
     column_config_only = serializers.BooleanField(required=False, default=False)
 
 
-class EvalApiLogTableQuerySerializer(serializers.Serializer):
+class EvalApiLogTableQuerySerializer(StrictInputSerializer):
     eval_template_id = serializers.UUIDField()
     page_size = serializers.IntegerField(required=False, default=10, min_value=1)
     current_page_index = serializers.IntegerField(
@@ -1471,10 +1477,10 @@ class EvalApiLogTableQuerySerializer(serializers.Serializer):
     )
     search = serializers.CharField(required=False, allow_blank=True, default="")
     filters = filter_list_query_param_field(required=False, default=list)
-    sort = serializers.CharField(required=False, allow_blank=True, default="[]")
+    sort = DatasetSortListQueryParamField(required=False, default=list)
 
 
-class EvalMetricQuerySerializer(serializers.Serializer):
+class EvalMetricQuerySerializer(StrictInputSerializer):
     eval_template_id = serializers.UUIDField()
     filters = filter_list_query_param_field(required=False, default=list)
 
@@ -2446,7 +2452,7 @@ class GroundTruthEmbedResponseSerializer(serializers.Serializer):
     result = GroundTruthEmbedResponseResultSerializer()
 
 
-class EvalMetricRequestSerializer(serializers.Serializer):
+class EvalMetricRequestSerializer(StrictInputSerializer):
     eval_template_id = serializers.UUIDField()
     filters = filter_list_field(required=False, default=list)
 

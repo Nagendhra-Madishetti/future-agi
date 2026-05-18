@@ -318,7 +318,7 @@ const SessionsView = ({ mode = "project", userIdForUserMode = null }) => {
   const canSaveView = useMemo(() => {
     if (!activeViewConfig) return false;
 
-    const baselineExtraFilters = activeViewConfig.extraFilters || [];
+    const baselineExtraFilters = activeViewConfig.extra_filters || [];
     const baselineDisplay = activeViewConfig.display || {};
     const baselineDateOption = baselineDisplay.dateFilter?.dateOption ?? null;
 
@@ -403,7 +403,7 @@ const SessionsView = ({ mode = "project", userIdForUserMode = null }) => {
         ...(columnState ? { columnState } : {}),
         ...(customColumns.length > 0 ? { customColumns } : {}),
       },
-      extraFilters: extraFilters || [],
+      extra_filters: extraFilters || [],
     };
   }, [
     cellHeight,
@@ -666,7 +666,7 @@ const SessionsView = ({ mode = "project", userIdForUserMode = null }) => {
         }
       }
     }
-    const nextExtraFilters = activeViewConfig.extraFilters || [];
+    const nextExtraFilters = activeViewConfig.extra_filters || [];
     setExtraFilters((prev) => {
       if (prev.length === 0 && nextExtraFilters.length === 0) return prev;
       if (prev.length === nextExtraFilters.length) {

@@ -12834,7 +12834,54 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "get": {
         "operationId": "model-hub_develops_get-dataset-table_list",
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "filters": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "default": "[]"
+            }
+          },
+          "sort": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "default": "[]"
+            }
+          },
+          "search": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": {}
+            }
+          },
+          "page_size": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10
+            }
+          },
+          "current_page_index": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "column_config_only": {
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
         "responses": {
           "200": {
             "$ref": "#/definitions/DatasetTableResponse"
@@ -15978,6 +16025,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "required": false,
             "schema": {
               "type": "string",
+              "minLength": 1,
               "default": "[]"
             }
           }
@@ -51701,8 +51749,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "object"
         },
         "knowledge_base_filters": {
-          "title": "Knowledge base filters",
-          "type": "object"
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
         },
         "prompt": {
           "title": "Prompt",
@@ -73201,8 +73253,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "x-nullable": true
         },
         "knowledge_base_filters": {
-          "title": "Knowledge base filters",
-          "type": "object",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "x-nullable": true
         },
         "knowledge_base_metrics": {

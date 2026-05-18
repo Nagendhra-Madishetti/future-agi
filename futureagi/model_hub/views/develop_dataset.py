@@ -2128,6 +2128,7 @@ class GetDatasetTableView(APIView):
         return filtered_rows, search_results
 
     @swagger_auto_schema(
+        query_serializer=DatasetTableQuerySerializer,
         responses={200: DatasetTableResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
     )
     def get(self, request, dataset_id, *args, **kwargs):

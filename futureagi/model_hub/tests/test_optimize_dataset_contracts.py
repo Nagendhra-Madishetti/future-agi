@@ -104,6 +104,31 @@ def test_optimize_dataset_kb_request_rejects_camel_case_fields():
     assert "knowledgeBaseFilters" in serializer.errors
 
 
+def test_optimize_dataset_kb_request_accepts_filter_key_list():
+    serializer = OptimizeDatasetKnowledgeBaseRequestSerializer(
+        data={
+            "name": "kb prompt",
+            "knowledge_base_filters": ["source", "document_type"],
+            "knowledge_base_metrics": {"coverage": "high"},
+        }
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["knowledge_base_filters"] == [
+        "source",
+        "document_type",
+    ]
+
+
+def test_optimize_dataset_kb_request_rejects_filter_object():
+    serializer = OptimizeDatasetKnowledgeBaseRequestSerializer(
+        data={"knowledge_base_filters": {"source": "docs"}}
+    )
+
+    assert not serializer.is_valid()
+    assert "knowledge_base_filters" in serializer.errors
+
+
 def test_empty_request_serializer_rejects_body_fields():
     serializer = ModelHubEmptyRequestSerializer(data={"page": 1})
 

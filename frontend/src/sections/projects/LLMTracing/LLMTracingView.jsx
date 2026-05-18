@@ -28,6 +28,7 @@ import { useAuthContext } from "src/auth/hooks";
 import { PERMISSIONS, RolePermission } from "src/utils/rolePermissionMapping";
 import FilterErrorBoundary from "src/components/ComplexFilter/FilterErrorBoundary";
 import { getRandomId, getUniqueColorPalette } from "src/utils/utils";
+import { buildApiFilterFromPanelRow } from "src/api/contracts/filter-contract";
 
 /**
  * Converts graph selections to filter format compatible with the backend API.
@@ -73,14 +74,14 @@ const convertGraphSelectionsToFilters = (
         ? [parseFloat(value) / 100, parseFloat(value2) / 100]
         : parseFloat(value) / 100;
 
-      filters.push({
-        column_id: String(evalItem.id),
-        filter_config: {
-          filter_type: "number",
-          filter_op: operator,
-          filter_value: filterValue,
-        },
-      });
+      filters.push(
+        buildApiFilterFromPanelRow({
+          field: String(evalItem.id),
+          fieldType: "number",
+          operator,
+          value: filterValue,
+        }),
+      );
       return;
     }
 
@@ -105,22 +106,21 @@ const convertGraphSelectionsToFilters = (
       // For score type, use the value directly
       filterValue = selectedValue;
     } else if (evalOutputType === "choices") {
-      // For choices type, use the selected choice as an text
-      filterValue = [selectedValue];
-      filterType = "array";
+      filterValue = selectedValue;
+      filterType = "categorical";
     } else {
       // Default: use value as-is
       filterValue = selectedValue;
     }
 
-    filters.push({
-      column_id: String(evalItem.id),
-      filter_config: {
-        filter_type: filterType,
-        filter_op: "equals",
-        filter_value: filterValue,
-      },
-    });
+    filters.push(
+      buildApiFilterFromPanelRow({
+        field: String(evalItem.id),
+        fieldType: filterType,
+        operator: "equals",
+        value: filterValue,
+      }),
+    );
   });
 
   return filters;
@@ -1969,13 +1969,13 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
 
     // Apply extraFilters unconditionally (independent of compare mode).
     setExtraFilters(
-      Array.isArray(activeViewConfig.extraFilters)
-        ? activeViewConfig.extraFilters
+      Array.isArray(activeViewConfig.extra_filters)
+        ? activeViewConfig.extra_filters
         : [],
     );
 
     // Compare state — always replace, regardless of current showCompare state.
-    const rawCompareFilters = activeViewConfig.compareFilters;
+    const rawCompareFilters = activeViewConfig.compare_filters;
     const nextCompareFilters = (
       Array.isArray(rawCompareFilters) ? rawCompareFilters : []
     ).map((f) => ({
@@ -1984,16 +1984,16 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     }));
     if (selectedTab === "trace") {
       setCompareTraceFilters(nextCompareFilters);
-      if (activeViewConfig.compareDateFilter !== undefined) {
-        setCompareTraceDateFilter(activeViewConfig.compareDateFilter);
+      if (activeViewConfig.compare_date_filter !== undefined) {
+        setCompareTraceDateFilter(activeViewConfig.compare_date_filter);
       }
     } else {
       setCompareSpansFilters(nextCompareFilters);
-      if (activeViewConfig.compareDateFilter !== undefined) {
-        setCompareSpansDateFilter(activeViewConfig.compareDateFilter);
+      if (activeViewConfig.compare_date_filter !== undefined) {
+        setCompareSpansDateFilter(activeViewConfig.compare_date_filter);
       }
     }
-    setCompareExtraFilters(activeViewConfig.compareExtraFilters || []);
+    setCompareExtraFilters(activeViewConfig.compare_extra_filters || []);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeViewConfig]);
@@ -2164,13 +2164,13 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
           setPrimaryTraceFilters(filtersWithIds);
         }
       }
-      if (saved.extraFilters?.length > 0) {
-        setExtraFiltersRaw(saved.extraFilters);
+      if (saved.extra_filters?.length > 0) {
+        setExtraFiltersRaw(saved.extra_filters);
         setFilterChipsSaved(true);
       }
       if (saved.showCompare) {
-        if (saved.compareFilters?.length > 0) {
-          const compareFiltersWithIds = saved.compareFilters.map((f) => ({
+        if (saved.compare_filters?.length > 0) {
+          const compareFiltersWithIds = saved.compare_filters.map((f) => ({
             ...f,
             id: f.id || getRandomId(),
           }));
@@ -2180,15 +2180,15 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
             setCompareTraceFilters(compareFiltersWithIds);
           }
         }
-        if (saved.compareDateFilter) {
+        if (saved.compare_date_filter) {
           if (saved.tabType === "spans") {
-            setCompareSpansDateFilter(saved.compareDateFilter);
+            setCompareSpansDateFilter(saved.compare_date_filter);
           } else {
-            setCompareTraceDateFilter(saved.compareDateFilter);
+            setCompareTraceDateFilter(saved.compare_date_filter);
           }
         }
-        if (saved.compareExtraFilters?.length > 0) {
-          setCompareExtraFiltersRaw(saved.compareExtraFilters);
+        if (saved.compare_extra_filters?.length > 0) {
+          setCompareExtraFiltersRaw(saved.compare_extra_filters);
         }
       }
     } catch {
@@ -2263,17 +2263,17 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
       filters: mapFilters(
         selectedTab === "trace" ? primaryTraceFilters : primarySpanFilters,
       ),
-      extraFilters: extraFilters || [],
+      extra_filters: extraFilters || [],
     };
     if (showCompare) {
-      config.compareFilters = mapFilters(
+      config.compare_filters = mapFilters(
         selectedTab === "trace" ? compareTraceFilters : compareSpansFilters,
       );
-      config.compareDateFilter =
+      config.compare_date_filter =
         selectedTab === "trace"
           ? compareTraceDateFilter
           : compareSpansDateFilter;
-      config.compareExtraFilters = compareExtraFilters || [];
+      config.compare_extra_filters = compareExtraFilters || [];
     }
     return config;
   }, [
@@ -2470,7 +2470,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
     if (!activeViewConfig) return false;
 
     const baselineDisplay = activeViewConfig.display || {};
-    const baselineExtraFilters = activeViewConfig.extraFilters || [];
+    const baselineExtraFilters = activeViewConfig.extra_filters || [];
     const baselineDateOption = baselineDisplay.dateFilter?.dateOption ?? null;
     const baselineColumnFilters = activeViewConfig.filters || [];
 
@@ -2987,7 +2987,7 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
                         ? primaryTraceFilters
                         : primarySpanFilters,
                     ),
-                    extraFilters: extraFilters || [],
+                    extra_filters: extraFilters || [],
                   }),
                 );
               } catch {
@@ -3059,17 +3059,17 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
                             ? primaryTraceFilters
                             : primarySpanFilters,
                         ),
-                        compareFilters: mapFilters(
+                        compare_filters: mapFilters(
                           selectedTab === "trace"
                             ? compareTraceFilters
                             : compareSpansFilters,
                         ),
-                        compareDateFilter:
+                        compare_date_filter:
                           selectedTab === "trace"
                             ? compareTraceDateFilter
                             : compareSpansDateFilter,
-                        extraFilters: extraFilters || [],
-                        compareExtraFilters: compareExtraFilters || [],
+                        extra_filters: extraFilters || [],
+                        compare_extra_filters: compareExtraFilters || [],
                       }),
                     );
                   } catch {

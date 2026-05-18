@@ -89,7 +89,7 @@ const UserDetailPageBody = () => {
     if (!view?.config) return;
     lastHydratedTabRef.current = activeTab;
     setActiveViewConfig(view.config);
-    const targetSubTab = view.config.sub_tab || view.config.subTab;
+    const targetSubTab = view.config.sub_tab;
     if (targetSubTab && targetSubTab !== subTab) setSubTab(targetSubTab);
   }, [activeTab, workspaceSavedViewsData, setActiveViewConfig, subTab]);
 

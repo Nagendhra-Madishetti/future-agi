@@ -315,17 +315,17 @@ class ExperimentRerunCellsSerializer(serializers.Serializer):
     source_ids = serializers.ListField(
         child=serializers.UUIDField(),
         required=False,
-        default=[],
+        default=list,
     )
     cells = RerunCellEntrySerializer(
         many=True,
         required=False,
-        default=[],
+        default=list,
     )
     user_eval_metric_ids = serializers.ListField(
         child=serializers.UUIDField(),
         required=False,
-        default=[],
+        default=list,
     )
     failed_only = serializers.BooleanField(
         required=False,

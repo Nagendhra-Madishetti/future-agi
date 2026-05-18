@@ -2,9 +2,11 @@
 Tests for SavedView (Tab System & Saved Views) — Phase 1A.
 """
 
+import importlib
 import uuid
 
 import pytest
+from django.apps import apps
 
 from tracer.models.saved_view import SavedView
 
@@ -25,6 +27,18 @@ def _filter(column_id="status", filter_type="text", filter_op="equals", value="E
 
 def _view_url(view, action=""):
     return f"{BASE_URL}/{view.id}/{action}?project_id={view.project_id}"
+
+
+def _legacy_filter():
+    return {
+        "columnId": "status",
+        "filterConfig": {
+            "colType": "SYSTEM_METRIC",
+            "filterType": "text",
+            "filterOp": "equals",
+            "filterValue": "ERROR",
+        },
+    }
 
 
 @pytest.fixture
@@ -313,6 +327,115 @@ class TestSavedViewCreate:
 
         assert response.status_code == 400
         assert "config" in str(response.json())
+
+    @pytest.mark.django_db
+    def test_create_accepts_canonical_compare_filter_keys(self, auth_client, project):
+        response = auth_client.post(
+            f"{BASE_URL}/",
+            {
+                "project_id": str(project.id),
+                "name": "Compare View",
+                "tab_type": "traces",
+                "config": {
+                    "extra_filters": [_filter("status")],
+                    "compare_filters": [
+                        _filter("latency_ms", "number", "greater_than", 1)
+                    ],
+                    "compare_date_filter": {"start": "2026-01-01", "end": "2026-01-02"},
+                    "compare_extra_filters": [],
+                },
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+        config = response.json()["result"]["config"]
+        assert config["extra_filters"][0]["column_id"] == "status"
+        assert "extraFilters" not in config
+
+    @pytest.mark.django_db
+    def test_create_rejects_legacy_saved_view_config_keys(self, auth_client, project):
+        response = auth_client.post(
+            f"{BASE_URL}/",
+            {
+                "project_id": str(project.id),
+                "name": "Legacy Config",
+                "tab_type": "traces",
+                "config": {"extraFilters": [_filter("status")]},
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "extraFilters" in str(response.json())
+
+    @pytest.mark.django_db
+    def test_create_rejects_legacy_user_view_filters_object(self, auth_client, project):
+        response = auth_client.post(
+            f"{BASE_URL}/",
+            {
+                "project_id": str(project.id),
+                "name": "Legacy User View",
+                "tab_type": "users",
+                "config": {
+                    "filters": {
+                        "extraFilters": [_filter("status")],
+                        "dateFilter": {"dateOption": "Last 7 days"},
+                    }
+                },
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "Filters must be a list" in str(response.json())
+
+    @pytest.mark.django_db
+    def test_create_accepts_canonical_user_view_config(self, auth_client, project):
+        response = auth_client.post(
+            f"{BASE_URL}/",
+            {
+                "project_id": str(project.id),
+                "name": "Users View",
+                "tab_type": "users",
+                "config": {
+                    "display": {"dateFilter": {"dateOption": "Last 7 days"}},
+                    "extra_filters": [_filter("status")],
+                },
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+        config = response.json()["result"]["config"]
+        assert config["extra_filters"][0]["column_id"] == "status"
+        assert config["display"]["dateFilter"]["dateOption"] == "Last 7 days"
+
+    @pytest.mark.django_db
+    def test_saved_view_config_key_migration_canonicalizes_existing_views(
+        self, saved_view
+    ):
+        migration = importlib.import_module(
+            "tracer.migrations.0079_rename_saved_view_config_keys"
+        )
+        saved_view.config = {
+            "subTab": "sessions",
+            "filters": {
+                "extraFilters": [_legacy_filter()],
+                "dateFilter": {"dateOption": "Last 7 days"},
+            },
+        }
+        saved_view.save(update_fields=["config"])
+
+        migration.rename_saved_view_config_keys(apps, None)
+
+        saved_view.refresh_from_db()
+        config = saved_view.config
+        assert config["sub_tab"] == "sessions"
+        assert "filters" not in config
+        assert config["display"]["dateFilter"]["dateOption"] == "Last 7 days"
+        assert config["extra_filters"][0]["column_id"] == "status"
+        assert config["extra_filters"][0]["filter_config"]["filter_op"] == "equals"
 
 
 class TestSavedViewRetrieve:

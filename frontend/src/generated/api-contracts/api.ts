@@ -638,6 +638,7 @@ import type {
   ModelHubApiKeysListParams,
   ModelHubDatasetOptimizationList200,
   ModelHubDatasetOptimizationListParams,
+  ModelHubDevelopsGetDatasetTableListParams,
   ModelHubDevelopsGetEvalStructureReadParams,
   ModelHubEmptyRequestApi,
   ModelHubErrorResponseApi,
@@ -28135,17 +28136,26 @@ export type modelHubDevelopsGetDatasetTableListResponseError = (modelHubDevelops
 
 export type modelHubDevelopsGetDatasetTableListResponse = (modelHubDevelopsGetDatasetTableListResponseSuccess | modelHubDevelopsGetDatasetTableListResponseError)
 
-export const getModelHubDevelopsGetDatasetTableListUrl = (datasetId: string,) => {
+export const getModelHubDevelopsGetDatasetTableListUrl = (datasetId: string,
+    params?: ModelHubDevelopsGetDatasetTableListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/develops/${datasetId}/get-dataset-table/`
+  return stringifiedParams.length > 0 ? `/model-hub/develops/${datasetId}/get-dataset-table/?${stringifiedParams}` : `/model-hub/develops/${datasetId}/get-dataset-table/`
 }
 
-export const modelHubDevelopsGetDatasetTableList = async (datasetId: string, options?: RequestInit): Promise<modelHubDevelopsGetDatasetTableListResponse> => {
+export const modelHubDevelopsGetDatasetTableList = async (datasetId: string,
+    params?: ModelHubDevelopsGetDatasetTableListParams, options?: RequestInit): Promise<modelHubDevelopsGetDatasetTableListResponse> => {
 
-  return apiMutator<modelHubDevelopsGetDatasetTableListResponse>(getModelHubDevelopsGetDatasetTableListUrl(datasetId),
+  return apiMutator<modelHubDevelopsGetDatasetTableListResponse>(getModelHubDevelopsGetDatasetTableListUrl(datasetId,params),
   {
     ...options,
     method: 'GET'

@@ -248,16 +248,16 @@ const ObservePage = React.memo(() => {
               JSON.stringify(activeConfig.display.dateFilter),
             );
           }
-          if (activeConfig?.compareFilters) {
+          if (activeConfig?.compare_filters) {
             params.set(
               compareFilterKey,
-              JSON.stringify(activeConfig.compareFilters),
+              JSON.stringify(activeConfig.compare_filters),
             );
           }
-          if (activeConfig?.compareDateFilter) {
+          if (activeConfig?.compare_date_filter) {
             params.set(
               compareDateKey,
-              JSON.stringify(activeConfig.compareDateFilter),
+              JSON.stringify(activeConfig.compare_date_filter),
             );
           }
         }

@@ -17598,6 +17598,27 @@ export const ModelHubDevelopsGetDatasetTableListParams = zod.object({
   "dataset_id": zod.string()
 })
 
+export const modelHubDevelopsGetDatasetTableListQueryFiltersDefault = `[]`;
+
+export const modelHubDevelopsGetDatasetTableListQuerySortDefault = `[]`;
+
+export const modelHubDevelopsGetDatasetTableListQuerySearchDefault = {  };
+export const modelHubDevelopsGetDatasetTableListQueryPageSizeDefault = 10;
+
+export const modelHubDevelopsGetDatasetTableListQueryCurrentPageIndexDefault = 0;
+export const modelHubDevelopsGetDatasetTableListQueryCurrentPageIndexMin = 0;
+
+export const modelHubDevelopsGetDatasetTableListQueryColumnConfigOnlyDefault = false;
+
+export const ModelHubDevelopsGetDatasetTableListQueryParams = zod.object({
+  "filters": zod.string().min(1).default(modelHubDevelopsGetDatasetTableListQueryFiltersDefault),
+  "sort": zod.string().min(1).default(modelHubDevelopsGetDatasetTableListQuerySortDefault),
+  "search": zod.string().default(modelHubDevelopsGetDatasetTableListQuerySearchDefault),
+  "page_size": zod.number().min(1).default(modelHubDevelopsGetDatasetTableListQueryPageSizeDefault),
+  "current_page_index": zod.number().min(modelHubDevelopsGetDatasetTableListQueryCurrentPageIndexMin).default(modelHubDevelopsGetDatasetTableListQueryCurrentPageIndexDefault),
+  "column_config_only": zod.boolean().default(modelHubDevelopsGetDatasetTableListQueryColumnConfigOnlyDefault)
+})
+
 
 
 
@@ -21338,6 +21359,8 @@ export const modelHubGetEvalLogsDetailsListQueryFiltersDefault = `[]`;
 
 export const modelHubGetEvalLogsDetailsListQuerySortDefault = `[]`;
 
+
+
 export const ModelHubGetEvalLogsDetailsListQueryParams = zod.object({
   "eval_template_id": zod.string().uuid(),
   "page_size": zod.number().min(1).default(modelHubGetEvalLogsDetailsListQueryPageSizeDefault),
@@ -21345,7 +21368,7 @@ export const ModelHubGetEvalLogsDetailsListQueryParams = zod.object({
   "source": zod.enum(['logs', 'feedback', 'eval_playground']).default(modelHubGetEvalLogsDetailsListQuerySourceDefault),
   "search": zod.string().default(modelHubGetEvalLogsDetailsListQuerySearchDefault),
   "filters": zod.string().min(1).default(modelHubGetEvalLogsDetailsListQueryFiltersDefault),
-  "sort": zod.string().default(modelHubGetEvalLogsDetailsListQuerySortDefault)
+  "sort": zod.string().min(1).default(modelHubGetEvalLogsDetailsListQuerySortDefault)
 })
 
 export const ModelHubGetEvalLogsDetailsListResponse = zod.object({
@@ -22338,14 +22361,13 @@ export const ModelHubOptimizeDatasetKbReadParams = zod.object({
 
 
 
+
 export const ModelHubOptimizeDatasetKbReadResponse = zod.object({
   "status": zod.boolean(),
   "result": zod.object({
   "name": zod.string().min(1),
   "prompt": zod.string(),
-  "knowledge_base_filters": zod.object({
-
-}).passthrough(),
+  "knowledge_base_filters": zod.array(zod.string().min(1)),
   "knowledge_base_metrics": zod.object({
 
 }).passthrough(),
@@ -22358,14 +22380,15 @@ export const ModelHubOptimizeDatasetKbReadResponse = zod.object({
 })
 
 
+
+export const modelHubOptimizeDatasetKnowledgeBaseCreateBodyKnowledgeBaseFiltersDefault = [];
+
 export const ModelHubOptimizeDatasetKnowledgeBaseCreateBody = zod.object({
   "name": zod.string().optional(),
   "knowledge_base_metrics": zod.object({
 
 }).passthrough().optional(),
-  "knowledge_base_filters": zod.object({
-
-}).passthrough().optional(),
+  "knowledge_base_filters": zod.array(zod.string().min(1)).default(modelHubOptimizeDatasetKnowledgeBaseCreateBodyKnowledgeBaseFiltersDefault),
   "prompt": zod.string().optional(),
   "variables": zod.object({
 

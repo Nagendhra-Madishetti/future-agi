@@ -11020,8 +11020,6 @@ export interface OptimizeDatasetKbApi {
   status?: OptimizeDatasetKbApiStatus;
 }
 
-export type OptimizeDatasetKnowledgeBaseDetailResultApiKnowledgeBaseFilters = { [key: string]: unknown };
-
 export type OptimizeDatasetKnowledgeBaseDetailResultApiKnowledgeBaseMetrics = { [key: string]: unknown };
 
 export type OptimizeDatasetKnowledgeBaseDetailResultApiVariables = { [key: string]: unknown };
@@ -11030,7 +11028,7 @@ export interface OptimizeDatasetKnowledgeBaseDetailResultApi {
   /** @minLength 1 */
   name: string;
   prompt: string;
-  knowledge_base_filters: OptimizeDatasetKnowledgeBaseDetailResultApiKnowledgeBaseFilters;
+  knowledge_base_filters: string[];
   knowledge_base_metrics: OptimizeDatasetKnowledgeBaseDetailResultApiKnowledgeBaseMetrics;
   variables: OptimizeDatasetKnowledgeBaseDetailResultApiVariables;
   /** @minLength 1 */
@@ -11045,14 +11043,12 @@ export interface OptimizeDatasetKnowledgeBaseDetailResponseApi {
 
 export type OptimizeDatasetKnowledgeBaseRequestApiKnowledgeBaseMetrics = { [key: string]: unknown };
 
-export type OptimizeDatasetKnowledgeBaseRequestApiKnowledgeBaseFilters = { [key: string]: unknown };
-
 export type OptimizeDatasetKnowledgeBaseRequestApiVariables = { [key: string]: unknown };
 
 export interface OptimizeDatasetKnowledgeBaseRequestApi {
   name?: string;
   knowledge_base_metrics?: OptimizeDatasetKnowledgeBaseRequestApiKnowledgeBaseMetrics;
-  knowledge_base_filters?: OptimizeDatasetKnowledgeBaseRequestApiKnowledgeBaseFilters;
+  knowledge_base_filters?: string[];
   prompt?: string;
   variables?: OptimizeDatasetKnowledgeBaseRequestApiVariables;
 }
@@ -21548,6 +21544,27 @@ export type ModelHubDatasetOptimizationList200 = {
   results: DatasetOptimizationListApi[];
 };
 
+export type ModelHubDevelopsGetDatasetTableListParams = {
+/**
+ * @minLength 1
+ */
+filters?: string;
+/**
+ * @minLength 1
+ */
+sort?: string;
+search?: string;
+/**
+ * @minimum 1
+ */
+page_size?: number;
+/**
+ * @minimum 0
+ */
+current_page_index?: number;
+column_config_only?: boolean;
+};
+
 export type ModelHubDevelopsGetEvalStructureReadParams = {
 eval_type: ModelHubDevelopsGetEvalStructureReadEvalType;
 };
@@ -21751,6 +21768,9 @@ search?: string;
  * @minLength 1
  */
 filters?: string;
+/**
+ * @minLength 1
+ */
 sort?: string;
 };
 

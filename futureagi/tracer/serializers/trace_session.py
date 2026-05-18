@@ -6,10 +6,8 @@ from tracer.serializers.filters import (
     ObserveGraphDataRequestSerializer,
     SortParamListQueryParamField,
     StrictInputSerializer,
-    filter_list_field,
     filter_list_query_param_field,
 )
-from tracer.utils.helper import validate_filters_helper, validate_sort_params_helper
 
 
 class TraceSessionSerializer(serializers.ModelSerializer):
@@ -20,19 +18,6 @@ class TraceSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = TraceSession
         fields = ["id", "project", "bookmarked", "name", "created_at"]
-
-
-class TraceSessionExportSerializer(serializers.Serializer):
-    filters = filter_list_field(required=False, default=[])
-    sort_params = serializers.ListField(
-        required=False, default=[], child=serializers.JSONField()
-    )
-
-    def validate_filters(self, value):
-        return validate_filters_helper(value)
-
-    def validate_sort_params(self, value):
-        return validate_sort_params_helper(value)
 
 
 class TraceSessionFilterValuesQuerySerializer(serializers.Serializer):

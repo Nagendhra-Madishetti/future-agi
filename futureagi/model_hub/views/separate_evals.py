@@ -494,14 +494,7 @@ class GetAPICallLogDetailsView(APIView):
             if new_filters:
                 row_data = apply_filters(row_data, new_filters)
 
-            # Parse sort from query params (sent as JSON string)
-            sort_param = request.query_params.get("sort", "[]")
-            try:
-                sort_config = json.loads(sort_param)
-                if not isinstance(sort_config, list):
-                    sort_config = []
-            except (json.JSONDecodeError, TypeError):
-                sort_config = []
+            sort_config = query["sort"]
             if sort_config and row_data and len(row_data) > 0:
                 for sort_item in sort_config:
                     column_id = sort_item.get("column_id")

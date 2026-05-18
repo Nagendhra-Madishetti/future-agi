@@ -37,10 +37,10 @@ class EvalListSerializer(serializers.Serializer):
         max_length=50, required=False, allow_null=True, allow_blank=True
     )
     eval_tags = serializers.ListField(
-        child=serializers.CharField(max_length=50), required=False, default=[]
+        child=serializers.CharField(max_length=50), required=False, default=list
     )
     use_cases = serializers.ListField(
-        child=serializers.CharField(max_length=100), required=False, default=[]
+        child=serializers.CharField(max_length=100), required=False, default=list
     )
 
 
@@ -56,7 +56,7 @@ class CustomEvalTemplateCreateSerializer(serializers.Serializer):
         required=False, allow_null=True, allow_blank=True
     )
     tags = serializers.ListField(
-        child=serializers.CharField(), required=False, default=[], allow_null=True
+        child=serializers.CharField(), required=False, default=list, allow_null=True
     )
     criteria = serializers.CharField(
         required=False, default="", allow_null=True, allow_blank=True, max_length=100000
@@ -65,10 +65,10 @@ class CustomEvalTemplateCreateSerializer(serializers.Serializer):
         choices=["Pass/Fail", "score", "choices"], default="Pass/Fail"
     )
     required_keys = serializers.ListField(child=serializers.CharField(), required=True)
-    config = serializers.DictField(default={})
+    config = serializers.DictField(default=dict)
     check_internet = serializers.BooleanField(default=False)
     choices = serializers.DictField(
-        child=serializers.CharField(), required=False, allow_null=True, default={}
+        child=serializers.CharField(), required=False, allow_null=True, default=dict
     )
     multi_choice = serializers.BooleanField(default=False)
     template_id = serializers.CharField(
@@ -233,8 +233,8 @@ class EvalPlayGroundSerializer(serializers.Serializer):
     )  # need this
     kb_id = serializers.UUIDField(required=False, allow_null=True)  # need this
     error_localizer = serializers.BooleanField(default=False)  # need this
-    config = serializers.JSONField(allow_null=True, required=False, default={})
-    params = serializers.JSONField(allow_null=True, required=False, default={})
+    config = serializers.JSONField(allow_null=True, required=False, default=dict)
+    params = serializers.JSONField(allow_null=True, required=False, default=dict)
     mapping = serializers.JSONField(allow_null=True, required=False)
     mapping_paths = serializers.JSONField(allow_null=True, required=False)
     input_data_types = serializers.JSONField(allow_null=True, required=False)
@@ -260,21 +260,21 @@ class UpdateEvalTemplateSerializer(serializers.Serializer):
     description = serializers.CharField(max_length=255, required=False, default="")
     criteria = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     eval_tags = serializers.ListField(
-        child=serializers.CharField(), required=False, default=[]
+        child=serializers.CharField(), required=False, default=list
     )
     multi_choice = serializers.BooleanField(default=False)
     function_eval = serializers.BooleanField(default=False)
     choices_map = serializers.DictField(
-        child=serializers.CharField(), required=False, allow_null=True, default={}
+        child=serializers.CharField(), required=False, allow_null=True, default=dict
     )
-    config = serializers.JSONField(default={})
+    config = serializers.JSONField(default=dict)
     model = serializers.CharField(max_length=100, required=False)
     check_internet = serializers.BooleanField(required=False, allow_null=True)
     name = serializers.CharField(
         max_length=255, required=False, allow_null=False, allow_blank=False
     )
     required_keys = serializers.ListField(
-        child=serializers.CharField(), required=False, default=[]
+        child=serializers.CharField(), required=False, default=list
     )
 
 
@@ -299,21 +299,21 @@ class TestEvalTemplateSerializer(serializers.Serializer):
         default="turing_large",
     )
     eval_tags = serializers.ListField(
-        child=serializers.CharField(), required=False, allow_empty=True, default=[]
+        child=serializers.CharField(), required=False, allow_empty=True, default=list
     )
     criteria = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     multi_choice = serializers.BooleanField(default=False)
     choices = serializers.DictField(
-        child=serializers.CharField(), required=False, allow_null=True, default={}
+        child=serializers.CharField(), required=False, allow_null=True, default=dict
     )
-    input_data_types = serializers.JSONField(required=False, default={})
+    input_data_types = serializers.JSONField(required=False, default=dict)
     name = serializers.CharField(max_length=255, required=True)
     description = serializers.CharField(
         max_length=255, required=False, allow_blank=True, allow_null=True, default=""
     )
     output_type = serializers.CharField(max_length=50, required=True)
     check_internet = serializers.BooleanField(default=False)
-    required_keys = serializers.ListField(default=[])
+    required_keys = serializers.ListField(default=list)
     template_type = serializers.CharField(default="")
     eval_type_id = serializers.CharField(
         max_length=100, required=False, allow_blank=True, allow_null=True

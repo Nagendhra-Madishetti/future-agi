@@ -69,9 +69,9 @@ class SavedViewDetailSerializer(serializers.ModelSerializer):
 
 FILTER_CONFIG_KEYS = (
     "filters",
-    "compareFilters",
-    "extraFilters",
-    "compareExtraFilters",
+    "compare_filters",
+    "extra_filters",
+    "compare_extra_filters",
 )
 SAVED_VIEW_CONFIG_KEYS = {
     "filters",
@@ -81,10 +81,10 @@ SAVED_VIEW_CONFIG_KEYS = {
     "widgets",
     "conversation_id",
     "sub_tab",
-    "compareFilters",
-    "compareDateFilter",
-    "extraFilters",
-    "compareExtraFilters",
+    "compare_filters",
+    "compare_date_filter",
+    "extra_filters",
+    "compare_extra_filters",
 }
 
 

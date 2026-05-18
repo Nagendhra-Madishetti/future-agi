@@ -25,6 +25,8 @@ from tracer.serializers.observation_span import (
 )
 from tracer.serializers.project import (
     ProjectGraphDataQuerySerializer,
+    ProjectUserGraphDataQuerySerializer,
+    ProjectUserGraphDataRequestSerializer,
     ProjectUserMetricsRequestSerializer,
     ProjectUsersAggregateGraphDataRequestSerializer,
     ProjectVersionExportSerializer,
@@ -690,13 +692,31 @@ class TestFilterSerializerContracts:
         assert not serializer.is_valid()
         assert "req_data_config" in serializer.errors
 
+    def test_project_user_graph_query_and_request_reject_legacy_aliases(self):
+        query_serializer = ProjectUserGraphDataQuerySerializer(
+            data={
+                "projectId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "endUserId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+            }
+        )
+        body_serializer = ProjectUserGraphDataRequestSerializer(
+            data={
+                "filterConfig": {},
+                "filters": [_span_attr_filter()],
+            }
+        )
+
+        assert not query_serializer.is_valid()
+        assert not body_serializer.is_valid()
+        assert "projectId" in query_serializer.errors
+        assert "endUserId" in query_serializer.errors
+        assert "filterConfig" in body_serializer.errors
+
     def test_fetch_graph_query_rejects_legacy_aliases(self):
         serializer = FetchGraphSerializer(
             data={
                 "projectId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
-                "reqDataConfig": json.dumps(
-                    {"id": "latency", "type": "SYSTEM_METRIC"}
-                ),
+                "reqDataConfig": json.dumps({"id": "latency", "type": "SYSTEM_METRIC"}),
                 "interval": "day",
             }
         )
@@ -717,6 +737,17 @@ class TestFilterSerializerContracts:
         assert not serializer.is_valid()
         assert "projectId" in serializer.errors
         assert "taskId" in serializer.errors
+
+    def test_custom_eval_config_list_query_rejects_ignored_filters(self):
+        serializer = CustomEvalConfigListQuerySerializer(
+            data={
+                "project_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "filters": json.dumps({}),
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "filters" in serializer.errors
 
     def test_observation_attribute_query_requires_project_filter_object(self):
         serializer = ObservationAttributeListQuerySerializer(
@@ -833,26 +864,38 @@ class TestFilterSerializerContracts:
                 "current_page_index": "2",
                 "source": "eval_playground",
                 "filters": json.dumps([_span_attr_filter()]),
+                "sort": json.dumps([{"column_id": "created_at", "type": "descending"}]),
             }
         )
 
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["current_page_index"] == 2
         assert serializer.validated_data["filters"][0]["column_id"] == "customer_tier"
+        assert serializer.validated_data["sort"][0]["type"] == "descending"
 
-    def test_eval_api_log_table_query_rejects_legacy_filter_and_query_aliases(self):
-        payload = _span_attr_filter()
-        payload["filterConfig"] = payload.pop("filter_config")
+    def test_eval_api_log_table_query_rejects_legacy_query_aliases(self):
         serializer = EvalApiLogTableQuerySerializer(
             data={
                 "evalTemplateId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
                 "currentPageIndex": "2",
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "evalTemplateId" in serializer.errors
+        assert "currentPageIndex" in serializer.errors
+
+    def test_eval_api_log_table_query_rejects_legacy_filter_aliases(self):
+        payload = _span_attr_filter()
+        payload["filterConfig"] = payload.pop("filter_config")
+        serializer = EvalApiLogTableQuerySerializer(
+            data={
+                "eval_template_id": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
                 "filters": json.dumps([payload]),
             }
         )
 
         assert not serializer.is_valid()
-        assert "eval_template_id" in serializer.errors
         assert "filters" in serializer.errors
 
     def test_eval_metric_query_and_request_use_canonical_filters(self):
@@ -871,6 +914,24 @@ class TestFilterSerializerContracts:
 
         assert query_serializer.is_valid(), query_serializer.errors
         assert body_serializer.is_valid(), body_serializer.errors
+
+    def test_eval_metric_query_and_request_reject_legacy_aliases(self):
+        query_serializer = EvalMetricQuerySerializer(
+            data={
+                "evalTemplateId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+            }
+        )
+        body_serializer = EvalMetricRequestSerializer(
+            data={
+                "evalTemplateId": "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+                "filters": [_span_attr_filter()],
+            }
+        )
+
+        assert not query_serializer.is_valid()
+        assert not body_serializer.is_valid()
+        assert "evalTemplateId" in query_serializer.errors
+        assert "evalTemplateId" in body_serializer.errors
 
     def test_trace_agent_graph_query_rejects_camel_case_project_id(self):
         serializer = TraceAgentGraphQuerySerializer(

@@ -292,14 +292,12 @@ const UsersView = ({
         showErrors,
         showNonAnnotated,
         hasEvalFilter,
+        dateFilter,
         visibleColumns,
         ...(columnState ? { columnState } : {}),
         ...(customColumns.length > 0 ? { customColumns } : {}),
       },
-      filters: {
-        extraFilters,
-        dateFilter,
-      },
+      extra_filters: extraFilters || [],
     };
   }, [
     columns,
@@ -462,7 +460,6 @@ const UsersView = ({
         return;
       }
       const display = config.display || {};
-      const filtersCfg = config.filters || {};
       if (display.cellHeight) setCellHeight(display.cellHeight);
       if (typeof display.showErrors === "boolean")
         setShowErrors(display.showErrors);
@@ -506,11 +503,11 @@ const UsersView = ({
           pendingColumnStateRef.current = display.columnState;
         }
       }
-      if (Array.isArray(filtersCfg.extraFilters)) {
-        setExtraFilters(filtersCfg.extraFilters);
+      if (Array.isArray(config.extra_filters)) {
+        setExtraFilters(config.extra_filters);
       }
-      if (filtersCfg.dateFilter) {
-        setDateFilter(filtersCfg.dateFilter);
+      if (display.dateFilter) {
+        setDateFilter(display.dateFilter);
       }
     },
     [
@@ -550,15 +547,14 @@ const UsersView = ({
   }, [savedViewApiRef, getConfig, applyConfig]);
 
   // "Save view" surfaces only on a custom saved-view tab when the live state
-  // diverges from its saved baseline. UsersView's config nests dateFilter
-  // inside `filters` (not `display` like LLMTracingView/SessionsView).
+  // diverges from its saved baseline. User saved-view metadata lives in
+  // `display`; filter lists are first-class top-level config keys.
   const canSaveView = useMemo(() => {
     if (!activeViewConfig) return false;
 
-    const baselineFilters = activeViewConfig.filters || {};
     const baselineDisplay = activeViewConfig.display || {};
-    const baselineExtraFilters = baselineFilters.extraFilters || [];
-    const baselineDateOption = baselineFilters.dateFilter?.dateOption ?? null;
+    const baselineExtraFilters = activeViewConfig.extra_filters || [];
+    const baselineDateOption = baselineDisplay.dateFilter?.dateOption ?? null;
 
     if (!filtersContentEqual(extraFilters, baselineExtraFilters)) return true;
     if ((dateFilter?.dateOption ?? null) !== baselineDateOption) return true;

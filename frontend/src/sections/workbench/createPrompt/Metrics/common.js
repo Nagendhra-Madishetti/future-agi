@@ -8,6 +8,7 @@ import { RENDERER_CONFIG } from "src/sections/projects/LLMTracing/Renderers/comm
 import { NameCell } from "src/sections/projects/LLMTracing/Renderers";
 import IPOPCell from "src/sections/projects/LLMTracing/Renderers/IPOPCell";
 import IPOPTooltipComponent from "src/sections/projects/LLMTracing/Renderers/IPOPTooltipComponent";
+import { buildApiFilterFromPanelRow } from "src/api/contracts/filter-contract";
 
 const LABEL_BG_COLORS = {
   [LABELS.PRODUCTION]: "green.o10",
@@ -118,86 +119,14 @@ export const normalizeFilters = (filters = []) => {
         filter.filterConfig?.filterValue !== ""
       );
     })
-    .map((filter) => {
-      const newFilter = { ...filter };
-      delete newFilter.id;
-      delete newFilter._meta;
-
-      // columnId is already in snake_case from the API
-
-      const filterConfig = { ...filter.filterConfig };
-
-      // Normalize number filters
-      if (filterConfig?.filterType === "number") {
-        let { filterValue } = filterConfig;
-        const filterOp = filterConfig.filterOp;
-
-        if (Array.isArray(filterValue)) {
-          const cleaned = filterValue
-            .filter((v) => v !== "" && v != null)
-            .map(Number);
-
-          if (["between", "not_between"].includes(filterOp)) {
-            filterValue = cleaned.length === 2 ? cleaned : null;
-          } else {
-            filterValue = cleaned.length > 0 ? cleaned[0] : null;
-          }
-        } else if (filterValue != null && filterValue !== "") {
-          filterValue = Number(filterValue);
-        } else {
-          filterValue = null;
-        }
-
-        filterConfig.filterValue = filterValue;
-      }
-
-      if (filterConfig?.filterType === "date") {
-        filterConfig.filterType = "datetime";
-
-        if (Array.isArray(filterConfig.filterValue)) {
-          const cleaned = filterConfig.filterValue.filter(
-            (v) => v !== "" && v != null,
-          );
-
-          if (
-            [
-              "equals",
-              "not_equals",
-              "greater_than",
-              "less_than",
-              "greater_than_or_equal",
-              "less_than_or_equal",
-            ].includes(filterConfig.filterOp)
-          ) {
-            filterConfig.filterValue = cleaned.length > 0 ? cleaned[0] : null;
-          } else if (
-            ["between", "not_between"].includes(filterConfig.filterOp)
-          ) {
-            filterConfig.filterValue = cleaned.length === 2 ? cleaned : null;
-          }
-        }
-      }
-
-      // Normalize boolean filters
-      if (filterConfig?.filterType === "boolean") {
-        if (filterConfig.filterValue === "true") {
-          filterConfig.filterValue = true;
-        } else if (filterConfig.filterValue === "false") {
-          filterConfig.filterValue = false;
-        } else {
-          filterConfig.filterValue = null;
-        }
-      }
-
-      return {
-        column_id: newFilter.columnId,
-        filter_config: {
-          filter_type: filterConfig.filterType,
-          filter_op: filterConfig.filterOp,
-          filter_value: filterConfig.filterValue,
-        },
-      };
-    });
+    .map((filter) =>
+      buildApiFilterFromPanelRow({
+        field: filter.columnId,
+        fieldType: filter.filterConfig.filterType,
+        operator: filter.filterConfig.filterOp,
+        value: filter.filterConfig.filterValue,
+      }),
+    );
 };
 
 // mapping col.name => filter type config

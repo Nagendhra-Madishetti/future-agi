@@ -7,10 +7,8 @@ from tracer.models.trace_session import TraceSession
 from tracer.serializers.filters import (
     SortParamListQueryParamField,
     StrictInputSerializer,
-    filter_list_field,
     filter_list_query_param_field,
 )
-from tracer.utils.helper import validate_filters_helper
 
 
 class TraceSerializer(serializers.ModelSerializer):
@@ -39,13 +37,6 @@ class TraceSerializer(serializers.ModelSerializer):
             "external_id",
             "tags",
         ]
-
-
-class TraceExportSerializer(serializers.Serializer):
-    filters = filter_list_field(required=False, default=[])
-
-    def validate_filters(self, value):
-        return validate_filters_helper(value)
 
 
 class CommaSeparatedStringListField(serializers.Field):

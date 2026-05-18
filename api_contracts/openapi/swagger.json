@@ -24552,7 +24552,54 @@
             "get": {
                 "operationId": "model-hub_develops_get-dataset-table_list",
                 "description": "",
-                "parameters": [],
+                "parameters": [
+                    {
+                        "name": "filters",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": "[]",
+                        "minLength": 1
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "default": {}
+                    },
+                    {
+                        "name": "page_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "minimum": 1
+                    },
+                    {
+                        "name": "current_page_index",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "minimum": 0
+                    },
+                    {
+                        "name": "column_config_only",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "",
@@ -30677,7 +30724,8 @@
                         "in": "query",
                         "required": false,
                         "type": "string",
-                        "default": "[]"
+                        "default": "[]",
+                        "minLength": 1
                     }
                 ],
                 "responses": {
@@ -91146,8 +91194,11 @@
                     "x-nullable": true
                 },
                 "knowledge_base_filters": {
-                    "title": "Knowledge base filters",
-                    "type": "object",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
                     "x-nullable": true
                 },
                 "knowledge_base_metrics": {
@@ -91203,8 +91254,12 @@
                     "type": "object"
                 },
                 "knowledge_base_filters": {
-                    "title": "Knowledge base filters",
-                    "type": "object"
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "default": []
                 },
                 "prompt": {
                     "title": "Prompt",

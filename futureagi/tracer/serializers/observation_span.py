@@ -9,10 +9,8 @@ from tracer.models.project_version import ProjectVersion
 from tracer.models.trace import Trace
 from tracer.serializers.filters import (
     StrictInputSerializer,
-    filter_list_field,
     filter_list_query_param_field,
 )
-from tracer.utils.helper import validate_filters_helper
 
 
 class ProjectScopeQueryParamField(serializers.CharField):
@@ -117,13 +115,6 @@ class ObservationSpanSerializer(serializers.ModelSerializer):
         if obj.span_attributes and obj.span_attributes != {}:
             return obj.span_attributes
         return obj.eval_attributes or {}
-
-
-class SpanExportSerializer(serializers.Serializer):
-    filters = filter_list_field(required=False, default=[])
-
-    def validate_filters(self, value):
-        return validate_filters_helper(value)
 
 
 class SpanExportQuerySerializer(StrictInputSerializer):

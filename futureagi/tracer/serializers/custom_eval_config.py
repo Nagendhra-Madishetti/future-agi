@@ -5,7 +5,7 @@ from model_hub.models.evals_metric import EvalTemplate
 from model_hub.utils.function_eval_params import normalize_eval_runtime_config
 from tracer.models.custom_eval_config import CustomEvalConfig
 from tracer.models.project import Project
-from tracer.serializers.filters import StrictInputSerializer, json_object_query_param_field
+from tracer.serializers.filters import StrictInputSerializer
 
 
 class CustomEvalConfigSerializer(serializers.ModelSerializer):
@@ -73,4 +73,3 @@ class GetCustomEvalTemplateSerializer(serializers.Serializer):
 class CustomEvalConfigListQuerySerializer(StrictInputSerializer):
     project_id = serializers.UUIDField(required=False)
     task_id = serializers.UUIDField(required=False)
-    filters = json_object_query_param_field(required=False, default=dict)

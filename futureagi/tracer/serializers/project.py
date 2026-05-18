@@ -69,11 +69,11 @@ class ProjectUsersAggregateGraphDataRequestSerializer(StrictInputSerializer):
     req_data_config = ObserveGraphMetricConfigField(required=False, default=dict)
 
 
-class ProjectUserGraphDataQuerySerializer(serializers.Serializer):
+class ProjectUserGraphDataQuerySerializer(StrictInputSerializer):
     project_id = serializers.UUIDField()
     end_user_id = serializers.UUIDField()
 
 
-class ProjectUserGraphDataRequestSerializer(serializers.Serializer):
+class ProjectUserGraphDataRequestSerializer(StrictInputSerializer):
     interval = serializers.CharField(required=False, default="hour", allow_blank=False)
     filters = filter_list_field(required=False, default=list)
