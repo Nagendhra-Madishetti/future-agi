@@ -61,8 +61,8 @@ from tracer.models.project import Project
 from tracer.models.trace import Trace
 
 session_logger = structlog.get_logger(__name__)
-from tracer.models.trace_session import TraceSession
 from tfc.utils.pagination import ExtendedPageNumberPagination
+from tracer.models.trace_session import TraceSession
 from tracer.serializers.eval_task import PaginationQuerySerializer
 from tracer.serializers.trace_session import (
     TraceSessionExportQuerySerializer,
@@ -1412,9 +1412,8 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         user_id_raw: Optional[str] = user_id_qp or None
         _remaining: List[Dict] = []
         for _f in filters:
-            _col = _f.get("column_id")
-            _cfg = _f.get("filter_config") or {}
-            _col_type = _cfg.get("col_type") or "NORMAL"
+            _col, _cfg = FilterEngine._normalize_filter_params(_f)
+            _col_type = _cfg.get("col_type", "NORMAL")
             if _col == "user_id" and _col_type == "NORMAL":
                 _val = _cfg.get("filter_value")
                 if isinstance(_val, list):

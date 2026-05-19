@@ -4786,9 +4786,8 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             org = getattr(request, "organization", None) or request.user.organization
         _resolved: List[Dict] = []
         for _f in filters:
-            _col = _f.get("column_id")
-            _cfg = _f.get("filter_config") or {}
-            _col_type = _cfg.get("col_type") or "NORMAL"
+            _col, _cfg = FilterEngine._normalize_filter_params(_f)
+            _col_type = _cfg.get("col_type", "NORMAL")
             if _col == "user_id" and _col_type == "NORMAL":
                 _val = _cfg.get("filter_value")
                 _vals = _val if isinstance(_val, list) else [_val]
