@@ -140,33 +140,71 @@ const useColumns = () =>
         id: "result",
         accessorKey: "result",
         header: "Result",
-        size: 100,
+        size: 130,
         cell: ({ getValue, row: tableRow }) => {
           const v = getValue();
+          const warnings = tableRow.original?.warnings || [];
+          const partial = warnings.find?.((w) => w?.type === "partial_input");
+          const partialBadge = partial ? (
+            <Tooltip
+              title={
+                partial.message ||
+                `Eval ran with some inputs empty: ${(partial.empty_keys || []).join(", ")}`
+              }
+            >
+              <Box
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  backgroundColor: "warning.lighter",
+                  color: "warning.dark",
+                  cursor: "help",
+                }}
+                data-testid="usage-partial-input-warning"
+              >
+                <Iconify
+                  icon="material-symbols:warning-rounded"
+                  width="14px"
+                  height="14px"
+                />
+              </Box>
+            </Tooltip>
+          ) : null;
+
           if (!v) {
             if (tableRow.original?.status === "error") {
               return (
-                <Chip
-                  label="Error"
-                  size="small"
-                  color="error"
-                  variant="outlined"
-                  sx={{ fontSize: "11px", height: 20 }}
-                />
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Chip
+                    label="Error"
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    sx={{ fontSize: "11px", height: 20 }}
+                  />
+                  {partialBadge}
+                </Box>
               );
             }
-            return null;
+            return partialBadge;
           }
           const isPassed = v === "Passed" || v === "Pass";
           const isFailed = v === "Failed" || v === "Fail";
           return (
-            <Chip
-              label={v}
-              size="small"
-              color={isPassed ? "success" : isFailed ? "error" : "default"}
-              variant="outlined"
-              sx={{ fontSize: "11px", height: 20 }}
-            />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Chip
+                label={v}
+                size="small"
+                color={isPassed ? "success" : isFailed ? "error" : "default"}
+                variant="outlined"
+                sx={{ fontSize: "11px", height: 20 }}
+              />
+              {partialBadge}
+            </Box>
           );
         },
       },
@@ -721,6 +759,80 @@ const EvalUsageTab = ({
   );
 };
 
+const PartialInputWarningDetails = ({ warnings }) => {
+  const partial = warnings?.find((warning) => warning?.type === "partial_input");
+  if (!partial) return null;
+
+  const emptyKeys = partial.empty_keys || [];
+  const filledKeys = partial.filled_keys || [];
+
+  return (
+    <Box
+      sx={{
+        mt: 1.5,
+        p: 1.25,
+        borderRadius: "8px",
+        border: "1px solid",
+        borderColor: "warning.light",
+        bgcolor: "warning.lighter",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
+        <Iconify
+          icon="material-symbols:warning-rounded"
+          width={14}
+          sx={{ color: "warning.dark", flexShrink: 0 }}
+        />
+        <Typography
+          variant="caption"
+          fontWeight={600}
+          sx={{ fontSize: "11px", color: "warning.dark" }}
+        >
+          Partial input warning
+        </Typography>
+      </Box>
+      <Typography
+        variant="body2"
+        sx={{ fontSize: "12px", color: "text.secondary", lineHeight: 1.5 }}
+      >
+        {partial.message ||
+          "Eval ran with some inputs empty. Result may be less reliable."}
+      </Typography>
+      {emptyKeys.length > 0 && (
+        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mt: 1 }}>
+          {emptyKeys.map((key) => (
+            <Chip
+              key={key}
+              label={`Missing: ${key}`}
+              size="small"
+              color="warning"
+              variant="outlined"
+              sx={{ fontSize: "10px", height: 18 }}
+            />
+          ))}
+        </Box>
+      )}
+      {filledKeys.length > 0 && (
+        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mt: 0.75 }}>
+          {filledKeys.map((key) => (
+            <Chip
+              key={key}
+              label={`Present: ${key}`}
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: "10px", height: 18 }}
+            />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+PartialInputWarningDetails.propTypes = {
+  warnings: PropTypes.arrayOf(PropTypes.object),
+};
+
 // ── Detail panel content with Formatted/JSON tabs + feedback ──
 const DetailPanelContent = ({
   row,
@@ -733,6 +845,7 @@ const DetailPanelContent = ({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const detail = row.detail || {};
+  const warnings = row.warnings || detail.warnings || [];
   const json = useMemo(() => JSON.stringify(detail, null, 2), [detail]);
 
   return (
@@ -875,6 +988,7 @@ const DetailPanelContent = ({
                       : "default"
                 }
               />
+              <PartialInputWarningDetails warnings={warnings} />
               <DetailRow
                 label="Source"
                 value={

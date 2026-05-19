@@ -148,22 +148,47 @@ const useColumns = () =>
         accessorKey: "result",
         header: "Result",
         size: 100,
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const v = getValue();
           if (!v) return null;
           const isPassed = v === "Passed" || v === "Pass";
           const isFailed = v === "Failed" || v === "Fail";
           const isError = v === "Error";
+          const warnings = row.original.warnings || [];
+          const partialWarning = warnings.find(
+            (w) => w?.type === "partial_input",
+          );
           return (
-            <Chip
-              label={v}
-              size="small"
-              color={
-                isPassed ? "success" : isFailed || isError ? "error" : "default"
-              }
-              variant="outlined"
-              sx={{ fontSize: "11px", height: 20 }}
-            />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Chip
+                label={v}
+                size="small"
+                color={
+                  isPassed
+                    ? "success"
+                    : isFailed || isError
+                      ? "error"
+                      : "default"
+                }
+                variant="outlined"
+                sx={{ fontSize: "11px", height: 20 }}
+              />
+              {partialWarning && (
+                <Tooltip
+                  title={
+                    partialWarning.message ||
+                    "Eval ran with some inputs empty. Result may be less reliable."
+                  }
+                  arrow
+                >
+                  <Iconify
+                    icon="solar:danger-triangle-bold"
+                    width={14}
+                    sx={{ color: "warning.main", cursor: "help" }}
+                  />
+                </Tooltip>
+              )}
+            </Box>
           );
         },
       },
@@ -562,10 +587,88 @@ ErrorDetails.propTypes = {
   rawError: PropTypes.string,
 };
 
+const PartialInputWarningDetails = ({ warnings }) => {
+  const partial = warnings?.find((warning) => warning?.type === "partial_input");
+  if (!partial) return null;
+
+  const emptyKeys = partial.empty_keys || [];
+  const filledKeys = partial.filled_keys || [];
+
+  return (
+    <Box
+      sx={(t) => ({
+        mt: 1.5,
+        p: 1.25,
+        borderRadius: "8px",
+        border: "1px solid",
+        borderColor: alpha(t.palette.warning.main, 0.3),
+        bgcolor: alpha(
+          t.palette.warning.main,
+          t.palette.mode === "dark" ? 0.1 : 0.05,
+        ),
+      })}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
+        <Iconify
+          icon="solar:danger-triangle-bold"
+          width={14}
+          sx={{ color: "warning.main", flexShrink: 0 }}
+        />
+        <Typography
+          variant="caption"
+          fontWeight={600}
+          sx={{ fontSize: "11px", color: "warning.dark" }}
+        >
+          Partial input warning
+        </Typography>
+      </Box>
+      <Typography
+        variant="body2"
+        sx={{ fontSize: "12px", color: "text.secondary", lineHeight: 1.5 }}
+      >
+        {partial.message ||
+          "Eval ran with some inputs empty. Result may be less reliable."}
+      </Typography>
+      {emptyKeys.length > 0 && (
+        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mt: 1 }}>
+          {emptyKeys.map((key) => (
+            <Chip
+              key={key}
+              label={`Missing: ${key}`}
+              size="small"
+              color="warning"
+              variant="outlined"
+              sx={{ fontSize: "10px", height: 18 }}
+            />
+          ))}
+        </Box>
+      )}
+      {filledKeys.length > 0 && (
+        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mt: 0.75 }}>
+          {filledKeys.map((key) => (
+            <Chip
+              key={key}
+              label={`Present: ${key}`}
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: "10px", height: 18 }}
+            />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+PartialInputWarningDetails.propTypes = {
+  warnings: PropTypes.arrayOf(PropTypes.object),
+};
+
 // ── Detail panel content (Formatted / JSON toggle) ──
 const DetailPanelContent = ({ row, isDark }) => {
   const [viewMode, setViewMode] = useState("formatted");
   const detail = row.detail || {};
+  const warnings = row.warnings || detail.warnings || [];
   const json = useMemo(() => JSON.stringify(detail, null, 2), [detail]);
   return (
     <Box
@@ -688,6 +791,7 @@ const DetailPanelContent = ({ row, isDark }) => {
                       : "default"
                 }
               />
+              <PartialInputWarningDetails warnings={warnings} />
               {detail.eval_name && (
                 <DetailRow label="Eval" value={detail.eval_name} />
               )}

@@ -89,6 +89,17 @@ def _run_evaluation(run_params, eval_model, eval_instance, runner):
     This is a simplified version of _run_evaluation from tracer/utils/eval.py
     It runs the evaluation and returns the result.
     """
+    # Apply the shared empty-input rules so the SDK path is consistent
+    # with dataset/playground/tracing. For custom evals the validator
+    # also fills any missing required_keys with "" so the engine's
+    # "Missing required key" check passes; the eval still runs with a
+    # partial_input warning attached to the response.
+    from model_hub.utils.eval_input_validation import validate_eval_inputs
+
+    partial_input_warning, run_params = validate_eval_inputs(
+        eval_model, run_params
+    )
+
     result = eval_instance.run(**run_params)
     output_type = eval_model.config.get("output", "score")
 
@@ -102,6 +113,8 @@ def _run_evaluation(run_params, eval_model, eval_instance, runner):
         "metadata": result.eval_results[0].get("metadata"),
         "output": output_type,
     }
+    if partial_input_warning:
+        response["warnings"] = [partial_input_warning]
 
     value = runner.format_output(result_data=response, eval_template=eval_model)
     response["value"] = value
