@@ -16,6 +16,7 @@ import {
 import { ShowComponent } from "src/components/show";
 import ErrorLocalizeCard from "src/sections/common/ErrorLocalizeCard";
 import CellMarkdown from "src/sections/common/CellMarkdown";
+import CompositeResultView from "src/sections/evals/components/CompositeResultView";
 import JsonCodeView from "src/components/code/json-code-view";
 import { PERMISSIONS, RolePermission } from "src/utils/rolePermissionMapping";
 import { useAuthContext } from "src/auth/hooks";
@@ -142,147 +143,10 @@ const LogDrawerRight = ({
               link syntax and renders as broken ``[]()`` artifacts.
             */}
             {output?.composite?.children?.length ? (
-              (() => {
-                // Compute whether to expose weight at all — if every child
-                // carries the same weight, the value is informationally
-                // useless to an end user and we suppress it. When weights
-                // differ, surface each child's share as a % so a non-
-                // technical reader sees "this metric counts more than that
-                // one" rather than the raw float.
-                const totalWeight = output.composite.children.reduce(
-                  (acc, c) => acc + (typeof c.weight === "number" ? c.weight : 0),
-                  0,
-                );
-                const uniqueWeights = new Set(
-                  output.composite.children.map((c) =>
-                    typeof c.weight === "number" ? c.weight : null,
-                  ),
-                );
-                const showWeight = uniqueWeights.size > 1 && totalWeight > 0;
-
-                return (
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                    {output.composite.children.map((child) => {
-                      const isFailed = child.status === "failed";
-                      const passLabel =
-                        child.output === "Passed" || child.output === true;
-                      const failLabel =
-                        child.output === "Failed" || child.output === false;
-                      let chipColor = "default";
-                      if (isFailed) chipColor = "error";
-                      else if (passLabel) chipColor = "success";
-                      else if (failLabel) chipColor = "error";
-
-                      // Score shown as 0–100% so end users see one consistent
-                      // scale across Pass/Fail (0 or 100), score (raw %), and
-                      // choices (mapped %). Raw float stays in the chip below
-                      // for power users via the `output` label.
-                      const scorePct =
-                        typeof child.score === "number"
-                          ? Math.round(child.score * 100)
-                          : null;
-                      const weightPct =
-                        showWeight && typeof child.weight === "number"
-                          ? Math.round((child.weight / totalWeight) * 100)
-                          : null;
-
-                      return (
-                        <Box
-                          key={child.child_id || child.order}
-                          sx={{
-                            border: `1px solid ${alpha(theme.palette.text.disabled, 0.2)}`,
-                            borderRadius: "6px",
-                            padding: "12px 14px",
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              gap: 1,
-                              mb: child.reason || child.error ? 1 : 0,
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                                flex: 1,
-                                minWidth: 0,
-                              }}
-                            >
-                              <Typography
-                                fontSize={13}
-                                fontWeight={600}
-                                sx={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {child.child_name}
-                              </Typography>
-                              {weightPct != null && (
-                                <Chip
-                                  size="small"
-                                  variant="outlined"
-                                  label={`counts ${weightPct}%`}
-                                  sx={{
-                                    height: 18,
-                                    fontSize: 10,
-                                    color: "text.secondary",
-                                    borderColor: (t) =>
-                                      alpha(t.palette.text.disabled, 0.4),
-                                  }}
-                                />
-                              )}
-                            </Box>
-                            <Chip
-                              size="small"
-                              label={
-                                isFailed
-                                  ? "error"
-                                  : passLabel
-                                    ? "Passed"
-                                    : failLabel
-                                      ? "Failed"
-                                      : scorePct != null
-                                        ? `${scorePct}%`
-                                        : String(child.status ?? "—")
-                              }
-                              color={chipColor}
-                              sx={{ textTransform: "capitalize" }}
-                            />
-                          </Box>
-                          {isFailed && child.error && (
-                            <Typography
-                              fontSize={12}
-                              color="error"
-                              sx={{ whiteSpace: "pre-wrap" }}
-                            >
-                              {child.error}
-                            </Typography>
-                          )}
-                          {!isFailed && child.reason && (
-                            <Typography
-                              fontSize={13}
-                              sx={{
-                                whiteSpace: "pre-wrap",
-                                color: "text.secondary",
-                                lineHeight: 1.55,
-                              }}
-                            >
-                              {child.reason}
-                            </Typography>
-                          )}
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                );
-              })()
+              // Reuse the shared CompositeResultView (same component the
+              // dataset experiment surface uses) so per-child eval cards
+              // look identical across every consumer.
+              <CompositeResultView compositeResult={output.composite} />
             ) : (
               <Typography fontWeight={400} fontSize={14} color="text.primary">
                 {typeof output.reason === "string" ? (

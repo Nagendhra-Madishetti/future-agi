@@ -4093,12 +4093,14 @@ def get_observation_spans(filters):
     # Process orphaned spans
     response_data.extend(_process_orphaned_spans(base_filters))
 
-    # TH-5228: attach eval_scores onto every entry in the tree. The CH path
-    # for trace detail (tracer/views/trace.py::_retrieve_clickhouse) already
-    # decorates each entry with `eval_scores`; the PG path was only setting
-    # `total_evals_count`, so the FE's Evals tab (which reads `eval_scores`)
-    # showed empty for every trace when CH wasn't available. Use a batched
-    # query keyed by trace_id to avoid N+1.
+    # TH-5228: attach eval_scores onto every entry in the tree. The CH trace
+    # detail path (tracer/views/trace.py::_retrieve_clickhouse) already
+    # decorates each entry with `eval_scores`; the PG path (used in local
+    # dev where ClickHouse host is not configured, and as the prod fallback
+    # when CH is unhealthy) only set `total_evals_count`. FE consumers
+    # (EvalsTabView.collectAllEvalsFromEntry) read the list, so the trace
+    # drawer's Evals tab rendered empty for every trace whenever the PG path
+    # served the request. One batched query keyed by trace_id, no N+1.
     if trace_id:
         try:
             _attach_eval_scores_to_tree(response_data, trace_id=trace_id)
@@ -4111,16 +4113,17 @@ def get_observation_spans(filters):
 
 
 def _attach_eval_scores_to_tree(response_data, trace_id):
-    """Decorate each entry in a span tree with `eval_scores` (PG path).
+    """Decorate each entry in a PG-served span tree with `eval_scores`.
 
     Mirrors the shape produced by `tracer/views/trace.py::_retrieve_clickhouse`
     so the FE consumer (EvalsTabView.collectAllEvalsFromEntry) sees identical
     data regardless of which backend served the trace detail.
 
-    One batched query against ``EvalLogger`` for the whole trace, joined to
-    ``CustomEvalConfig`` + ``EvalTemplate`` for the per-eval display name and
-    output_type. The result is pivoted into a per-span map and applied
-    recursively to every entry under ``response_data``.
+    Composite eval results carry per-child structured data under
+    ``EvalLogger.output_metadata.children``; this is shaped to match the
+    FE's shared ``CompositeResultView`` component so the trace drawer
+    renders per-child cards instead of markdown-parsing the flattened
+    ``[child] (score:..., weight:...)`` summary string.
     """
     if not response_data or not trace_id:
         return
@@ -4149,6 +4152,30 @@ def _attach_eval_scores_to_tree(response_data, trace_id):
         cec = el.custom_eval_config
         eval_template = cec.eval_template if cec and cec.eval_template_id else None
 
+        composite_payload = None
+        meta = el.output_metadata if isinstance(el.output_metadata, dict) else None
+        if meta and meta.get("composite_id"):
+            children_list = meta.get("children") or []
+            completed_children = sum(
+                1 for c in children_list if (c or {}).get("status") == "completed"
+            )
+            failed_children = sum(
+                1 for c in children_list if (c or {}).get("status") == "failed"
+            )
+            composite_payload = {
+                "composite_id": meta.get("composite_id"),
+                "aggregation_function": meta.get("aggregation_function"),
+                "aggregation_enabled": meta.get("aggregation_enabled"),
+                "aggregate_pass": meta.get("aggregate_pass"),
+                "aggregate_score": (
+                    float(el.output_float) if el.output_float is not None else None
+                ),
+                "children": children_list,
+                "total_children": len(children_list),
+                "completed_children": completed_children,
+                "failed_children": failed_children,
+            }
+
         eval_map.setdefault(span_id, []).append(
             {
                 "eval_config_id": str(cec.id) if cec else None,
@@ -4169,9 +4196,7 @@ def _attach_eval_scores_to_tree(response_data, trace_id):
                     else (el.output_bool if el.output_bool is not None else None)
                 ),
                 "explanation": el.eval_explanation or None,
-                # Identifiers the FE uses for the per-eval drill-down and
-                # error-localizer overlay. Match CH retrieve shape where it
-                # already exposes these (see trace.py CH path for parity).
+                "composite": composite_payload,
                 "eval_log_id": str(el.id),
                 "observation_span_id": span_id,
                 "custom_eval_config_id": str(cec.id) if cec else None,
