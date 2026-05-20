@@ -13,8 +13,13 @@ from simulate.serializers.simulator_agent import (
     SimulatorAgentSerializer,
     SimulatorAgentValidationErrorResponseSerializer,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import ApiErrorWithDetailsResponseSerializer
 from tfc.utils.pagination import ExtendedPageNumberPagination
+
+
+def _serializer_error_response(errors):
+    return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SimulatorAgentListView(APIView):
@@ -70,26 +75,22 @@ class CreateSimulatorAgentView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=SimulatorAgentSerializer,
+    @validated_request(
+        request_serializer=SimulatorAgentSerializer,
         responses={
             201: SimulatorAgentSerializer,
             400: SimulatorAgentValidationErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
+        serializer_context=lambda request: {"request": request},
+        validation_error_response=_serializer_error_response,
     )
     def post(self, request):
-        serializer = SimulatorAgentSerializer(
-            data=request.data, context={"request": request}
+        simulator_agent = request.validated_serializer.save()
+        return Response(
+            SimulatorAgentSerializer(simulator_agent).data,
+            status=status.HTTP_201_CREATED,
         )
-
-        if serializer.is_valid():
-            simulator_agent = serializer.save()
-            return Response(
-                SimulatorAgentSerializer(simulator_agent).data,
-                status=status.HTTP_201_CREATED,
-            )
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SimulatorAgentDetailView(APIView):
@@ -122,12 +123,16 @@ class EditSimulatorAgentView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=SimulatorAgentSerializer,
+    @validated_request(
+        request_serializer=SimulatorAgentSerializer,
         responses={
             200: SimulatorAgentSerializer,
             400: SimulatorAgentValidationErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
+        partial_request_validation=True,
+        serializer_context=lambda request: {"request": request},
+        validation_error_response=_serializer_error_response,
     )
     def put(self, request, agent_id):
         simulator_agent = get_object_or_404(
@@ -140,7 +145,7 @@ class EditSimulatorAgentView(APIView):
 
         serializer = SimulatorAgentSerializer(
             simulator_agent,
-            data=request.data,
+            data=request.validated_data,
             partial=True,
             context={"request": request},
         )

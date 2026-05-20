@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 390,
-    "direct_swagger_auto_schema_decorators": 367,
-    "doc_only_input_contract_decorators": 85,
+    "runtime_backed_validated_request_decorators": 392,
+    "direct_swagger_auto_schema_decorators": 365,
+    "doc_only_input_contract_decorators": 83,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -690,24 +690,6 @@
       "function": "post",
       "serializers": [
         "ScenarioAddColumnsRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/simulator_agent.py",
-      "line": 73,
-      "class": "CreateSimulatorAgentView",
-      "function": "post",
-      "serializers": [
-        "SimulatorAgentSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/simulator_agent.py",
-      "line": 125,
-      "class": "EditSimulatorAgentView",
-      "function": "put",
-      "serializers": [
-        "SimulatorAgentSerializer"
       ]
     },
     {
