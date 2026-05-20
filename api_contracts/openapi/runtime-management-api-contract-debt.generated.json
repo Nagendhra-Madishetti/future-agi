@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 376,
-    "direct_swagger_auto_schema_decorators": 381,
-    "doc_only_input_contract_decorators": 99,
+    "runtime_backed_validated_request_decorators": 378,
+    "direct_swagger_auto_schema_decorators": 379,
+    "doc_only_input_contract_decorators": 97,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -694,25 +694,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 3581,
-      "class": "TestExecutionColumnOrderView",
-      "function": "put",
-      "serializers": [
-        "TestExecutionColumnOrderSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/run_test.py",
-      "line": 3706,
-      "class": "TestExecutionBulkDeleteView",
-      "function": "post",
-      "serializers": [
-        "TestExecutionBulkDeleteSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/run_test.py",
-      "line": 3929,
+      "line": 3922,
       "class": "RunTestComponentsUpdateView",
       "function": "patch",
       "serializers": [
@@ -721,7 +703,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 4322,
+      "line": 4315,
       "class": "AddEvalConfigView",
       "function": "post",
       "serializers": [
@@ -730,7 +712,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 4659,
+      "line": 4652,
       "class": "UpdateEvalConfigView",
       "function": "post",
       "serializers": [
@@ -739,7 +721,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 5483,
+      "line": 5476,
       "class": "RunTestEvalSummaryView",
       "function": "get",
       "serializers": [
@@ -748,7 +730,7 @@
     },
     {
       "path": "futureagi/simulate/views/run_test.py",
-      "line": 5534,
+      "line": 5527,
       "class": "RunTestEvalSummaryComparisonView",
       "function": "get",
       "serializers": [

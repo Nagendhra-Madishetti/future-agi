@@ -3578,14 +3578,15 @@ class TestExecutionColumnOrderView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=TestExecutionColumnOrderSerializer,
+    @validated_request(
+        request_serializer=TestExecutionColumnOrderSerializer,
         responses={
             200: TestExecutionColumnOrderResponseSerializer,
             400: ApiTextErrorResponseSerializer,
             404: ErrorResponseSerializer,
             500: ErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def put(self, request, test_execution_id, *args, **kwargs):
         """Update column order for a test execution"""
@@ -3606,13 +3607,8 @@ class TestExecutionColumnOrderView(APIView):
                 run_test__deleted=False,
             )
 
-            # Validate request data
-            serializer = TestExecutionColumnOrderSerializer(data=request.data)
-            if not serializer.is_valid():
-                return self.gm.bad_request("Invalid column order data")
-
             # Update column order in execution_metadata
-            column_order = serializer.validated_data["column_order"]
+            column_order = request.validated_data["column_order"]
             test_execution.execution_metadata["column_order"] = column_order
             test_execution.save()
 
@@ -3703,14 +3699,15 @@ class TestExecutionBulkDeleteView(APIView):
         super().__init__(**kwargs)
         self._gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=TestExecutionBulkDeleteSerializer,
+    @validated_request(
+        request_serializer=TestExecutionBulkDeleteSerializer,
         responses={
             200: TestExecutionBulkDeleteResponseSerializer,
             400: ApiTextErrorResponseSerializer,
             404: ErrorResponseSerializer,
             500: ErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, run_test_id):
         """
@@ -3734,12 +3731,8 @@ class TestExecutionBulkDeleteView(APIView):
                 deleted=False,
             )
 
-            serializer = TestExecutionBulkDeleteSerializer(data=request.data)
-            if not serializer.is_valid():
-                return self._gm.bad_request("Invalid request data")
-
-            select_all = serializer.validated_data.get("select_all", False)
-            test_execution_ids = serializer.validated_data.get("test_execution_ids", [])
+            select_all = request.validated_data.get("select_all", False)
+            test_execution_ids = request.validated_data.get("test_execution_ids", [])
 
             # Get test executions to delete
             if select_all:

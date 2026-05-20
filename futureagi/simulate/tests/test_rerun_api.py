@@ -649,6 +649,45 @@ class TestTestExecutionRerunView:
 class TestTestExecutionRuntimeContracts:
     """Request validation tests for related test-execution actions."""
 
+    def test_column_order_update_accepts_canonical_body(
+        self, auth_client, test_execution
+    ):
+        url = f"/simulate/test-executions/{test_execution.id}/column-order/"
+        column_order = [
+            {"id": "status", "column_name": "Status", "visible": True},
+            {"id": "latency", "column_name": "Latency", "visible": False},
+        ]
+
+        response = auth_client.put(
+            url,
+            {"column_order": column_order},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["column_order"] == column_order
+        test_execution.refresh_from_db()
+        assert test_execution.execution_metadata["column_order"] == column_order
+
+    def test_column_order_update_rejects_unknown_fields(
+        self, auth_client, test_execution
+    ):
+        url = f"/simulate/test-executions/{test_execution.id}/column-order/"
+        response = auth_client.put(
+            url,
+            {
+                "column_order": [
+                    {"id": "status", "column_name": "Status", "visible": True}
+                ],
+                "legacy_extra": "should-not-be-accepted",
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["status"] is False
+        assert response.data["details"]["legacy_extra"] == ["Unknown field."]
+
     @patch("simulate.views.run_test.TestExecutor")
     def test_cancel_accepts_empty_body(
         self, mock_test_executor, auth_client, test_execution
@@ -899,6 +938,19 @@ class TestTestExecutionBulkDeleteView:
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_delete_rejects_unknown_fields(self, auth_client, run_test):
+        """Unknown request fields should fail before matching executions."""
+        url = self.URL_TEMPLATE.format(run_test.id)
+        response = auth_client.post(
+            url,
+            {"select_all": True, "legacy_extra": "should-not-be-accepted"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["status"] is False
+        assert response.data["details"]["legacy_extra"] == ["Unknown field."]
 
     def test_delete_nonexistent_run_test(self, auth_client):
         """Test delete with non-existent run_test_id."""

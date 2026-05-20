@@ -161,6 +161,16 @@ def test_test_execution_action_contracts_are_runtime_validated():
         ("futureagi/simulate/views/run_test.py", "TestExecutionCancelView", "post"),
         (
             "futureagi/simulate/views/run_test.py",
+            "TestExecutionColumnOrderView",
+            "put",
+        ),
+        (
+            "futureagi/simulate/views/run_test.py",
+            "TestExecutionBulkDeleteView",
+            "post",
+        ),
+        (
+            "futureagi/simulate/views/run_test.py",
             "RunTestEvalExplanationSummaryRefreshView",
             "post",
         ),
@@ -185,6 +195,6 @@ def test_test_execution_action_contracts_are_runtime_validated():
 
     assert doc_only_views.isdisjoint(migrated_views)
     assert (
-        report["app_wide_summary"]["runtime_backed_validated_request_decorators"] >= 376
+        report["app_wide_summary"]["runtime_backed_validated_request_decorators"] >= 378
     )
-    assert report["app_wide_summary"]["doc_only_input_contract_decorators"] <= 99
+    assert report["app_wide_summary"]["doc_only_input_contract_decorators"] <= 97
