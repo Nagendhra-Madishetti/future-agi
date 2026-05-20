@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 361,
-    "direct_swagger_auto_schema_decorators": 396,
-    "doc_only_input_contract_decorators": 114,
+    "runtime_backed_validated_request_decorators": 365,
+    "direct_swagger_auto_schema_decorators": 392,
+    "doc_only_input_contract_decorators": 110,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -465,42 +465,6 @@
       "function": "post",
       "serializers": [
         "MCPOAuthTokenRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/sdk/views/evaluations.py",
-      "line": 151,
-      "class": "StandaloneEvalView",
-      "function": "post",
-      "serializers": [
-        "SDKStandaloneEvalRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/sdk/views/evaluations.py",
-      "line": 231,
-      "class": "StandaloneEvalView_v2",
-      "function": "get",
-      "serializers": [
-        "SDKStandaloneEvalV2QuerySerializer"
-      ]
-    },
-    {
-      "path": "futureagi/sdk/views/evaluations.py",
-      "line": 304,
-      "class": "StandaloneEvalView_v2",
-      "function": "post",
-      "serializers": [
-        "SDKStandaloneEvalV2RequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/sdk/views/evaluations.py",
-      "line": 501,
-      "class": "ConfigureEvaluationsView",
-      "function": "post",
-      "serializers": [
-        "ConfigureEvaluationsRequestSerializer"
       ]
     },
     {
