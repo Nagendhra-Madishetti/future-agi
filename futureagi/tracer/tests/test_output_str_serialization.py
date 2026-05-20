@@ -1,14 +1,19 @@
-"""
-TH-4903: EvalLogger.output_str must hold valid JSON for dict values, not Python repr.
+"""TH-4903: categorical eval dicts route to typed EvalLogger columns.
 
-Five dispatchers in tracer/utils/eval.py share the same isinstance-chain for
-mapping eval `value` → EvalLogger field. Pre-fix, dict values fell through
-to the `str()` branch and were stored as Python repr (single-quoted), which
-the read path (PR #400) cannot parse cleanly. This test pins both the
-per-type dispatch behaviour and the presence of the fix at all 5 call sites.
+Pre-fix, dict eval results fell through to ``str(value)`` and were stored as
+Python repr in ``output_str`` — unparseable by the read path. Per Jaya's
+review on PR #415 the fix is type-aware: ``score`` → ``output_float``,
+``choice`` / ``choices`` → ``output_str_list``. ``output_str`` is only used
+as a defensive JSON fallback for shapes we don't recognise.
+
+The routing helper lives in ``tracer/utils/eval.py`` as
+``_route_dict_eval_value`` and is invoked from all 5 dispatchers. We mirror
+the helper here to avoid pulling in the Django-dependent eval.py module,
+and a source-level guard locks the call-site count at 5.
 """
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -16,94 +21,50 @@ import pytest
 EVAL_FILE = Path(__file__).parent.parent / "utils" / "eval.py"
 
 
-def _dispatch(value, logger_kwargs=None):
-    """Mirror of the type-dispatch block in tracer/utils/eval.py.
-
-    Five dispatchers share this exact block:
-        _run_evaluation, _execute_composite_on_span, _execute_evaluation,
-        _execute_evaluation_for_trace, _execute_evaluation_for_session.
-    The source-level guard `test_fix_present_at_all_five_sites` keeps this
-    mirror in sync with the real code.
-    """
-    if logger_kwargs is None:
-        logger_kwargs = {}
-    if value == "ERROR":
-        return logger_kwargs
-    logger_kwargs["value"] = value
-    if isinstance(value, bool):
-        logger_kwargs["output_bool"] = value
-    elif isinstance(value, float) or isinstance(value, int):
-        logger_kwargs["output_float"] = float(value)
-    elif value in ("Passed", "Failed"):
-        logger_kwargs["output_bool"] = value == "Passed"
-    elif isinstance(value, list):
-        logger_kwargs["output_str_list"] = value
-    elif isinstance(value, dict):
+def _route_dict_eval_value(value, logger_kwargs):
+    """Mirror of the helper in tracer/utils/eval.py. Kept in sync via the
+    ``test_helper_called_at_all_five_sites`` source-level guard."""
+    score = value.get("score")
+    choice = value.get("choice")
+    choices = value.get("choices")
+    if isinstance(score, (int, float)) and not isinstance(score, bool):
+        logger_kwargs["output_float"] = float(score)
+    if isinstance(choice, str):
+        logger_kwargs["output_str_list"] = [choice]
+    elif isinstance(choices, list):
+        logger_kwargs["output_str_list"] = choices
+    if not any(k in logger_kwargs for k in ("output_float", "output_str_list")):
         logger_kwargs["output_str"] = json.dumps(value)
-    else:
-        logger_kwargs["output_str"] = str(value)
-    return logger_kwargs
 
 
 @pytest.mark.parametrize(
-    "value,expected_key,expected_value",
+    "value,expected",
     [
-        # Dict — the TH-4903 case. Must be JSON, not Python repr.
-        ({"score": 0.5, "choice": "3"}, "output_str", '{"score": 0.5, "choice": "3"}'),
-        ({"score": 0.0, "choice": "1"}, "output_str", '{"score": 0.0, "choice": "1"}'),
-        # List → output_str_list (unchanged path)
-        ([1, 2, 3], "output_str_list", [1, 2, 3]),
-        (["never", "always"], "output_str_list", ["never", "always"]),
-        # Passed/Failed strings → output_bool
-        ("Passed", "output_bool", True),
-        ("Failed", "output_bool", False),
-        # Bool → output_bool
-        (True, "output_bool", True),
-        (False, "output_bool", False),
-        # Numeric → output_float
-        (42.5, "output_float", 42.5),
-        (5, "output_float", 5.0),
-        # Plain string → output_str (unchanged path)
-        ("custom string", "output_str", "custom string"),
+        # Single-choice categorical: score → output_float, choice → output_str_list
+        ({"score": 0.5, "choice": "Pass"},
+         {"output_float": 0.5, "output_str_list": ["Pass"]}),
+        # Multi-choice categorical
+        ({"score": 0.7, "choices": ["A", "B"]},
+         {"output_float": 0.7, "output_str_list": ["A", "B"]}),
+        # Pure score (no choice)
+        ({"score": 0.42}, {"output_float": 0.42}),
+        # Unknown shape — defensive JSON fallback (parseable, not Python repr)
+        ({"foo": "bar", "n": 1},
+         {"output_str": json.dumps({"foo": "bar", "n": 1})}),
     ],
 )
-def test_dispatch_per_type(value, expected_key, expected_value):
-    kwargs = _dispatch(value)
-    assert kwargs.get(expected_key) == expected_value
+def test_routing_per_dict_shape(value, expected):
+    kw = {}
+    _route_dict_eval_value(value, kw)
+    for key, want in expected.items():
+        assert kw[key] == want, f"{key}: expected {want}, got {kw.get(key)}"
+    leaked = set(kw) - set(expected)
+    assert not leaked, f"unexpected kwargs written: {leaked}"
 
 
-def test_dict_output_str_round_trips_through_json():
-    """Dict values must be valid JSON parseable by json.loads."""
-    kwargs = _dispatch({"score": 0.5, "choice": "3"})
-    parsed = json.loads(kwargs["output_str"])
-    assert parsed == {"score": 0.5, "choice": "3"}
-
-
-def test_dict_output_str_is_not_python_repr():
-    """Pre-fix shape was `{'score': 0.0, 'choice': '1'}` (single quotes). Lock that out."""
-    kwargs = _dispatch({"score": 0.0, "choice": "1"})
-    assert "'" not in kwargs["output_str"]
-    assert '"' in kwargs["output_str"]
-
-
-def test_error_value_is_skipped():
-    """Sentinel 'ERROR' value bypasses the type-dispatch entirely."""
-    kwargs = _dispatch("ERROR")
-    assert "output_str" not in kwargs
-    assert "value" not in kwargs
-
-
-def test_fix_present_at_all_five_sites():
-    """Source-level regression: the dict→json.dumps branch must exist at all 5 dispatchers.
-
-    If this count drops, someone removed the fix from one of:
-        _run_evaluation, _execute_composite_on_span, _execute_evaluation,
-        _execute_evaluation_for_trace, _execute_evaluation_for_session.
-    """
+def test_helper_called_at_all_five_sites():
+    """``_route_dict_eval_value`` must be invoked from all 5 dispatchers.
+    Matches call sites only (indented), not the def line."""
     src = EVAL_FILE.read_text()
-    needle = (
-        '        elif isinstance(value, dict):\n'
-        '            logger_kwargs["output_str"] = json.dumps(value)'
-    )
-    count = src.count(needle)
-    assert count == 5, f"Expected 5 occurrences of TH-4903 fix, found {count}"
+    calls = re.findall(r"^\s+_route_dict_eval_value\(", src, re.MULTILINE)
+    assert len(calls) == 5, f"expected 5 calls, found {len(calls)}"

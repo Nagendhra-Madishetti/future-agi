@@ -197,6 +197,27 @@ def _process_mapping(
     return parsed_mapping
 
 
+def _route_dict_eval_value(value, logger_kwargs):
+    """Categorical eval result {score, choice|choices} → typed EvalLogger columns.
+
+    Dicts only reach the eval-value dispatchers from formatting.py's `choices`
+    branch. Per Jaya's review on PR #415, route score → output_float and
+    choice(s) → output_str_list rather than stringifying. Fall back to JSON in
+    output_str only for shapes we don't recognise (defensive).
+    """
+    score = value.get("score")
+    choice = value.get("choice")
+    choices = value.get("choices")
+    if isinstance(score, (int, float)) and not isinstance(score, bool):
+        logger_kwargs["output_float"] = float(score)
+    if isinstance(choice, str):
+        logger_kwargs["output_str_list"] = [choice]
+    elif isinstance(choices, list):
+        logger_kwargs["output_str_list"] = choices
+    if not any(k in logger_kwargs for k in ("output_float", "output_str_list")):
+        logger_kwargs["output_str"] = json.dumps(value)
+
+
 def _run_evaluation(
     run_params,
     eval_model,
@@ -394,7 +415,7 @@ def _run_evaluation(
         elif isinstance(value, list):
             logger_kwargs["output_str_list"] = value
         elif isinstance(value, dict):
-            logger_kwargs["output_str"] = json.dumps(value)
+            _route_dict_eval_value(value, logger_kwargs)
         else:
             logger_kwargs["output_str"] = str(value)
 
@@ -514,7 +535,7 @@ def _execute_composite_on_span(
         elif isinstance(value, list):
             logger_kwargs["output_str_list"] = value
         elif isinstance(value, dict):
-            logger_kwargs["output_str"] = json.dumps(value)
+            _route_dict_eval_value(value, logger_kwargs)
         else:
             logger_kwargs["output_str"] = str(value)
 
@@ -739,7 +760,7 @@ def _execute_evaluation(
         elif isinstance(value, list):
             logger_kwargs["output_str_list"] = value
         elif isinstance(value, dict):
-            logger_kwargs["output_str"] = json.dumps(value)
+            _route_dict_eval_value(value, logger_kwargs)
         else:
             logger_kwargs["output_str"] = str(value)
 
@@ -1881,7 +1902,7 @@ def _execute_evaluation_for_trace(
         elif isinstance(value, list):
             logger_kwargs["output_str_list"] = value
         elif isinstance(value, dict):
-            logger_kwargs["output_str"] = json.dumps(value)
+            _route_dict_eval_value(value, logger_kwargs)
         else:
             logger_kwargs["output_str"] = str(value)
 
@@ -2053,7 +2074,7 @@ def _execute_evaluation_for_session(
         elif isinstance(value, list):
             logger_kwargs["output_str_list"] = value
         elif isinstance(value, dict):
-            logger_kwargs["output_str"] = json.dumps(value)
+            _route_dict_eval_value(value, logger_kwargs)
         else:
             logger_kwargs["output_str"] = str(value)
 
