@@ -29192,8 +29192,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/simulate/scenarios/{scenario_id}/add-columns/": {
       "post": {
         "operationId": "simulate_scenarios_add-columns_create",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": {
           "$ref": "#/definitions/ScenarioAddColumnsRequest"
         },

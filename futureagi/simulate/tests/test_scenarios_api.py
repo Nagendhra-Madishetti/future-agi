@@ -1434,6 +1434,53 @@ class TestAddScenarioColumnsView:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_add_columns_rejects_unknown_body_field(
+        self, auth_client, scenario, dataset_with_rows
+    ):
+        """Test add-columns rejects request fields outside the contract."""
+        scenario.dataset = dataset_with_rows
+        scenario.save()
+
+        payload = {
+            "columns": [
+                {"name": "col1", "data_type": "text", "description": "Column 1"}
+            ],
+            "legacy_extra": True,
+        }
+
+        response = auth_client.post(
+            f"/simulate/scenarios/{scenario.id}/add-columns/", payload, format="json"
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["details"]["legacy_extra"] == ["Unknown field."]
+
+    def test_add_columns_rejects_unknown_column_field(
+        self, auth_client, scenario, dataset_with_rows
+    ):
+        """Test add-columns rejects nested column fields outside the contract."""
+        scenario.dataset = dataset_with_rows
+        scenario.save()
+
+        payload = {
+            "columns": [
+                {
+                    "name": "col1",
+                    "data_type": "text",
+                    "description": "Column 1",
+                    "legacy_extra": True,
+                }
+            ]
+        }
+
+        response = auth_client.post(
+            f"/simulate/scenarios/{scenario.id}/add-columns/", payload, format="json"
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "legacy_extra" in str(response.json()["details"]["columns"])
+        assert "Unknown field." in str(response.json()["details"]["columns"])
+
     def test_add_columns_duplicate_names_in_request(
         self, auth_client, scenario, dataset_with_rows
     ):

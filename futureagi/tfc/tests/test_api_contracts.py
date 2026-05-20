@@ -78,6 +78,20 @@ class _SerializerAccessView(APIView):
         )
 
 
+class _SerializerContextView(APIView):
+    @validated_request(
+        request_serializer=_DemoRequestSerializer,
+        serializer_context=lambda request, item_id: {"item_id": item_id},
+    )
+    def post(self, request, item_id):
+        return Response(
+            {
+                "item_id": request.validated_serializer.context["item_id"],
+                "name": request.validated_data["name"],
+            }
+        )
+
+
 class _PartialRequestView(APIView):
     @validated_request(
         request_serializer=_DemoRequestSerializer,
@@ -253,6 +267,18 @@ def test_validated_request_exposes_validated_serializers_to_views():
         "request_serializer": "_DemoRequestSerializer",
         "query_serializer": "_DemoQuerySerializer",
     }
+
+
+def test_validated_request_passes_view_kwargs_to_serializer_context():
+    factory = APIRequestFactory()
+
+    response = _SerializerContextView.as_view()(
+        factory.post("/", {"name": "Future AGI"}),
+        item_id="item-123",
+    )
+
+    assert response.status_code == 200
+    assert response.data == {"item_id": "item-123", "name": "Future AGI"}
 
 
 def test_validated_request_supports_partial_body_validation():

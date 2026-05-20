@@ -157,6 +157,24 @@ def convert_personas_to_property_list(persona_ids):
     return property_list if property_list else None
 
 
+def _scenario_add_columns_serializer_context(request, scenario_id=None):
+    """Attach the scenario when available so duplicate-column validation stays in the serializer."""
+
+    organization = getattr(request, "organization", None) or request.user.organization
+    scenario = None
+    if scenario_id and organization:
+        scenario = (
+            Scenarios.objects.filter(
+                id=scenario_id,
+                organization=organization,
+                deleted=False,
+            )
+            .select_related("dataset")
+            .first()
+        )
+    return {"request": request, "scenario": scenario}
+
+
 class ScenariosListView(APIView):
     """
     API View to list scenarios for an organization with pagination and search
@@ -1063,17 +1081,19 @@ class AddScenarioColumnsView(APIView):
         super().__init__(**kwargs)
         self.gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         tags=["Scenarios"],
         operation_summary="Add columns to scenario",
         operation_description="Adds new columns to a scenario's dataset via Temporal workflow. Returns 202 Accepted.",
-        request_body=ScenarioAddColumnsRequestSerializer,
+        request_serializer=ScenarioAddColumnsRequestSerializer,
         responses={
             202: ScenarioAddColumnsResponseSerializer,
             400: ScenarioErrorResponseSerializer,
             404: ScenarioErrorResponseSerializer,
             500: ScenarioErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
+        serializer_context=_scenario_add_columns_serializer_context,
     )
     def post(self, request, scenario_id, *args, **kwargs):
         """
@@ -1121,17 +1141,7 @@ class AddScenarioColumnsView(APIView):
                     "Scenario does not have an associated dataset."
                 )
 
-            # Phase 0.2: pass scenario via context so serializer validates duplicates
-            serializer = ScenarioAddColumnsRequestSerializer(
-                data=request.data,
-                context={"request": request, "scenario": scenario},
-            )
-
-            if not serializer.is_valid():
-                return self.gm.bad_request(serializer.errors)
-
-            validated_data = serializer.validated_data
-            columns_info = validated_data["columns"]
+            columns_info = request.validated_data["columns"]
 
             # Get the dataset
             dataset = scenario.dataset

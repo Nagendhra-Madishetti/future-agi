@@ -1,4 +1,5 @@
 from functools import wraps
+from inspect import Parameter, signature
 
 import structlog
 from django.conf import settings
@@ -189,11 +190,53 @@ def _request_from_call(args):
     raise TypeError("validated_request could not locate a DRF request argument.")
 
 
-def _serializer_context(serializer_context, request):
+def _view_args_from_call(args):
+    """Return URL positional args without the view instance or request object."""
+
+    if args and hasattr(args[0], "method") and hasattr(args[0], "data"):
+        return args[1:]
+    if len(args) >= 2 and hasattr(args[1], "method") and hasattr(args[1], "data"):
+        return args[2:]
+    return ()
+
+
+def _serializer_context(serializer_context, request, view_args=(), view_kwargs=None):
     if serializer_context is None:
         return None
     if callable(serializer_context):
-        return serializer_context(request)
+        view_kwargs = view_kwargs or {}
+        try:
+            context_signature = signature(serializer_context)
+        except (TypeError, ValueError):
+            return serializer_context(request)
+
+        parameters = context_signature.parameters
+        accepts_var_args = any(
+            parameter.kind == Parameter.VAR_POSITIONAL
+            for parameter in parameters.values()
+        )
+        accepts_var_kwargs = any(
+            parameter.kind == Parameter.VAR_KEYWORD for parameter in parameters.values()
+        )
+        matched_kwargs = (
+            dict(view_kwargs)
+            if accepts_var_kwargs
+            else {key: value for key, value in view_kwargs.items() if key in parameters}
+        )
+        accepts_view_args = (
+            accepts_var_args
+            or sum(
+                1
+                for parameter in parameters.values()
+                if parameter.kind
+                in (Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
+            )
+            > 1
+        )
+
+        if accepts_view_args:
+            return serializer_context(request, *view_args, **matched_kwargs)
+        return serializer_context(request, **matched_kwargs)
     return serializer_context
 
 
@@ -244,7 +287,12 @@ def validated_request(
             request.validated_serializer = None
             request.validated_query_serializer = None
             gm = GeneralMethods(request=request)
-            context = _serializer_context(serializer_context, request)
+            context = _serializer_context(
+                serializer_context,
+                request,
+                _view_args_from_call(args),
+                kwargs,
+            )
 
             if query_serializer is not None:
                 query_data = _query_params_without_framework_params(
@@ -373,7 +421,7 @@ def validated_api_request(
             request.validated_serializer = None
             request.validated_query_serializer = None
             gm = GeneralMethods(request=request)
-            context = _serializer_context(serializer_context, request)
+            context = _serializer_context(serializer_context, request, args, kwargs)
 
             if query_serializer is not None:
                 query_data = _query_params_without_framework_params(
