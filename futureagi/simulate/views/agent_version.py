@@ -105,14 +105,15 @@ class CreateAgentVersionView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=AgentVersionCreateRequestSerializer,
+    @validated_request(
+        request_serializer=AgentVersionCreateRequestSerializer,
         responses={
             201: AgentVersionCreateResponseSerializer,
             400: ApiErrorWithDetailsResponseSerializer,
             404: ApiErrorWithDetailsResponseSerializer,
             500: ApiErrorWithDetailsResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, agent_id, *args, **kwargs):
         """
@@ -125,19 +126,7 @@ class CreateAgentVersionView(APIView):
                 or request.user.organization,
             )
 
-            # Validate request through request serializer
-            req_serializer = AgentVersionCreateRequestSerializer(data=request.data)
-            if not req_serializer.is_valid():
-                return Response(
-                    build_error_envelope(
-                        "Invalid data for agent update",
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        details=req_serializer.errors,
-                    ),
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            validated = req_serializer.validated_data
+            validated = request.validated_data
             commit_message = validated.get("commit_message", "")
             observability_enabled = validated.get("observability_enabled", False)
 

@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 389,
-    "direct_swagger_auto_schema_decorators": 368,
-    "doc_only_input_contract_decorators": 86,
+    "runtime_backed_validated_request_decorators": 390,
+    "direct_swagger_auto_schema_decorators": 367,
+    "doc_only_input_contract_decorators": 85,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -465,15 +465,6 @@
       "function": "post",
       "serializers": [
         "MCPOAuthTokenRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/agent_version.py",
-      "line": 108,
-      "class": "CreateAgentVersionView",
-      "function": "post",
-      "serializers": [
-        "AgentVersionCreateRequestSerializer"
       ]
     },
     {

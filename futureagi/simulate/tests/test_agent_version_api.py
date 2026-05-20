@@ -181,6 +181,20 @@ class TestCreateAgentVersion:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_rejects_unknown_body_field(
+        self, auth_client, agent_definition, agent_version
+    ):
+        response = auth_client.post(
+            _url(agent_definition.id, "create/"),
+            {"commit_message": "Updated prompts", "legacy_extra": "ignore me"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        data = response.json()
+        assert data["status"] is False
+        assert data["details"]["legacy_extra"] == ["Unknown field."]
+
     def test_unauthenticated(self, api_client, agent_definition):
         response = api_client.post(
             _url(agent_definition.id, "create/"),
