@@ -14,12 +14,12 @@ import type {
   APICallCountResponseApi,
   APICallTypeListResponseApi,
   APIKeyBulkResponseApi,
-  AWSMarketplaceLaunchRequestApi,
   AWSMarketplaceSignupRequestApi,
   AWSMarketplaceSignupResponseApi,
   AcceptInvitationPreviewResponseApi,
   AcceptInvitationRequestApi,
   AccountsAccessTokenResponseApi,
+  AccountsAwsMarketplaceLaunchSoftwareCreateBody,
   AccountsAwsMarketplaceVerifyTokenCreateBody,
   AccountsBulkUserMutationItemApi,
   AccountsDirectMessageResponseApi,
@@ -269,10 +269,9 @@ import type {
   CreateEmptyDatasetRequestApi,
   CreateLinearIssueApi,
   CreateLinearIssueResponseApi,
-  CreateMemberApi,
   CreateNodeApi,
   CreateNodeConnectionApi,
-  CreatePromptSimulationApi,
+  CreatePromptSimulationRequestApi,
   CreateReplaySessionApi,
   CreateRunTestApi,
   CreateScoreApi,
@@ -458,6 +457,7 @@ import type {
   ExperimentV2DetailResponseApi,
   ExperimentWorkflowResponseApi,
   ExperimentsTableApi,
+  ExperimentsTableUpdateApi,
   ExtractEntitiesRequestApi,
   ExtractJsonColumnRequestApi,
   FalconAiFilesUploadCreateBody,
@@ -1049,6 +1049,7 @@ import type {
   TOTPDisableResponseApi,
   TOTPSetupResponseApi,
   TTSVoiceApi,
+  TeamCreateRequestApi,
   TeamCreateResponseApi,
   TeamRemoveResponseApi,
   TeamUsersResponseApi,
@@ -1275,7 +1276,6 @@ import type {
   UserChecksResponseApi,
   UserCodeExampleResponseApi,
   UserCreateApi,
-  UserEvalApi,
   UserEvalMutationRequestApi,
   UserEvalUpdateRequestApi,
   UserFullNameUpdateRequestApi,
@@ -2586,15 +2586,25 @@ export const getAccountsAwsMarketplaceLaunchSoftwareCreateUrl = () => {
 and redirects appropriately.
  * @summary Handle "Launch Software" action from AWS Marketplace
  */
-export const accountsAwsMarketplaceLaunchSoftwareCreate = async (aWSMarketplaceLaunchRequestApi: AWSMarketplaceLaunchRequestApi, options?: RequestInit): Promise<accountsAwsMarketplaceLaunchSoftwareCreateResponse> => {
+export const accountsAwsMarketplaceLaunchSoftwareCreate = async (accountsAwsMarketplaceLaunchSoftwareCreateBody?: AccountsAwsMarketplaceLaunchSoftwareCreateBody, options?: RequestInit): Promise<accountsAwsMarketplaceLaunchSoftwareCreateResponse> => {
+    const formUrlEncoded = new URLSearchParams();
+if(accountsAwsMarketplaceLaunchSoftwareCreateBody?.['x-amzn-marketplace-token'] !== undefined) {
+ formUrlEncoded.append(`x-amzn-marketplace-token`, accountsAwsMarketplaceLaunchSoftwareCreateBody['x-amzn-marketplace-token']);
+ }
+if(accountsAwsMarketplaceLaunchSoftwareCreateBody?.['x-amzn-marketplace-product-id'] !== undefined) {
+ formUrlEncoded.append(`x-amzn-marketplace-product-id`, accountsAwsMarketplaceLaunchSoftwareCreateBody['x-amzn-marketplace-product-id']);
+ }
+if(accountsAwsMarketplaceLaunchSoftwareCreateBody?.['x-amzn-marketplace-agreement-id'] !== undefined) {
+ formUrlEncoded.append(`x-amzn-marketplace-agreement-id`, accountsAwsMarketplaceLaunchSoftwareCreateBody['x-amzn-marketplace-agreement-id']);
+ }
 
   return apiMutator<accountsAwsMarketplaceLaunchSoftwareCreateResponse>(getAccountsAwsMarketplaceLaunchSoftwareCreateUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      aWSMarketplaceLaunchRequestApi,)
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...options?.headers },
+    body:
+      formUrlEncoded,
   }
 );}
 
@@ -5964,7 +5974,7 @@ export const getAccountsTeamUsersCreateUrl = (memberId: string,) => {
 }
 
 export const accountsTeamUsersCreate = async (memberId: string,
-    createMemberApi: CreateMemberApi, options?: RequestInit): Promise<accountsTeamUsersCreateResponse> => {
+    teamCreateRequestApi: TeamCreateRequestApi, options?: RequestInit): Promise<accountsTeamUsersCreateResponse> => {
 
   return apiMutator<accountsTeamUsersCreateResponse>(getAccountsTeamUsersCreateUrl(memberId),
   {
@@ -5972,7 +5982,7 @@ export const accountsTeamUsersCreate = async (memberId: string,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      createMemberApi,)
+      teamCreateRequestApi,)
   }
 );}
 
@@ -36281,7 +36291,7 @@ export const getModelHubExperimentsUpdateUrl = () => {
   return `/model-hub/experiments/`
 }
 
-export const modelHubExperimentsUpdate = async (experimentsTableApi: ExperimentsTableApi, options?: RequestInit): Promise<modelHubExperimentsUpdateResponse> => {
+export const modelHubExperimentsUpdate = async (experimentsTableUpdateApi: ExperimentsTableUpdateApi, options?: RequestInit): Promise<modelHubExperimentsUpdateResponse> => {
 
   return apiMutator<modelHubExperimentsUpdateResponse>(getModelHubExperimentsUpdateUrl(),
   {
@@ -36289,7 +36299,7 @@ export const modelHubExperimentsUpdate = async (experimentsTableApi: Experiments
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      experimentsTableApi,)
+      experimentsTableUpdateApi,)
   }
 );}
 
@@ -38179,7 +38189,7 @@ export const getModelHubExperimentsAddEvalCreateUrl = (experimentId: string,) =>
 }
 
 export const modelHubExperimentsAddEvalCreate = async (experimentId: string,
-    userEvalApi: UserEvalApi, options?: RequestInit): Promise<modelHubExperimentsAddEvalCreateResponse> => {
+    userEvalMutationRequestApi: UserEvalMutationRequestApi, options?: RequestInit): Promise<modelHubExperimentsAddEvalCreateResponse> => {
 
   return apiMutator<modelHubExperimentsAddEvalCreateResponse>(getModelHubExperimentsAddEvalCreateUrl(experimentId),
   {
@@ -38187,7 +38197,7 @@ export const modelHubExperimentsAddEvalCreate = async (experimentId: string,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      userEvalApi,)
+      userEvalMutationRequestApi,)
   }
 );}
 
@@ -53285,7 +53295,7 @@ export const simulateApiPersonasDelete = async (id: string, options?: RequestIni
 
 
 export type simulateApiPersonasDuplicateResponse201 = {
-  data: PersonaDuplicateRequestApi
+  data: PersonaDuplicateResponseApi
   status: 201
 }
 
@@ -54259,7 +54269,7 @@ export const getSimulatePromptTemplatesSimulationsCreateUrl = (promptTemplateId:
  * @summary Create a new prompt-based simulation run.
  */
 export const simulatePromptTemplatesSimulationsCreate = async (promptTemplateId: string,
-    createPromptSimulationApi: CreatePromptSimulationApi, options?: RequestInit): Promise<simulatePromptTemplatesSimulationsCreateResponse> => {
+    createPromptSimulationRequestApi: CreatePromptSimulationRequestApi, options?: RequestInit): Promise<simulatePromptTemplatesSimulationsCreateResponse> => {
 
   return apiMutator<simulatePromptTemplatesSimulationsCreateResponse>(getSimulatePromptTemplatesSimulationsCreateUrl(promptTemplateId),
   {
@@ -54267,7 +54277,7 @@ export const simulatePromptTemplatesSimulationsCreate = async (promptTemplateId:
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      createPromptSimulationApi,)
+      createPromptSimulationRequestApi,)
   }
 );}
 

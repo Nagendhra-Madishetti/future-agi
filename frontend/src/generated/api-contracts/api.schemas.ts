@@ -347,11 +347,6 @@ export interface SOSLoginApi {
   email: string;
 }
 
-export interface AWSMarketplaceLaunchRequestApi {
-  /** @minLength 1 */
-  x_amzn_marketplace_token: string;
-}
-
 export interface AWSMarketplaceSignupRequestApi {
   /** @minLength 1 */
   onboarding_token: string;
@@ -1062,6 +1057,14 @@ export interface TeamUsersResponseApi {
   result: TeamUsersResultApi;
 }
 
+export interface TeamWorkspaceInputApi {
+  /** @maxLength 255 */
+  name?: string;
+  /** @maxLength 255 */
+  display_name?: string;
+  description?: string;
+}
+
 export type CreateMemberApiRole = typeof CreateMemberApiRole[keyof typeof CreateMemberApiRole];
 
 
@@ -1098,6 +1101,13 @@ export interface CreateMemberApi {
      * @maxLength 255
      */
   name: string;
+}
+
+export interface TeamCreateRequestApi {
+  /** @maxLength 255 */
+  org_name?: string;
+  workspace?: TeamWorkspaceInputApi;
+  members?: CreateMemberApi[];
 }
 
 export interface TeamCreateErrorItemApi {
@@ -9921,6 +9931,22 @@ export interface ExperimentStringResultResponseApi {
   result: string;
 }
 
+export type ExperimentsTableUpdateApiPromptConfig = { [key: string]: unknown };
+
+export interface ExperimentsTableUpdateApi {
+  experiment_id: string;
+  re_run?: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name: string;
+  dataset_id: string;
+  prompt_config?: ExperimentsTableUpdateApiPromptConfig;
+  user_eval_template_ids?: string[];
+  column_id: string;
+}
+
 export type ExperimentListApiStatus = typeof ExperimentListApiStatus[keyof typeof ExperimentListApiStatus];
 
 
@@ -10561,32 +10587,6 @@ export interface ExperimentStopResultApi {
 export interface ExperimentStopResponseApi {
   status: boolean;
   result: ExperimentStopResultApi;
-}
-
-export type UserEvalApiConfig = { [key: string]: unknown };
-
-export type UserEvalApiCompositeWeightOverrides = { [key: string]: unknown };
-
-export interface UserEvalApi {
-  /**
-     * @minLength 1
-     * @maxLength 50
-     */
-  name: string;
-  /**
-     * @minLength 1
-     * @maxLength 500
-     */
-  template_id: string;
-  config: UserEvalApiConfig;
-  kb_id?: string;
-  error_localizer?: boolean;
-  /**
-     * @minLength 1
-     * @maxLength 100
-     */
-  model?: string;
-  composite_weight_overrides?: UserEvalApiCompositeWeightOverrides;
 }
 
 export interface ExperimentAddEvalResultApi {
@@ -14530,7 +14530,7 @@ export interface LiveKitErrorResponseApi {
   details?: LiveKitErrorResponseApiDetails;
 }
 
-export type LiveKitCallExecutionUpdateRequestApiProviderCallData = { [key: string]: unknown };
+export type LiveKitCallExecutionUpdateRequestApiProviderCallData = {[key: string]: { [key: string]: unknown }};
 
 export interface LiveKitCallExecutionUpdateRequestApi {
   provider_call_data?: LiveKitCallExecutionUpdateRequestApiProviderCallData;
@@ -15956,15 +15956,13 @@ export interface EvalConfigDefinitionApi {
   eval_group?: string;
 }
 
-export interface CreatePromptSimulationApi {
+export interface CreatePromptSimulationRequestApi {
   /**
      * @minLength 1
      * @maxLength 255
      */
   name: string;
   description?: string;
-  /** Prompt template to use as the agent source */
-  prompt_template_id: string;
   /**
      * Prompt version ID (UUID) or template_version string
      * @minLength 1
@@ -21405,6 +21403,12 @@ export interface StripeWebhookLegacyResponseApi {
   result?: StripeWebhookResultApi;
 }
 
+export type AccountsAwsMarketplaceLaunchSoftwareCreateBody = {
+  'x-amzn-marketplace-token': string;
+  'x-amzn-marketplace-product-id'?: string;
+  'x-amzn-marketplace-agreement-id'?: string;
+};
+
 export type AccountsAwsMarketplaceVerifyTokenCreateBody = {
   'x-amzn-marketplace-token': string;
   'x-amzn-marketplace-product-id'?: string;
@@ -21468,7 +21472,8 @@ page?: number;
  */
 limit?: number;
 search?: string;
-sort?: string[];
+sort?: string;
+workspace_id?: string;
 filter_status?: AccountsUserListListFilterStatusItem[];
 filter_role?: AccountsUserListListFilterRoleItem[];
 };
@@ -21477,8 +21482,11 @@ export type AccountsUserListListFilterStatusItem = typeof AccountsUserListListFi
 
 
 export const AccountsUserListListFilterStatusItem = {
+  All_status: 'All status',
   Active: 'Active',
   Inactive: 'Inactive',
+  Pending: 'Pending',
+  Expired: 'Expired',
   Request_Pending: 'Request Pending',
   Request_Expired: 'Request Expired',
 } as const;
@@ -21507,7 +21515,7 @@ page?: number;
  */
 limit?: number;
 search?: string;
-sort?: string[];
+sort?: string;
 };
 
 export type AccountsWorkspaceMembersListParams = {

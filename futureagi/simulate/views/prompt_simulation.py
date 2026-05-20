@@ -26,7 +26,10 @@ from simulate.serializers.prompt_simulation import (
     PromptSimulationScenariosResponseSerializer,
     PromptSimulationUpdateRequestSerializer,
 )
-from simulate.serializers.requests.run_test import CreatePromptSimulationSerializer
+from simulate.serializers.requests.run_test import (
+    CreatePromptSimulationRequestSerializer,
+    CreatePromptSimulationSerializer,
+)
 from simulate.serializers.run_test import RunTestSerializer
 from simulate.services.test_executor import TestExecutor
 from simulate.utils.scenario_completeness import check_scenarios_incomplete
@@ -130,14 +133,15 @@ class PromptSimulationListCreateView(APIView):
             logger.exception("Error listing prompt simulations", error=str(e))
             return self.gm.internal_server_error_response("Failed to list simulations")
 
-    @swagger_auto_schema(
-        request_body=CreatePromptSimulationSerializer,
+    @validated_request(
+        request_serializer=CreatePromptSimulationRequestSerializer,
         responses={
             201: PromptSimulationRunResponseSerializer,
             400: ApiTextErrorResponseSerializer,
             404: ApiTextErrorResponseSerializer,
             500: ApiTextErrorResponseSerializer,
         },
+        reject_unknown_fields=True,
     )
     def post(self, request, prompt_template_id, *args, **kwargs):
         """
@@ -166,8 +170,10 @@ class PromptSimulationListCreateView(APIView):
                 deleted=False,
             )
 
-            # Add prompt_template_id to request data
-            data = request.data.copy()
+            # The template id is path-owned. Keep the public body contract
+            # focused on simulation fields and inject the path id only for
+            # cross-field business validation.
+            data = request.validated_data.copy()
             data["prompt_template_id"] = str(prompt_template_id)
 
             logger.info(

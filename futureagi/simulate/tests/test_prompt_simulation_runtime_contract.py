@@ -51,6 +51,23 @@ def scenario(db, organization, workspace):
 @pytest.mark.integration
 @pytest.mark.api
 class TestPromptSimulationRuntimeContracts:
+    def test_create_rejects_unknown_body_field(
+        self, auth_client, prompt_template, prompt_version, scenario
+    ):
+        response = auth_client.post(
+            f"/simulate/prompt-templates/{prompt_template.id}/simulations/",
+            {
+                "name": "New Simulation",
+                "prompt_version_id": str(prompt_version.id),
+                "scenario_ids": [str(scenario.id)],
+                "prompt_template_id": str(prompt_template.id),
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["details"]["prompt_template_id"] == ["Unknown field."]
+
     def test_update_rejects_unknown_body_field(
         self, auth_client, prompt_template, prompt_simulation
     ):

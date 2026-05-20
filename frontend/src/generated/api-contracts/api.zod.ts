@@ -504,19 +504,6 @@ export const AccountsAppsmithUsersReadResponse = zod.object({
 
 
 /**
- * This endpoint authenticates an existing AWS Marketplace customer
-and redirects appropriately.
- * @summary Handle "Launch Software" action from AWS Marketplace
- */
-
-
-
-export const AccountsAwsMarketplaceLaunchSoftwareCreateBody = zod.object({
-  "x_amzn_marketplace_token": zod.string().min(1)
-})
-
-
-/**
  * This endpoint is called after token verification to create a new user account
 for an AWS Marketplace customer.
  * @summary Complete AWS Marketplace customer signup
@@ -1658,17 +1645,31 @@ export const AccountsTeamUsersCreateParams = zod.object({
   "member_id": zod.string()
 })
 
-export const accountsTeamUsersCreateBodyEmailMax = 255;
+export const accountsTeamUsersCreateBodyOrgNameMax = 255;
 
-export const accountsTeamUsersCreateBodyNameMax = 255;
+export const accountsTeamUsersCreateBodyWorkspaceNameMax = 255;
 
+export const accountsTeamUsersCreateBodyWorkspaceDisplayNameMax = 255;
 
+export const accountsTeamUsersCreateBodyMembersItemEmailMax = 255;
+
+export const accountsTeamUsersCreateBodyMembersItemNameMax = 255;
+
+export const accountsTeamUsersCreateBodyMembersDefault = [];
 
 export const AccountsTeamUsersCreateBody = zod.object({
-  "email": zod.string().email().min(1).max(accountsTeamUsersCreateBodyEmailMax),
+  "org_name": zod.string().max(accountsTeamUsersCreateBodyOrgNameMax).optional(),
+  "workspace": zod.object({
+  "name": zod.string().max(accountsTeamUsersCreateBodyWorkspaceNameMax).optional(),
+  "display_name": zod.string().max(accountsTeamUsersCreateBodyWorkspaceDisplayNameMax).optional(),
+  "description": zod.string().optional()
+}).optional(),
+  "members": zod.array(zod.object({
+  "email": zod.string().email().min(1).max(accountsTeamUsersCreateBodyMembersItemEmailMax),
   "role": zod.enum(['Owner', 'Admin', 'Member', 'Viewer', 'workspace_admin', 'workspace_member', 'workspace_viewer']).optional(),
   "organization_role": zod.enum(['Owner', 'Admin', 'Member', 'Viewer']).optional(),
-  "name": zod.string().min(1).max(accountsTeamUsersCreateBodyNameMax)
+  "name": zod.string().min(1).max(accountsTeamUsersCreateBodyMembersItemNameMax)
+})).default(accountsTeamUsersCreateBodyMembersDefault)
 })
 
 
@@ -1928,7 +1929,7 @@ export const accountsUserListListQueryLimitDefault = 10;
 export const accountsUserListListQueryLimitMax = 100;
 
 export const accountsUserListListQuerySearchDefault = ``;
-export const accountsUserListListQuerySortDefault = [];
+export const accountsUserListListQuerySortDefault = ``;
 export const accountsUserListListQueryFilterStatusDefault = [];
 export const accountsUserListListQueryFilterRoleDefault = [];
 
@@ -1936,8 +1937,9 @@ export const AccountsUserListListQueryParams = zod.object({
   "page": zod.number().min(1).default(accountsUserListListQueryPageDefault),
   "limit": zod.number().min(1).max(accountsUserListListQueryLimitMax).default(accountsUserListListQueryLimitDefault),
   "search": zod.string().default(accountsUserListListQuerySearchDefault),
-  "sort": zod.array(zod.string().min(1)).default(accountsUserListListQuerySortDefault),
-  "filter_status": zod.array(zod.enum(['Active', 'Inactive', 'Request Pending', 'Request Expired'])).default(accountsUserListListQueryFilterStatusDefault),
+  "sort": zod.string().default(accountsUserListListQuerySortDefault),
+  "workspace_id": zod.string().uuid().optional(),
+  "filter_status": zod.array(zod.enum(['All status', 'Active', 'Inactive', 'Pending', 'Expired', 'Request Pending', 'Request Expired'])).default(accountsUserListListQueryFilterStatusDefault),
   "filter_role": zod.array(zod.enum(['Owner', 'Admin', 'Member', 'Viewer', 'workspace_admin', 'workspace_member', 'workspace_viewer'])).default(accountsUserListListQueryFilterRoleDefault)
 })
 
@@ -2071,13 +2073,13 @@ export const accountsWorkspaceListListQueryLimitDefault = 10;
 export const accountsWorkspaceListListQueryLimitMax = 100;
 
 export const accountsWorkspaceListListQuerySearchDefault = ``;
-export const accountsWorkspaceListListQuerySortDefault = [];
+export const accountsWorkspaceListListQuerySortDefault = ``;
 
 export const AccountsWorkspaceListListQueryParams = zod.object({
   "page": zod.number().min(1).default(accountsWorkspaceListListQueryPageDefault),
   "limit": zod.number().min(1).max(accountsWorkspaceListListQueryLimitMax).default(accountsWorkspaceListListQueryLimitDefault),
   "search": zod.string().default(accountsWorkspaceListListQuerySearchDefault),
-  "sort": zod.array(zod.string().min(1)).default(accountsWorkspaceListListQuerySortDefault)
+  "sort": zod.string().default(accountsWorkspaceListListQuerySortDefault)
 })
 
 
@@ -19795,11 +19797,14 @@ export const ModelHubExperimentsCreateResponse = zod.object({
 })
 
 
+export const modelHubExperimentsUpdateBodyReRunDefault = false;
 export const modelHubExperimentsUpdateBodyNameMax = 255;
 
 
 
 export const ModelHubExperimentsUpdateBody = zod.object({
+  "experiment_id": zod.string().uuid(),
+  "re_run": zod.boolean().default(modelHubExperimentsUpdateBodyReRunDefault),
   "name": zod.string().min(1).max(modelHubExperimentsUpdateBodyNameMax),
   "dataset_id": zod.string().uuid(),
   "prompt_config": zod.object({
@@ -20726,7 +20731,8 @@ export const modelHubExperimentsAddEvalCreateBodyTemplateIdMax = 500;
 export const modelHubExperimentsAddEvalCreateBodyErrorLocalizerDefault = false;
 export const modelHubExperimentsAddEvalCreateBodyModelMax = 100;
 
-
+export const modelHubExperimentsAddEvalCreateBodyRunDefault = false;
+export const modelHubExperimentsAddEvalCreateBodySaveAsTemplateDefault = false;
 
 export const ModelHubExperimentsAddEvalCreateBody = zod.object({
   "name": zod.string().min(1).max(modelHubExperimentsAddEvalCreateBodyNameMax),
@@ -20736,7 +20742,11 @@ export const ModelHubExperimentsAddEvalCreateBody = zod.object({
 }).passthrough(),
   "kb_id": zod.string().uuid().optional(),
   "error_localizer": zod.boolean().default(modelHubExperimentsAddEvalCreateBodyErrorLocalizerDefault),
-  "model": zod.string().min(1).max(modelHubExperimentsAddEvalCreateBodyModelMax).optional(),
+  "model": zod.string().max(modelHubExperimentsAddEvalCreateBodyModelMax).optional(),
+  "eval_type": zod.string().optional(),
+  "run": zod.boolean().default(modelHubExperimentsAddEvalCreateBodyRunDefault),
+  "save_as_template": zod.boolean().default(modelHubExperimentsAddEvalCreateBodySaveAsTemplateDefault),
+  "experiment_id": zod.string().uuid().optional(),
   "composite_weight_overrides": zod.object({
 
 }).passthrough().optional()
@@ -28503,9 +28513,9 @@ export const simulateApiLivekitCallExecutionPartialUpdateBodyDurationSecondsMin 
 
 
 export const SimulateApiLivekitCallExecutionPartialUpdateBody = zod.object({
-  "provider_call_data": zod.object({
+  "provider_call_data": zod.record(zod.string(), zod.object({
 
-}).passthrough().optional(),
+}).passthrough()).optional(),
   "started_at": zod.string().datetime({"offset":true}).optional(),
   "completed_at": zod.string().datetime({"offset":true}).optional(),
   "ended_at": zod.string().datetime({"offset":true}).optional(),
@@ -30411,7 +30421,6 @@ export const simulatePromptTemplatesSimulationsCreateBodyEnableToolEvaluationDef
 export const SimulatePromptTemplatesSimulationsCreateBody = zod.object({
   "name": zod.string().min(1).max(simulatePromptTemplatesSimulationsCreateBodyNameMax),
   "description": zod.string().optional(),
-  "prompt_template_id": zod.string().uuid().describe('Prompt template to use as the agent source'),
   "prompt_version_id": zod.string().min(1).max(simulatePromptTemplatesSimulationsCreateBodyPromptVersionIdMax).describe('Prompt version ID (UUID) or template_version string'),
   "scenario_ids": zod.array(zod.string().uuid()),
   "dataset_row_ids": zod.array(zod.string().min(1).max(simulatePromptTemplatesSimulationsCreateBodyDatasetRowIdsItemMax)).optional(),

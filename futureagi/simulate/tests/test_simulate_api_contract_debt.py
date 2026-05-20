@@ -7,9 +7,7 @@ def _repo_root():
 
 
 def _swagger():
-    with (
-        _repo_root() / "api_contracts" / "openapi" / "swagger.json"
-    ).open() as f:
+    with (_repo_root() / "api_contracts" / "openapi" / "swagger.json").open() as f:
         return json.load(f)
 
 
@@ -64,7 +62,7 @@ def test_simulate_contract_debt_is_fully_burned_down():
 def test_remaining_simulate_mutations_have_body_contracts():
     expected = {
         ("POST", "/simulate/prompt-templates/{prompt_template_id}/simulations/"): (
-            "CreatePromptSimulation"
+            "CreatePromptSimulationRequest"
         ),
         (
             "PATCH",
@@ -107,9 +105,7 @@ def test_remaining_simulate_endpoints_have_response_contracts():
             "POST",
             "/simulate/prompt-templates/{prompt_template_id}/simulations/{run_test_id}/execute/",
         ): "ExecutePromptSimulationResponse",
-        ("PATCH", "/simulate/run-tests/{run_test_id}/components/"): (
-            "RunTestResponse"
-        ),
+        ("PATCH", "/simulate/run-tests/{run_test_id}/components/"): ("RunTestResponse"),
         ("GET", "/simulate/run-tests/{run_test_id}/call-executions/"): (
             "RunTestCallExecutionsResponse"
         ),

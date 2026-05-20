@@ -154,14 +154,11 @@ class ExecuteRunTestSerializer(StrictInputSerializer):
     select_all = serializers.BooleanField(required=False, default=False)
 
 
-class CreatePromptSimulationSerializer(StrictInputSerializer):
-    """Serializer for creating a new prompt-based simulation run"""
+class PromptSimulationCreateFieldsSerializer(StrictInputSerializer):
+    """Shared body fields for prompt-based simulation creation."""
 
     name = serializers.CharField(max_length=255)
     description = serializers.CharField(allow_blank=True, required=False)
-    prompt_template_id = serializers.UUIDField(
-        help_text="Prompt template to use as the agent source"
-    )
     prompt_version_id = serializers.CharField(
         max_length=255, help_text="Prompt version ID (UUID) or template_version string"
     )
@@ -182,6 +179,21 @@ class CreatePromptSimulationSerializer(StrictInputSerializer):
         required=False,
         default=False,
         help_text="Enable automatic tool evaluation for this simulation run",
+    )
+
+
+class CreatePromptSimulationRequestSerializer(PromptSimulationCreateFieldsSerializer):
+    """Public request body for creating a prompt-based simulation run."""
+
+    class Meta:
+        ref_name = "CreatePromptSimulationRequest"
+
+
+class CreatePromptSimulationSerializer(PromptSimulationCreateFieldsSerializer):
+    """Internal serializer for validating path-owned prompt simulation data."""
+
+    prompt_template_id = serializers.UUIDField(
+        help_text="Prompt template to use as the agent source"
     )
 
     def validate_prompt_template_id(self, value):

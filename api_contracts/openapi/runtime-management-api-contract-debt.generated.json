@@ -27,9 +27,9 @@
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 401,
-    "direct_swagger_auto_schema_decorators": 355,
-    "doc_only_input_contract_decorators": 73,
+    "runtime_backed_validated_request_decorators": 402,
+    "direct_swagger_auto_schema_decorators": 354,
+    "doc_only_input_contract_decorators": 72,
     "broad_request_contract_decorators": 0
   },
   "doc_only_input_contract_decorators": [],
@@ -465,15 +465,6 @@
       "function": "post",
       "serializers": [
         "MCPOAuthTokenRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/simulate/views/prompt_simulation.py",
-      "line": 133,
-      "class": "PromptSimulationListCreateView",
-      "function": "post",
-      "serializers": [
-        "CreatePromptSimulationSerializer"
       ]
     },
     {
