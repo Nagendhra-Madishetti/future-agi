@@ -605,8 +605,13 @@ def _run_evaluation(
                 from ee.usage.services.emitter import emit
             except ImportError:
                 emit = None
+            try:
+                from ee.usage.utils.event_properties import token_usage_properties
+            except ImportError:
+                token_usage_properties = lambda token_usage: {}
 
             actual_cost = getattr(eval_instance, "cost", {}).get("total_cost", 0)
+            _token_usage = getattr(eval_instance, "token_usage", {})
             credits = BillingConfig.get().calculate_ai_credits(actual_cost)
 
             emit(
@@ -621,6 +626,7 @@ def _run_evaluation(
                         "workspace_id": str(workspace.id) if workspace else "",
                         "log_id": str(api_call_log_row.log_id),
                         "raw_cost_usd": str(actual_cost),
+                        **token_usage_properties(_token_usage),
                     },
                 )
             )
@@ -1245,6 +1251,49 @@ def _execute_evaluation(
         api_call_log_row.config = json.dumps(config_dict)
         api_call_log_row.status = APICallStatusChoices.SUCCESS.value
         api_call_log_row.save()
+
+        # Dual-write: emit usage event for new billing system (cost-based)
+        try:
+            try:
+                from ee.usage.schemas.events import UsageEvent
+            except ImportError:
+                UsageEvent = None
+            try:
+                from ee.usage.services.config import BillingConfig
+            except ImportError:
+                BillingConfig = None
+            try:
+                from ee.usage.services.emitter import emit
+            except ImportError:
+                emit = None
+            try:
+                from ee.usage.utils.event_properties import token_usage_properties
+            except ImportError:
+                token_usage_properties = lambda token_usage: {}
+
+            _actual_cost = (result.cost or {}).get("total_cost", 0)
+            _token_usage = result.token_usage or {}
+            credits = BillingConfig.get().calculate_ai_credits(_actual_cost)
+
+            emit(
+                UsageEvent(
+                    org_id=org_id,
+                    event_type=api_call_type,
+                    amount=credits,
+                    properties={
+                        "source": "tracer" if not feedback_id else "feedback",
+                        "source_id": str(eval_model.id),
+                        "model": custom_eval_config.model or "",
+                        "workspace_id": ws_id or "",
+                        "log_id": str(api_call_log_row.log_id),
+                        "raw_cost_usd": str(_actual_cost),
+                        "target_type": EvalTargetType.SPAN.value,
+                        **token_usage_properties(_token_usage),
+                    },
+                )
+            )
+        except Exception:
+            pass  # Metering failure must not break eval
 
         # Parse metadata
         metadata = result.metadata
@@ -2504,6 +2553,49 @@ def _execute_evaluation_for_trace(
         api_call_log_row.status = APICallStatusChoices.SUCCESS.value
         api_call_log_row.save()
 
+        # Dual-write: emit usage event for new billing system (cost-based)
+        try:
+            try:
+                from ee.usage.schemas.events import UsageEvent
+            except ImportError:
+                UsageEvent = None
+            try:
+                from ee.usage.services.config import BillingConfig
+            except ImportError:
+                BillingConfig = None
+            try:
+                from ee.usage.services.emitter import emit
+            except ImportError:
+                emit = None
+            try:
+                from ee.usage.utils.event_properties import token_usage_properties
+            except ImportError:
+                token_usage_properties = lambda token_usage: {}
+
+            _actual_cost = (result.cost or {}).get("total_cost", 0)
+            _token_usage = result.token_usage or {}
+            credits = BillingConfig.get().calculate_ai_credits(_actual_cost)
+
+            emit(
+                UsageEvent(
+                    org_id=org_id,
+                    event_type=api_call_type,
+                    amount=credits,
+                    properties={
+                        "source": "tracer" if not feedback_id else "feedback",
+                        "source_id": str(eval_template.id),
+                        "model": custom_eval_config.model or "",
+                        "workspace_id": ws_id or "",
+                        "log_id": str(api_call_log_row.log_id),
+                        "raw_cost_usd": str(_actual_cost),
+                        "target_type": EvalTargetType.TRACE.value,
+                        **token_usage_properties(_token_usage),
+                    },
+                )
+            )
+        except Exception:
+            pass  # Metering failure must not break eval
+
         metadata = result.metadata
         if isinstance(metadata, str):
             try:
@@ -2728,6 +2820,49 @@ def _execute_evaluation_for_session(
         api_call_log_row.config = json.dumps(config_dict)
         api_call_log_row.status = APICallStatusChoices.SUCCESS.value
         api_call_log_row.save()
+
+        # Dual-write: emit usage event for new billing system (cost-based)
+        try:
+            try:
+                from ee.usage.schemas.events import UsageEvent
+            except ImportError:
+                UsageEvent = None
+            try:
+                from ee.usage.services.config import BillingConfig
+            except ImportError:
+                BillingConfig = None
+            try:
+                from ee.usage.services.emitter import emit
+            except ImportError:
+                emit = None
+            try:
+                from ee.usage.utils.event_properties import token_usage_properties
+            except ImportError:
+                token_usage_properties = lambda token_usage: {}
+
+            _actual_cost = (result.cost or {}).get("total_cost", 0)
+            _token_usage = result.token_usage or {}
+            credits = BillingConfig.get().calculate_ai_credits(_actual_cost)
+
+            emit(
+                UsageEvent(
+                    org_id=org_id,
+                    event_type=api_call_type,
+                    amount=credits,
+                    properties={
+                        "source": "tracer" if not feedback_id else "feedback",
+                        "source_id": str(eval_template.id),
+                        "model": custom_eval_config.model or "",
+                        "workspace_id": ws_id or "",
+                        "log_id": str(api_call_log_row.log_id),
+                        "raw_cost_usd": str(_actual_cost),
+                        "target_type": EvalTargetType.SESSION.value,
+                        **token_usage_properties(_token_usage),
+                    },
+                )
+            )
+        except Exception:
+            pass  # Metering failure must not break eval
 
         metadata = result.metadata
         if isinstance(metadata, str):

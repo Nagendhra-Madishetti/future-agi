@@ -421,12 +421,17 @@ def run_eval_func(
                 from ee.usage.services.emitter import emit
             except ImportError:
                 emit = None
+            try:
+                from ee.usage.utils.event_properties import token_usage_properties
+            except ImportError:
+                token_usage_properties = lambda token_usage: {}
 
             billing_config = BillingConfig.get()
             eval_cost = getattr(eval_instance, "cost", {})
             llm_cost = eval_cost.get("total_cost", 0)
             per_run_fee = billing_config.get_eval_per_run_fee()
             actual_cost = llm_cost + per_run_fee
+            _token_usage = getattr(eval_instance, "token_usage", {})
 
             # Fallback cost for comparison logging
             _fallback_cost = 0
@@ -435,7 +440,6 @@ def run_eval_func(
                     calculate_total_cost,
                 )
 
-                _token_usage = getattr(eval_instance, "token_usage", {})
                 _fallback = calculate_total_cost(model or "unknown", _token_usage)
                 _fallback_cost = _fallback.get("total_cost", 0)
             except Exception:
@@ -463,6 +467,7 @@ def run_eval_func(
                         "source": source,
                         "source_id": str(template.id),
                         "raw_cost_usd": str(actual_cost),
+                        **token_usage_properties(_token_usage),
                     },
                 )
             )

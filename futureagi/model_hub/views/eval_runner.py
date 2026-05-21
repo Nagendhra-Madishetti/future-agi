@@ -1101,12 +1101,17 @@ class EvaluationRunner:
                     from ee.usage.services.emitter import emit
                 except ImportError:
                     emit = None
+                try:
+                    from ee.usage.utils.event_properties import token_usage_properties
+                except ImportError:
+                    token_usage_properties = lambda token_usage: {}
 
                 billing_config = BillingConfig.get()
                 eval_cost = getattr(eval_instance, "cost", {})
                 llm_cost = eval_cost.get("total_cost", 0)
                 per_run_fee = billing_config.get_eval_per_run_fee()
                 actual_cost = llm_cost + per_run_fee
+                _token_usage = getattr(eval_instance, "token_usage", {})
 
                 # Also compute fallback cost for comparison logging
                 _fallback_cost = 0
@@ -1115,7 +1120,6 @@ class EvaluationRunner:
                         calculate_total_cost,
                     )
 
-                    _token_usage = getattr(eval_instance, "token_usage", {})
                     _model = self.user_eval_metric.model or "unknown"
                     _fallback = calculate_total_cost(_model, _token_usage)
                     _fallback_cost = _fallback.get("total_cost", 0)
@@ -1170,6 +1174,7 @@ class EvaluationRunner:
                                 )
                             ),
                             "raw_cost_usd": str(actual_cost),
+                            **token_usage_properties(_token_usage),
                         },
                     )
                 )

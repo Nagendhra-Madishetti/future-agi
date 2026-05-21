@@ -91,6 +91,10 @@ def _log_and_deduct_cost_for_external_eval(
             from ee.usage.services.emitter import emit
         except ImportError:
             emit = None
+        try:
+            from ee.usage.utils.event_properties import token_usage_properties
+        except ImportError:
+            token_usage_properties = lambda token_usage: {}
 
         emit(
             UsageEvent(
@@ -99,6 +103,7 @@ def _log_and_deduct_cost_for_external_eval(
                 properties={
                     "source": "tracer",
                     "source_id": str(config.id),
+                    **token_usage_properties(log_config),
                 },
             )
         )

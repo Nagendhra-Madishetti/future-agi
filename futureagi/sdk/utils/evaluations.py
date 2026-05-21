@@ -298,9 +298,14 @@ def _run_eval(eval_template, inputs, model, user, workspace, eval_config=None):
             from ee.usage.services.emitter import emit
         except ImportError:
             emit = None
+        try:
+            from ee.usage.utils.event_properties import token_usage_properties
+        except ImportError:
+            token_usage_properties = lambda token_usage: {}
 
         billing_config = BillingConfig.get()
         eval_cost = result.cost or {}
+        token_usage = result.token_usage or {}
         llm_cost = eval_cost.get("total_cost", 0)
         per_run_fee = billing_config.get_eval_per_run_fee()
         actual_cost = llm_cost + per_run_fee
@@ -317,6 +322,7 @@ def _run_eval(eval_template, inputs, model, user, workspace, eval_config=None):
                     "source_id": str(eval_template.id),
                     "raw_cost_usd": str(actual_cost),
                     "log_id": str(api_call_log_row.log_id),
+                    **token_usage_properties(token_usage),
                 },
             )
         )
@@ -547,19 +553,27 @@ def _run_protect(
                 from ee.usage.services.emitter import emit
             except ImportError:
                 emit = None
+            try:
+                from ee.usage.utils.event_properties import token_usage_properties
+            except ImportError:
+                token_usage_properties = lambda token_usage: {}
 
             billing_config = BillingConfig.get()
             token_usage = (result.metadata or {}).get("token_usage", {})
             from agentic_eval.core_evals.fi_utils.token_count_helper import (
                 calculate_total_cost,
             )
+
             # Resolve model alias for pricing lookup
             if protect_flash:
                 protect_model = "protect_flash"
             else:
                 try:
                     from ee.protect.helper import ProtectHelper
-                    protect_model = ProtectHelper.resolve_alias(eval_template.name, is_flash=False)
+
+                    protect_model = ProtectHelper.resolve_alias(
+                        eval_template.name, is_flash=False
+                    )
                 except ImportError:
                     protect_model = f"protect_{eval_template.name}"
             cost_info = calculate_total_cost(protect_model, token_usage)
@@ -579,6 +593,7 @@ def _run_protect(
                         "source": "standalone_v2",
                         "source_id": str(eval_template.id),
                         "raw_cost_usd": str(actual_cost),
+                        **token_usage_properties(token_usage),
                     },
                 )
             )
