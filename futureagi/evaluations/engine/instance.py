@@ -50,6 +50,7 @@ _RUNTIME_ALLOWED_KEYS = {
         "reverse_output",
         "knowledge_base_id",
         "knowledge_bases",
+        "few_shot_examples",
     },
 }
 

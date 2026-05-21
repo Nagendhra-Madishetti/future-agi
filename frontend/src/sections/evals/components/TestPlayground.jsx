@@ -635,6 +635,7 @@ const TestPlayground = React.forwardRef(
       codeLanguage = "python",
       isSystemEval = false,
       onReadyChange,
+      runtimeOverrides,
     },
     ref,
   ) => {
@@ -931,6 +932,11 @@ const TestPlayground = React.forwardRef(
 
         const params = evalType === "code" ? { ...codeParamsRef.current } : {};
 
+        const runConfigOverride =
+          runtimeOverrides && Object.keys(runtimeOverrides).length > 0
+            ? { run_config: runtimeOverrides }
+            : {};
+
         const { data } = await axios.post(
           endpoints.develop.eval.evalPlayground,
           {
@@ -940,6 +946,7 @@ const TestPlayground = React.forwardRef(
             config: {
               mapping,
               ...(evalType === "code" ? { params } : {}),
+              ...runConfigOverride,
             },
           },
         );
@@ -1378,6 +1385,7 @@ const TestPlayground = React.forwardRef(
                   onReadyChange={handleDatasetReady}
                   isComposite={isComposite}
                   compositeAdhocConfig={compositeAdhocConfig}
+                  runtimeOverrides={runtimeOverrides}
                 />
               )}
 
@@ -1395,6 +1403,7 @@ const TestPlayground = React.forwardRef(
                   onReadyChange={handleTracingReady}
                   isComposite={isComposite}
                   compositeAdhocConfig={compositeAdhocConfig}
+                  runtimeOverrides={runtimeOverrides}
                   hostsFilter
                 />
               )}
@@ -1413,6 +1422,7 @@ const TestPlayground = React.forwardRef(
                   onReadyChange={handleSimulationReady}
                   isComposite={isComposite}
                   compositeAdhocConfig={compositeAdhocConfig}
+                  runtimeOverrides={runtimeOverrides}
                 />
               )}
 
@@ -1885,6 +1895,7 @@ TestPlayground.propTypes = {
   codeLanguage: PropTypes.string,
   onReadyChange: PropTypes.func,
   isSystemEval: PropTypes.bool,
+  runtimeOverrides: PropTypes.object,
 };
 
 export default TestPlayground;

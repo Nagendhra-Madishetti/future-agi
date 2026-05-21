@@ -595,6 +595,51 @@ const EvalDetailPage = () => {
   const evalType = evalData?.eval_type || "llm";
   const isSystemEval = evalData?.owner === "system";
 
+  // Bundle picker state into the test request's `config.run_config` so the
+  // BE merges it via _RUNTIME_ALLOWED_KEYS — essential for system evals
+  // where updateEval is skipped before the test runs.
+  const testRuntimeOverrides = useMemo(() => {
+    if (isComposite) return null;
+    const overrides = {
+      output_type: outputType,
+      pass_threshold: passThreshold,
+      multi_choice: multiChoice,
+      check_internet: !!checkInternet,
+    };
+    if (Object.keys(choiceScores || {}).length > 0) {
+      overrides.choice_scores = choiceScores;
+      overrides.choices = Object.keys(choiceScores);
+    }
+    if (evalType === "agent") {
+      overrides.agent_mode = agentMode;
+      overrides.tools = build_tools_payload(connectorIds);
+      overrides.knowledge_bases = knowledgeBaseIds || [];
+      overrides.data_injection = buildDataInjection(contextOptions);
+      overrides.summary =
+        summaryType === "custom"
+          ? { type: "custom", custom: "" }
+          : { type: summaryType };
+    }
+    if (evalType === "llm" && Array.isArray(fewShotExamples) && fewShotExamples.length > 0) {
+      overrides.few_shot_examples = fewShotExamples;
+    }
+    return overrides;
+  }, [
+    isComposite,
+    evalType,
+    outputType,
+    passThreshold,
+    multiChoice,
+    checkInternet,
+    choiceScores,
+    agentMode,
+    connectorIds,
+    knowledgeBaseIds,
+    contextOptions,
+    summaryType,
+    fewShotExamples,
+  ]);
+
   // Fetch composite detail (children, weights) when viewing a composite
   const { data: compositeDetail } = useCompositeDetail(evalId, isComposite);
   const updateComposite = useUpdateCompositeEval(evalId);
@@ -1778,6 +1823,7 @@ const EvalDetailPage = () => {
                       setTestPassed(false);
                     }}
                     onReadyChange={setIsPlaygroundReady}
+                    runtimeOverrides={testRuntimeOverrides}
                   />
                 </Box>
 

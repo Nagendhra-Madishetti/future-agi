@@ -14,7 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import CustomTooltip from "src/components/tooltip/CustomTooltip";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Iconify from "src/components/iconify";
 import axios, { endpoints } from "src/utils/axios";
 import { useNavigate, useParams } from "react-router";
@@ -210,6 +210,51 @@ const EvalCreatePage = () => {
 
   // Hook for updating the draft template
   const updateDraft = useUpdateEval(draftId);
+
+  // Picker state bundled into the test request's `config.run_config` so
+  // BE merges it via _RUNTIME_ALLOWED_KEYS.
+  const testRuntimeOverrides = useMemo(() => {
+    if (mode === "composite") return null;
+    const overrides = {
+      output_type: outputType,
+      pass_threshold: passThreshold,
+      multi_choice: multiChoice,
+      check_internet: !!checkInternet,
+    };
+    if (Object.keys(choiceScores || {}).length > 0) {
+      overrides.choice_scores = choiceScores;
+      overrides.choices = Object.keys(choiceScores);
+    }
+    if (evalType === "agent") {
+      overrides.agent_mode = agentMode;
+      overrides.tools = buildToolsPayload(connectorIds);
+      overrides.knowledge_bases = knowledgeBaseIds || [];
+      overrides.data_injection = buildDataInjection(contextOptions);
+      overrides.summary =
+        summaryType === "custom"
+          ? { type: "custom", custom: customSummary || "" }
+          : { type: summaryType };
+    }
+    if (evalType === "llm" && Array.isArray(fewShotExamples) && fewShotExamples.length > 0) {
+      overrides.few_shot_examples = fewShotExamples;
+    }
+    return overrides;
+  }, [
+    mode,
+    evalType,
+    outputType,
+    passThreshold,
+    multiChoice,
+    checkInternet,
+    choiceScores,
+    agentMode,
+    connectorIds,
+    knowledgeBaseIds,
+    contextOptions,
+    summaryType,
+    customSummary,
+    fewShotExamples,
+  ]);
 
   const handleTestResult = useCallback((success, result) => {
     // Stale result from a test that was invalidated by a mode switch — drop it.
@@ -1225,6 +1270,7 @@ const EvalCreatePage = () => {
                     mode === "composite" ? false : errorLocalizerEnabled
                   }
                   templateFormat={templateFormat}
+                  runtimeOverrides={testRuntimeOverrides}
                 />
               </Box>
 

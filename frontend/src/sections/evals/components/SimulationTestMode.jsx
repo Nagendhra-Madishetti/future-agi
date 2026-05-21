@@ -183,6 +183,7 @@ const SimulationTestMode = React.forwardRef(
       initialRunTestId = "",
       isComposite = false,
       compositeAdhocConfig = null,
+      runtimeOverrides,
     },
     ref,
   ) => {
@@ -896,6 +897,9 @@ const SimulationTestMode = React.forwardRef(
                 mapping: evalMapping,
                 ...(Object.keys(codeParams || {}).length > 0
                   ? { params: codeParams }
+                  : {}),
+                ...(runtimeOverrides && Object.keys(runtimeOverrides).length > 0
+                  ? { run_config: runtimeOverrides }
                   : {}),
               },
               ...(_callId ? { call_id: _callId } : {}),
@@ -1779,6 +1783,7 @@ SimulationTestMode.propTypes = {
   initialRunTestId: PropTypes.string,
   isComposite: PropTypes.bool,
   compositeAdhocConfig: PropTypes.object,
+  runtimeOverrides: PropTypes.object,
 };
 
 export default SimulationTestMode;
