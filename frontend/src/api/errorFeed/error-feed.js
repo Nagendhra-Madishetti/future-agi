@@ -209,7 +209,38 @@ export const useRunDeepAnalysis = () => {
         trace_id: traceId,
         force,
       }),
-    onSuccess: (_data, variables) => {
+    onSuccess: (res, variables) => {
+      // Mirror the dispatch response into the rootCause cache so the
+      // button + refetchInterval predicate see `status: running`
+      // immediately. Without this, there's a ~200ms window after the POST
+      // resolves where `isDispatching` is false but the GET refetch hasn't
+      // returned yet — the predicate evaluates against the stale `idle`
+      // data, polling never arms, and the button flickers back to "Run
+      // Deep Analysis" before snapping to "Running…".
+      const dispatched = res?.data?.result;
+      if (dispatched?.status) {
+        const key = KEYS.rootCause(variables.clusterId, variables.traceId);
+        const previous = queryClient.getQueryData(key);
+        const previousResult = previous?.data?.result;
+        queryClient.setQueryData(key, {
+          ...(previous ?? {}),
+          data: {
+            ...(previous?.data ?? {}),
+            result: {
+              ...(previousResult ?? {}),
+              status: dispatched.status,
+              trace_id: dispatched.trace_id ?? previousResult?.trace_id,
+              // Wipe stale findings when a fresh run is dispatched; the
+              // poll will repopulate them once Judge submits results.
+              ...(dispatched.status === "running"
+                ? { root_causes: [], recommendations: [], immediate_fix: null }
+                : {}),
+            },
+          },
+        });
+      }
+      // Keep the invalidate as a safety net in case the BE state diverges
+      // from what dispatch reported.
       queryClient.invalidateQueries({
         queryKey: KEYS.rootCause(variables.clusterId, variables.traceId),
       });
