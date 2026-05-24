@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from functools import partial
 from queue import Queue
+from typing import Any
 
 import json_repair
 import numpy as np
@@ -22,7 +23,6 @@ import pandas as pd
 import requests
 import structlog
 import weaviate
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import close_old_connections, connection, transaction
 from django.db.models import (
@@ -52,7 +52,7 @@ from pinecone import Pinecone
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 from qdrant_client import QdrantClient
-from rest_framework import serializers, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import CreateAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -60,16 +60,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from weaviate import AuthApiKey
 
-from accounts.models import OrgApiKey
 from accounts.models.user import User
-from accounts.serializers.org_api_key import OrgApiKeySerializer
 from agentic_eval.core.embeddings.embedding_manager import (
     EmbeddingManager,
     model_manager,
 )
-from tfc.telemetry import wrap_for_thread
-
-logger = structlog.get_logger(__name__)
 from agentic_eval.core_evals.fi_evals import *  # noqa: F403
 from agentic_eval.core_evals.fi_utils.token_count_helper import calculate_total_cost
 from agentic_eval.core_evals.run_prompt.litellm_response import RunPrompt
@@ -123,6 +118,7 @@ from model_hub.models.experiments import ExperimentDatasetTable, ExperimentsTabl
 from model_hub.models.optimize_dataset import OptimizeDataset
 from model_hub.models.run_prompt import PromptVersion, RunPrompter
 from model_hub.serializers.contracts import (
+    MODEL_HUB_ERROR_RESPONSES,
     AddAsNewDatasetRequestSerializer,
     AddRowsFromFileRequestSerializer,
     BaseColumnsResponseSerializer,
@@ -155,10 +151,10 @@ from model_hub.serializers.contracts import (
     EmbeddingsResponseSerializer,
     EvalConfigQuerySerializer,
     EvalStructureQuerySerializer,
-    HuggingFaceDatasetDetailResponseSerializer,
     HuggingFaceDatasetDetailRequestSerializer,
-    HuggingFaceDatasetListResponseSerializer,
+    HuggingFaceDatasetDetailResponseSerializer,
     HuggingFaceDatasetListRequestSerializer,
+    HuggingFaceDatasetListResponseSerializer,
     LegacyKnowledgeBaseCreateResponseSerializer,
     LegacyKnowledgeBaseFilesRequestSerializer,
     LegacyKnowledgeBaseFilesResponseSerializer,
@@ -170,9 +166,8 @@ from model_hub.serializers.contracts import (
     LegacyKnowledgeBaseTableResponseSerializer,
     ManualDatasetCreateRequestSerializer,
     MergeDatasetRequestSerializer,
-    MODEL_HUB_ERROR_RESPONSES,
-    ModelHubEvalConfigResponseSerializer,
     ModelHubEmptyRequestSerializer,
+    ModelHubEvalConfigResponseSerializer,
     PreviewRunEvalRequestSerializer,
     SingleRowEvaluationRequestSerializer,
     SingleRowEvaluationResponseSerializer,
@@ -180,6 +175,14 @@ from model_hub.serializers.contracts import (
     StopUserEvalRequestSerializer,
     UserEvalMutationRequestSerializer,
     UserEvalUpdateRequestSerializer,
+)
+from model_hub.serializers.develop_dataset import (
+    ColumnSerializer,
+    CompareDatasetSerializer,
+    DatasetSerializer,
+    FeedbackSerializer,
+    FileSerializer,
+    KnowledgeBaseFileSerializer,
 )
 from model_hub.serializers.develop_dataset_contracts import (
     ColumnTypeConversionResponseSerializer,
@@ -207,14 +210,6 @@ from model_hub.serializers.develop_dataset_contracts import (
     ManualDatasetCreateResponseSerializer,
     MergeDatasetResponseSerializer,
     ProviderStatusResponseSerializer,
-)
-from model_hub.serializers.develop_dataset import (
-    ColumnSerializer,
-    CompareDatasetSerializer,
-    DatasetSerializer,
-    FeedbackSerializer,
-    FileSerializer,
-    KnowledgeBaseFileSerializer,
 )
 from model_hub.serializers.develop_optimisation import EvalTemplateSerializer
 from model_hub.serializers.eval_runner import UserEvalSerializer
@@ -263,6 +258,7 @@ from sdk.utils.helpers import _get_api_call_type
 # Define a Temporal activity for running the evaluation
 from tfc.ee_gates import strip_turing_from_config_options
 from tfc.settings.settings import BASE_URL, HUGGINGFACE_API_TOKEN
+from tfc.telemetry import wrap_for_thread
 from tfc.temporal import temporal_activity
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
@@ -297,6 +293,41 @@ try:
 except ImportError:
     ROW_LIMIT_REACHED_MESSAGE = None
     log_and_deduct_cost_for_resource_request = None
+
+logger = structlog.get_logger(__name__)
+
+
+def _request_organization(request):
+    return getattr(request, "organization", None) or request.user.organization
+
+
+def _request_workspace_filter(request, field_name="workspace"):
+    workspace = getattr(request, "workspace", None)
+    if not workspace:
+        return Q()
+
+    if getattr(workspace, "is_default", False):
+        return (
+            Q(**{field_name: workspace})
+            | Q(
+                **{
+                    f"{field_name}__is_default": True,
+                    f"{field_name}__organization_id": workspace.organization_id,
+                }
+            )
+            | Q(**{f"{field_name}__isnull": True})
+        )
+
+    return Q(**{field_name: workspace})
+
+
+def _request_dataset_queryset(request):
+    return Dataset.objects.filter(
+        _request_workspace_filter(request),
+        organization=_request_organization(request),
+        deleted=False,
+    )
+
 
 # =============================================================================
 # Standalone helper functions for Temporal activities
@@ -565,10 +596,12 @@ class AddRowsFromFile(CreateAPIView):
                 getattr(request, "organization", None) or request.user.organization
             )
 
-            dataset = get_object_or_404(Dataset, id=dataset_id)
-
             if not file:
                 return self._gm.bad_request(get_error_message("NO_FILE_UPLOADED"))
+
+            dataset = _request_dataset_queryset(request).filter(id=dataset_id).first()
+            if not dataset:
+                return self._gm.not_found(get_error_message("DATASET_NOT_FOUND"))
 
             # Check file size (10 MB limit, matching UI constraint)
             from model_hub.services.dataset_validators import MAX_FILE_SIZE_BYTES
@@ -679,7 +712,7 @@ class AddRowsFromFile(CreateAPIView):
             )
 
             last_row = (
-                Row.all_objects.filter(dataset=dataset).order_by("-created_at").first()
+                Row.all_objects.filter(dataset=dataset).order_by("-order").first()
             )
             if last_row:
                 max_order = last_row.order
@@ -765,6 +798,11 @@ class CloneDatasetView(APIView):
     )
     def post(self, request, dataset_id, *args, **kwargs):
         try:
+            source_dataset = (
+                _request_dataset_queryset(request).filter(id=dataset_id).first()
+            )
+            if not source_dataset:
+                return self._gm.not_found("Dataset not found")
             call_log_row_entry = log_and_deduct_cost_for_resource_request(
                 organization=getattr(request, "organization", None)
                 or request.user.organization,
@@ -781,14 +819,6 @@ class CloneDatasetView(APIView):
                 )
             call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
             call_log_row_entry.save()
-            # Get the source dataset (org-scoped)
-            source_dataset = get_object_or_404(
-                Dataset,
-                id=dataset_id,
-                deleted=False,
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-            )
             new_dataset_name = request.data.get(
                 "new_dataset_name", f"Copy of {source_dataset.name}"
             )
@@ -831,8 +861,8 @@ class CloneDatasetView(APIView):
             new_dataset = Dataset.objects.create(
                 id=new_dataset_id,
                 name=new_dataset_name,
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
+                organization=_request_organization(request),
+                workspace=getattr(request, "workspace", None),
                 model_type=source_dataset.model_type,
                 dataset_config=source_dataset.dataset_config,
                 user=request.user,
@@ -942,6 +972,24 @@ class AddAsNewDataset(APIView):
     def post(self, request, *args, **kwargs):
         try:
             dataset_id = request.validated_data.get("dataset_id")
+            _org = _request_organization(request)
+            source_dataset = (
+                _request_dataset_queryset(request).filter(id=dataset_id).first()
+            )
+            exp_dataset = False
+            if not source_dataset:
+                source_dataset = ExperimentDatasetTable.objects.filter(
+                    _request_workspace_filter(
+                        request,
+                        "experiments_datasets_created__dataset__workspace",
+                    ),
+                    id=dataset_id,
+                    deleted=False,
+                    experiments_datasets_created__dataset__organization=_org,
+                ).first()
+                if not source_dataset:
+                    return self._gm.not_found("Dataset not found")
+                exp_dataset = True
             call_log_row_entry = log_and_deduct_cost_for_resource_request(
                 organization=getattr(request, "organization", None)
                 or request.user.organization,
@@ -958,20 +1006,6 @@ class AddAsNewDataset(APIView):
                 )
             call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
             call_log_row_entry.save()
-            # Get the source dataset (org-scoped)
-            _org = getattr(request, "organization", None) or request.user.organization
-            source_dataset = Dataset.objects.filter(
-                id=dataset_id, deleted=False, organization=_org
-            ).first()
-            exp_dataset = False
-            if not source_dataset:
-                source_dataset = get_object_or_404(
-                    ExperimentDatasetTable,
-                    id=dataset_id,
-                    deleted=False,
-                    experiments_datasets_created__dataset__organization=_org,
-                )
-                exp_dataset = True
             new_dataset_name = request.validated_data.get(
                 "name", f"Copy of {source_dataset.name}"
             )
@@ -1025,8 +1059,8 @@ class AddAsNewDataset(APIView):
             new_dataset = Dataset.objects.create(
                 id=new_dataset_id,
                 name=new_dataset_name,
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
+                organization=_request_organization(request),
+                workspace=getattr(request, "workspace", None),
                 model_type=model_type,
                 user=request.user,
             )
@@ -1034,7 +1068,12 @@ class AddAsNewDataset(APIView):
                 column_id_mapping = {}
 
                 for col_id, new_name in columns.items():
-                    old_column = Column.objects.get(id=col_id)
+                    old_column = get_object_or_404(
+                        Column,
+                        id=col_id,
+                        dataset=source_dataset,
+                        deleted=False,
+                    )
                     new_column_id = uuid.uuid4()
                     column_id_mapping[str(old_column.id)] = str(new_column_id)
 
@@ -1618,14 +1657,10 @@ class GetDatasetsView(APIView):
             column_mapping = {
                 "name": "name",
                 "number_of_datapoints": "number_of_datapoints",
-                "number_of_datapoints": "number_of_datapoints",
                 "number_of_experiments": "number_of_experiments",
-                "number_of_experiments": "number_of_experiments",
-                "number_of_optimisations": "number_of_optimisations",
                 "number_of_optimisations": "number_of_optimisations",
                 "derived_datasets": "derived_datasets_count",
                 "derived_datasets_count": "derived_datasets_count",
-                "created_at": "created_at",
                 "created_at": "created_at",
             }
             for sort_param in sort_params:
@@ -2135,7 +2170,7 @@ class GetDatasetTableView(APIView):
 
     @validated_request(
         query_serializer=DatasetTableQuerySerializer,
-        responses={200: DatasetTableResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={200: DatasetTableResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def get(self, request, dataset_id, *args, **kwargs):
         try:
@@ -2356,11 +2391,11 @@ class GetDatasetTableView(APIView):
                     # Handle RUN_PROMPT source
                     elif column.source == SourceChoices.RUN_PROMPT.value:
                         model_name = "gpt-4o-mini"  # Default model name if run_prompter not present
+                        status = None
                         run_prompter = run_prompter_map.get(column.source_id)
                         if run_prompter:
                             status = run_prompter.status
                             model_name = run_prompter.model
-                        avg_latency = avg_tokens = avg_cost = 0
 
                         if status == StatusType.COMPLETED.value:
                             if column_config_only:
@@ -2824,7 +2859,6 @@ class GetRowDataView(APIView):
             rows = Row.objects.filter(dataset=dataset, deleted=False).order_by("order")
             error_messages = []
             cells = Cell.objects.filter(row__in=rows, deleted=False)
-            column_order = dataset.column_order or []
             qs = Column.objects.filter(dataset=dataset, deleted=False)
             if dataset.source != DatasetSourceChoices.EXPERIMENT_SNAPSHOT.value:
                 qs = qs.exclude(
@@ -2850,8 +2884,6 @@ class GetRowDataView(APIView):
                 )
 
             # print("exiting sort")
-
-            column_order = dataset.column_order or []
 
             current_row = get_object_or_404(
                 rows, id=row_id, dataset=dataset, deleted=False
@@ -3963,7 +3995,7 @@ class AddMultipleStaticColumnsView(APIView):
                 # Create all new columns in bulk
                 new_columns = []
                 for name, col_type, source in zip(
-                    new_column_names, column_types, sources
+                    new_column_names, column_types, sources, strict=False
                 ):
                     new_columns.append(
                         Column(
@@ -4453,9 +4485,38 @@ class ManuallyCreateDatasetView(APIView):
             dataset_name = request.validated_data.get("dataset_name")
             number_of_rows = request.validated_data.get("number_of_rows", 1)
             number_of_columns = request.validated_data.get("number_of_columns", 1)
+            organization = (
+                getattr(request, "organization", None) or request.user.organization
+            )
+
+            if not dataset_name:
+                return self._gm.bad_request(get_error_message("MISSING_DATASET_NAME"))
+
+            from model_hub.validators.dataset_validators import (
+                validate_dataset_name_unique,
+                validate_row_column_bounds,
+            )
+
+            try:
+                validate_dataset_name_unique(dataset_name, organization)
+            except Exception as validation_err:
+                return self._gm.bad_request(str(validation_err.detail[0]))
+
+            if number_of_rows <= 0 or number_of_columns <= 0:
+                return self._gm.bad_request(
+                    get_error_message("INVALID_ROW_OR_COLUMN_COUNT")
+                )
+
+            # Enforce upper bounds (aligned with UI: max 100 rows, 100 columns)
+            try:
+                validate_row_column_bounds(
+                    rows=number_of_rows, columns=number_of_columns
+                )
+            except Exception as validation_err:
+                return self._gm.bad_request(str(validation_err.detail[0]))
 
             call_log_row_entry = log_and_deduct_cost_for_resource_request(
-                getattr(request, "organization", None) or request.user.organization,
+                organization,
                 api_call_type=APICallTypeChoices.DATASET_ADD.value,
                 workspace=request.workspace,
             )
@@ -4470,43 +4531,7 @@ class ManuallyCreateDatasetView(APIView):
             call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
             call_log_row_entry.save()
 
-            if not dataset_name:
-                return self._gm.bad_request(get_error_message("MISSING_DATASET_NAME"))
-
-            from model_hub.validators.dataset_validators import (
-                validate_dataset_name_unique,
-            )
-
-            try:
-                validate_dataset_name_unique(
-                    dataset_name,
-                    getattr(request, "organization", None) or request.user.organization,
-                )
-            except Exception as validation_err:
-                return self._gm.bad_request(str(validation_err.detail[0]))
-
-            if number_of_rows <= 0 or number_of_columns <= 0:
-                return self._gm.bad_request(
-                    get_error_message("INVALID_ROW_OR_COLUMN_COUNT")
-                )
-
-            # Enforce upper bounds (aligned with UI: max 100 rows, 100 columns)
-            from model_hub.validators.dataset_validators import (
-                validate_row_column_bounds,
-            )
-
-            try:
-                validate_row_column_bounds(
-                    rows=number_of_rows, columns=number_of_columns
-                )
-            except Exception as validation_err:
-                return self._gm.bad_request(str(validation_err.detail[0]))
-
             # Check row limit
-            organization = (
-                getattr(request, "organization", None) or request.user.organization
-            )
-
             call_log_row = log_and_deduct_cost_for_resource_request(
                 organization,
                 api_call_type=APICallTypeChoices.ROW_ADD.value,
@@ -4526,6 +4551,7 @@ class ManuallyCreateDatasetView(APIView):
                 name=dataset_name,
                 organization=getattr(request, "organization", None)
                 or request.user.organization,
+                workspace=getattr(request, "workspace", None),
                 source=DatasetSourceChoices.BUILD.value,
                 user=request.user,
             )
@@ -7124,7 +7150,7 @@ class GetEvalStructureView(APIView):
 
     @validated_request(
         query_serializer=EvalStructureQuerySerializer,
-        responses={200: EvalStructureResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={200: EvalStructureResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def get(
         self, request, eval_id, dataset_id=None, *args, **kwargs
@@ -9559,12 +9585,12 @@ class ExecutePythonCodeView(APIView):
                 "tuple": tuple,
                 "zip": zip,
             }
-            global_namespace = {"__builtins__": safe_builtins}
+            _global_namespace = {"__builtins__": safe_builtins}
             local_namespace = {}
 
             # Execute the provided code with restricted globals
             # WARNING: This still has security implications and should be properly sandboxed
-            # exec(code, global_namespace, local_namespace)  # nosec B102 - sandboxed execution
+            # exec(code, _global_namespace, local_namespace)  # nosec B102 - sandboxed execution
 
             # Validate presence of `main()` function
             if "main" not in local_namespace or not callable(local_namespace["main"]):
@@ -11348,8 +11374,9 @@ class DuplicateRowsView(APIView):
                     f"Number of copies cannot exceed {MAX_DUPLICATE_COPIES}"
                 )
 
-            # Get the dataset and verify it exists
-            dataset = get_object_or_404(Dataset, id=dataset_id, deleted=False)
+            dataset = _request_dataset_queryset(request).filter(id=dataset_id).first()
+            if not dataset:
+                return self._gm.not_found("Dataset not found")
 
             # Get max order to append new rows at the end
             last_row = (
@@ -11374,6 +11401,8 @@ class DuplicateRowsView(APIView):
                 source_rows = Row.objects.filter(
                     id__in=row_ids, dataset=dataset, deleted=False
                 )
+                if source_rows.count() != len(row_ids):
+                    return self._gm.bad_request(get_error_message("ROW_NOT_FOUND"))
 
             call_log_row = log_and_deduct_cost_for_resource_request(
                 organization=getattr(request, "organization", None)
@@ -11472,6 +11501,12 @@ class DuplicateDatasetView(APIView):
                     get_error_message("MISSING_NEW_DATASET_NAME")
                 )
 
+            source_dataset = (
+                _request_dataset_queryset(request).filter(id=dataset_id).first()
+            )
+            if not source_dataset:
+                return self._gm.not_found("Dataset not found")
+
             call_log_row_entry = log_and_deduct_cost_for_resource_request(
                 organization=getattr(request, "organization", None)
                 or request.user.organization,
@@ -11488,9 +11523,6 @@ class DuplicateDatasetView(APIView):
                 )
             call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
             call_log_row_entry.save()
-
-            # Get source dataset and verify it exists
-            source_dataset = get_object_or_404(Dataset, id=dataset_id, deleted=False)
 
             # Create new dataset with copied attributes
             new_dataset = Dataset.objects.create(
@@ -11509,6 +11541,7 @@ class DuplicateDatasetView(APIView):
                     else {}
                 ),
                 user=request.user,
+                workspace=getattr(request, "workspace", None),
             )
 
             # Copy columns
@@ -11571,6 +11604,8 @@ class DuplicateDatasetView(APIView):
                 source_rows = Row.objects.filter(
                     id__in=row_ids, dataset=source_dataset, deleted=False
                 )
+                if source_rows.count() != len(row_ids):
+                    return self._gm.bad_request(get_error_message("ROW_NOT_FOUND"))
             new_rows = []
             new_cells = []
 
@@ -11685,16 +11720,21 @@ class MergeDatasetView(APIView):
                     get_error_message("MISSING_SOURCE_DATASET_ID")
                 )
 
-            # Get both datasets and verify they exist
-            target_dataset = get_object_or_404(
-                Dataset, id=target_dataset_id, deleted=False
+            target_dataset = (
+                _request_dataset_queryset(request).filter(id=target_dataset_id).first()
             )
-            source_dataset = get_object_or_404(Dataset, id=dataset_id, deleted=False)
+            if not target_dataset:
+                return self._gm.not_found("Target dataset not found")
+            source_dataset = (
+                _request_dataset_queryset(request).filter(id=dataset_id).first()
+            )
+            if not source_dataset:
+                return self._gm.not_found("Source dataset not found")
 
             # Get max order of target dataset to append rows at the end
             last_row = (
-                Row.all_objects.filter(dataset=source_dataset)
-                .order_by("-created_at")
+                Row.all_objects.filter(dataset=target_dataset)
+                .order_by("-order")
                 .first()
             )
             if last_row:
@@ -11805,6 +11845,8 @@ class MergeDatasetView(APIView):
                 source_rows = Row.objects.filter(
                     id__in=row_ids, dataset=source_dataset, deleted=False
                 )
+                if source_rows.count() != len(row_ids):
+                    return self._gm.bad_request(get_error_message("ROW_NOT_FOUND"))
             batch_size = 1000
             current_order = max_order + 1
 
@@ -11977,7 +12019,13 @@ class GetCompareDatasetRow(APIView):
             **MODEL_HUB_ERROR_RESPONSES,
         }
     )
-    def get(self, request, compare_id, row_id, *args, **kwargs):
+    def get(self, request, compare_id, row_id=None, *args, **kwargs):
+        if row_id is None:
+            return self._gm.custom_error_response(
+                status.HTTP_405_METHOD_NOT_ALLOWED,
+                "Use DELETE to remove compare dataset files.",
+                code="method_not_allowed",
+            )
         try:
             metadata = {"status": "processing", "file_row_ids": {}}
 
@@ -12212,17 +12260,32 @@ class GetCompareDatasetRow(APIView):
             **MODEL_HUB_ERROR_RESPONSES,
         }
     )
-    def delete(self, request, compare_id, *args, **kwargs):
+    def delete(self, request, compare_id, row_id=None, *args, **kwargs):
+        if row_id is not None:
+            return self._gm.custom_error_response(
+                status.HTTP_405_METHOD_NOT_ALLOWED,
+                "Use DELETE /datasets/delete-compare/{compare_id}/ to remove compare dataset files.",
+                code="method_not_allowed",
+            )
         try:
             # Import the activity to register it
             import tfc.temporal.background_tasks.activities  # noqa: F401
             from tfc.temporal.drop_in import start_activity
 
-            start_activity(
-                "delete_compare_folder_activity",
-                args=(str(compare_id),),
-                queue="default",
-            )
+            try:
+                start_activity(
+                    "delete_compare_folder_activity",
+                    args=(str(compare_id),),
+                    queue="default",
+                )
+            except Exception:
+                logger.warning(
+                    "Temporal cleanup unavailable for compare dataset files; "
+                    "falling back to synchronous cleanup.",
+                    compare_id=str(compare_id),
+                    exc_info=True,
+                )
+                self.thread_delete(compare_id)
             return self._gm.success_response(
                 {"message": "File(s) deleted successfully"}
             )
@@ -13552,24 +13615,26 @@ class CompareDatasetsStatsView(APIView):
                     )
 
                     response = {}
-                    for id in dataset_ids:
+                    for dataset_id in dataset_ids:
                         final_data = []
 
                         with ThreadPoolExecutor(max_workers=10) as executor:
                             results = list(
                                 executor.map(
-                                    lambda template: get_eval_stats(
-                                        template,
-                                        id,
-                                        None,
-                                        row_ids,  # noqa: B023
+                                    lambda template, dataset_id=dataset_id: (
+                                        get_eval_stats(
+                                            template,
+                                            dataset_id,
+                                            None,
+                                            row_ids,  # noqa: B023
+                                        )
                                     ),
                                     templates,
                                 )
                             )
                             final_data.extend(results)
 
-                        response[id] = final_data
+                        response[dataset_id] = final_data
 
                     return self._gm.success_response(response)
 
@@ -15184,11 +15249,15 @@ class ExistingKnowledgeBaseView(APIView):
                     get_error_message("MISSING_KNOWLEDGE_BASE_ID_OR_ORGANIZATION")
                 )
 
-            kb = KnowledgeBaseFile.objects.prefetch_related("files").filter(
-                id=kb_id,
-                organization=org,
-                deleted=False,
-            ).first()
+            kb = (
+                KnowledgeBaseFile.objects.prefetch_related("files")
+                .filter(
+                    id=kb_id,
+                    organization=org,
+                    deleted=False,
+                )
+                .first()
+            )
             if not kb:
                 return self._gm.bad_request(
                     get_error_message("KNOWLEDGE_BASE_NOT_FOUND")
@@ -15216,9 +15285,7 @@ class ExistingKnowledgeBaseView(APIView):
                         )
                 elif file_names:
                     deleted_files = kb_files.filter(name__in=file_names)
-                    found_file_names = set(
-                        deleted_files.values_list("name", flat=True)
-                    )
+                    found_file_names = set(deleted_files.values_list("name", flat=True))
                     requested_file_names = set(file_names)
                     if found_file_names != requested_file_names:
                         return self._gm.bad_request(
@@ -15233,9 +15300,7 @@ class ExistingKnowledgeBaseView(APIView):
             Files.objects.filter(id__in=deleted_file_ids).update(
                 status=StatusType.DELETING.value
             )
-            remove_kb_files.delay(
-                deleted_file_ids, str(org.id), kb_id
-            )
+            remove_kb_files.delay(deleted_file_ids, str(org.id), kb_id)
 
             return self._gm.success_response("Deleting selected files")
         except Exception as e:
