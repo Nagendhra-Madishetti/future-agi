@@ -384,7 +384,7 @@ class TestCustomEvalTemplateCreateView(EvalRunnerBaseTestCase):
             format="json",
         )
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_create_custom_eval_template_missing_required_keys(self):
         """Create fails when required_keys is missing."""

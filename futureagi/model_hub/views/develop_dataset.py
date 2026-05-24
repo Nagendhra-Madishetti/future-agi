@@ -12112,10 +12112,11 @@ class GetCompareDatasetRow(APIView):
                         )
                         # comp_col = columns_lookup.get((ds.id, common_name))
                         if comp_col and comp_col.source in dynamic_sources[1:]:
+                            source_id = comp_col.source_id or ""
                             eval_id = (
-                                comp_col.source_id.split("-sourceid-")[1]
-                                if "-sourceid-" in comp_col.source_id
-                                else comp_col.source_id
+                                source_id.split("-sourceid-")[1]
+                                if "-sourceid-" in source_id
+                                else source_id
                             )
                             if eval_id:
                                 eval_metrics_needed.append(eval_id)
@@ -12754,10 +12755,11 @@ class CompareDatasetsView(APIView):
                 for ds in comparison_datasets:
                     comp_col = columns_lookup.get((ds.id, common_name))
                     if comp_col and comp_col.source in dynamic_sources[1:]:
+                        source_id = comp_col.source_id or ""
                         eval_id = (
-                            comp_col.source_id.split("-sourceid-")[1]
-                            if "-sourceid-" in comp_col.source_id
-                            else comp_col.source_id
+                            source_id.split("-sourceid-")[1]
+                            if "-sourceid-" in source_id
+                            else source_id
                         )
                         if eval_id:
                             eval_metrics_needed.append(eval_id)
