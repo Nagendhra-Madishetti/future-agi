@@ -437,14 +437,469 @@ export const simulationAgentccJourneys = [
     title:
       "Simulation agent definition operations create, update, retrieve, and delete lifecycle",
     tags: ["simulation", "agents", "mutating", "data-roundtrip"],
-    async run({ client, cleanup, runId, evidence }) {
+    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
       requireMutations();
       const name = `api journey agent ${runId}`;
+      const rawApiKey = `sk-agent-definition-${runId}-secret`;
+      let hardCleaned = false;
+      cleanup.defer("hard-delete API journey agent definition rows", () =>
+        hardCleaned
+          ? null
+          : deleteSimulationAgentDefinitionFixturesDb({
+              namePrefix: name,
+              organizationId,
+            }),
+      );
 
-      const created = await client.post(
-        apiPath("/simulate/api/agent-definition-operations/"),
+      const invalidLegacyList = await expectApiError(
+        () =>
+          client.get(apiPath("/simulate/agent-definitions/"), {
+            query: { legacyFilter: "voice" },
+          }),
+        [400],
+        "Agent definition legacy list accepted an unknown query parameter.",
+      );
+      const invalidLegacyCreate = await expectApiError(
+        () =>
+          client.post(apiPath("/simulate/agent-definitions/create/"), {
+            agent_name: `${name} invalid`,
+            agent_type: "text",
+            commit_message: "Initial",
+            legacy_extra: "reject me",
+          }),
+        [400],
+        "Agent definition legacy create accepted an unknown field.",
+      );
+      const invalidBlankName = await expectApiError(
+        () =>
+          client.post(apiPath("/simulate/agent-definitions/create/"), {
+            agent_name: "   ",
+            agent_type: "text",
+            commit_message: "Initial",
+          }),
+        [400],
+        "Agent definition legacy create accepted a blank name.",
+      );
+      const invalidVoiceProvider = await expectApiError(
+        () =>
+          client.post(apiPath("/simulate/agent-definitions/create/"), {
+            agent_name: `${name} invalid voice`,
+            agent_type: "voice",
+            contact_number: "+12345678901",
+            commit_message: "Initial",
+            inbound: true,
+          }),
+        [400],
+        "Agent definition legacy create accepted a voice agent without provider.",
+      );
+      const invalidOperationsCreate = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/simulate/api/agent-definition-operations/"),
+            {
+              agent_name: `${name} invalid operations`,
+              agent_type: "text",
+              inbound: true,
+              languages: ["en"],
+              description: "Invalid operations agent.",
+              legacy_extra: "reject me",
+            },
+          ),
+        [400],
+        "Agent definition operations create accepted an unknown field.",
+      );
+      const invalidFetchAssistant = await expectApiError(
+        () =>
+          client.post(
+            apiPath(
+              "/simulate/api/agent-definition-operations/fetch_assistant_from_provider/",
+            ),
+            {
+              assistant_id: "asst_invalid",
+              api_key: "sk-invalid",
+              provider: "others",
+              legacy_extra: "reject me",
+            },
+          ),
+        [400],
+        "Agent definition fetch_assistant accepted an unknown field.",
+      );
+
+      const createdEnvelope = await client.post(
+        apiPath("/simulate/agent-definitions/create/"),
         {
           agent_name: name,
+          agent_type: "text",
+          inbound: true,
+          description: "Temporary text agent definition for API journey.",
+          language: "en",
+          languages: ["en", "es"],
+          commit_message: "Initial API journey version",
+          model: "gpt-4o-mini",
+          model_details: { source: "api-journey", version: 1 },
+        },
+      );
+      assertNoRawSecret(
+        createdEnvelope,
+        rawApiKey,
+        "Agent definition legacy create response leaked the raw provider API key.",
+      );
+      const created = createdEnvelope?.agent;
+      assert(created?.id, "Agent definition legacy create did not return agent.id.");
+      cleanup.defer("delete legacy API journey agent definition", () =>
+        ignoreNotFound(() =>
+          client.delete(
+            apiPath("/simulate/agent-definitions/{agent_id}/delete/", {
+              agent_id: created.id,
+            }),
+          ),
+        ),
+      );
+      assert(
+        created.agent_name === name &&
+          created.agent_type === "text" &&
+          created.model === "gpt-4o-mini" &&
+          created.model_details?.version === 1,
+        "Agent definition legacy create did not preserve expected text-agent fields.",
+      );
+
+      let dbAudit = await loadSimulationAgentDefinitionDbAudit({
+        agentIds: [created.id],
+        organizationId,
+        rawApiKey,
+        maskedApiKey: created.api_key,
+      });
+      let createdAudit = collectionRows(dbAudit.agents).find(
+        (agent) => agent.id === created.id,
+      );
+      assert(
+        createdAudit?.organization_id === organizationId &&
+          createdAudit?.workspace_id === workspaceId &&
+          createdAudit?.deleted === false &&
+          Number(dbAudit.version_count) === 1 &&
+          Number(dbAudit.active_version_count) === 1 &&
+          Number(dbAudit.credential_count) === 0,
+        "Agent definition DB audit did not show an active workspace-owned text agent.",
+      );
+
+      const detail = await client.get(
+        apiPath("/simulate/agent-definitions/{agent_id}/", {
+          agent_id: created.id,
+        }),
+      );
+      assertNoRawSecret(
+        detail,
+        rawApiKey,
+        "Agent definition detail response leaked the raw provider API key.",
+      );
+      const initialVersionId = detail.active_version?.id;
+      assert(
+        detail.id === created.id &&
+          detail.version_count === 1 &&
+          isUuid(initialVersionId) &&
+          asArray(detail.versions).some((version) => version.id === initialVersionId),
+        "Agent definition detail did not include active version history.",
+      );
+
+      const searchedLegacyAgents = collectionRows(
+        await client.get(apiPath("/simulate/agent-definitions/"), {
+          query: {
+            search: name,
+            agent_type: "text",
+            agent_definition_id: created.id,
+            limit: 10,
+          },
+        }),
+      );
+      assert(
+        searchedLegacyAgents[0]?.id === created.id,
+        "Agent definition legacy list did not pin/search the created agent.",
+      );
+
+      const initialVersionDetail = await client.get(
+        apiPath(
+          "/simulate/agent-definitions/{agent_id}/versions/{version_id}/",
+          {
+            agent_id: created.id,
+            version_id: initialVersionId,
+          },
+        ),
+      );
+      assertNoRawSecret(
+        initialVersionDetail,
+        rawApiKey,
+        "Agent definition initial version detail leaked the raw provider API key.",
+      );
+      assert(
+        !initialVersionDetail.configuration_snapshot?.api_key &&
+          initialVersionDetail.configuration_snapshot?.model_details?.version === 1,
+        "Agent definition version detail did not return the expected text-agent snapshot.",
+      );
+
+      const invalidLegacyEdit = await expectApiError(
+        () =>
+          client.put(
+            apiPath("/simulate/agent-definitions/{agent_id}/edit/", {
+              agent_id: created.id,
+            }),
+            {
+              description: "Invalid edit should be rejected.",
+              legacy_extra: "reject me",
+            },
+          ),
+        [400],
+        "Agent definition legacy edit accepted an unknown field.",
+      );
+
+      const editedEnvelope = await client.put(
+        apiPath("/simulate/agent-definitions/{agent_id}/edit/", {
+          agent_id: created.id,
+        }),
+        {
+          description: "Updated temporary text agent definition.",
+          model_details: { source: "api-journey", edited: true },
+        },
+      );
+      assertNoRawSecret(
+        editedEnvelope,
+        rawApiKey,
+        "Agent definition edit response leaked the raw provider API key.",
+      );
+      assert(
+        editedEnvelope.agent?.description ===
+          "Updated temporary text agent definition." &&
+          editedEnvelope.agent?.model_details?.edited === true,
+        "Agent definition legacy edit did not persist description/model_details.",
+      );
+
+      dbAudit = await loadSimulationAgentDefinitionDbAudit({
+        agentIds: [created.id],
+        organizationId,
+        rawApiKey,
+        maskedApiKey: created.api_key,
+      });
+      createdAudit = collectionRows(dbAudit.agents).find(
+        (agent) => agent.id === created.id,
+      );
+      assert(
+        createdAudit?.model_details?.edited === true &&
+          dbAudit.raw_key_present_in_credential_ciphertext === false,
+        "Agent definition edit DB audit did not preserve updated model_details.",
+      );
+
+      const invalidCreateVersion = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/simulate/agent-definitions/{agent_id}/versions/create/", {
+              agent_id: created.id,
+            }),
+            {
+              commit_message: "Invalid version should be rejected.",
+              legacy_extra: "reject me",
+            },
+          ),
+        [400],
+        "Agent definition version create accepted an unknown field.",
+      );
+
+      const secondVersionEnvelope = await client.post(
+        apiPath("/simulate/agent-definitions/{agent_id}/versions/create/", {
+          agent_id: created.id,
+        }),
+        {
+          agent_name: `${name} renamed`,
+          description: "Second API journey version.",
+          commit_message: "Create second API journey version",
+          model_details: { source: "api-journey", version: 2 },
+        },
+      );
+      assertNoRawSecret(
+        secondVersionEnvelope,
+        rawApiKey,
+        "Agent definition version create response leaked the raw provider API key.",
+      );
+      const secondVersion = secondVersionEnvelope.version;
+      assert(
+        secondVersion?.version_number === 2 &&
+          secondVersion.status === "active" &&
+          secondVersion.configuration_snapshot?.model_details?.version === 2,
+        "Agent definition version create did not return an active v2 snapshot.",
+      );
+
+      let versions = collectionRows(
+        await client.get(
+          apiPath("/simulate/agent-definitions/{agent_id}/versions/", {
+            agent_id: created.id,
+          }),
+          { query: { limit: 10 } },
+        ),
+      );
+      assert(
+        versions.length === 2 &&
+          versions.filter((version) => version.status === "active").length === 1,
+        "Agent definition version list did not contain exactly one active version.",
+      );
+
+      const invalidActivateBody = await expectApiError(
+        () =>
+          client.post(
+            apiPath(
+              "/simulate/agent-definitions/{agent_id}/versions/{version_id}/activate/",
+              {
+                agent_id: created.id,
+                version_id: initialVersionId,
+              },
+            ),
+            { legacy_extra: "reject me" },
+          ),
+        [400],
+        "Agent definition version activate accepted an unknown body field.",
+      );
+      const activatedInitial = await client.post(
+        apiPath(
+          "/simulate/agent-definitions/{agent_id}/versions/{version_id}/activate/",
+          {
+            agent_id: created.id,
+            version_id: initialVersionId,
+          },
+        ),
+        {},
+      );
+      assert(
+        activatedInitial.version?.id === initialVersionId &&
+          activatedInitial.version?.status === "active",
+        "Agent definition activate did not activate the requested version.",
+      );
+
+      const invalidRestoreBody = await expectApiError(
+        () =>
+          client.post(
+            apiPath(
+              "/simulate/agent-definitions/{agent_id}/versions/{version_id}/restore/",
+              {
+                agent_id: created.id,
+                version_id: secondVersion.id,
+              },
+            ),
+            { legacy_extra: "reject me" },
+          ),
+        [400],
+        "Agent definition version restore accepted an unknown body field.",
+      );
+      const restoredSecond = await client.post(
+        apiPath(
+          "/simulate/agent-definitions/{agent_id}/versions/{version_id}/restore/",
+          {
+            agent_id: created.id,
+            version_id: secondVersion.id,
+          },
+        ),
+        {},
+      );
+      assertNoRawSecret(
+        restoredSecond,
+        rawApiKey,
+        "Agent definition restore response leaked the raw provider API key.",
+      );
+      assert(
+        restoredSecond.agent?.agent_name === `${name} renamed`,
+        "Agent definition restore did not restore the v2 snapshot.",
+      );
+
+      const evalSummary = await client.get(
+        apiPath(
+          "/simulate/agent-definitions/{agent_id}/versions/{version_id}/eval-summary/",
+          {
+            agent_id: created.id,
+            version_id: secondVersion.id,
+          },
+        ),
+      );
+      assert(
+        Array.isArray(evalSummary),
+        "Agent definition version eval-summary did not return a list payload.",
+      );
+      const callExecutions = await client.get(
+        apiPath(
+          "/simulate/agent-definitions/{agent_id}/versions/{version_id}/call-executions/",
+          {
+            agent_id: created.id,
+            version_id: secondVersion.id,
+          },
+        ),
+        { query: { limit: 5 } },
+      );
+      assert(
+        Number(callExecutions.count || 0) === 0,
+        "Fresh agent definition version unexpectedly returned call executions.",
+      );
+
+      await client.delete(
+        apiPath(
+          "/simulate/agent-definitions/{agent_id}/versions/{version_id}/delete/",
+          {
+            agent_id: created.id,
+            version_id: secondVersion.id,
+          },
+        ),
+      );
+      versions = collectionRows(
+        await client.get(
+          apiPath("/simulate/agent-definitions/{agent_id}/versions/", {
+            agent_id: created.id,
+          }),
+          { query: { limit: 10 } },
+        ),
+      );
+      assert(
+        versions.every((version) => version.id !== secondVersion.id),
+        "Deleted agent definition version was still visible in version list.",
+      );
+
+      const singleDeleteEnvelope = await client.post(
+        apiPath("/simulate/agent-definitions/create/"),
+        {
+          agent_name: `${name} single delete`,
+          agent_type: "text",
+          inbound: true,
+          description: "Temporary text agent for single-delete cascade.",
+          languages: ["en"],
+          commit_message: "Initial text version",
+          model: "gpt-4o-mini",
+          model_details: { source: "api-journey", singleDelete: true },
+        },
+      );
+      const singleDeleteAgent = singleDeleteEnvelope.agent;
+      cleanup.defer("delete single-delete API journey agent definition", () =>
+        ignoreNotFound(() =>
+          client.delete(
+            apiPath("/simulate/agent-definitions/{agent_id}/delete/", {
+              agent_id: singleDeleteAgent.id,
+            }),
+          ),
+        ),
+      );
+      await client.delete(
+        apiPath("/simulate/agent-definitions/{agent_id}/delete/", {
+          agent_id: singleDeleteAgent.id,
+        }),
+      );
+      const singleDeleteAudit = await loadSimulationAgentDefinitionDbAudit({
+        agentIds: [singleDeleteAgent.id],
+        organizationId,
+        rawApiKey,
+        maskedApiKey: created.api_key,
+      });
+      assert(
+        Number(singleDeleteAudit.deleted_agent_count) === 1 &&
+          Number(singleDeleteAudit.deleted_version_count) === 1,
+        "Agent definition single delete did not soft-delete the agent and first version.",
+      );
+
+      const operationsCreated = await client.post(
+        apiPath("/simulate/api/agent-definition-operations/"),
+        {
+          agent_name: `${name} operations`,
           agent_type: "text",
           inbound: true,
           description: "Temporary agent definition for API journey regression.",
@@ -456,20 +911,20 @@ export const simulationAgentccJourneys = [
           model_details: { source: "api-journey" },
         },
       );
-      assert(created?.id, "Agent definition create did not return id.");
-      cleanup.defer("delete API journey agent definition", () =>
+      assert(operationsCreated?.id, "Agent definition operations create did not return id.");
+      cleanup.defer("delete operations API journey agent definition", () =>
         ignoreNotFound(() =>
           client.delete(
             apiPath("/simulate/api/agent-definition-operations/{id}/", {
-              id: created.id,
+              id: operationsCreated.id,
             }),
           ),
         ),
       );
 
-      const updated = await client.patch(
+      const operationsUpdated = await client.patch(
         apiPath("/simulate/api/agent-definition-operations/{id}/", {
-          id: created.id,
+          id: operationsCreated.id,
         }),
         {
           description:
@@ -478,47 +933,103 @@ export const simulationAgentccJourneys = [
         },
       );
       assert(
-        updated.description.includes("Updated temporary agent"),
+        operationsUpdated.description.includes("Updated temporary agent"),
         "Agent definition update did not persist description.",
       );
       assert(
-        updated.model_details?.updated === true,
+        operationsUpdated.model_details?.updated === true,
         "Agent definition update did not persist model_details.",
       );
 
-      const detail = await client.get(
+      const operationsDetail = await client.get(
         apiPath("/simulate/api/agent-definition-operations/{id}/", {
-          id: created.id,
+          id: operationsCreated.id,
         }),
       );
       assert(
-        detail?.id === created.id,
+        operationsDetail?.id === operationsCreated.id,
         "Agent definition detail returned wrong id.",
       );
       assert(
-        detail?.agent_name === name,
+        operationsDetail?.agent_name === `${name} operations`,
         "Agent definition detail returned wrong name.",
       );
 
       await client.delete(
         apiPath("/simulate/api/agent-definition-operations/{id}/", {
-          id: created.id,
+          id: operationsCreated.id,
         }),
       );
       const listed = asArray(
         await client.get(
           apiPath("/simulate/api/agent-definition-operations/"),
           {
-            query: { search: name, limit: 10 },
+            query: { search: `${name} operations`, limit: 10 },
           },
         ),
       );
       assert(
-        !listed.some((agent) => agent.id === created.id),
+        !listed.some((agent) => agent.id === operationsCreated.id),
         "Deleted agent definition was still visible through list/search.",
       );
 
-      evidence.push({ agent_definition_id: created.id, agent_name: name });
+      await client.delete(apiPath("/simulate/agent-definitions/"), {
+        body: { agent_ids: [created.id] },
+      });
+      dbAudit = await loadSimulationAgentDefinitionDbAudit({
+        agentIds: [created.id, singleDeleteAgent.id, operationsCreated.id],
+        organizationId,
+        rawApiKey,
+        maskedApiKey: created.api_key,
+      });
+      assert(
+        Number(dbAudit.deleted_agent_count) === 3 &&
+          Number(dbAudit.deleted_version_count) >= 2 &&
+          Number(dbAudit.active_version_count) === 0,
+        "Agent definition cleanup audit did not show deleted agent/version rows.",
+      );
+
+      const hardCleanup = await deleteSimulationAgentDefinitionFixturesDb({
+        namePrefix: name,
+        organizationId,
+      });
+      hardCleaned = true;
+      const hardCleanupSucceeded =
+        Number(hardCleanup.remaining_agent_count) === 0 &&
+        Number(hardCleanup.remaining_version_count) === 0 &&
+        Number(hardCleanup.remaining_credential_count) === 0;
+      assert(
+        hardCleanupSucceeded,
+        `Agent definition hard cleanup left disposable DB rows behind: ${JSON.stringify(
+          hardCleanup,
+        )}`,
+      );
+
+      evidence.push({
+        agent_definition_id: created.id,
+        agent_name: name,
+        initial_version_id: initialVersionId,
+        second_version_id: secondVersion.id,
+        operations_agent_definition_id: operationsCreated.id,
+        invalid_legacy_list_status: invalidLegacyList.status,
+        invalid_legacy_create_status: invalidLegacyCreate.status,
+        invalid_blank_name_status: invalidBlankName.status,
+        invalid_voice_provider_status: invalidVoiceProvider.status,
+        invalid_operations_create_status: invalidOperationsCreate.status,
+        invalid_fetch_assistant_status: invalidFetchAssistant.status,
+        invalid_legacy_edit_status: invalidLegacyEdit.status,
+        invalid_create_version_status: invalidCreateVersion.status,
+        invalid_activate_body_status: invalidActivateBody.status,
+        invalid_restore_body_status: invalidRestoreBody.status,
+        deleted_agent_count: Number(dbAudit.deleted_agent_count),
+        deleted_version_count: Number(dbAudit.deleted_version_count),
+        hard_cleanup_deleted_agent_count: Number(
+          hardCleanup.deleted_agent_count,
+        ),
+        hard_cleanup_remaining_agent_count: Number(
+          hardCleanup.remaining_agent_count,
+        ),
+      });
     },
   },
   {
@@ -5182,6 +5693,10 @@ function errorText(error) {
   return [error?.message, JSON.stringify(error?.body || {})].join(" ");
 }
 
+function assertNoRawSecret(payload, rawSecret, message) {
+  assert(!JSON.stringify(payload || {}).includes(rawSecret), message);
+}
+
 function isEntitlementDeniedError(error) {
   const text = errorText(error).toLowerCase();
   return (
@@ -5647,6 +6162,151 @@ SELECT json_build_object(
     FROM target_workspaces
     WHERE id NOT IN (SELECT id FROM deleted_workspaces)
   )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadSimulationAgentDefinitionDbAudit({
+  agentIds,
+  organizationId,
+  rawApiKey,
+  maskedApiKey,
+}) {
+  const sql = `
+WITH selected_ids AS (
+  SELECT unnest(${sqlUuidArray(agentIds)}) AS id
+),
+selected_agents AS (
+  SELECT a.*
+  FROM simulate_agent_definition a
+  JOIN selected_ids ids ON ids.id = a.id
+  WHERE a.organization_id = ${sqlUuid(organizationId)}
+),
+selected_versions AS (
+  SELECT v.*
+  FROM simulate_agent_version v
+  JOIN selected_agents a ON a.id = v.agent_definition_id
+),
+selected_credentials AS (
+  SELECT c.*
+  FROM simulate_provider_credentials c
+  JOIN selected_agents a ON a.id = c.agent_definition_id
+)
+SELECT json_build_object(
+  'agents', (
+    SELECT COALESCE(json_agg(json_build_object(
+      'id', id::text,
+      'agent_name', agent_name,
+      'agent_type', agent_type,
+      'organization_id', organization_id::text,
+      'workspace_id', workspace_id::text,
+      'deleted', deleted,
+      'deleted_at_set', deleted_at IS NOT NULL,
+      'api_key_raw_present', api_key = ${sqlString(rawApiKey)},
+      'api_key_is_masked_value', api_key = ${sqlString(maskedApiKey)},
+      'model_details', model_details
+    ) ORDER BY created_at), '[]'::json)
+    FROM selected_agents
+  ),
+  'versions', (
+    SELECT COALESCE(json_agg(json_build_object(
+      'id', id::text,
+      'agent_definition_id', agent_definition_id::text,
+      'version_number', version_number,
+      'status', status,
+      'deleted', deleted,
+      'deleted_at_set', deleted_at IS NOT NULL,
+      'snapshot_agent_name', configuration_snapshot->>'agent_name',
+      'snapshot_api_key_raw_present', configuration_snapshot->>'api_key' = ${sqlString(rawApiKey)},
+      'snapshot_api_key_is_masked_value', configuration_snapshot->>'api_key' = ${sqlString(maskedApiKey)}
+    ) ORDER BY version_number), '[]'::json)
+    FROM selected_versions
+  ),
+  'credentials', (
+    SELECT COALESCE(json_agg(json_build_object(
+      'id', id::text,
+      'agent_definition_id', agent_definition_id::text,
+      'provider_type', provider_type,
+      'api_key_encrypted', api_key LIKE 'enc::%',
+      'raw_key_present_in_ciphertext', position(${sqlString(rawApiKey)} in api_key) > 0,
+      'assistant_id', assistant_id
+    ) ORDER BY created_at), '[]'::json)
+    FROM selected_credentials
+  ),
+  'agent_count', (SELECT count(*) FROM selected_agents),
+  'deleted_agent_count', (
+    SELECT count(*) FROM selected_agents WHERE deleted = true AND deleted_at IS NOT NULL
+  ),
+  'version_count', (SELECT count(*) FROM selected_versions),
+  'active_version_count', (
+    SELECT count(*) FROM selected_versions WHERE deleted = false AND status = 'active'
+  ),
+  'archived_version_count', (
+    SELECT count(*) FROM selected_versions WHERE deleted = false AND status = 'archived'
+  ),
+  'deleted_version_count', (
+    SELECT count(*) FROM selected_versions WHERE deleted = true AND deleted_at IS NOT NULL
+  ),
+  'credential_count', (SELECT count(*) FROM selected_credentials),
+  'raw_key_present_in_credential_ciphertext', COALESCE((
+    SELECT bool_or(position(${sqlString(rawApiKey)} in api_key) > 0)
+    FROM selected_credentials
+  ), false)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function deleteSimulationAgentDefinitionFixturesDb({
+  namePrefix,
+  organizationId,
+}) {
+  const sql = `
+WITH target_agents AS (
+  SELECT id
+  FROM simulate_agent_definition
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND agent_name LIKE ${sqlString(`${namePrefix}%`)}
+),
+target_versions AS (
+  SELECT id
+  FROM simulate_agent_version
+  WHERE agent_definition_id IN (SELECT id FROM target_agents)
+),
+target_credentials AS (
+  SELECT id
+  FROM simulate_provider_credentials
+  WHERE agent_definition_id IN (SELECT id FROM target_agents)
+),
+deleted_credentials AS (
+  DELETE FROM simulate_provider_credentials c
+  USING target_credentials target
+  WHERE c.id = target.id
+  RETURNING c.id
+),
+deleted_versions AS (
+  DELETE FROM simulate_agent_version v
+  USING target_versions target
+  WHERE v.id = target.id
+  RETURNING v.id
+),
+deleted_agents AS (
+  DELETE FROM simulate_agent_definition a
+  USING target_agents target
+  WHERE a.id = target.id
+  RETURNING a.id
+)
+SELECT json_build_object(
+  'deleted_agent_count', (SELECT count(*) FROM deleted_agents),
+  'deleted_version_count', (SELECT count(*) FROM deleted_versions),
+  'deleted_credential_count', (SELECT count(*) FROM deleted_credentials),
+  'remaining_agent_count',
+    (SELECT count(*) FROM target_agents) - (SELECT count(*) FROM deleted_agents),
+  'remaining_version_count',
+    (SELECT count(*) FROM target_versions) - (SELECT count(*) FROM deleted_versions),
+  'remaining_credential_count',
+    (SELECT count(*) FROM target_credentials) - (SELECT count(*) FROM deleted_credentials)
 );
 `;
   return runPostgresJson(sql);

@@ -129,6 +129,12 @@ class CreateAgentVersionView(APIView):
             validated = request.validated_data
             commit_message = validated.get("commit_message", "")
             observability_enabled = validated.get("observability_enabled", False)
+            from simulate.serializers.agent_definition import _is_masked
+
+            incoming_api_key = validated.get("api_key")
+            preserve_existing_api_key = incoming_api_key is not None and _is_masked(
+                incoming_api_key
+            )
 
             # Update agent definition fields directly from validated data
             update_fields = [
@@ -148,6 +154,8 @@ class CreateAgentVersionView(APIView):
             ]
             changed = False
             for field in update_fields:
+                if field == "api_key" and preserve_existing_api_key:
+                    continue
                 if field in validated:
                     setattr(agent, field, validated[field])
                     changed = True
@@ -164,7 +172,7 @@ class CreateAgentVersionView(APIView):
 
             creds_input = ProviderCredentialsInput(
                 provider=validated.get("provider") or agent.provider or "",
-                api_key=validated.get("api_key"),
+                api_key=None if preserve_existing_api_key else validated.get("api_key"),
                 assistant_id=validated.get("assistant_id"),
                 livekit_url=validated.get("livekit_url"),
                 livekit_api_key=validated.get("livekit_api_key"),
@@ -172,6 +180,7 @@ class CreateAgentVersionView(APIView):
                 livekit_agent_name=validated.get("livekit_agent_name"),
                 livekit_config_json=validated.get("livekit_config_json"),
                 livekit_max_concurrency=validated.get("livekit_max_concurrency"),
+                provider_was_provided="provider" in request.data,
             )
             AgentDefinitionSerializer._sync_provider_credentials(agent, creds_input)
             # Drop the cached `credentials` related-object so the snapshot
@@ -237,6 +246,7 @@ class CreateAgentVersionView(APIView):
                 commit_message=commit_message,
                 status=AgentVersion.StatusChoices.ACTIVE,
             )
+            version.activate()
 
             response_data = {
                 "message": "Agent version created successfully",

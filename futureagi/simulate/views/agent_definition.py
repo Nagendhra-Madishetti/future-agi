@@ -58,6 +58,17 @@ from tracer.utils.replay_session import link_agent_to_replay_session
 logger = structlog.get_logger(__name__)
 
 
+def soft_delete_agent_definition_and_versions(agent):
+    deleted_at = timezone.now()
+    AgentVersion.objects.filter(agent_definition=agent).update(
+        deleted=True,
+        deleted_at=deleted_at,
+    )
+    agent.deleted = True
+    agent.deleted_at = deleted_at
+    agent.save(update_fields=["deleted", "deleted_at", "updated_at"])
+
+
 class AgentDefinitionView(APIView):
     """
     API View to list agent definitions for an organization with pagination and search,
@@ -307,6 +318,7 @@ class CreateAgentDefinitionView(APIView):
                 livekit_agent_name=validated.get("livekit_agent_name"),
                 livekit_config_json=validated.get("livekit_config_json"),
                 livekit_max_concurrency=validated.get("livekit_max_concurrency"),
+                provider_was_provided="provider" in request.data,
             )
             AgentDefinitionSerializer._sync_provider_credentials(agent, creds_input)
 
@@ -479,6 +491,9 @@ class AgentDefinitionOperationsViewSet(BaseModelViewSetMixin, ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
+    def perform_destroy(self, instance):
+        soft_delete_agent_definition_and_versions(instance)
+
     @validated_request(
         request_serializer=FetchAssistantRequestSerializer,
         responses={
@@ -599,6 +614,12 @@ class EditAgentDefinitionView(APIView):
             # they live on the related ProviderCredentials row and are
             # routed below via ``_sync_provider_credentials``.
             validated = request.validated_data
+            from simulate.serializers.agent_definition import _is_masked
+
+            incoming_api_key = validated.get("api_key")
+            preserve_existing_api_key = incoming_api_key is not None and _is_masked(
+                incoming_api_key
+            )
             update_fields = [
                 "agent_name",
                 "agent_type",
@@ -617,6 +638,8 @@ class EditAgentDefinitionView(APIView):
                 "websocket_headers",
             ]
             for field in update_fields:
+                if field == "api_key" and preserve_existing_api_key:
+                    continue
                 if field in validated:
                     setattr(agent, field, validated[field])
             if "knowledge_base" in validated:
@@ -633,7 +656,7 @@ class EditAgentDefinitionView(APIView):
 
             creds_input = ProviderCredentialsInput(
                 provider=validated.get("provider") or agent.provider or "",
-                api_key=validated.get("api_key"),
+                api_key=None if preserve_existing_api_key else validated.get("api_key"),
                 assistant_id=validated.get("assistant_id"),
                 livekit_url=validated.get("livekit_url"),
                 livekit_api_key=validated.get("livekit_api_key"),
@@ -641,6 +664,7 @@ class EditAgentDefinitionView(APIView):
                 livekit_agent_name=validated.get("livekit_agent_name"),
                 livekit_config_json=validated.get("livekit_config_json"),
                 livekit_max_concurrency=validated.get("livekit_max_concurrency"),
+                provider_was_provided="provider" in request.data,
             )
             AgentDefinitionSerializer._sync_provider_credentials(agent, creds_input)
             try:
@@ -690,7 +714,7 @@ class DeleteAgentDefinitionView(APIView):
                 deleted=False,
             )
 
-            agent.delete()
+            soft_delete_agent_definition_and_versions(agent)
 
             response_data = {"message": "Agent definition deleted successfully"}
             return Response(
