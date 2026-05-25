@@ -1580,9 +1580,11 @@ class EvalTemplateBulkDeleteView(APIView):
                 ).update(deleted=True, deleted_at=timezone.now())
 
                 # Fetch all UserEvalMetrics bound to these templates
+                # Scoped to the requesting org to prevent cross-tenant cascade
                 metrics = list(
                     UserEvalMetric.objects.filter(
                         template_id__in=req.template_ids,
+                        organization=organization,
                         deleted=False,
                     ).values_list("id", "dataset_id")
                 )
