@@ -2071,6 +2071,107 @@ export const observeFilterJourneys = [
     },
   },
   {
+    id: "OBS-API-020",
+    title: "Observe charts dashboard system metrics and date range filters",
+    tags: ["observe", "charts", "safe", "read-only"],
+    async run({ client, evidence }) {
+      const project = await resolveObserveProject(client, evidence);
+
+      const systemMetrics = asArray(
+        await client.get(apiPath("/tracer/project/fetch_system_metrics/")),
+      );
+      for (const metric of ["latency", "tokens", "cost"]) {
+        assert(
+          systemMetrics.includes(metric),
+          `System metric inventory omitted ${metric}.`,
+        );
+      }
+
+      const thirtyDayFilter = observeChartsDateFilter(30);
+      const sevenDayFilter = observeChartsDateFilter(7);
+      const thirtyDayGraph = await client.get(
+        apiPath("/tracer/project/get_graph_data/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "day",
+            filters: JSON.stringify([thirtyDayFilter]),
+          },
+        },
+      );
+      const sevenDayGraph = await client.get(
+        apiPath("/tracer/project/get_graph_data/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "day",
+            filters: JSON.stringify([sevenDayFilter]),
+          },
+        },
+      );
+      const sevenDayHourlyGraph = await client.get(
+        apiPath("/tracer/project/get_graph_data/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "hour",
+            filters: JSON.stringify([sevenDayFilter]),
+          },
+        },
+      );
+
+      const thirtyDaySummary = assertObserveChartsGraph(thirtyDayGraph, "30D");
+      const sevenDaySummary = assertObserveChartsGraph(sevenDayGraph, "7D");
+      const sevenDayHourlySummary = assertObserveChartsGraph(
+        sevenDayHourlyGraph,
+        "7D hourly",
+      );
+      assert(
+        sevenDaySummary.traffic_points <= thirtyDaySummary.traffic_points,
+        "7D chart range returned more daily traffic buckets than 30D.",
+      );
+      assert(
+        sevenDayHourlySummary.traffic_points >= sevenDaySummary.traffic_points,
+        "Hourly chart range returned fewer buckets than daily range.",
+      );
+
+      const latencyFetchGraph = await client.get(
+        apiPath("/tracer/charts/fetch_graph/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "day",
+            property: "average",
+            filters: [],
+            req_data_config: { id: "latency", type: "SYSTEM_METRIC" },
+          },
+        },
+      );
+      assert(
+        latencyFetchGraph?.metric_name === "latency" ||
+          Array.isArray(latencyFetchGraph?.data),
+        "Charts fetch_graph latency payload did not return the expected shape.",
+      );
+
+      const evalNames = asArray(
+        await client.get(apiPath("/tracer/trace/get_eval_names/"), {
+          query: { project_id: project.id },
+        }),
+      );
+
+      evidence.push({
+        project_id: project.id,
+        project_name: project.name || null,
+        system_metric_count: systemMetrics.length,
+        thirty_day_points: thirtyDaySummary,
+        seven_day_points: sevenDaySummary,
+        seven_day_hourly_points: sevenDayHourlySummary,
+        fetch_graph_metric_name: latencyFetchGraph?.metric_name || "latency",
+        evaluation_metric_count: evalNames.length,
+      });
+    },
+  },
+  {
     id: "OBS-API-019",
     title:
       "Dashboard widget full PUT route persists replacement and scope guards",
@@ -5027,8 +5128,14 @@ export const observeFilterJourneys = [
           query: { eval_id: createdTaskId },
         },
       );
-      assert(taskDetail?.id === createdTaskId, "Linked task detail id mismatch.");
-      assert(taskDetail?.project_id === projectId, "Linked task project mismatch.");
+      assert(
+        taskDetail?.id === createdTaskId,
+        "Linked task detail id mismatch.",
+      );
+      assert(
+        taskDetail?.project_id === projectId,
+        "Linked task project mismatch.",
+      );
       assert(
         asArray(taskDetail?.filters_applied?.trace_id).includes(traceId),
         "Linked task detail did not preserve the trace_id filter.",
@@ -5073,7 +5180,10 @@ export const observeFilterJourneys = [
         projectId,
         traceId,
       });
-      assert(audit.task_exists === true, "Linked task row was not found in DB.");
+      assert(
+        audit.task_exists === true,
+        "Linked task row was not found in DB.",
+      );
       assert(
         audit.trace_id_filter_contains === true,
         "Linked task DB filters did not contain the selected trace_id.",
@@ -6188,14 +6298,21 @@ async function resolveEvalTaskSeedWithTrace(client, evidence) {
         });
         return { seed, seedEval, projectId, trace, traceDetail };
       } catch (error) {
-        if (!(error instanceof ApiJourneyError && [400, 404].includes(error.status))) {
+        if (
+          !(
+            error instanceof ApiJourneyError &&
+            [400, 404].includes(error.status)
+          )
+        ) {
           throw error;
         }
       }
     }
   }
 
-  skip("No Observe task project with a readable trace exists for linked-source coverage.");
+  skip(
+    "No Observe task project with a readable trace exists for linked-source coverage.",
+  );
 }
 
 async function setEvalTaskStatus({ taskId, status }) {
@@ -9073,6 +9190,52 @@ function defaultObserveUserDateFilter(days = 90) {
       filter_value: [start.toISOString(), end.toISOString()],
     },
   };
+}
+
+function observeChartsDateFilter(days) {
+  const end = new Date();
+  end.setDate(end.getDate() + 1);
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  return {
+    column_id: "created_at",
+    filter_config: {
+      filter_type: "datetime",
+      filter_op: "between",
+      filter_value: [start.toISOString(), end.toISOString()],
+    },
+  };
+}
+
+function assertObserveChartsGraph(graph, label) {
+  const systemMetrics = graph?.system_metrics || {};
+  const summary = {};
+  for (const [metric, valueKey] of [
+    ["latency", "latency"],
+    ["tokens", "tokens"],
+    ["traffic", "traffic"],
+    ["cost", "cost"],
+  ]) {
+    const rows = asArray(systemMetrics[metric]);
+    assert(rows.length > 0, `${label} chart omitted ${metric} buckets.`);
+    for (const row of rows) {
+      assert(row?.timestamp, `${label} ${metric} row omitted timestamp.`);
+      assert(
+        !Number.isNaN(Date.parse(row.timestamp)),
+        `${label} ${metric} row returned invalid timestamp ${row.timestamp}.`,
+      );
+      assert(
+        Number.isFinite(Number(row[valueKey] ?? row.value ?? 0)),
+        `${label} ${metric} row returned non-numeric value.`,
+      );
+    }
+    summary[`${metric}_points`] = rows.length;
+    summary[`${metric}_sum`] = rows.reduce(
+      (total, row) => total + Number(row[valueKey] ?? row.value ?? 0),
+      0,
+    );
+  }
+  return summary;
 }
 
 function rowContainsValue(row, expected) {
