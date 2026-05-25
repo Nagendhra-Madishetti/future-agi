@@ -5615,6 +5615,329 @@ export const annotationQueueJourneys = [
     },
   },
   {
+    id: "AQ-API-033",
+    title: "Scheduled automation rule guardrails persist without queue mutation",
+    tags: ["annotation", "mutating", "automation", "schedule", "db-audit"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+      user,
+    }) {
+      requireMutations();
+      const userId = assertCurrentUserResolved(user);
+      const namePrefix = `api journey automation schedule ${runId}`;
+      const queueName = `${namePrefix} queue`;
+      cleanup.defer("hard-delete automation schedule DB fixtures", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+
+      let queue;
+      let createMode = "api";
+      try {
+        queue = await client.post(apiPath("/model-hub/annotation-queues/"), {
+          name: queueName,
+          description:
+            "Disposable queue for scheduled automation rule guardrail coverage.",
+          instructions: "Verify scheduled automation persistence.",
+          annotations_required: 1,
+          reservation_timeout_minutes: 30,
+          requires_review: false,
+          auto_assign: false,
+        });
+      } catch (error) {
+        if (error.status !== 402) throw error;
+        createMode = "db_seeded_after_create_entitlement";
+        evidence.push({
+          create_entitlement_status: error.status,
+          create_entitlement_body: error.body,
+        });
+        queue = await insertAnnotationQueueCreateFixtureDb({
+          queueName,
+          organizationId,
+          workspaceId,
+          userId,
+        });
+      }
+      assert(queue?.id, "Automation schedule queue create/seed returned no id.");
+      cleanup.defer("hard-delete automation schedule queue", () =>
+        hardDeleteQueueIfPresent(client, queue.id, queueName),
+      );
+
+      const noMatchFilter = [
+        {
+          column_id: "status",
+          filter_config: {
+            filter_type: "text",
+            filter_op: "equals",
+            filter_value: `api-journey-no-match-${runId}`,
+          },
+        },
+      ];
+      const scheduledRule = await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+          queue.id,
+        ),
+        {
+          name: `${namePrefix} daily rule`,
+          source_type: "trace",
+          conditions: {
+            operator: "and",
+            filter: noMatchFilter,
+          },
+          enabled: true,
+          trigger_frequency: "daily",
+        },
+      );
+      assert(scheduledRule?.id, "Scheduled automation rule create returned no id.");
+      cleanup.defer("delete scheduled automation rule", () =>
+        deleteAutomationRuleIfPresent(client, queue.id, scheduledRule.id),
+      );
+      assert(
+        scheduledRule.trigger_frequency === "daily" &&
+          Number(scheduledRule.trigger_count) === 0 &&
+          scheduledRule.last_triggered_at == null,
+        `Scheduled rule response had wrong frequency/counters: ${JSON.stringify(
+          scheduledRule,
+        )}.`,
+      );
+
+      const scheduledDb = await loadAutomationRuleDbAudit(scheduledRule.id);
+      assertAutomationRuleDbState(scheduledDb, {
+        name: `${namePrefix} daily rule`,
+        queueId: queue.id,
+        organizationId,
+        workspaceId,
+        sourceType: "trace",
+        enabled: true,
+        triggerFrequency: "daily",
+        firstFilterColumn: "status",
+        deleted: false,
+      });
+      assert(
+        Number(scheduledDb.trigger_count) === 0 &&
+          scheduledDb.last_triggered_at == null,
+        `Scheduled rule DB counters should be untouched before manual run: ${JSON.stringify(
+          scheduledDb,
+        )}.`,
+      );
+
+      const detail = await client.get(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/",
+          queue.id,
+          { id: scheduledRule.id },
+        ),
+      );
+      assert(
+        detail?.trigger_frequency === "daily" &&
+          detail?.conditions?.filter?.[0]?.filter_config?.filter_value ===
+            `api-journey-no-match-${runId}`,
+        `Scheduled rule detail did not round-trip canonical filter: ${JSON.stringify(
+          detail,
+        )}.`,
+      );
+
+      const list = asArray(
+        await client.get(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+            queue.id,
+          ),
+        ),
+      );
+      assert(
+        list.some((row) => String(row.id) === String(scheduledRule.id)),
+        "Scheduled rule list did not include the created rule.",
+      );
+
+      const preview = await client.get(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/preview/",
+          queue.id,
+          { id: scheduledRule.id },
+        ),
+      );
+      assert(
+        Number(preview.matched) === 0 && Number(preview.added) === 0,
+        `Scheduled rule no-match preview should not mutate queue items: ${JSON.stringify(
+          preview,
+        )}.`,
+      );
+
+      const bothShapesStatus = await expectHttpStatus(
+        () =>
+          client.post(
+            queuePath(
+              "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+              queue.id,
+            ),
+            {
+              name: `${namePrefix} invalid both shapes`,
+              source_type: "trace",
+              conditions: {
+                filter: noMatchFilter,
+                rules: [
+                  { field: "trace_id", op: "equals", value: randomUUID() },
+                ],
+              },
+              enabled: true,
+              trigger_frequency: "hourly",
+            },
+          ),
+        400,
+      );
+      const legacyFiltersStatus = await expectHttpStatus(
+        () =>
+          client.post(
+            queuePath(
+              "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+              queue.id,
+            ),
+            {
+              name: `${namePrefix} invalid filters key`,
+              source_type: "trace",
+              conditions: { filters: noMatchFilter },
+              enabled: true,
+              trigger_frequency: "weekly",
+            },
+          ),
+        400,
+      );
+      const invalidLegacyFieldStatus = await expectHttpStatus(
+        () =>
+          client.post(
+            queuePath(
+              "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+              queue.id,
+            ),
+            {
+              name: `${namePrefix} invalid legacy field`,
+              source_type: "trace",
+              conditions: {
+                rules: [
+                  {
+                    field: "totally_made_up_column",
+                    op: "equals",
+                    value: "x",
+                  },
+                ],
+              },
+              enabled: true,
+              trigger_frequency: "monthly",
+            },
+          ),
+        400,
+      );
+
+      let altGuard = { status: "skipped_no_alt_token" };
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (altToken) {
+        const altClient = createApiClient({
+          apiBase,
+          accessToken: altToken,
+          organizationId,
+          workspaceId,
+        });
+        const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+        const altUserId = currentUserId(altUser);
+        if (altUserId && String(altUserId) !== String(userId)) {
+          altGuard = {
+            user_id: altUserId,
+            create_status: await expectHttpStatus(
+              () =>
+                altClient.post(
+                  queuePath(
+                    "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+                    queue.id,
+                  ),
+                  {
+                    name: `${namePrefix} alt forbidden`,
+                    source_type: "trace",
+                    conditions: { filter: noMatchFilter },
+                    enabled: true,
+                    trigger_frequency: "daily",
+                  },
+                ),
+              403,
+            ),
+            preview_status: await expectHttpStatus(
+              () =>
+                altClient.get(
+                  queuePath(
+                    "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/preview/",
+                    queue.id,
+                    { id: scheduledRule.id },
+                  ),
+                ),
+              403,
+            ),
+            evaluate_status: await expectHttpStatus(
+              () =>
+                altClient.post(
+                  queuePath(
+                    "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/evaluate/",
+                    queue.id,
+                    { id: scheduledRule.id },
+                  ),
+                ),
+              403,
+            ),
+          };
+        } else {
+          altGuard = { status: "skipped_same_alt_user" };
+        }
+      }
+
+      await deleteAutomationRuleIfPresent(client, queue.id, scheduledRule.id);
+      const deletedDb = await loadAutomationRuleDbAudit(scheduledRule.id);
+      assertAutomationRuleDbState(deletedDb, {
+        name: `${namePrefix} daily rule`,
+        queueId: queue.id,
+        organizationId,
+        workspaceId,
+        sourceType: "trace",
+        enabled: true,
+        triggerFrequency: "daily",
+        firstFilterColumn: "status",
+        deleted: true,
+      });
+
+      await hardDeleteQueueIfPresent(client, queue.id, queueName);
+      const finalResidue = await loadAutomationScheduleResidueDbAudit(namePrefix);
+      assert(
+        Number(finalResidue.matching_queues) === 0 &&
+          Number(finalResidue.matching_rules) === 0 &&
+          Number(finalResidue.matching_active_rules) === 0,
+        `Automation schedule cleanup left DB residue: ${JSON.stringify(
+          finalResidue,
+        )}.`,
+      );
+
+      evidence.push({
+        create_mode: createMode,
+        queue_id: queue.id,
+        rule_id: scheduledRule.id,
+        trigger_frequency: scheduledRule.trigger_frequency,
+        preview_matched: preview.matched,
+        preview_added: preview.added,
+        invalid_both_shapes_status: bothShapesStatus,
+        invalid_filters_status: legacyFiltersStatus,
+        invalid_legacy_field_status: invalidLegacyFieldStatus,
+        alt_guard: altGuard,
+        db_trigger_count: scheduledDb.trigger_count,
+        db_last_triggered_at: scheduledDb.last_triggered_at,
+        db_deleted_at: deletedDb.deleted_at,
+        final_residue: finalResidue,
+      });
+    },
+  },
+  {
     id: "AQ-API-017",
     title: "Disposable queue archive, restore, and hard-delete lifecycle",
     tags: ["annotation", "mutating", "queue", "data-roundtrip"],
@@ -9187,6 +9510,29 @@ select coalesce(
   return audit;
 }
 
+async function loadAutomationScheduleResidueDbAudit(namePrefix) {
+  const sql = `
+with matching_queues as (
+  select id
+  from model_hub_annotationqueue
+  where name like ${sqlString(`${namePrefix}%`)}
+),
+matching_rules as (
+  select id, deleted
+  from model_hub_automationrule
+  where name like ${sqlString(`${namePrefix}%`)}
+     or queue_id in (select id from matching_queues)
+)
+select json_build_object(
+  'matching_queues', (select count(*)::int from matching_queues),
+  'matching_rules', (select count(*)::int from matching_rules),
+  'matching_active_rules',
+    (select count(*)::int from matching_rules where deleted = false)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
 async function loadDiscussionDbAudit(threadId) {
   const sql = `
 with thread as (
@@ -10052,6 +10398,12 @@ matching_labels AS (
 matching_queue_items AS (
   SELECT id FROM model_hub_queueitem WHERE queue_id IN (SELECT id FROM matching_queues)
 ),
+matching_automation_rules AS (
+  SELECT id
+  FROM model_hub_automationrule
+  WHERE name LIKE ${sqlString(`${namePrefix}%`)}
+     OR queue_id IN (SELECT id FROM matching_queues)
+),
 deleted_scores AS (
   DELETE FROM model_hub_score
   WHERE queue_item_id IN (SELECT id FROM matching_queue_items)
@@ -10084,6 +10436,11 @@ deleted_queue_members AS (
   WHERE queue_id IN (SELECT id FROM matching_queues)
   RETURNING id
 ),
+deleted_automation_rules AS (
+  DELETE FROM model_hub_automationrule
+  WHERE id IN (SELECT id FROM matching_automation_rules)
+  RETURNING id
+),
 deleted_queues AS (
   DELETE FROM model_hub_annotationqueue
   WHERE id IN (SELECT id FROM matching_queues)
@@ -10106,6 +10463,7 @@ SELECT json_build_object(
   'deleted_queue_items', (SELECT count(*) FROM deleted_queue_items),
   'deleted_queue_labels', (SELECT count(*) FROM deleted_queue_labels),
   'deleted_queue_members', (SELECT count(*) FROM deleted_queue_members),
+  'deleted_automation_rules', (SELECT count(*) FROM deleted_automation_rules),
   'deleted_queues', (SELECT count(*) FROM deleted_queues),
   'deleted_labels', (SELECT count(*) FROM deleted_labels),
   'deleted_workspaces', (SELECT count(*) FROM deleted_workspaces)
