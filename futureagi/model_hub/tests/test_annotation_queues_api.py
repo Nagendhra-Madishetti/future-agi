@@ -906,6 +906,53 @@ class TestAnnotationQueueRoleBackfill:
         ]
         assert "1 creator memberships created" in out.getvalue()
 
+    def test_backfill_command_preserves_non_creator_legacy_reviewer_role(
+        self, organization, workspace, user
+    ):
+        reviewer = create_workspace_member_user(organization, workspace)
+        queue = AnnotationQueue.objects.create(
+            name=f"Legacy Reviewer Queue {uuid.uuid4()}",
+            organization=organization,
+            workspace=workspace,
+            created_by=user,
+        )
+        membership = AnnotationQueueAnnotator.objects.create(
+            queue=queue,
+            user=reviewer,
+            role=AnnotatorRole.REVIEWER.value,
+            roles=[],
+        )
+
+        out = StringIO()
+        call_command("backfill_annotation_queue_roles", stdout=out)
+
+        membership.refresh_from_db()
+        assert membership.role == AnnotatorRole.REVIEWER.value
+        assert membership.roles == [AnnotatorRole.REVIEWER.value]
+        assert "1 memberships updated" in out.getvalue()
+
+    def test_backfill_command_dry_run_rolls_back_membership_updates(
+        self, organization, workspace, user
+    ):
+        queue = AnnotationQueue.objects.create(
+            name=f"Legacy Dry Run Queue {uuid.uuid4()}",
+            organization=organization,
+            workspace=workspace,
+            created_by=user,
+        )
+        membership = AnnotationQueueAnnotator.objects.get(queue=queue, user=user)
+        membership.roles = []
+        membership.save(update_fields=["roles", "updated_at"])
+
+        out = StringIO()
+        call_command("backfill_annotation_queue_roles", "--dry-run", stdout=out)
+
+        membership.refresh_from_db()
+        assert membership.role == AnnotatorRole.MANAGER.value
+        assert membership.roles == []
+        assert "DRY RUN:" in out.getvalue()
+        assert "1 memberships updated" in out.getvalue()
+
 
 # ---------------------------------------------------------------------------
 # 1.5 – Archive & Restore

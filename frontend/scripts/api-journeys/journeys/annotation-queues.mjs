@@ -2896,6 +2896,285 @@ export const annotationQueueJourneys = [
     },
   },
   {
+    id: "MUR-API-004",
+    title: "Legacy queue role backfill preserves member access",
+    tags: ["annotation", "mutating", "multi-user", "migration", "db-audit"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      runId,
+      user,
+      workspaceId,
+    }) {
+      requireMutations();
+      const backendContainer = await requireBackendContainerForJourney();
+      const creatorId = assertCurrentUserResolved(user);
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (!altToken) {
+        skip(
+          "Set API_JOURNEY_ALT_ACCESS_TOKEN for a second workspace member to run legacy role backfill coverage.",
+        );
+      }
+      const altClient = createApiClient({
+        apiBase,
+        accessToken: altToken,
+        organizationId,
+        workspaceId,
+      });
+      const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+      const reviewerId = currentUserId(altUser);
+      assert(reviewerId, "Legacy role alternate user id could not be resolved.");
+      if (String(reviewerId) === String(creatorId)) {
+        skip("Alternate token resolved to the creator user.");
+      }
+
+      const namePrefix = `api journey legacy roles ${runId}`;
+      cleanup.defer("hard-delete legacy role DB fixtures", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+
+      const preflight = await loadLegacyRoleBackfillPreflightDb(namePrefix);
+      const fixtures = await insertLegacyQueueRoleFixturesDb({
+        namePrefix,
+        organizationId,
+        workspaceId,
+        creatorId,
+        reviewerId,
+      });
+      assert(
+        fixtures?.legacy_queue_id && fixtures?.missing_creator_queue_id,
+        `Legacy role fixture insert returned no queue ids: ${JSON.stringify(
+          fixtures,
+        )}.`,
+      );
+
+      const beforeAudit = await loadLegacyRoleFixtureAuditDb({
+        namePrefix,
+        creatorId,
+        reviewerId,
+      });
+      const legacyCreatorBefore = findLegacyRoleAuditMember(
+        beforeAudit,
+        fixtures.legacy_queue_id,
+        creatorId,
+      );
+      const legacyReviewerBefore = findLegacyRoleAuditMember(
+        beforeAudit,
+        fixtures.legacy_queue_id,
+        reviewerId,
+      );
+      assert(
+        legacyCreatorBefore?.role === "manager" &&
+          sameJsonValue(asArray(legacyCreatorBefore.roles), []) &&
+          legacyReviewerBefore?.role === "reviewer" &&
+          sameJsonValue(asArray(legacyReviewerBefore.roles), []) &&
+          Number(beforeAudit.missing_creator_membership_count) === 1,
+        `Legacy fixture did not start in pre-backfill shape: ${JSON.stringify(
+          beforeAudit,
+        )}.`,
+      );
+
+      const creatorLegacyBeforeDetail = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.legacy_queue_id,
+        }),
+      );
+      const reviewerLegacyBeforeDetail = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.legacy_queue_id,
+        }),
+      );
+      const creatorMemberBefore = asArray(
+        creatorLegacyBeforeDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(creatorId));
+      const reviewerMemberBefore = asArray(
+        reviewerLegacyBeforeDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(reviewerId));
+      assert(
+        sameJsonValue(asArray(creatorMemberBefore?.roles), ["manager"]) &&
+          asArray(reviewerLegacyBeforeDetail.viewer_roles).includes("reviewer") &&
+          sameJsonValue(asArray(reviewerMemberBefore?.roles), ["reviewer"]),
+        `Legacy fallback API roles did not preserve pre-backfill access: ${JSON.stringify(
+          {
+            creatorMemberBefore,
+            reviewerViewerRoles: reviewerLegacyBeforeDetail.viewer_roles,
+            reviewerMemberBefore,
+          },
+        )}.`,
+      );
+
+      const dryRun = await runBackendManageCommand(
+        backendContainer,
+        "backfill_annotation_queue_roles",
+        ["--dry-run"],
+      );
+      const dryRunSummary = parseAnnotationQueueRoleBackfillSummary(
+        dryRun.stdout,
+      );
+      assert(
+        dryRunSummary.dryRun &&
+          dryRunSummary.updated >= 2 &&
+          dryRunSummary.created >= 1,
+        `Legacy role dry-run summary did not include fixture rows: ${dryRun.stdout}`,
+      );
+
+      const afterDryRunAudit = await loadLegacyRoleFixtureAuditDb({
+        namePrefix,
+        creatorId,
+        reviewerId,
+      });
+      assert(
+        sameJsonValue(
+          asArray(
+            findLegacyRoleAuditMember(
+              afterDryRunAudit,
+              fixtures.legacy_queue_id,
+              creatorId,
+            )?.roles,
+          ),
+          [],
+        ) &&
+          Number(afterDryRunAudit.missing_creator_membership_count) === 1,
+        `Legacy role dry-run mutated fixture rows: ${JSON.stringify(
+          afterDryRunAudit,
+        )}.`,
+      );
+
+      const backfill = await runBackendManageCommand(
+        backendContainer,
+        "backfill_annotation_queue_roles",
+      );
+      const backfillSummary = parseAnnotationQueueRoleBackfillSummary(
+        backfill.stdout,
+      );
+      assert(
+        !backfillSummary.dryRun &&
+          backfillSummary.updated >= 2 &&
+          backfillSummary.created >= 1,
+        `Legacy role backfill summary did not include fixture rows: ${backfill.stdout}`,
+      );
+
+      const afterAudit = await loadLegacyRoleFixtureAuditDb({
+        namePrefix,
+        creatorId,
+        reviewerId,
+      });
+      const legacyCreatorAfter = findLegacyRoleAuditMember(
+        afterAudit,
+        fixtures.legacy_queue_id,
+        creatorId,
+      );
+      const legacyReviewerAfter = findLegacyRoleAuditMember(
+        afterAudit,
+        fixtures.legacy_queue_id,
+        reviewerId,
+      );
+      const missingCreatorAfter = findLegacyRoleAuditMember(
+        afterAudit,
+        fixtures.missing_creator_queue_id,
+        creatorId,
+      );
+      assert(
+        sameJsonValue(asArray(legacyCreatorAfter?.roles), [
+          "manager",
+          "reviewer",
+          "annotator",
+        ]) &&
+          legacyCreatorAfter?.role === "manager" &&
+          sameJsonValue(asArray(legacyReviewerAfter?.roles), ["reviewer"]) &&
+          legacyReviewerAfter?.role === "reviewer" &&
+          sameJsonValue(asArray(missingCreatorAfter?.roles), [
+            "manager",
+            "reviewer",
+            "annotator",
+          ]) &&
+          Number(afterAudit.missing_creator_membership_count) === 0,
+        `Legacy role backfill DB audit mismatch: ${JSON.stringify(afterAudit)}.`,
+      );
+
+      const creatorLegacyAfterDetail = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.legacy_queue_id,
+        }),
+      );
+      const reviewerLegacyAfterDetail = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.legacy_queue_id,
+        }),
+      );
+      const missingCreatorAfterDetail = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.missing_creator_queue_id,
+        }),
+      );
+      const creatorMemberAfter = asArray(
+        creatorLegacyAfterDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(creatorId));
+      const reviewerMemberAfter = asArray(
+        reviewerLegacyAfterDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(reviewerId));
+      const missingCreatorMemberAfter = asArray(
+        missingCreatorAfterDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(creatorId));
+      assert(
+        sameJsonValue(asArray(creatorMemberAfter?.roles), [
+          "manager",
+          "reviewer",
+          "annotator",
+        ]) &&
+          sameJsonValue(asArray(missingCreatorMemberAfter?.roles), [
+            "manager",
+            "reviewer",
+            "annotator",
+          ]) &&
+          asArray(reviewerLegacyAfterDetail.viewer_roles).includes("reviewer") &&
+          sameJsonValue(asArray(reviewerMemberAfter?.roles), ["reviewer"]),
+        `Legacy role backfill API readback mismatch: ${JSON.stringify({
+          creatorMemberAfter,
+          missingCreatorMemberAfter,
+          reviewerViewerRoles: reviewerLegacyAfterDetail.viewer_roles,
+          reviewerMemberAfter,
+        })}.`,
+      );
+
+      const cleanupResult = await deleteQueueCreateFixturesDb(namePrefix);
+      const residue = await loadLegacyRoleFixtureResidueDb(namePrefix);
+      assert(
+        Number(cleanupResult.deleted_queues) === 2 &&
+          Number(cleanupResult.deleted_queue_members) === 3 &&
+          Number(residue.matching_queue_count) === 0 &&
+          Number(residue.matching_member_count) === 0,
+        `Legacy role fixture cleanup left residue: ${JSON.stringify({
+          cleanupResult,
+          residue,
+        })}.`,
+      );
+
+      evidence.push({
+        backend_container: backendContainer,
+        legacy_queue_id: fixtures.legacy_queue_id,
+        missing_creator_queue_id: fixtures.missing_creator_queue_id,
+        creator_id: creatorId,
+        reviewer_id: reviewerId,
+        preexisting_stale_memberships: preflight.stale_membership_count,
+        preexisting_missing_creator_memberships:
+          preflight.missing_creator_membership_count,
+        dry_run_updated: dryRunSummary.updated,
+        dry_run_created: dryRunSummary.created,
+        backfill_updated: backfillSummary.updated,
+        backfill_created: backfillSummary.created,
+        creator_roles_after: legacyCreatorAfter.roles,
+        reviewer_roles_after: legacyReviewerAfter.roles,
+        missing_creator_roles_after: missingCreatorAfter.roles,
+        cleanup_deleted_queues: cleanupResult.deleted_queues,
+        cleanup_deleted_members: cleanupResult.deleted_queue_members,
+      });
+    },
+  },
+  {
     id: "AQ-API-031",
     title:
       "Annotation history, raw scores, value history, and item notes reload",
@@ -9510,6 +9789,381 @@ SELECT json_build_object(
 )::text;
 `;
   return runPostgresJson(sql);
+}
+
+async function insertLegacyQueueRoleFixturesDb({
+  namePrefix,
+  organizationId,
+  workspaceId,
+  creatorId,
+  reviewerId,
+}) {
+  const legacyQueueId = randomUUID();
+  const missingCreatorQueueId = randomUUID();
+  const creatorMemberId = randomUUID();
+  const reviewerMemberId = randomUUID();
+  const legacyQueueName = `${namePrefix} legacy member queue`;
+  const missingCreatorQueueName = `${namePrefix} missing creator queue`;
+  const sql = `
+WITH inserted_queues AS (
+  INSERT INTO model_hub_annotationqueue (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    description,
+    instructions,
+    status,
+    assignment_strategy,
+    annotations_required,
+    reservation_timeout_minutes,
+    requires_review,
+    created_by_id,
+    organization_id,
+    workspace_id,
+    project_id,
+    is_default,
+    dataset_id,
+    agent_definition_id,
+    auto_assign
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(legacyQueueId, "legacyQueueId")},
+      ${sqlString(legacyQueueName)},
+      ${sqlString("Disposable legacy-role queue for API journey coverage.")},
+      ${sqlString("Verify legacy single-role membership backfill.")},
+      'active',
+      'manual',
+      1,
+      30,
+      false,
+      ${sqlUuid(creatorId, "creatorId")},
+      ${sqlUuid(organizationId, "organizationId")},
+      ${sqlUuid(workspaceId, "workspaceId")},
+      NULL,
+      false,
+      NULL,
+      NULL,
+      false
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(missingCreatorQueueId, "missingCreatorQueueId")},
+      ${sqlString(missingCreatorQueueName)},
+      ${sqlString("Disposable missing-creator membership queue.")},
+      ${sqlString("Verify creator membership creation during backfill.")},
+      'active',
+      'manual',
+      1,
+      30,
+      false,
+      ${sqlUuid(creatorId, "creatorId")},
+      ${sqlUuid(organizationId, "organizationId")},
+      ${sqlUuid(workspaceId, "workspaceId")},
+      NULL,
+      false,
+      NULL,
+      NULL,
+      false
+    )
+  RETURNING id::text, name
+),
+inserted_members AS (
+  INSERT INTO model_hub_annotationqueueannotator (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    role,
+    roles,
+    queue_id,
+    user_id
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(creatorMemberId, "creatorMemberId")},
+      'manager',
+      ${sqlJson([])},
+      ${sqlUuid(legacyQueueId, "legacyQueueId")},
+      ${sqlUuid(creatorId, "creatorId")}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(reviewerMemberId, "reviewerMemberId")},
+      'reviewer',
+      ${sqlJson([])},
+      ${sqlUuid(legacyQueueId, "legacyQueueId")},
+      ${sqlUuid(reviewerId, "reviewerId")}
+    )
+  RETURNING id::text, queue_id::text, user_id::text, role, roles
+)
+SELECT json_build_object(
+  'legacy_queue_id', ${sqlString(legacyQueueId)},
+  'missing_creator_queue_id', ${sqlString(missingCreatorQueueId)},
+  'legacy_queue_name', ${sqlString(legacyQueueName)},
+  'missing_creator_queue_name', ${sqlString(missingCreatorQueueName)},
+  'inserted_queue_count', (SELECT count(*) FROM inserted_queues),
+  'inserted_member_count', (SELECT count(*) FROM inserted_members)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyRoleBackfillPreflightDb(namePrefix) {
+  const sql = `
+WITH memberships AS (
+  SELECT
+    a.id,
+    a.role,
+    COALESCE(a.roles::jsonb, '[]'::jsonb) AS roles,
+    a.user_id,
+    q.created_by_id,
+    q.name
+  FROM model_hub_annotationqueueannotator a
+  JOIN model_hub_annotationqueue q ON q.id = a.queue_id
+  WHERE q.name NOT LIKE ${sqlString(`${namePrefix}%`)}
+),
+missing_creator_memberships AS (
+  SELECT q.id
+  FROM model_hub_annotationqueue q
+  WHERE
+    q.deleted = false
+    AND q.created_by_id IS NOT NULL
+    AND q.name NOT LIKE ${sqlString(`${namePrefix}%`)}
+    AND NOT EXISTS (
+      SELECT 1
+      FROM model_hub_annotationqueueannotator a
+      WHERE
+        a.queue_id = q.id
+        AND a.user_id = q.created_by_id
+        AND a.deleted = false
+    )
+)
+SELECT json_build_object(
+  'stale_membership_count',
+    (
+      SELECT count(*)
+      FROM memberships
+      WHERE
+        roles = '[]'::jsonb
+        OR (
+          created_by_id = user_id
+          AND NOT (
+            roles ? 'manager'
+            AND roles ? 'reviewer'
+            AND roles ? 'annotator'
+          )
+        )
+        OR (
+          roles <> '[]'::jsonb
+          AND role <> CASE
+            WHEN roles ? 'manager' THEN 'manager'
+            WHEN roles ? 'reviewer' THEN 'reviewer'
+            WHEN roles ? 'annotator' THEN 'annotator'
+            ELSE role
+          END
+        )
+    ),
+  'missing_creator_membership_count',
+    (SELECT count(*) FROM missing_creator_memberships)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyRoleFixtureAuditDb({
+  namePrefix,
+  creatorId,
+  reviewerId,
+}) {
+  const sql = `
+WITH matching_queues AS (
+  SELECT
+    q.id,
+    q.id::text AS id_text,
+    q.name,
+    q.created_by_id,
+    q.created_by_id::text AS created_by_id_text,
+    q.organization_id::text AS organization_id,
+    q.workspace_id::text AS workspace_id,
+    q.deleted
+  FROM model_hub_annotationqueue q
+  WHERE q.name LIKE ${sqlString(`${namePrefix}%`)}
+),
+matching_members AS (
+  SELECT
+    a.id::text AS id,
+    a.queue_id::text AS queue_id,
+    a.user_id::text AS user_id,
+    a.role,
+    a.roles,
+    a.deleted
+  FROM model_hub_annotationqueueannotator a
+  WHERE a.queue_id IN (SELECT id FROM matching_queues)
+)
+SELECT json_build_object(
+  'queues',
+    COALESCE(
+      (
+        SELECT json_agg(
+          json_build_object(
+            'id', id_text,
+            'name', name,
+            'created_by_id', created_by_id_text,
+            'organization_id', organization_id,
+            'workspace_id', workspace_id,
+            'deleted', deleted
+          )
+          ORDER BY name
+        )
+        FROM matching_queues
+      ),
+      '[]'::json
+    ),
+  'members',
+    COALESCE(
+      (
+        SELECT json_agg(
+          json_build_object(
+            'id', id,
+            'queue_id', queue_id,
+            'user_id', user_id,
+            'role', role,
+            'roles', roles,
+            'deleted', deleted
+          )
+          ORDER BY queue_id, user_id
+        )
+        FROM matching_members
+      ),
+      '[]'::json
+    ),
+  'creator_member_count',
+    (
+      SELECT count(*)
+      FROM matching_members
+      WHERE user_id = ${sqlString(creatorId)} AND deleted = false
+    ),
+  'reviewer_member_count',
+    (
+      SELECT count(*)
+      FROM matching_members
+      WHERE user_id = ${sqlString(reviewerId)} AND deleted = false
+    ),
+  'missing_creator_membership_count',
+    (
+      SELECT count(*)
+      FROM matching_queues q
+      WHERE
+        q.created_by_id = ${sqlUuid(creatorId, "creatorId")}
+        AND NOT EXISTS (
+          SELECT 1
+          FROM matching_members m
+          WHERE
+            m.queue_id = q.id_text
+            AND m.user_id = ${sqlString(creatorId)}
+            AND m.deleted = false
+        )
+    )
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyRoleFixtureResidueDb(namePrefix) {
+  const sql = `
+WITH matching_queues AS (
+  SELECT id FROM model_hub_annotationqueue WHERE name LIKE ${sqlString(`${namePrefix}%`)}
+)
+SELECT json_build_object(
+  'matching_queue_count', (SELECT count(*) FROM matching_queues),
+  'matching_member_count',
+    (
+      SELECT count(*)
+      FROM model_hub_annotationqueueannotator
+      WHERE queue_id IN (SELECT id FROM matching_queues)
+    )
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+function findLegacyRoleAuditMember(audit, queueId, userId) {
+  return asArray(audit?.members).find(
+    (member) =>
+      String(member.queue_id) === String(queueId) &&
+      String(member.user_id) === String(userId) &&
+      member.deleted === false,
+  );
+}
+
+async function requireBackendContainerForJourney() {
+  const container =
+    process.env.API_JOURNEY_BACKEND_CONTAINER || "futureagi-ws2-backend-1";
+  try {
+    await execFileAsync("docker", ["exec", container, "true"]);
+  } catch {
+    skip(
+      `Set API_JOURNEY_BACKEND_CONTAINER to a running backend container for management-command coverage; ${container} is unavailable.`,
+    );
+  }
+  return container;
+}
+
+async function runBackendManageCommand(container, commandName, args = []) {
+  const manageArgs = [commandName, ...args].map(shellQuote).join(" ");
+  const command = [
+    "cd /app/backend",
+    `UV_PROJECT_ENVIRONMENT=/tmp/ws2-pytest-venv UV_LINK_MODE=copy uv run python manage.py ${manageArgs}`,
+  ].join(" && ");
+  try {
+    return await execFileAsync("docker", ["exec", container, "sh", "-lc", command], {
+      maxBuffer: 20 * 1024 * 1024,
+    });
+  } catch (error) {
+    throw new Error(
+      `Backend manage.py ${commandName} failed: ${String(
+        error.stderr || error.stdout || error.message,
+      ).slice(0, 2000)}`,
+    );
+  }
+}
+
+function parseAnnotationQueueRoleBackfillSummary(output) {
+  const match = String(output || "").match(
+    /(?:DRY RUN:\s*)?Annotation queue role backfill complete:\s*(\d+)\s+memberships updated,\s*(\d+)\s+creator memberships created/i,
+  );
+  assert(
+    match,
+    `Could not parse annotation queue role backfill summary: ${output}`,
+  );
+  return {
+    dryRun: /DRY RUN:/i.test(output),
+    updated: Number(match[1]),
+    created: Number(match[2]),
+  };
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
 }
 
 async function runPostgresJson(sql) {
