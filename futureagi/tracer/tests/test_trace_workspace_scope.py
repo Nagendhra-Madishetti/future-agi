@@ -213,12 +213,43 @@ class TestTraceWorkspaceScopeAPI:
         assert "Average" in response.data["result"]
         assert "P95" in response.data["result"]
 
-    def test_agent_graph_falls_back_to_postgres_when_clickhouse_fails(
+    def test_agent_graph_propagates_clickhouse_failure_without_pg_fallback(
         self, auth_client, project, observation_span, child_span, monkeypatch
     ):
+        # Post-migration contract (DECISIONS #027): agent_graph is CH-only.
+        # The legacy "CH fails → silently rebuild graph from PG" path was
+        # removed because PG is no longer the source of truth — falling back
+        # would return a partial graph that operators wrongly trust. CH errors
+        # now surface as a 4xx with a diagnostic so the data pipeline gets
+        # paged instead of silently degrading.
         monkeypatch.setattr(
             "tracer.services.clickhouse.query_service.AnalyticsQueryService.execute_ch_query",
             lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("ch down")),
+        )
+
+        # Static-source guard (per codex P2 finding): asserting "got 400" is
+        # necessary but not sufficient — a future regression could
+        # re-introduce the PG-fallback helper invocation, have it ALSO error,
+        # and still hand the operator a 400. The contract is "PG fallback is
+        # never called from agent_graph". We assert this statically against
+        # the bytecode of the view: the body of `agent_graph` must NOT
+        # reference `_build_agent_graph_pg` at all. Static check survives
+        # the tracer.views.trace circular-import path at test setup time
+        # that defeated a runtime-sentinel approach.
+        import inspect
+        # Trigger view module load via URL resolver before doing source
+        # inspection (Django's URL conf is lazy; first GET would load it).
+        # Pre-load the module to surface the source for inspection.
+        from django.urls import get_resolver
+        get_resolver().reverse_dict  # forces URL conf + view imports
+        import sys
+        trace_module = sys.modules["tracer.views.trace"]
+        agent_graph_fn = trace_module.TraceView.agent_graph
+        src = inspect.getsource(agent_graph_fn)
+        assert "_build_agent_graph_pg" not in src, (
+            "PG fallback helper _build_agent_graph_pg is still referenced in "
+            "agent_graph view. Post-D-027 contract: agent_graph is CH-only. "
+            "Remove the helper invocation in tracer/views/trace.py::agent_graph."
         )
 
         response = auth_client.get(
@@ -226,18 +257,15 @@ class TestTraceWorkspaceScopeAPI:
             {"project_id": str(project.id)},
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        result = response.data["result"]
-        node_ids = {node["id"] for node in result["nodes"]}
-        root_node_id = f"{observation_span.observation_type}:{observation_span.name}"
-        child_node_id = f"{child_span.observation_type}:{child_span.name}"
-        assert root_node_id in node_ids
-        assert child_node_id in node_ids
-        assert any(
-            edge["source"] == root_node_id
-            and edge["target"] == child_node_id
-            and edge["transition_count"] == 1
-            for edge in result["edges"]
+        assert response.status_code == status.HTTP_400_BAD_REQUEST, (
+            f"expected 400 when CH fails (no PG fallback); got {response.status_code}: "
+            f"{getattr(response, 'data', None)!r}"
+        )
+        # Diagnostic must mention agent_graph so operators can route the alert.
+        body = getattr(response, "data", {}) or {}
+        message = (body.get("message") or body.get("detail") or "").lower()
+        assert "agent graph" in message, (
+            f"diagnostic must identify the failing endpoint; got {body!r}"
         )
 
     def test_generic_delete_cascades_trace_spans_and_eval_logs(
