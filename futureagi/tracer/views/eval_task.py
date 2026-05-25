@@ -13,6 +13,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
+from model_hub.models.evals_metric import EvalTemplate
+
 
 class _RegexpReplace(Func):
     """
@@ -219,11 +221,11 @@ def _compute_span_aggregation(base_qs):
             if cfg.eval_template
             else "pass_fail"
         )
-        if output_type == "percentage":
+        if output_type == EvalTemplate.OutputTypeNormalized.PERCENTAGE:
             value = log.output_float
-        elif output_type == "pass_fail":
+        elif output_type == EvalTemplate.OutputTypeNormalized.PASS_FAIL:
             value = log.output_bool
-        elif output_type == "deterministic":
+        elif output_type == EvalTemplate.OutputTypeNormalized.DETERMINISTIC:
             value = log.output_str_list
         else:
             value = None
