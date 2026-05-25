@@ -1231,16 +1231,16 @@ def process_single_error_localization(task_id):
                     try:
                         if APICallLog is not None:
                             log = APICallLog.objects.get(log_id=metadata.get("log_id"))
-                        config = json.loads(log.config)
-                        config["error_localizer"] = {
-                            "error_analysis": error_analysis,
-                            "selected_input_key": selected_input_key,
-                            "input_types": task.input_types,
-                            "input_data": task.input_data,
-                        }
-                        log.config = json.dumps(config)
-                        log.save(update_fields=["config"])
-                    except APICallLog.DoesNotExist:
+                            config = json.loads(log.config)
+                            config["error_localizer"] = {
+                                "error_analysis": error_analysis,
+                                "selected_input_key": selected_input_key,
+                                "input_types": task.input_types,
+                                "input_data": task.input_data,
+                            }
+                            log.config = json.dumps(config)
+                            log.save(update_fields=["config"])
+                    except (APICallLog.DoesNotExist if APICallLog else Exception):
                         logger.info("Log doesn't exist.")
             except Exception as e:
                 logger.error(f"Error in updating cell metadata: {str(e)}")
@@ -1269,16 +1269,16 @@ def process_single_error_localization(task_id):
                     try:
                         if APICallLog is not None:
                             log = APICallLog.objects.get(log_id=metadata.get("log_id"))
-                        config = json.loads(log.config)
-                        config["error_localizer"] = {
-                            "error_analysis": error_analysis,
-                            "selected_input_key": selected_input_key,
-                            "input_types": task.input_types,
-                            "input_data": task.input_data,
-                        }
-                        log.config = json.dumps(config)
-                        log.save(update_fields=["config"])
-                    except APICallLog.DoesNotExist:
+                            config = json.loads(log.config)
+                            config["error_localizer"] = {
+                                "error_analysis": error_analysis,
+                                "selected_input_key": selected_input_key,
+                                "input_types": task.input_types,
+                                "input_data": task.input_data,
+                            }
+                            log.config = json.dumps(config)
+                            log.save(update_fields=["config"])
+                    except (APICallLog.DoesNotExist if APICallLog else Exception):
                         logger.info("Log doesn't exist.")
 
             except Exception as e:
@@ -1291,15 +1291,15 @@ def process_single_error_localization(task_id):
             try:
                 if APICallLog is not None:
                     eval_logger = APICallLog.objects.get(log_id=task.source_id)
-                config = json.loads(eval_logger.config) or {}
-                config["error_localizer"] = {
-                    "error_analysis": error_analysis,
-                    "selected_input_key": selected_input_key,
-                    "input_types": task.input_types,
-                    "input_data": task.input_data,
-                }
-                eval_logger.config = json.dumps(config)
-                eval_logger.save(update_fields=["config"])
+                    config = json.loads(eval_logger.config) or {}
+                    config["error_localizer"] = {
+                        "error_analysis": error_analysis,
+                        "selected_input_key": selected_input_key,
+                        "input_types": task.input_types,
+                        "input_data": task.input_data,
+                    }
+                    eval_logger.config = json.dumps(config)
+                    eval_logger.save(update_fields=["config"])
             except Exception as e:
                 logger.exception(f"Error in updating log config: {str(e)}")
                 if refund_cost_for_api_call is not None:
