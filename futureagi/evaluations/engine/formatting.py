@@ -107,10 +107,32 @@ def format_eval_value(result_data, eval_template):
             and isinstance(choice_result, list)
             and choice_result
         ):
-            first = str(choice_result[0])
-            mapped = apply_choice_scores(first, eval_template.choice_scores)
+            # Look up each picked label's score and aggregate.
+            # Multi-pick uses mean across recognised labels — matches the
+            # numeric-aggregation convention in
+            # ``tfc/utils/functions._calculate_numeric_choices_average``.
+            # Single-pick (model returned a list on a single-choice template,
+            # e.g. fallback) falls back to the first label's score so
+            # legacy behaviour is preserved.
+            is_multi = bool(getattr(eval_template, "multi_choice", False))
+            if is_multi:
+                mapped_scores: list[float] = []
+                for c in choice_result:
+                    s = apply_choice_scores(str(c), eval_template.choice_scores)
+                    if s is not None:
+                        mapped_scores.append(float(s))
+                score = (
+                    sum(mapped_scores) / len(mapped_scores)
+                    if mapped_scores
+                    else 0.0
+                )
+            else:
+                mapped = apply_choice_scores(
+                    str(choice_result[0]), eval_template.choice_scores
+                )
+                score = float(mapped) if mapped is not None else 0.0
             value = {
-                "score": mapped if mapped is not None else 0.0,
+                "score": score,
                 "choices": choice_result,
             }
         else:
