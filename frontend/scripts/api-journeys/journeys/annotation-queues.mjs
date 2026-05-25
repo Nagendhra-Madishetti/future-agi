@@ -1516,6 +1516,135 @@ export const annotationQueueJourneys = [
     },
   },
   {
+    id: "AQ-API-032",
+    title: "Queue plan-limit count recovery after hard delete and retry",
+    tags: ["annotation", "mutating", "limits", "db-audit", "create"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      const namePrefix = `api journey queue limit ${runId}`;
+      const firstQueueName = `${namePrefix} first`;
+      const retryQueueName = `${namePrefix} retry`;
+      cleanup.defer("hard-delete queue limit DB fixtures", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+
+      const before = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+
+      let firstQueue;
+      try {
+        firstQueue = await createPlanLimitProbeQueue(client, firstQueueName);
+      } catch (error) {
+        if (error.status !== 402) throw error;
+        const bodyText = JSON.stringify(error.body || {});
+        assert(
+          bodyText.includes("ENTITLEMENT_LIMIT") ||
+            bodyText.includes("annotation queues limit"),
+          `Queue create limit error did not expose entitlement details: ${bodyText}.`,
+        );
+        const afterBlockedCreate = await loadQueueLimitDbAudit({
+          organizationId,
+          workspaceId,
+          namePrefix,
+        });
+        assert(
+          Number(afterBlockedCreate.matching_total_count) === 0,
+          `Blocked queue create still left rows: ${JSON.stringify(
+            afterBlockedCreate,
+          )}.`,
+        );
+        evidence.push({
+          create_mode: "entitlement_limit_observed",
+          create_status: error.status,
+          create_error: error.body,
+          before_org_active_count: before.org_active_count,
+          before_workspace_active_count: before.workspace_active_count,
+          after_blocked_org_active_count: afterBlockedCreate.org_active_count,
+        });
+        return;
+      }
+
+      assert(firstQueue?.id, "First queue limit probe create returned no id.");
+      cleanup.defer("hard-delete first queue limit probe", () =>
+        hardDeleteQueueIfPresent(client, firstQueue.id, firstQueueName),
+      );
+
+      const afterFirstCreate = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(before, afterFirstCreate, 1, "first create");
+
+      await hardDeleteQueueIfPresent(client, firstQueue.id, firstQueueName);
+      const missingFirstStatus = await expectHttpStatus(
+        () =>
+          client.get(
+            apiPath("/model-hub/annotation-queues/{id}/", {
+              id: firstQueue.id,
+            }),
+          ),
+        404,
+      );
+
+      const afterFirstDelete = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(before, afterFirstDelete, 0, "first hard delete");
+
+      const retryQueue = await createPlanLimitProbeQueue(
+        client,
+        retryQueueName,
+      );
+      assert(retryQueue?.id, "Retry queue limit probe create returned no id.");
+      cleanup.defer("hard-delete retry queue limit probe", () =>
+        hardDeleteQueueIfPresent(client, retryQueue.id, retryQueueName),
+      );
+
+      const afterRetryCreate = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(before, afterRetryCreate, 1, "retry create");
+
+      await hardDeleteQueueIfPresent(client, retryQueue.id, retryQueueName);
+      const finalAudit = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(before, finalAudit, 0, "final cleanup");
+
+      evidence.push({
+        create_mode: "api_create_delete_retry",
+        first_queue_id: firstQueue.id,
+        retry_queue_id: retryQueue.id,
+        before_org_active_count: before.org_active_count,
+        after_first_create_org_active_count: afterFirstCreate.org_active_count,
+        after_first_delete_org_active_count: afterFirstDelete.org_active_count,
+        after_retry_create_org_active_count: afterRetryCreate.org_active_count,
+        final_org_active_count: finalAudit.org_active_count,
+        before_workspace_active_count: before.workspace_active_count,
+        final_workspace_active_count: finalAudit.workspace_active_count,
+        missing_first_status: missingFirstStatus,
+        final_matching_total_count: finalAudit.matching_total_count,
+      });
+    },
+  },
+  {
     id: "AQ-API-031",
     title:
       "Annotation history, raw scores, value history, and item notes reload",
@@ -7888,6 +8017,87 @@ SELECT coalesce(
   const audit = await runPostgresJson(sql);
   assert(audit?.id, `Queue ${queueId} was not found in create DB audit.`);
   return audit;
+}
+
+async function loadQueueLimitDbAudit({
+  organizationId,
+  workspaceId,
+  namePrefix,
+}) {
+  const sql = `
+WITH org_queues AS (
+  SELECT
+    id::text,
+    name,
+    workspace_id::text,
+    deleted
+  FROM model_hub_annotationqueue
+  WHERE organization_id = ${sqlUuid(organizationId, "organizationId")}
+),
+matching AS (
+  SELECT *
+  FROM org_queues
+  WHERE name LIKE ${sqlString(`${namePrefix}%`)}
+)
+SELECT json_build_object(
+  'org_active_count',
+    (SELECT count(*)::int FROM org_queues WHERE deleted = false),
+  'workspace_active_count',
+    (
+      SELECT count(*)::int
+      FROM org_queues
+      WHERE
+        deleted = false
+        AND workspace_id = ${sqlUuid(workspaceId, "workspaceId")}::text
+    ),
+  'other_workspace_active_count',
+    (
+      SELECT count(*)::int
+      FROM org_queues
+      WHERE
+        deleted = false
+        AND (
+          workspace_id IS NULL
+          OR workspace_id <> ${sqlUuid(workspaceId, "workspaceId")}::text
+        )
+    ),
+  'matching_active_count',
+    (SELECT count(*)::int FROM matching WHERE deleted = false),
+  'matching_total_count',
+    (SELECT count(*)::int FROM matching),
+  'matching_names',
+    coalesce((SELECT json_agg(name ORDER BY name) FROM matching), '[]'::json)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function createPlanLimitProbeQueue(client, queueName) {
+  return client.post(apiPath("/model-hub/annotation-queues/"), {
+    name: queueName,
+    description:
+      "Disposable queue for plan-limit create/delete/retry coverage.",
+    instructions: "Verify queue capacity recovers after hard delete.",
+    annotations_required: 1,
+    reservation_timeout_minutes: 30,
+    requires_review: false,
+    auto_assign: false,
+  });
+}
+
+function assertQueueCountDelta(before, current, expectedDelta, label) {
+  const expectedOrgCount = Number(before.org_active_count) + expectedDelta;
+  const expectedWorkspaceCount =
+    Number(before.workspace_active_count) + expectedDelta;
+  assert(
+    Number(current.org_active_count) === expectedOrgCount &&
+      Number(current.workspace_active_count) === expectedWorkspaceCount &&
+      Number(current.matching_active_count) === expectedDelta &&
+      Number(current.matching_total_count) === expectedDelta,
+    `Queue limit DB audit mismatch after ${label}: before=${JSON.stringify(
+      before,
+    )}, current=${JSON.stringify(current)}, expected_delta=${expectedDelta}.`,
+  );
 }
 
 async function loadAnnotationHistoryDbAudit({
