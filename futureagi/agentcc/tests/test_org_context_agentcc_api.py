@@ -112,6 +112,47 @@ class TestAgentccRequestOrganizationContext:
         assert schema.organization_id == org_b.id
         assert schema.organization_id != user.organization_id
 
+    def test_custom_property_validate_rejects_boolean_for_number(
+        self, secondary_org_client
+    ):
+        create_response = secondary_org_client.post(
+            "/agentcc/custom-properties/",
+            {
+                "name": "secondary_number_property",
+                "property_type": "number",
+            },
+            format="json",
+        )
+        assert create_response.status_code == 200, create_response.json()
+
+        response = secondary_org_client.post(
+            "/agentcc/custom-properties/validate/",
+            {"properties": {"secondary_number_property": True}},
+            format="json",
+        )
+
+        assert response.status_code == 200, response.json()
+        assert response.json()["result"]["valid"] is False
+        assert "must be a number" in str(response.json()["result"]["errors"])
+
+    def test_custom_property_delete_stamps_deleted_at(self, secondary_org_client):
+        create_response = secondary_org_client.post(
+            "/agentcc/custom-properties/",
+            {"name": "secondary_property_delete_stamp", "property_type": "string"},
+            format="json",
+        )
+        assert create_response.status_code == 200, create_response.json()
+        schema_id = create_response.json()["result"]["id"]
+
+        response = secondary_org_client.delete(
+            f"/agentcc/custom-properties/{schema_id}/"
+        )
+
+        assert response.status_code == 200, response.json()
+        schema = AgentccCustomPropertySchema.all_objects.get(id=schema_id)
+        assert schema.deleted is True
+        assert schema.deleted_at is not None
+
     def test_blocklist_create_uses_active_request_organization(
         self, user, secondary_org_context, secondary_org_client
     ):

@@ -2025,7 +2025,7 @@ export const simulationAgentccJourneys = [
       "mutating",
       "data-roundtrip",
     ],
-    async run({ client, cleanup, runId, evidence }) {
+    async run({ client, cleanup, runId, evidence, organizationId }) {
       requireMutations();
       const name = `api_journey_property_${runId.replace(/[^a-z0-9]/gi, "_")}`;
 
@@ -2041,6 +2041,9 @@ export const simulationAgentccJourneys = [
         },
       );
       assert(created?.id, "Custom property schema create did not return id.");
+      cleanup.defer("hard-delete API journey custom property rows", () =>
+        deleteAgentccCustomPropertyRowsDb({ name, organizationId }),
+      );
       cleanup.defer("delete API journey custom property", () =>
         ignoreNotFound(() =>
           client.delete(
@@ -2048,16 +2051,127 @@ export const simulationAgentccJourneys = [
           ),
         ),
       );
+      assert(
+        created.property_type === "enum" &&
+          created.required === true &&
+          created.default_value === "alpha" &&
+          asArray(created.allowed_values).includes("beta"),
+        "Custom property create did not persist enum schema fields.",
+      );
+
+      let dbAudit = await loadAgentccCustomPropertyDbAudit({
+        propertyId: created.id,
+        organizationId,
+      });
+      assert(
+        dbAudit.organization_id === organizationId &&
+          dbAudit.deleted === false &&
+          dbAudit.deleted_at_set === false,
+        "Custom property DB audit did not show active org-owned row.",
+      );
+
+      const duplicateCreate = await expectApiError(
+        () =>
+          client.post(apiPath("/agentcc/custom-properties/"), {
+            name,
+            description: "Duplicate property should be rejected.",
+            property_type: "string",
+          }),
+        [400],
+        "Custom property duplicate active name was accepted.",
+      );
+      assert(
+        errorText(duplicateCreate).toLowerCase().includes("unique") ||
+          errorText(duplicateCreate).toLowerCase().includes("duplicate"),
+        "Custom property duplicate error did not mention uniqueness.",
+      );
+
+      const invalidType = await expectApiError(
+        () =>
+          client.post(apiPath("/agentcc/custom-properties/"), {
+            name: `${name}_bad_type`,
+            property_type: "object",
+          }),
+        [400],
+        "Custom property invalid property_type was accepted.",
+      );
+      assert(
+        errorText(invalidType).toLowerCase().includes("property_type"),
+        "Custom property invalid type error did not mention property_type.",
+      );
+
+      const invalidEnum = await expectApiError(
+        () =>
+          client.post(apiPath("/agentcc/custom-properties/"), {
+            name: `${name}_bad_enum`,
+            property_type: "enum",
+            allowed_values: [],
+          }),
+        [400],
+        "Custom property enum without allowed values was accepted.",
+      );
+      assert(
+        errorText(invalidEnum).toLowerCase().includes("allowed_values"),
+        "Custom property invalid enum error did not mention allowed_values.",
+      );
+
+      const invalidDefault = await expectApiError(
+        () =>
+          client.post(apiPath("/agentcc/custom-properties/"), {
+            name: `${name}_bad_default`,
+            property_type: "enum",
+            allowed_values: ["alpha", "beta"],
+            default_value: "gamma",
+          }),
+        [400],
+        "Custom property enum default outside allowed values was accepted.",
+      );
+      assert(
+        errorText(invalidDefault).toLowerCase().includes("default_value"),
+        "Custom property invalid default error did not mention default_value.",
+      );
+
+      const invalidNumberDefault = await expectApiError(
+        () =>
+          client.post(apiPath("/agentcc/custom-properties/"), {
+            name: `${name}_bad_number_default`,
+            property_type: "number",
+            default_value: true,
+          }),
+        [400],
+        "Custom property boolean number default was accepted.",
+      );
+      assert(
+        errorText(invalidNumberDefault)
+          .toLowerCase()
+          .includes("default_value"),
+        "Custom property invalid number default error did not mention default_value.",
+      );
+
+      const invalidValidatePayload = await expectApiError(
+        () =>
+          client.post(apiPath("/agentcc/custom-properties/validate/"), {
+            properties: [],
+          }),
+        [400],
+        "Custom property validate accepted a non-object properties payload.",
+      );
+      assert(
+        errorText(invalidValidatePayload).includes(
+          "properties must be a JSON object",
+        ),
+        "Custom property validate payload error did not mention object requirement.",
+      );
 
       const valid = await client.post(
         apiPath("/agentcc/custom-properties/validate/"),
         {
-          properties: { [name]: "beta" },
+          properties: { [name]: "beta", unknown_property: "allowed" },
         },
       );
       assert(
         valid.valid === true,
-        "Custom property validate rejected a valid value.",
+        "Custom property validate rejected a valid value or unknown property.",
       );
 
       const invalid = await client.post(
@@ -2082,6 +2196,39 @@ export const simulationAgentccJourneys = [
           asArray(updated.allowed_values).includes("gamma"),
         "Custom property update did not persist required/allowed_values.",
       );
+      assert(
+        updated.name === name && updated.default_value === "alpha",
+        "Custom property PATCH did not preserve name/default_value.",
+      );
+
+      const putUpdated = await client.put(
+        apiPath("/agentcc/custom-properties/{id}/", { id: created.id }),
+        {
+          name,
+          description:
+            "PUT-updated custom property for API journey regression.",
+          property_type: "enum",
+          required: false,
+          allowed_values: ["alpha", "beta", "gamma"],
+          default_value: "gamma",
+        },
+      );
+      assert(
+        putUpdated.description.includes("PUT-updated") &&
+          putUpdated.default_value === "gamma",
+        "Custom property PUT did not persist full schema payload.",
+      );
+
+      const validAfterUpdate = await client.post(
+        apiPath("/agentcc/custom-properties/validate/"),
+        {
+          properties: { [name]: "gamma" },
+        },
+      );
+      assert(
+        validAfterUpdate.valid === true,
+        "Custom property validate did not honor updated allowed_values.",
+      );
 
       await client.delete(
         apiPath("/agentcc/custom-properties/{id}/", { id: created.id }),
@@ -2094,9 +2241,36 @@ export const simulationAgentccJourneys = [
         "Deleted custom property schema was still visible in list.",
       );
 
+      dbAudit = await loadAgentccCustomPropertyDbAudit({
+        propertyId: created.id,
+        organizationId,
+      });
+      assert(
+        dbAudit.deleted === true && dbAudit.deleted_at_set === true,
+        "Custom property DB audit did not show soft-delete timestamp.",
+      );
+
+      const hardCleanup = await deleteAgentccCustomPropertyRowsDb({
+        name,
+        organizationId,
+      });
+      assert(
+        Number(hardCleanup.remaining_count) === 0,
+        "Custom property hard cleanup left disposable rows behind.",
+      );
+
       evidence.push({
         custom_property_id: created.id,
         custom_property_name: name,
+        duplicate_create_status: duplicateCreate.status,
+        invalid_type_status: invalidType.status,
+        invalid_enum_status: invalidEnum.status,
+        invalid_default_status: invalidDefault.status,
+        invalid_number_default_status: invalidNumberDefault.status,
+        invalid_validate_payload_status: invalidValidatePayload.status,
+        deleted_at_set: dbAudit.deleted_at_set,
+        hard_cleanup_deleted_count: Number(hardCleanup.deleted_count),
+        hard_cleanup_remaining_count: Number(hardCleanup.remaining_count),
       });
     },
   },
@@ -5224,6 +5398,51 @@ SELECT COALESCE((
   WHERE id = ${sqlUuid(blocklistId)}
     AND organization_id = ${sqlUuid(organizationId)}
 ), '{}'::json);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadAgentccCustomPropertyDbAudit({ propertyId, organizationId }) {
+  const sql = `
+SELECT COALESCE((
+  SELECT json_build_object(
+    'id', id::text,
+    'organization_id', organization_id::text,
+    'project_id', project_id::text,
+    'name', name,
+    'property_type', property_type,
+    'required', required,
+    'allowed_values', allowed_values,
+    'default_value', default_value,
+    'deleted', deleted,
+    'deleted_at_set', deleted_at IS NOT NULL
+  )
+  FROM agentcc_custom_property_schema
+  WHERE id = ${sqlUuid(propertyId)}
+    AND organization_id = ${sqlUuid(organizationId)}
+), '{}'::json);
+`;
+  return runPostgresJson(sql);
+}
+
+async function deleteAgentccCustomPropertyRowsDb({ name, organizationId }) {
+  const sql = `
+WITH deleted_rows AS (
+  DELETE FROM agentcc_custom_property_schema
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name = ${sqlString(name)}
+  RETURNING id
+)
+SELECT json_build_object(
+  'deleted_count', (SELECT count(*) FROM deleted_rows),
+  'remaining_count', (
+    SELECT count(*)
+    FROM agentcc_custom_property_schema
+    WHERE organization_id = ${sqlUuid(organizationId)}
+      AND name = ${sqlString(name)}
+      AND id NOT IN (SELECT id FROM deleted_rows)
+  )
+);
 `;
   return runPostgresJson(sql);
 }
