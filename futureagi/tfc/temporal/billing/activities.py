@@ -54,7 +54,9 @@ def _report_stripe_usage_sync(period: str) -> int:
         except ImportError:
             report_all_usage_to_stripe = None
 
-        return report_all_usage_to_stripe()
+        if report_all_usage_to_stripe is not None:
+            return report_all_usage_to_stripe()
+        return 0
     finally:
         close_old_connections()
 
@@ -95,6 +97,9 @@ def _run_dunning_checks_sync() -> int:
             from ee.usage.services.dunning import DunningService
         except ImportError:
             DunningService = None
+
+        if OrganizationSubscription is None or DunningService is None:
+            return 0
 
         past_due_subs = OrganizationSubscription.objects.filter(
             status="past_due", deleted=False
@@ -177,6 +182,9 @@ def _generate_monthly_invoices_sync(
                 period = f"{now.year - 1}-12"
             else:
                 period = f"{now.year}-{now.month - 1:02d}"
+
+        if InvoiceGenerationService is None:
+            return 0, 0, 0
 
         result = InvoiceGenerationService.run_for_period(
             period=period,

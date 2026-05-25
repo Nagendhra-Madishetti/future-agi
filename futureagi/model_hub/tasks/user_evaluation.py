@@ -1100,6 +1100,7 @@ def process_single_error_localization(task_id):
                 raise ValueError(usage_check.reason or "Usage limit exceeded")
 
         # Log and deduct cost for error localization
+        api_call_log_row = None
         if log_and_deduct_cost_for_api_request is not None:
             api_call_log_row = log_and_deduct_cost_for_api_request(
                 organization=task.organization,
@@ -1161,8 +1162,9 @@ def process_single_error_localization(task_id):
 
         # Update the task with the results
         task.mark_as_completed(error_analysis, selected_input_key)
-        api_call_log_row.status = APICallStatusChoices.SUCCESS.value
-        api_call_log_row.save(update_fields=["status"])
+        if api_call_log_row is not None:
+            api_call_log_row.status = APICallStatusChoices.SUCCESS.value
+            api_call_log_row.save(update_fields=["status"])
 
         # Dual-write: emit usage event for new billing system (cost-based)
         try:
