@@ -1308,12 +1308,26 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
                 and isinstance(filters, dict)
                 and filters.get("span_attributes_filters")
             )
+            # Tenant gate: force-scope by the eval_task's own project_id
+            # regardless of what the edit payload's ``filters`` carry.
+            # The PG ``parsing_evaltask_filters`` honors ``project_id``
+            # if present in ``filters`` but does NOT inject the
+            # eval_task's project_id when absent — which means an edit
+            # payload that omits or rewrites ``filters.project_id``
+            # produces an untenanted count (and an over-sampled rerun).
+            # Codex P1 (mid-views-chunk review).
+            tenant_project_id = str(eval_task.project_id)
             if has_span_attr_filters:
                 # PG fallback (KEEP-PG until the v2 FilterEngine lands).
                 parsed_filters = parsing_evaltask_filters(filters)
+                parsed_filters &= Q(project_id=tenant_project_id)
                 total_spans = ObservationSpan.objects.filter(parsed_filters).count()
             else:
                 ch_kwargs = CHSpanReader.parsing_evaltask_filters_for_ch(filters or {})
+                # Override any caller-supplied project_id with the
+                # eval_task's project_id — defense-in-depth against an
+                # edit payload that swaps it out.
+                ch_kwargs["project_id"] = tenant_project_id
                 with get_reader() as reader:
                     total_spans = reader.count_with_filters(**ch_kwargs)
 

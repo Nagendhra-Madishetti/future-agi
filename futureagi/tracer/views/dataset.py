@@ -146,32 +146,54 @@ class DatasetView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                 span_id_list = [str(sid) for sid in observation_spans.values_list("id", flat=True)]
 
             elif trace_ids and len(trace_ids) > 0:
-                # CH: ``project_id`` org-validated above; ``trace_id__in``
-                # narrows the set; the legacy ORM additionally constrained
+                # Pre-validate trace_ids via PG so foreign-org / foreign-
+                # project ids are dropped BEFORE the CH read — without
+                # this, ``reader.list_by_trace_ids`` would happily fetch
+                # foreign-org spans into process memory and we'd drop
+                # them only at the Python ``project_id`` filter (defense
+                # in depth still works, but loading foreign rows even
+                # transiently is the codex P1 concern). The PG lookup
+                # is one indexed SELECT.
+                #
+                # CH: legacy ORM additionally constrained
                 # ``parent_span_id__isnull=True`` (root spans only). CH
                 # stores parent_span_id as non-nullable String — root
                 # spans have empty string, so a Python ``not span
-                # .parent_span_id`` filter is the equivalent test. The
-                # reader has no per-call parent filter, so we do the
-                # narrow pass in Python after list_by_trace_ids — set
-                # size is bounded by trace_count (1 root per trace).
-                with get_reader() as reader:
-                    ch_spans = reader.list_by_trace_ids([str(t) for t in trace_ids])
-                span_id_list = [
-                    s.id
-                    for s in ch_spans
-                    if not s.parent_span_id and s.project_id == str(project)
-                ]
+                # .parent_span_id`` filter is the equivalent test.
+                validated_trace_ids = list(
+                    Trace.objects.filter(
+                        id__in=trace_ids,
+                        project_id=project,
+                        project__organization=org,
+                    ).values_list("id", flat=True)
+                )
+                if not validated_trace_ids:
+                    span_id_list = []
+                else:
+                    with get_reader() as reader:
+                        ch_spans = reader.list_by_trace_ids(
+                            [str(t) for t in validated_trace_ids]
+                        )
+                    span_id_list = [s.id for s in ch_spans if not s.parent_span_id]
             elif span_ids and len(span_ids) > 0:
-                # CH: client supplies span_ids; project_id org-validated
-                # above. ``list_by_ids`` is_deleted=0 + Python project
-                # filter mirrors ``ObservationSpan.objects.filter
-                # (id__in=, project_id=, project__organization=)``.
-                with get_reader() as reader:
-                    ch_spans = reader.list_by_ids([str(s) for s in span_ids])
-                span_id_list = [
-                    s.id for s in ch_spans if s.project_id == str(project)
-                ]
+                # Pre-validate span_ids via PG (project + org JOIN) so
+                # only same-project / same-org ids reach the CH reader.
+                # Codex P1 (mid-views-chunk review).
+                validated_span_ids = list(
+                    ObservationSpan.objects.filter(
+                        id__in=span_ids,
+                        project_id=project,
+                        project__organization=org,
+                    ).values_list("id", flat=True)
+                )
+                if not validated_span_ids:
+                    span_id_list = []
+                else:
+                    with get_reader() as reader:
+                        ch_spans = reader.list_by_ids(
+                            [str(s) for s in validated_span_ids]
+                        )
+                    span_id_list = [s.id for s in ch_spans]
             else:
                 raise ValueError("No trace or span ids provided")
 
