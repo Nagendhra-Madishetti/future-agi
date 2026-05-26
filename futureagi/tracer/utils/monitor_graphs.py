@@ -304,13 +304,16 @@ def _get_eval_metric_graph_data(
 
     filters = parsing_evaltask_filters(monitor.filters)
 
-    # CH25-TODO(cross-store-join; EvalLogger stays PG): EvalLogger is a
-    # PG-only model. The subquery `observation_span__in=ObservationSpan.
-    # objects.filter(filters)` is a Django subquery driving the EvalLogger
-    # filter; moving the span lookup to CH would require materializing the
-    # span-id list into Python and then `observation_span_id__in=<list>`,
-    # which loses the subquery memory benefit and adds a CH round-trip
-    # per call. Defer until EvalLogger itself migrates (separate work).
+    # CH25-TODO(PG-fallback / Django-subquery-shape): this is the PG
+    # fallback for evaluation-metric monitor graphs. The CH primary path
+    # at L142 routes through MonitorMetricsQueryBuilder which already
+    # reads the CH-side tracer_eval_logger CDC table (EVAL_TABLE) for
+    # eval-metric time series (see monitor_metrics.py:48, 677). This
+    # ORM path uses Django subquery shape `observation_span__in=
+    # ObservationSpan.objects.filter(filters)` against EvalLogger; the
+    # inner subquery isn't naturally replaceable by `time_bucket_
+    # aggregate` since the downstream aggregation is on EvalLogger
+    # output_float / output_bool, not span columns. Defer.
     base_queryset = EvalLogger.objects.filter(
         custom_eval_config=custom_eval_config,
         target_type="span",
@@ -467,9 +470,14 @@ def _get_eval_metric_buckets(
 ):
     """Handles bucket creation for EVALUATION_METRICS.
 
-    CH25-TODO(cross-store-join; EvalLogger stays PG): same pattern as
-    _get_eval_metric_graph_data above — EvalLogger filtered by a span-id
-    subquery. Defer until EvalLogger migrates.
+    CH25-TODO(PG-fallback / Django-subquery-shape): same pattern as
+    _get_eval_metric_graph_data above. CH already has the
+    tracer_eval_logger CDC table (see schema.py:258) and
+    MonitorMetricsQueryBuilder reads it on the CH primary path —
+    EvalLogger is not "stuck in PG". The blocker is the Django subquery
+    inside EvalLogger.objects.filter(observation_span__in=...) which
+    can't be replaced by a CH bucket aggregate without rewriting the
+    surrounding EvalLogger aggregation. Defer.
     """
     try:
         custom_eval_config = CustomEvalConfig.objects.get(id=monitor.metric)

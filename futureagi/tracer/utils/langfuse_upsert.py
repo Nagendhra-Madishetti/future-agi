@@ -198,12 +198,14 @@ def upsert_langfuse_trace(
         # CH25-TODO(read-after-write-inside-atomic; revisit after OTel
         # direct-to-CH cutover): this aggregate reads spans that were JUST
         # update_or_create()'d at line 182 inside the same transaction.atomic()
-        # block. The CH writer (tracer/services/clickhouse/writer.py) is
-        # async dual-write, so a CHSpanReader.trace_aggregate(trace.id) call
-        # here would NOT see the spans we just wrote and would silently
-        # under-count earliest_start/latest_end (resulting in a 0-latency
-        # root span). After the OTel direct-to-CH cutover both writer and
-        # reader land on CH and this can be safely migrated.
+        # block. CH analytics today are populated via PeerDB CDC from PG
+        # to CH (see tracer/services/clickhouse/__init__.py:4) — there is
+        # an inherent replication lag, so a CHSpanReader.trace_aggregate(
+        # trace.id) call here would NOT see the spans we just wrote and
+        # would silently under-count earliest_start/latest_end (resulting
+        # in a 0-latency root span). After the OTel direct-to-CH cutover
+        # spans are written directly to CH at request time and the lag
+        # disappears; only then can this be safely migrated.
         timing = (
             ObservationSpan.no_workspace_objects.filter(trace=trace)
             .exclude(id=root_span_id)
@@ -259,10 +261,11 @@ def upsert_langfuse_trace(
             if observation_id:
                 # CH25-TODO(read-after-write-inside-atomic; revisit after OTel
                 # direct-to-CH cutover): same atomic block as the upserts at
-                # lines 182/237. ObservationSpan is also a Django ForeignKey
+                # lines 182/246. ObservationSpan is also a Django ForeignKey
                 # on EvalLogger.observation_span (see EvalLogger.no_workspace_
                 # objects.update_or_create call below), so the lookup must
                 # return a Django model instance — CHSpan cannot stand in here.
+                # CH-side lag mechanism: PeerDB CDC replication from PG.
                 try:
                     obs_span = ObservationSpan.no_workspace_objects.get(
                         id=observation_id

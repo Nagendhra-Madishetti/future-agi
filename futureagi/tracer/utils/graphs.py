@@ -334,14 +334,14 @@ class GraphEngine:
 
         CH25-TODO(generic-helper-needs-callers-migrated): operates on a
         Django queryset (self.objects, passed by the caller) and annotates
-        it with TruncHour/Day/Month("created_at"). Callers in
-        model_hub/views/separate_evals.py and tracer/views/{project,trace,
-        trace_session,observation_span,charts}.py still construct
-        ObservationSpan or EvalLogger / annotation-related querysets and
-        pass them through. Migrating GraphEngine requires migrating those
-        callers first; CHSpanReader.time_bucket_aggregate is the right
-        primitive for the ObservationSpan-only callers once they switch
-        from "build queryset, hand to GraphEngine" to "ask CH for buckets
+        it with TruncHour/Day/Month("created_at"). The only live direct
+        caller of GraphEngine today is
+        model_hub/views/separate_evals.py:391 (eval-metric data path) —
+        tracer/views/* import the newer graphs_optimized module instead.
+        Migrating GraphEngine requires migrating that caller first;
+        CHSpanReader.time_bucket_aggregate is the right primitive for
+        the ObservationSpan-only branches once the caller switches from
+        "build queryset, hand to GraphEngine" to "ask CH for buckets
         directly" (the pattern graphs_optimized.py uses today).
         """
         if not objects or len(objects) == 0:

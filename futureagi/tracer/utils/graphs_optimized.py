@@ -270,15 +270,16 @@ def get_eval_graph_data(
                 custom_eval_config.name, start_date, end_date, interval
             )
 
-        # CH25-TODO(cross-store-join; EvalLogger stays PG): this is a
-        # Django subquery used as the inner `observation_span__in=` filter
-        # of an EvalLogger query. EvalLogger lives in PG; materializing
-        # the span-id list from CH would force ObservationSpan.objects.
-        # filter(id__in=<list-from-CH>) cycles per project (potentially
-        # millions of rows) just to feed the EvalLogger query. The CH
-        # primary EvalMetricsQueryBuilder dispatch at L142-186 already
-        # avoids this PG path when CH dispatch is enabled. Defer until
-        # EvalLogger itself migrates.
+        # CH25-TODO(PG-fallback / Django-subquery-shape): the CH primary
+        # path at L142-186 already uses EvalMetricsQueryBuilder which
+        # reads the CH-side tracer_eval_logger CDC table — EvalLogger
+        # IS available in CH. This ORM block is the PG fallback, and the
+        # `observation_span__in=ObservationSpan.objects.filter(project_id
+        # =project_id)` Django subquery wraps every span for the project
+        # (potentially millions of rows). Replacing the inner subquery
+        # with a CH list would materialize the full span-id set in
+        # Python, defeating the existing memory benefit. Defer until the
+        # PG fallback can be removed entirely.
         span_subquery = ObservationSpan.objects.filter(project_id=project_id).values(
             "id"
         )
@@ -577,23 +578,26 @@ def get_all_system_metrics(
     time_bucket_aggregate reader returns the right output shape
     ({bucket, span_count, tokens, cost, latency_ms}) but with TWO
     silent semantic drifts versus this PG helper:
-      (1) buckets on `start_time` (CH spans column) whereas the PG
-          .annotate(time_bucket=Trunc("created_at")) uses created_at.
-          For just-completed spans these are usually within seconds,
-          but for backfilled or replayed spans they can diverge.
+      (1) buckets on `start_time` (the spans column used in CH) whereas
+          this PG path uses Trunc("created_at"). For just-completed
+          spans these are usually within seconds, but for backfilled or
+          replayed spans they can diverge.
       (2) emits `cost = sum(cost)` whereas this PG path returns
           `cost_value = Avg("cost")` per bucket. Cost-per-bucket vs
           total-cost-per-bucket — semantically different.
-    The sibling helper get_system_metric_graph_data (L908) already
-    dispatches to TimeSeriesQueryBuilder which uses `avg(cost)` and
-    `start_time`-bucketing, so it shares drift (1) with the CH primary
-    path and is the source of truth for that behaviour today.
+    The sibling helper get_system_metric_graph_data (below) dispatches
+    to TimeSeriesQueryBuilder; that builder has two internal branches:
+      • the preaggregated `span_metrics_hourly.hour` path (built from
+        `created_at` in the materialized view), which matches the PG
+        `created_at` semantics here
+      • the raw filtered `start_time`-bucketed path (matches drift 1)
+    So drift (1) already exists internally inside the sibling CH
+    builder. Drift (2) is unique to `time_bucket_aggregate`.
     A safe migration of THIS helper needs either:
       (a) a `time_bucket_aggregate(...,  cost_agg="avg"|"sum",
           bucket_field="start_time"|"created_at")` reader signature,
       (b) accepting the drift and writing a product decision doc that
-          replays both paths through `start_time` + `avg(cost)` (the
-          existing CH primary semantics).
+          replays both paths through `start_time` + `avg(cost)`.
     Defer.
     """
     # Parse time filters
@@ -994,7 +998,7 @@ def get_system_metric_data(
     # instead of evaluating IDs into memory
     #
     # CH25-TODO(PG-fallback-stays-PG): all three branches below
-    # (trace/span/charts) sit downstream of the CH dispatch at L911-987
+    # (trace/span/charts) sit downstream of the CH dispatch at L940-987
     # which uses TimeSeriesQueryBuilder. The Django subquery
     # `trace_id__in=trace_ids_queryset.values("id")` / `id__in=
     # span_ids_queryset.values("id")` is a memory-efficient pattern that

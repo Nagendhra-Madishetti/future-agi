@@ -764,10 +764,10 @@ def _get_time_series_df_for_other_metrics(monitor, now):
 
     CH25-TODO(dead-code; revisit when Prophet anomaly detection re-enabled):
     only consumed by _check_anomaly_detection_threshold (currently fully
-    commented out at line 856+). Returns raw (created_at, y) row pairs
-    rather than bucket aggregates — would need a new reader signature
-    closer to `iter_rows_with_filters(project_id, ..., **filters)` than
-    a bucket aggregate. Defer until anomaly detection is re-enabled.
+    commented out at line 898+ in this file). Returns raw (created_at, y)
+    row pairs rather than bucket aggregates — would need a new reader
+    signature closer to `iter_rows_with_filters(project_id, ..., **filters)`
+    than a bucket aggregate. Defer until anomaly detection is re-enabled.
     """
     filters = parsing_evaltask_filters(monitor.filters)
     base_queryset = ObservationSpan.objects.filter(
