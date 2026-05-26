@@ -2167,6 +2167,276 @@ export const datasetEvalJourneys = [
     },
   },
   {
+    id: "DPE-API-034",
+    title: "Dataset add-as-new copies selected columns and guards inputs",
+    tags: ["dataset", "add-as-new", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const sourceName = `api add as new source ${runId}`;
+      const blockedName = `api add as new blocked ${runId}`;
+      const copiedName = `api add as new copy ${runId}`;
+      const copiedColumnName = `Copied input ${runId}`;
+      const firstValue = `add as new first ${runId}`;
+      const secondValue = `add as new second ${runId}`;
+      const excludedValue = `add as new excluded ${runId}`;
+      let sourceDatasetId;
+      let sourceDeleted = false;
+      let copiedDeleted = false;
+
+      try {
+        const created = await client.post(
+          apiPath("/model-hub/develops/create-dataset-manually/"),
+          {
+            dataset_name: sourceName,
+            number_of_rows: 2,
+            number_of_columns: 2,
+          },
+        );
+        sourceDatasetId = created?.dataset_id;
+      } catch (error) {
+        if (error?.status !== 429) throw error;
+        evidence.push({
+          source_creation: "plan-limited",
+          status: error.status,
+        });
+        skip("Source dataset creation is plan-limited for this org/workspace.");
+      }
+      assert(
+        sourceDatasetId,
+        "Add-as-new source create did not return dataset_id.",
+      );
+      cleanup.defer("delete API journey add-as-new source dataset", () =>
+        sourceDeleted
+          ? Promise.resolve()
+          : client.delete(apiPath("/model-hub/develops/delete_dataset/"), {
+              body: { dataset_ids: [sourceDatasetId] },
+              okStatuses: [200, 404],
+            }),
+      );
+
+      const sourceTable = await getDatasetTable(client, sourceDatasetId);
+      const sourceRows = asArray(sourceTable.table).filter(
+        (row) => row?.row_id,
+      );
+      const sourceColumns = asArray(sourceTable.column_config);
+      assert(sourceRows.length === 2, "Add-as-new source did not have 2 rows.");
+      const sourceColumnOne = sourceColumns.find(
+        (column) => column?.name === "Column 1",
+      );
+      const sourceColumnTwo = sourceColumns.find(
+        (column) => column?.name === "Column 2",
+      );
+      assert(sourceColumnOne?.id, "Add-as-new source was missing Column 1.");
+      assert(sourceColumnTwo?.id, "Add-as-new source was missing Column 2.");
+
+      await client.post(
+        apiPath("/model-hub/develops/{dataset_id}/update_cell_value/", {
+          dataset_id: sourceDatasetId,
+        }),
+        {
+          row_id: sourceRows[0].row_id,
+          column_id: sourceColumnOne.id,
+          new_value: firstValue,
+        },
+      );
+      await client.post(
+        apiPath("/model-hub/develops/{dataset_id}/update_cell_value/", {
+          dataset_id: sourceDatasetId,
+        }),
+        {
+          row_id: sourceRows[1].row_id,
+          column_id: sourceColumnOne.id,
+          new_value: secondValue,
+        },
+      );
+      await client.post(
+        apiPath("/model-hub/develops/{dataset_id}/update_cell_value/", {
+          dataset_id: sourceDatasetId,
+        }),
+        {
+          row_id: sourceRows[0].row_id,
+          column_id: sourceColumnTwo.id,
+          new_value: excludedValue,
+        },
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/develops/add-as-new/"), {
+            dataset_id: sourceDatasetId,
+            name: blockedName,
+            columns: { [randomUUID()]: "outside copy" },
+          }),
+        400,
+        "Add-as-new accepted a column id outside the source dataset.",
+      );
+      const blockedAudit = await loadDatasetNameActiveCount({
+        organizationId,
+        expectedName: blockedName,
+      });
+      assert(
+        Number(blockedAudit.active_count) === 0,
+        "Add-as-new invalid-column guard left an active dataset behind.",
+      );
+
+      let copied;
+      try {
+        copied = await client.post(apiPath("/model-hub/develops/add-as-new/"), {
+          dataset_id: sourceDatasetId,
+          name: copiedName,
+          columns: { [sourceColumnOne.id]: copiedColumnName },
+        });
+      } catch (error) {
+        if (error?.status !== 429) throw error;
+        evidence.push({
+          add_as_new_creation: "plan-limited",
+          status: error.status,
+        });
+        skip(
+          "Dataset add-as-new creation is plan-limited for this org/workspace.",
+        );
+      }
+      const copiedDatasetId = copied?.dataset_id;
+      assert(copiedDatasetId, "Add-as-new API did not return dataset_id.");
+      cleanup.defer("delete API journey add-as-new copied dataset", () =>
+        copiedDeleted
+          ? Promise.resolve()
+          : client.delete(apiPath("/model-hub/develops/delete_dataset/"), {
+              body: { dataset_ids: [copiedDatasetId] },
+              okStatuses: [200, 404],
+            }),
+      );
+
+      const listPayload = await client.get(
+        apiPath("/model-hub/develops/get-datasets/"),
+        { query: { page: 0, page_size: 100 } },
+      );
+      const listedCopy = asArray(listPayload).find(
+        (row) => row?.id === copiedDatasetId,
+      );
+      assert(
+        listedCopy?.name === copiedName,
+        "Add-as-new dataset was not visible in get-datasets readback.",
+      );
+
+      const copiedTable = await getDatasetTable(client, copiedDatasetId);
+      const copiedRows = asArray(copiedTable.table).filter(
+        (row) => row?.row_id,
+      );
+      const copiedColumns = asArray(copiedTable.column_config);
+      assert(
+        copiedRows.length === 2,
+        "Add-as-new dataset did not copy all source rows.",
+      );
+      assert(
+        copiedColumns.length === 1,
+        "Add-as-new dataset did not keep exactly the selected column.",
+      );
+      const copiedColumn = copiedColumns.find(
+        (column) => column?.name === copiedColumnName,
+      );
+      assert(
+        copiedColumn?.id,
+        "Add-as-new dataset renamed column was missing.",
+      );
+      assert(
+        copiedColumn.id !== sourceColumnOne.id,
+        "Add-as-new dataset reused the source column id.",
+      );
+      assert(
+        copiedRows.every(
+          (row) =>
+            row.row_id !== sourceRows[0].row_id &&
+            row.row_id !== sourceRows[1].row_id,
+        ),
+        "Add-as-new dataset reused source row ids.",
+      );
+      assert(
+        copiedRows.some(
+          (row) => cellValueFor(row, copiedColumn.id) === firstValue,
+        ),
+        "Add-as-new dataset did not preserve the first selected value.",
+      );
+      assert(
+        copiedRows.some(
+          (row) => cellValueFor(row, copiedColumn.id) === secondValue,
+        ),
+        "Add-as-new dataset did not preserve the second selected value.",
+      );
+      assert(
+        !String(JSON.stringify(copiedRows)).includes(excludedValue),
+        "Add-as-new dataset copied an unselected source column value.",
+      );
+
+      const sourceAudit = await loadDatasetCloneDbAudit({
+        datasetId: sourceDatasetId,
+        organizationId,
+        workspaceId,
+        expectedName: sourceName,
+      });
+      assertDatasetCloneAudit(sourceAudit, {
+        expectedDeleted: false,
+        expectedValues: [firstValue, secondValue, excludedValue],
+        expectedWorkspaceId: workspaceId,
+      });
+      const copiedAudit = await loadDatasetCloneDbAudit({
+        datasetId: copiedDatasetId,
+        organizationId,
+        workspaceId,
+        expectedName: copiedName,
+      });
+      assertDatasetCloneAudit(copiedAudit, {
+        expectedDeleted: false,
+        expectedRows: 2,
+        expectedColumns: 1,
+        expectedCells: 2,
+        expectedValues: [firstValue, secondValue],
+        expectedWorkspaceId: workspaceId,
+      });
+
+      await client.delete(apiPath("/model-hub/develops/delete_dataset/"), {
+        body: { dataset_ids: [copiedDatasetId] },
+      });
+      copiedDeleted = true;
+      await client.delete(apiPath("/model-hub/develops/delete_dataset/"), {
+        body: { dataset_ids: [sourceDatasetId] },
+      });
+      sourceDeleted = true;
+
+      const deletedCopyAudit = await loadDatasetCloneDbAudit({
+        datasetId: copiedDatasetId,
+        organizationId,
+        workspaceId,
+        expectedName: copiedName,
+      });
+      assertDatasetCloneAudit(deletedCopyAudit, {
+        expectedDeleted: true,
+        expectedRows: 2,
+        expectedColumns: 1,
+        expectedCells: 2,
+        expectedValues: [firstValue, secondValue],
+        expectedWorkspaceId: workspaceId,
+      });
+
+      evidence.push({
+        source_dataset_id: sourceDatasetId,
+        copied_dataset_id: copiedDatasetId,
+        copied_rows: Number(copiedAudit.row_count),
+        copied_columns: Number(copiedAudit.column_count),
+        copied_cells: Number(copiedAudit.cell_count),
+        blocked_active_count: Number(blockedAudit.active_count),
+        cleanup_deleted_at: deletedCopyAudit.deleted_at_set,
+      });
+    },
+  },
+  {
     id: "DPE-API-016",
     title: "Dataset advanced row/column readbacks and cleanup audit",
     tags: ["dataset", "develop", "mutating", "data-roundtrip", "db-audit"],

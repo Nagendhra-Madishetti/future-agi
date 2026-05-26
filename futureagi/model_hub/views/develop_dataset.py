@@ -1050,6 +1050,54 @@ class AddAsNewDataset(APIView):
                 if not source_dataset:
                     return self._gm.not_found("Dataset not found")
                 exp_dataset = True
+            new_dataset_name = request.validated_data.get(
+                "name", f"Copy of {source_dataset.name}"
+            )
+            raw_columns = request.validated_data.get("columns", {})
+            if not isinstance(raw_columns, dict):
+                return self._gm.bad_request(get_error_message("MISSING_COLUMN_MAPPING"))
+            columns = {
+                str(column_id): new_name for column_id, new_name in raw_columns.items()
+            }
+
+            if len(set(columns.values())) != len(columns.values()):
+                return self._gm.bad_request(get_error_message("DUPLICATE_COLUMN_NAME"))
+
+            if len(columns) < 1:
+                return self._gm.bad_request(get_error_message("MISSING_COLUMN_MAPPING"))
+
+            from model_hub.validators.dataset_validators import (
+                validate_dataset_name_unique as _validate_name_unique,
+            )
+
+            try:
+                _validate_name_unique(
+                    new_dataset_name,
+                    getattr(request, "organization", None) or request.user.organization,
+                )
+            except Exception as validation_err:
+                return self._gm.bad_request(str(validation_err.detail[0]))
+
+            if exp_dataset:
+                experiment_columns = list(
+                    source_dataset.columns.filter(id__in=columns.keys(), deleted=False)
+                )
+                if len(experiment_columns) != len(columns):
+                    return self._gm.bad_request(get_error_message("COLUMN_NOT_FOUND"))
+            else:
+                source_columns = list(
+                    Column.objects.filter(
+                        id__in=columns.keys(),
+                        dataset=source_dataset,
+                        deleted=False,
+                    )
+                )
+                if len(source_columns) != len(columns):
+                    return self._gm.bad_request(get_error_message("COLUMN_NOT_FOUND"))
+                source_columns_by_id = {
+                    str(column.id): column for column in source_columns
+                }
+
             if log_and_deduct_cost_for_resource_request is not None:
                 call_log_row_entry = log_and_deduct_cost_for_resource_request(
                     organization=_org,
@@ -1066,28 +1114,6 @@ class AddAsNewDataset(APIView):
                     )
                 call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
                 call_log_row_entry.save()
-            new_dataset_name = request.validated_data.get(
-                "name", f"Copy of {source_dataset.name}"
-            )
-            columns = request.validated_data.get("columns", {})
-
-            if len(set(columns.values())) != len(columns.values()):
-                return self._gm.bad_request(get_error_message("DUPLICATE_COLUMN_NAME"))
-
-            from model_hub.validators.dataset_validators import (
-                validate_dataset_name_unique as _validate_name_unique,
-            )
-
-            try:
-                _validate_name_unique(
-                    new_dataset_name,
-                    getattr(request, "organization", None) or request.user.organization,
-                )
-            except Exception as validation_err:
-                return self._gm.bad_request(str(validation_err.detail[0]))
-
-            if len(columns) < 1:
-                return self._gm.bad_request(get_error_message("MISSING_COLUMN_MAPPING"))
 
             # ------------------- Added Row Check -------------------
             # total_rows_allowed = get_number_of_rows_allowed(getattr(request, "organization", None) or request.user.organization)
@@ -1131,12 +1157,7 @@ class AddAsNewDataset(APIView):
                 column_id_mapping = {}
 
                 for col_id, new_name in columns.items():
-                    old_column = get_object_or_404(
-                        Column,
-                        id=col_id,
-                        dataset=source_dataset,
-                        deleted=False,
-                    )
+                    old_column = source_columns_by_id[col_id]
                     new_column_id = uuid.uuid4()
                     column_id_mapping[str(old_column.id)] = str(new_column_id)
 
@@ -1247,7 +1268,6 @@ class AddAsNewDataset(APIView):
                         [uuid.UUID(col_id) for col_id in message_column_ids if col_id]
                     )
 
-                experiment_columns = Column.objects.filter(id__in=columns.keys())
                 column_id_mapping = {}
                 row_id_mapping = {}
                 row_order = 0
