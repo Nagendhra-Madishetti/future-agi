@@ -273,6 +273,8 @@ from tfc.utils.parse_errors import parse_serialized_errors
 from tfc.utils.storage import (
     delete_compare_folder,
     download_json_from_s3,
+    get_compare_local_dir,
+    get_compare_metadata_path,
     upload_audio_to_s3,
     upload_audio_to_s3_duration,
     upload_compare_json_to_s3,
@@ -471,7 +473,9 @@ def _prepare_compare_dataset_impl(
         # Build table rows using pre-fetched data
         table = []
         main_ds_id = str(dataset_id)
-        with open(f"compare/{compare_id}/metadata.json", "w") as f:
+        metadata_path = get_compare_metadata_path(compare_id)
+        os.makedirs(get_compare_local_dir(compare_id), exist_ok=True)
+        with open(metadata_path, "w") as f:
             json.dump(
                 {
                     "status": "processing",
@@ -571,7 +575,7 @@ def _prepare_compare_dataset_impl(
                     page_name=f"page_{index // 10}.json",
                 )
 
-                with open(f"compare/{compare_id}/metadata.json", "r+") as f:
+                with open(metadata_path, "r+") as f:
                     metadata = json.load(f)
                     metadata["total_processed"] = index // 10
                     metadata["file_row_ids"] = rowid_in_file
@@ -609,7 +613,7 @@ def _prepare_compare_dataset_impl(
                 page_name=f"page_{(index // 10) + 1}.json",
             )
 
-        with open(f"compare/{compare_id}/metadata.json", "r+") as f:
+        with open(metadata_path, "r+") as f:
             metadata = json.load(f)
             metadata["status"] = "completed"
             metadata["total_processed"] = len(common_base_values) // 10
@@ -12219,6 +12223,7 @@ class GetCompareDatasetRow(APIView):
             )
         try:
             metadata = {"status": "processing", "file_row_ids": {}}
+            metadata_path = get_compare_metadata_path(compare_id)
 
             loop_start = time.time()
             while (not metadata.get("status") == "completed") and (
@@ -12227,7 +12232,7 @@ class GetCompareDatasetRow(APIView):
                 logger.info(
                     f"Waiting for metadata to be ready for compare_id: {compare_id} and row_id: {row_id}"
                 )
-                with open(f"compare/{compare_id}/metadata.json") as f:
+                with open(metadata_path) as f:
                     metadata = json.load(f)
                 if time.time() - loop_start > 300:
                     return self._gm.bad_request(
@@ -12441,8 +12446,9 @@ class GetCompareDatasetRow(APIView):
             return self._gm.internal_server_error_response(str(e))
 
     def thread_delete(self, compare_id):
-        if os.path.isdir(f"compare/{compare_id}"):
-            shutil.rmtree(f"compare/{compare_id}")
+        compare_dir = get_compare_local_dir(compare_id)
+        if os.path.isdir(compare_dir):
+            shutil.rmtree(compare_dir)
         delete_compare_folder(compare_id)
 
     @swagger_auto_schema(
@@ -12767,7 +12773,9 @@ class CompareDatasetsView(APIView):
             # Build table rows using pre-fetched data
             table = []
             main_ds_id = str(dataset_id)
-            with open(f"compare/{compare_id}/metadata.json", "w") as f:
+            metadata_path = get_compare_metadata_path(compare_id)
+            os.makedirs(get_compare_local_dir(compare_id), exist_ok=True)
+            with open(metadata_path, "w") as f:
                 json.dump(
                     {
                         "status": "processing",
@@ -12867,7 +12875,7 @@ class CompareDatasetsView(APIView):
                         page_name=f"page_{index // 10}.json",
                     )
 
-                    with open(f"compare/{compare_id}/metadata.json", "r+") as f:
+                    with open(metadata_path, "r+") as f:
                         metadata = json.load(f)
                         metadata["total_processed"] = index // 10
                         metadata["file_row_ids"] = rowid_in_file
@@ -12905,7 +12913,7 @@ class CompareDatasetsView(APIView):
                     page_name=f"page_{(index // 10) + 1}.json",
                 )
 
-            with open(f"compare/{compare_id}/metadata.json", "r+") as f:
+            with open(metadata_path, "r+") as f:
                 metadata = json.load(f)
                 metadata["status"] = "completed"
                 metadata["total_processed"] = len(common_base_values) // 10
@@ -13184,7 +13192,9 @@ class CompareDatasetsView(APIView):
             start = current_page * page_size
             end = start + page_size
 
-            os.makedirs(f"compare/{compare_id}/", exist_ok=True)
+            compare_dir = get_compare_local_dir(compare_id)
+            metadata_path = get_compare_metadata_path(compare_id)
+            os.makedirs(compare_dir, exist_ok=True)
 
             dynamic_sources = [
                 SourceChoices.RUN_PROMPT.value,
@@ -13201,10 +13211,8 @@ class CompareDatasetsView(APIView):
             start_page = math.ceil((start + 1) / 10)
             end_page = start_page + num_pages_to_fetch
 
-            if os.path.exists(f"compare/{compare_id}/metadata.json"):
-                metadata = self.read_metadata_safely(
-                    f"compare/{compare_id}/metadata.json"
-                )
+            if os.path.exists(metadata_path):
+                metadata = self.read_metadata_safely(metadata_path)
                 if metadata.get("total_pages") < num_pages_to_fetch:
                     return self._gm.bad_request(
                         get_error_message("FAILED_TO_COMPARE_DATASETS")
@@ -13216,9 +13224,7 @@ class CompareDatasetsView(APIView):
                     and metadata.get("total_processed") >= start_page
                 ):
                     logger.info("waiting for files to be created")
-                    metadata = self.read_metadata_safely(
-                        f"compare/{compare_id}/metadata.json"
-                    )
+                    metadata = self.read_metadata_safely(metadata_path)
                     if time.time() - loop_start > 300:
                         return self._gm.bad_request(
                             get_error_message("FAILED_TO_COMPARE_DATASETS")
@@ -13532,16 +13538,14 @@ class CompareDatasetsView(APIView):
                     )
 
                 loop_start = time.time()
-                while not os.path.exists(f"compare/{compare_id}/metadata.json"):
+                while not os.path.exists(metadata_path):
                     logger.info("waiting for metadata file to be created")
                     if time.time() - loop_start > 300:
                         return self._gm.bad_request(
                             get_error_message("FAILED_TO_COMPARE_DATASETS")
                         )
                     time.sleep(0.1)
-                metadata = self.read_metadata_safely(
-                    f"compare/{compare_id}/metadata.json"
-                )
+                metadata = self.read_metadata_safely(metadata_path)
 
                 loop_start = time.time()
                 while (not metadata.get("status") == "completed") and (
@@ -13551,9 +13555,7 @@ class CompareDatasetsView(APIView):
                         return self._gm.bad_request(
                             get_error_message("FAILED_TO_COMPARE_DATASETS")
                         )
-                    metadata = self.read_metadata_safely(
-                        f"compare/{compare_id}/metadata.json"
-                    )
+                    metadata = self.read_metadata_safely(metadata_path)
                     logger.info("waiting for metadata file to be updated")
                     time.sleep(0.1)
 
@@ -13635,11 +13637,12 @@ class DownloadComparisonDatasetView(APIView):
             dataset_info = validated_data.get("dataset_info", {})
             common_column_names = validated_data.get("common_column_names", [])
             if compare_id:
-                if os.path.exists(f"compare/{compare_id}"):
+                metadata_path = get_compare_metadata_path(compare_id)
+                if os.path.exists(get_compare_local_dir(compare_id)):
                     metadata = {"status ": "processing"}
                     loop_start = time.time()
                     while not metadata.get("status") == "completed":
-                        with open(f"compare/{compare_id}/metadata.json") as f:
+                        with open(metadata_path) as f:
                             metadata = json.load(f)
                         if time.time() - loop_start > 300:
                             return self._gm.bad_request(
