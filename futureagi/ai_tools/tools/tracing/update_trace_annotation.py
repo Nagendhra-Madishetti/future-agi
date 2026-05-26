@@ -138,13 +138,28 @@ class UpdateTraceAnnotationTool(BaseTool):
                     resolve_default_queue_item_for_source,
                 )
 
+                # Fetch the span from CH 25.3 (was
+                # ObservationSpan.objects.filter(...).first()). The
+                # subsequent `resolve_default_queue_item_for_source` now
+                # duck-types CHSpan via project_id, so threading the
+                # CH-loaded dataclass through works without a
+                # cross-store FK join.
                 span_obj = None
                 if annotation.observation_span_id:
-                    from tracer.models.observation_span import ObservationSpan
+                    from tracer.models.project import Project
+                    from tracer.services.clickhouse.v2 import get_reader
 
-                    span_obj = ObservationSpan.objects.filter(
-                        id=annotation.observation_span_id
-                    ).first()
+                    with get_reader() as reader:
+                        span_obj = reader.get(str(annotation.observation_span_id))
+                    # Tenant gate: the legacy ORM `.get()` joined
+                    # project__organization implicitly; preserve that
+                    # boundary via an explicit PG lookup on the CH-loaded
+                    # project_id.
+                    if span_obj is not None and not Project.objects.filter(
+                        id=span_obj.project_id,
+                        organization=context.organization,
+                    ).exists():
+                        span_obj = None
                 default_item = (
                     resolve_default_queue_item_for_source(
                         QueueItemSourceType.OBSERVATION_SPAN.value,
