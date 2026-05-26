@@ -33,6 +33,7 @@ try {
       service: "redis",
     })),
   );
+  checks.push(await checkDockerDiskUsage());
 } catch (error) {
   checks.push({
     name: "preflight_unhandled_error",
@@ -264,6 +265,108 @@ async function summarizeDockerLogs(name) {
   } catch (error) {
     return { error: error.message };
   }
+}
+
+async function checkDockerDiskUsage() {
+  try {
+    const { stdout } = await execFileAsync("docker", [
+      "system",
+      "df",
+      "--format",
+      "{{json .}}",
+    ]);
+    const rows = stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+    const volumeRow = rows.find((row) => row.Type === "Local Volumes");
+    const imageRow = rows.find((row) => row.Type === "Images");
+    const topVolumes = await loadDockerVolumeRows();
+    const inactiveVolumeCandidates = topVolumes
+      .filter((row) => Number(row.links) === 0)
+      .slice(0, 8);
+
+    const reclaimableVolumeBytes = parseHumanSize(
+      String(volumeRow?.Reclaimable || "").split(/\s+/)[0],
+    );
+    const activeVolumeBytes = parseHumanSize(volumeRow?.Size);
+    const status =
+      reclaimableVolumeBytes > 5 * 1024 ** 3 ||
+      activeVolumeBytes > 250 * 1024 ** 3
+        ? "warning"
+        : "passed";
+
+    return {
+      name: "docker_disk",
+      status,
+      local_volumes: volumeRow || null,
+      images: imageRow || null,
+      inactive_volume_reclaim_candidates: inactiveVolumeCandidates,
+      top_volumes: topVolumes.slice(0, 8),
+      detail:
+        status === "warning"
+          ? "Docker disk pressure is high; free space before treating DB-backed journey failures as product regressions."
+          : "Docker disk usage is below the preflight warning threshold.",
+    };
+  } catch (error) {
+    return {
+      name: "docker_disk",
+      status: "warning",
+      error: error.message,
+    };
+  }
+}
+
+async function loadDockerVolumeRows() {
+  const { stdout } = await execFileAsync("docker", ["system", "df", "-v"]);
+  const lines = stdout.split(/\r?\n/);
+  const start = lines.findIndex((line) =>
+    line.startsWith("Local Volumes space usage:"),
+  );
+  if (start < 0) return [];
+
+  const rows = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!line.trim()) continue;
+    if (line.startsWith("Build cache usage:")) break;
+    if (line.startsWith("VOLUME NAME")) continue;
+
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 3) continue;
+    const [name, links, size] = parts;
+    if (name === "CACHE" || name === "Local") continue;
+    rows.push({
+      name,
+      links: Number(links),
+      size,
+      size_bytes: parseHumanSize(size),
+    });
+  }
+
+  return rows.sort((a, b) => b.size_bytes - a.size_bytes);
+}
+
+function parseHumanSize(value) {
+  const match = String(value || "")
+    .trim()
+    .match(/^([\d.]+)\s*([kmgtp]?b?)$/i);
+  if (!match) return 0;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return 0;
+  const unit = match[2].toLowerCase();
+  const multiplier = unit.startsWith("p")
+    ? 1024 ** 5
+    : unit.startsWith("t")
+      ? 1024 ** 4
+      : unit.startsWith("g")
+        ? 1024 ** 3
+        : unit.startsWith("m")
+          ? 1024 ** 2
+          : unit.startsWith("k")
+            ? 1024
+            : 1;
+  return Math.round(amount * multiplier);
 }
 
 async function fetchWithTimeout(url, options = {}) {
