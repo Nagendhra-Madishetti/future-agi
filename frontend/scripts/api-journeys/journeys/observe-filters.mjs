@@ -5544,6 +5544,144 @@ export const observeFilterJourneys = [
       });
     },
   },
+  {
+    id: "ALT-API-003",
+    title: "Observe alert safe notification trigger creates resolvable logs",
+    tags: ["observe", "alerts", "mutating", "notifications", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
+      const project = await resolveObserveProject(client, evidence);
+
+      const alertName = `api journey safe notify ${runId}`;
+      await client.post(apiPath("/tracer/user-alerts/"), {
+        project: project.id,
+        name: alertName,
+        metric_type: "count_of_errors",
+        threshold_operator: "greater_than",
+        threshold_type: "static",
+        critical_threshold_value: 0,
+        alert_frequency: 60,
+        filters: {},
+      });
+
+      const created = await findAlertByName(client, alertName);
+      assert(
+        created?.id,
+        "Safe notification alert create did not produce a searchable row.",
+      );
+      cleanup.defer("hard cleanup ALT-API-003 alert artifacts", () =>
+        deleteAlertDbArtifacts({ alertIds: [created.id] }),
+      );
+
+      const createdAudit = await loadAlertNotificationAudit({
+        alertId: created.id,
+      });
+      assert(
+        createdAudit.alert_exists === true,
+        "Safe notification alert DB row was not persisted.",
+      );
+      assert(
+        createdAudit.workspace_id === workspaceId,
+        "Safe notification alert was not assigned to the request workspace.",
+      );
+      assert(
+        Number(createdAudit.notification_email_count) === 0 &&
+          !createdAudit.slack_webhook_url,
+        "Safe notification alert must not have outbound email or Slack channels.",
+      );
+
+      const trigger = await triggerAlertThresholdInBackend({
+        alertId: created.id,
+        currentValue: 1,
+      });
+      assert(
+        trigger.after_count === trigger.before_count + 1,
+        "Safe notification trigger did not create exactly one alert log.",
+      );
+      assert(
+        trigger.latest_log?.type === "critical",
+        "Safe notification trigger did not create a critical log.",
+      );
+      assert(
+        String(trigger.latest_log?.message || "").includes(alertName),
+        "Safe notification log message did not include the alert name.",
+      );
+      assert(
+        trigger.latest_log?.time_window_start &&
+          trigger.latest_log?.time_window_end,
+        "Safe notification log omitted time window fields.",
+      );
+
+      const detail = await client.get(
+        apiPath("/tracer/user-alerts/{id}/details/", { id: created.id }),
+        { query: { page_number: 0, page_size: 5 } },
+      );
+      const detailLogs = asArray(detail.logs?.results);
+      assert(
+        detailLogs.some((log) => log.id === trigger.latest_log.id),
+        "Alert detail logs did not include the safe notification log.",
+      );
+
+      const logs = await client.get(
+        apiPath("/tracer/user-alert-logs/{id}/list/", { id: created.id }),
+      );
+      assert(
+        asArray(logs).some((log) => log.id === trigger.latest_log.id),
+        "Direct alert log list did not include the safe notification log.",
+      );
+
+      await client.post(apiPath("/tracer/user-alert-logs/resolve/"), {
+        log_ids: [trigger.latest_log.id],
+      });
+      const resolvedAudit = await loadAlertNotificationAudit({
+        alertId: created.id,
+        logId: trigger.latest_log.id,
+      });
+      assert(
+        resolvedAudit.log_resolved === true,
+        "Safe notification log resolve did not persist.",
+      );
+
+      await client.delete(apiPath("/tracer/user-alerts/"), {
+        body: { ids: [created.id] },
+      });
+      const deletedAudit = await loadAlertNotificationAudit({
+        alertId: created.id,
+        logId: trigger.latest_log.id,
+      });
+      assert(
+        deletedAudit.alert_deleted === true,
+        "Safe notification alert delete did not set deleted flag.",
+      );
+
+      evidence.push({
+        project_id: project.id,
+        alert_id: created.id,
+        alert_name: alertName,
+        log_id: trigger.latest_log.id,
+        trigger_current_value: trigger.current_value,
+        notification_email_count: createdAudit.notification_email_count,
+        slack_webhook_configured: Boolean(createdAudit.slack_webhook_url),
+        log_resolved: resolvedAudit.log_resolved,
+        final_public_deleted: deletedAudit.alert_deleted,
+      });
+    },
+  },
 ];
 
 function assertObserveProjectListPayload(payload, projects) {
@@ -7485,6 +7623,24 @@ async function runPostgresJson(sql) {
   return JSON.parse(text);
 }
 
+async function runBackendShellJson(script) {
+  const container = process.env.API_JOURNEY_BACKEND_CONTAINER || "ws2-backend";
+  const python = process.env.API_JOURNEY_BACKEND_PYTHON || "python";
+  const { stdout } = await execFileAsync(
+    "docker",
+    ["exec", container, python, "manage.py", "shell", "-c", script],
+    { maxBuffer: 10 * 1024 * 1024 },
+  );
+  const lines = stdout
+    .trim()
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const jsonLine = [...lines].reverse().find((line) => line.startsWith("{"));
+  assert(jsonLine, "Backend shell returned no JSON output.");
+  return JSON.parse(jsonLine);
+}
+
 function sqlUuid(value) {
   assert(isUuid(value), "SQL UUID value must be a UUID.");
   return `'${value}'::uuid`;
@@ -7584,7 +7740,7 @@ function sqlStringOrNull(value) {
 }
 
 function sqlUuidOrNull(value) {
-  if (!value) return "NULL";
+  if (!value) return "NULL::uuid";
   return sqlUuid(value);
 }
 
@@ -8279,6 +8435,95 @@ SELECT json_build_object(
 );
 `;
   return runPostgresJson(sql);
+}
+
+async function loadAlertNotificationAudit({ alertId, logId }) {
+  const sql = `
+WITH requested AS (
+  SELECT
+    ${sqlUuid(alertId)} AS alert_id,
+    ${sqlUuidOrNull(logId)} AS log_id
+),
+alert_row AS (
+  SELECT *
+  FROM tracer_useralertmonitor monitor
+  JOIN requested r ON monitor.id = r.alert_id
+),
+log_row AS (
+  SELECT *
+  FROM tracer_useralertmonitorlog log
+  JOIN requested r ON log.alert_id = r.alert_id
+  WHERE r.log_id IS NULL OR log.id = r.log_id
+  ORDER BY log.created_at DESC
+  LIMIT 1
+)
+SELECT json_build_object(
+  'alert_exists', EXISTS (SELECT 1 FROM alert_row),
+  'alert_deleted', COALESCE((SELECT deleted FROM alert_row), false),
+  'workspace_id', (SELECT workspace_id FROM alert_row),
+  'project_id', (SELECT project_id FROM alert_row),
+  'notification_email_count', COALESCE((
+    SELECT cardinality(notification_emails) FROM alert_row
+  ), 0),
+  'slack_webhook_url', (SELECT slack_webhook_url FROM alert_row),
+  'log_exists', EXISTS (SELECT 1 FROM log_row),
+  'log_id', (SELECT id FROM log_row),
+  'log_type', (SELECT type FROM log_row),
+  'log_resolved', COALESCE((SELECT resolved FROM log_row), false),
+  'time_window_start_set', COALESCE((
+    SELECT time_window_start IS NOT NULL FROM log_row
+  ), false),
+  'time_window_end_set', COALESCE((
+    SELECT time_window_end IS NOT NULL FROM log_row
+  ), false)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function triggerAlertThresholdInBackend({ alertId, currentValue }) {
+  assert(isUuid(alertId), "alertId must be a UUID for alert trigger.");
+  const script = `
+import json
+import os
+import sys
+import types
+from datetime import timedelta
+from django.utils import timezone
+from tracer.models.monitor import UserAlertMonitor, UserAlertMonitorLog
+
+tasks_package = types.ModuleType("model_hub.tasks")
+tasks_package.__path__ = [os.path.join(os.getcwd(), "model_hub", "tasks")]
+sys.modules.setdefault("model_hub.tasks", tasks_package)
+
+from tracer.utils.monitor import _check_thresholds_and_alert
+
+monitor = UserAlertMonitor.objects.get(id="${alertId}")
+before = UserAlertMonitorLog.objects.filter(alert=monitor).count()
+now = timezone.now()
+time_window_start = now - timedelta(minutes=monitor.alert_frequency)
+_check_thresholds_and_alert(monitor, ${sqlNumber(currentValue)}, time_window_start, now)
+after = UserAlertMonitorLog.objects.filter(alert=monitor).count()
+latest = (
+    UserAlertMonitorLog.objects
+    .filter(alert=monitor)
+    .order_by("-created_at")
+    .values("id", "type", "message", "resolved", "time_window_start", "time_window_end")
+    .first()
+)
+if latest:
+    latest["id"] = str(latest["id"])
+    latest["time_window_start"] = latest["time_window_start"].isoformat() if latest["time_window_start"] else None
+    latest["time_window_end"] = latest["time_window_end"].isoformat() if latest["time_window_end"] else None
+print(json.dumps({
+    "alert_id": str(monitor.id),
+    "before_count": before,
+    "after_count": after,
+    "current_value": ${sqlNumber(currentValue)},
+    "latest_log": latest,
+}))
+`;
+  return runBackendShellJson(script);
 }
 
 async function insertAlertLog({ alertId, logId, message }) {
