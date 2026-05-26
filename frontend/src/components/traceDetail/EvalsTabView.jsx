@@ -98,7 +98,12 @@ export function scoreColor(score) {
 }
 
 /** Single eval row with collapsible explanation + optional "View span" */
-const EvalTableRow = ({ ev, onSelectSpan, showSpanColumn, onFixWithFalcon }) => {
+const EvalTableRow = ({
+  ev,
+  onSelectSpan,
+  showSpanColumn,
+  onFixWithFalcon,
+}) => {
   const [expanded, setExpanded] = useState(false);
   const hasError = ev?.error === true;
   const sc = hasError
