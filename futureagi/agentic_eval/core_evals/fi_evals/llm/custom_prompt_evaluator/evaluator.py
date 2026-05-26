@@ -201,7 +201,7 @@ class CustomPromptEvaluator(LLM):
         )
 
         # Create template context from kwargs with context windowing for large values
-        from .context_window import fit_to_context
+        from agentic_eval.core.utils.context_window import fit_to_context
 
         template_context = {}
         for key in required_keys:
@@ -292,7 +292,7 @@ class CustomPromptEvaluator(LLM):
         # Inject row_context when data injection is enabled (no mapping required)
         row_context = kwargs.get("row_context")
         if row_context and not required_keys:
-            from .context_window import fit_row_to_context
+            from agentic_eval.core.utils.context_window import fit_row_to_context
 
             rendered_prompt += "\n\n## Data\n"
             if isinstance(row_context, (dict, list)):
