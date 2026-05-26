@@ -195,6 +195,15 @@ def upsert_langfuse_trace(
         # in multiple batches, so we must query the DB to get the full range.
         from django.db.models import Max, Min
 
+        # CH25-TODO(read-after-write-inside-atomic; revisit after OTel
+        # direct-to-CH cutover): this aggregate reads spans that were JUST
+        # update_or_create()'d at line 182 inside the same transaction.atomic()
+        # block. The CH writer (tracer/services/clickhouse/writer.py) is
+        # async dual-write, so a CHSpanReader.trace_aggregate(trace.id) call
+        # here would NOT see the spans we just wrote and would silently
+        # under-count earliest_start/latest_end (resulting in a 0-latency
+        # root span). After the OTel direct-to-CH cutover both writer and
+        # reader land on CH and this can be safely migrated.
         timing = (
             ObservationSpan.no_workspace_objects.filter(trace=trace)
             .exclude(id=root_span_id)
@@ -248,6 +257,12 @@ def upsert_langfuse_trace(
             observation_id = score_data.pop("observation_id", None)
 
             if observation_id:
+                # CH25-TODO(read-after-write-inside-atomic; revisit after OTel
+                # direct-to-CH cutover): same atomic block as the upserts at
+                # lines 182/237. ObservationSpan is also a Django ForeignKey
+                # on EvalLogger.observation_span (see EvalLogger.no_workspace_
+                # objects.update_or_create call below), so the lookup must
+                # return a Django model instance — CHSpan cannot stand in here.
                 try:
                     obs_span = ObservationSpan.no_workspace_objects.get(
                         id=observation_id
@@ -259,6 +274,11 @@ def upsert_langfuse_trace(
                     )
                     continue
             else:
+                # CH25-TODO(read-after-write-inside-atomic; revisit after OTel
+                # direct-to-CH cutover): fallback pick of "earliest span on
+                # the trace" — same read-after-write hazard as the timing
+                # aggregate above, plus the EvalLogger FK requirement that
+                # keeps obs_span as a Django ObservationSpan instance.
                 obs_span = (
                     ObservationSpan.no_workspace_objects.filter(trace=trace)
                     .order_by("start_time")
