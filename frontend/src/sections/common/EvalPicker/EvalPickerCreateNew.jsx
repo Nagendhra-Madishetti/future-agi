@@ -390,7 +390,7 @@ const EvalPickerCreateNew = ({ onBack, onSave }) => {
         "Instructions must contain at least one template variable (e.g. {{input}})";
     }
 
-    if (!sourceReady && source !== "composite" && !hasDataInjection) {
+    if (!sourceReady && source !== "composite") {
       next.mapping = "Map all variables before saving";
     }
 
@@ -627,7 +627,7 @@ const EvalPickerCreateNew = ({ onBack, onSave }) => {
     ? !!name.trim() && selectedChildren.length > 0
     : name.trim() &&
       (evalType === "code" ? code.trim() : instructions.trim()) &&
-      (source === "composite" || sourceReady || hasDataInjection);
+      (source === "composite" || sourceReady);
 
   // Variables from instructions
   const variables = useMemo(() => {
@@ -1158,6 +1158,7 @@ const EvalPickerCreateNew = ({ onBack, onSave }) => {
                     onTestResult={handleTestResult}
                     onColumnsLoaded={handleColumnsLoaded}
                     onReadyChange={handleSourceReadyChange}
+                    hasDataInjection={hasDataInjection}
                     initialProjectId={sourceId}
                     initialRowType={sourceRowType}
                     isComposite={isComposite}
@@ -1173,6 +1174,7 @@ const EvalPickerCreateNew = ({ onBack, onSave }) => {
                     onTestResult={handleTestResult}
                     onColumnsLoaded={handleColumnsLoaded}
                     onReadyChange={handleSourceReadyChange}
+                    hasDataInjection={hasDataInjection}
                     onRowTypeChange={handleSourceRowTypeChange}
                     isComposite={isComposite}
                     compositeAdhocConfig={compositeAdhocConfig}
@@ -1268,7 +1270,7 @@ const EvalPickerCreateNew = ({ onBack, onSave }) => {
             </Typography>
           </Box>
         )}
-        {!sourceReady && !hasDataInjection && !testError && !testPassed && (
+        {!sourceReady && !testError && !testPassed && (
           <Typography
             variant="caption"
             color="text.disabled"
@@ -1286,7 +1288,7 @@ const EvalPickerCreateNew = ({ onBack, onSave }) => {
             onClick={handleTestEvaluation}
             disabled={
               isTesting ||
-              (!sourceReady && !hasDataInjection) ||
+              !sourceReady ||
               !draftId ||
               isComposite ||
               source === "workbench"
