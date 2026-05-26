@@ -501,7 +501,13 @@ def _chspan_to_legacy_dict(span) -> dict:
     """
     from tracer.services.clickhouse.v2.span_reader import CHSpanReader
 
-    extra = CHSpanReader.attributes_extra_as_dict(span) or {}
+    extra = CHSpanReader.attributes_extra_as_dict(span)
+    # Defensive: attributes_extra_as_dict can yield a non-dict if the
+    # underlying CH column is a raw String (schema 013) rather than typed
+    # JSON. Treat anything that's not a dict as no overflow data.
+    if not isinstance(extra, dict):
+        extra = {}
+
     attrs: dict = {}
     attrs.update(span.attrs_string or {})
     attrs.update(span.attrs_number or {})
@@ -584,14 +590,13 @@ def _is_voice_trace_query(trace_query: QuerySet) -> bool:
     if not trace_ids:
         return False
 
-    # Cheap pre-filter: list spans for the sampled traces and short-circuit
-    # on the first conversation span. Per-trace span counts are bounded.
+    # Single bulk read across all sampled trace_ids, then short-circuit on
+    # the first conversation-typed span. CH-side observation_type filtering
+    # is not exposed on the reader yet (D-027 review queue), so we filter
+    # in Python — sampled set is bounded at 10 traces.
     with get_reader() as reader:
-        for tid in trace_ids:
-            for s in reader.list_by_trace(str(tid)):
-                if s.observation_type == "conversation":
-                    return True
-    return False
+        spans = reader.list_by_trace_ids([str(t) for t in trace_ids])
+    return any(s.observation_type == "conversation" for s in spans)
 
 
 def _get_first_voice_span_raw_log(trace_query: QuerySet) -> dict | None:
