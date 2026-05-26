@@ -75,11 +75,23 @@ def process_in_line_evals():
             status=InLineEvalStatus.PROCESSING
         )
 
+    # Read from CH 25.3 (was ObservationSpan.objects.filter(id__in=span_ids)
+    # .select_related("project", "trace")). The downstream _get_logger_kwargs
+    # only needs the span's project_id (for CustomEvalConfig.get_or_create
+    # scoping) and trace_id (for EvalLogger.trace FK), so we hand back a
+    # lightweight dict keyed by str(id). EvalLogger.observation_span and
+    # EvalLogger.trace are FKs; we set the *_id columns directly rather than
+    # passing Django model instances, which avoids a PG round-trip for
+    # FK descriptor hydration.
     span_ids = [eval.span_id for eval in evals_to_process]
-    spans = ObservationSpan.objects.filter(id__in=span_ids).select_related(
-        "project", "trace"
-    )
-    spans_map = {str(span.id): span for span in spans}
+    from tracer.services.clickhouse.v2 import get_reader
+
+    with get_reader() as reader:
+        ch_spans = reader.list_by_ids([str(sid) for sid in span_ids])
+    spans_map = {
+        str(s.id): {"project_id": s.project_id, "trace_id": s.trace_id}
+        for s in ch_spans
+    }
 
     eval_loggers_to_create = []
     inline_evals_to_update = []
@@ -97,7 +109,9 @@ def process_in_line_evals():
             continue
 
         try:
-            logger_kwargs = _get_logger_kwargs(inline_eval, span)
+            logger_kwargs = _get_logger_kwargs(
+                inline_eval, str(inline_eval.span_id), span
+            )
             eval_loggers_to_create.append(EvalLogger(**logger_kwargs))
 
             inline_eval.status = InLineEvalStatus.COMPLETED
@@ -117,13 +131,21 @@ def process_in_line_evals():
     logger.info(f"Processed {len(evals_to_process)} inline evaluations")
 
 
-def _get_logger_kwargs(inline_eval: InlineEval, span: ObservationSpan):
+def _get_logger_kwargs(
+    inline_eval: InlineEval, span_id: str, span: dict
+):
     """
     Get the logger kwargs for the inline eval.
+
+    ``span`` is a dict ``{"project_id": str, "trace_id": str}`` produced
+    from the CH span row; the EvalLogger FK columns
+    (``observation_span``, ``trace``) are written as their ``*_id``
+    siblings so we don't need to hydrate Django ObservationSpan / Trace
+    instances just to assign the relationship.
     """
     custom_eval_config, _ = CustomEvalConfig.objects.get_or_create(
         name=inline_eval.custom_eval_name,
-        project=span.project,
+        project_id=span["project_id"],
         defaults={"eval_template": inline_eval.evaluation.eval_template},
     )
 
@@ -148,8 +170,8 @@ def _get_logger_kwargs(inline_eval: InlineEval, span: ObservationSpan):
         )
 
     logger_kwargs = {
-        "trace": span.trace,
-        "observation_span": span,
+        "trace_id": span["trace_id"],
+        "observation_span_id": span_id,
         "custom_eval_config": custom_eval_config,
         "output_metadata": output_metadata,
         "results_explanation": inline_eval.evaluation.value,
