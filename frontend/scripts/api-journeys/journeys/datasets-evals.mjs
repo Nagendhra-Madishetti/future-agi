@@ -3838,6 +3838,124 @@ export const datasetEvalJourneys = [
     },
   },
   {
+    id: "DPE-API-035",
+    title: "Local-file dataset worker materialization and progress readback",
+    tags: [
+      "dataset",
+      "file-import",
+      "mutating",
+      "worker",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+      user,
+    }) {
+      requireMutations();
+      requireBackendShell();
+      const fixture = await seedLocalFileWorkerFixture({
+        runId,
+        organizationId,
+        workspaceId,
+        userEmail: currentUserEmail(user),
+      });
+      assert(
+        fixture?.fixture_created,
+        "Local-file worker fixture seed did not create a dataset.",
+      );
+      cleanup.defer("hard delete API journey local-file worker fixture", () =>
+        hardDeleteDatasetCopyFixture([fixture.dataset_id]),
+      );
+
+      const queuedProgress = await client.get(
+        apiPath("/model-hub/develops/dataset-creation-progress/{dataset_id}/", {
+          dataset_id: fixture.dataset_id,
+        }),
+      );
+      assert(
+        queuedProgress?.processing_status === "queued",
+        "Local-file progress did not report queued before worker materialization.",
+      );
+      assert(
+        queuedProgress?.original_filename === fixture.original_filename,
+        "Local-file progress did not expose the original filename.",
+      );
+
+      const workerResult = await materializeLocalFileWorkerFixture(fixture);
+      assert(
+        workerResult?.processing_status === "completed",
+        "Local-file worker did not complete materialization.",
+      );
+
+      const completedProgress = await client.get(
+        apiPath("/model-hub/develops/dataset-creation-progress/{dataset_id}/", {
+          dataset_id: fixture.dataset_id,
+        }),
+      );
+      assert(
+        completedProgress?.processing_status === "completed",
+        "Local-file progress did not report completed after worker materialization.",
+      );
+      assert(
+        completedProgress?.is_completed === true,
+        "Local-file progress did not set is_completed after worker materialization.",
+      );
+
+      const table = await getDatasetTable(client, fixture.dataset_id);
+      const inputColumn = findColumn(table, fixture.input_column_name);
+      const expectedColumn = findColumn(table, fixture.expected_column_name);
+      assert(inputColumn, "Local-file table did not include the input column.");
+      assert(
+        expectedColumn,
+        "Local-file table did not include the expected column.",
+      );
+      const rows = asArray(table.table);
+      assert(rows.length === 2, "Local-file table did not include two rows.");
+      const inputValues = rows.map((row) => cellValueFor(row, inputColumn.id));
+      const expectedValues = rows.map((row) =>
+        cellValueFor(row, expectedColumn.id),
+      );
+      assert(
+        inputValues.includes(fixture.input_one) &&
+          inputValues.includes(fixture.input_two),
+        "Local-file input values did not round-trip through get-dataset-table.",
+      );
+      assert(
+        expectedValues.includes(fixture.expected_one) &&
+          expectedValues.includes(fixture.expected_two),
+        "Local-file expected values did not round-trip through get-dataset-table.",
+      );
+
+      const audit = await loadLocalFileWorkerFixtureAudit({
+        fixture,
+        organizationId,
+        workspaceId,
+      });
+      assertLocalFileWorkerFixtureAudit(audit, {
+        fixture,
+        organizationId,
+        workspaceId,
+      });
+
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        progress_status: completedProgress.processing_status,
+        rows: Number(audit.row_count),
+        columns: Number(audit.column_count),
+        cells: Number(audit.cell_count),
+        completed_columns: Number(audit.completed_columns),
+        error_columns: Number(audit.error_columns),
+        media_dispatch_skipped: workerResult.media_dispatch_skipped === true,
+      });
+    },
+  },
+  {
     id: "DPE-API-022",
     title: "Dataset generated-column creation, preview, and scope guards",
     tags: ["dataset", "dynamic-columns", "mutating", "db-audit"],
@@ -17826,6 +17944,17 @@ async function hardDeleteDatasetCopyFixture(datasetIds) {
   return hardDeleteDatasetCompareFixture(datasetIds);
 }
 
+function requireBackendShell() {
+  if (
+    !process.env.API_JOURNEY_BACKEND_CONTAINER &&
+    !process.env.API_JOURNEY_BACKEND_DIR
+  ) {
+    skip(
+      "Set API_JOURNEY_BACKEND_CONTAINER or API_JOURNEY_BACKEND_DIR for backend worker-backed dataset coverage.",
+    );
+  }
+}
+
 async function seedDatasetFileImportFixture({
   runId,
   organizationId,
@@ -18160,6 +18289,261 @@ function assertDatasetFileImportFixtureAudit(audit, fixture) {
   assert(
     audit.progress_status === "queued",
     "File import changed the seeded local-file progress status unexpectedly.",
+  );
+}
+
+async function seedLocalFileWorkerFixture({
+  runId,
+  organizationId,
+  workspaceId,
+  userEmail,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const datasetName = `api journey local file worker ${runId}`;
+  const originalFilename = `dpe-api-035-${suffix}.csv`;
+  const inputColumnName = "input";
+  const expectedColumnName = "expected";
+  const inputOne = `local worker input one ${suffix}`;
+  const inputTwo = `local worker input two ${suffix}`;
+  const expectedOne = `local worker expected one ${suffix}`;
+  const expectedTwo = `local worker expected two ${suffix}`;
+  const csvContent = `${inputColumnName},${expectedColumnName}\n${inputOne},${expectedOne}\n${inputTwo},${expectedTwo}\n`;
+  const script = `
+import io
+import json
+import uuid
+from django.utils import timezone
+from accounts.models import Organization, User, Workspace
+from model_hub.models.develop_dataset import Dataset
+from model_hub.views.datasets.create.file_upload import upload_file_to_minio
+
+organization = Organization.objects.get(id=${JSON.stringify(organizationId)})
+workspace_id = ${JSON.stringify(workspaceId || "")}
+workspace = None
+if workspace_id:
+    workspace = Workspace.objects.filter(id=workspace_id, organization=organization).first()
+user_email = ${JSON.stringify(userEmail || "")}
+user = None
+if user_email:
+    user = User.objects.filter(email=user_email, organization=organization, is_active=True).first()
+if user is None:
+    user = User.objects.filter(organization=organization, is_active=True).order_by("created_at").first()
+file_name = ${JSON.stringify(originalFilename)}
+file_obj = io.BytesIO(${JSON.stringify(csvContent)}.encode("utf-8"))
+file_obj.name = file_name
+file_key = f"datasets/{organization.id}/{uuid.uuid4()}/{file_name}"
+file_url = upload_file_to_minio(file_obj, file_key, org_id=str(organization.id))
+dataset = Dataset.objects.create(
+    name=${JSON.stringify(datasetName)},
+    organization=organization,
+    workspace=workspace,
+    model_type="GenerativeLLM",
+    source="build",
+    dataset_config={
+        "dataset_source_local": True,
+        "file_processing_status": "queued",
+        "file_processing_queued_at": timezone.now().isoformat(),
+        "original_filename": file_name,
+        "file_url": file_url,
+        "estimated_rows": 2,
+        "estimated_columns": 2,
+    },
+    user=user,
+)
+print(json.dumps({
+    "fixture_created": True,
+    "dataset_id": str(dataset.id),
+    "dataset_name": dataset.name,
+    "original_filename": file_name,
+    "file_url": file_url,
+    "input_column_name": ${JSON.stringify(inputColumnName)},
+    "expected_column_name": ${JSON.stringify(expectedColumnName)},
+    "input_one": ${JSON.stringify(inputOne)},
+    "input_two": ${JSON.stringify(inputTwo)},
+    "expected_one": ${JSON.stringify(expectedOne)},
+    "expected_two": ${JSON.stringify(expectedTwo)},
+}))
+`;
+  return runBackendShellJson(script);
+}
+
+async function materializeLocalFileWorkerFixture(fixture) {
+  assert(isUuid(fixture.dataset_id), "dataset_id must be a UUID for worker run.");
+  const script = `
+import json
+from model_hub.models.develop_dataset import Cell, Dataset
+from model_hub.models.choices import CellStatus, DataTypeChoices
+from model_hub.views.datasets.create.file_upload import process_dataset_from_file
+
+dataset = Dataset.objects.get(id=${JSON.stringify(fixture.dataset_id)})
+dataset_config = dataset.dataset_config or {}
+process_dataset_from_file.run_sync(
+    str(dataset.id),
+    dataset_config["file_url"],
+    dataset_config["original_filename"],
+)
+dataset.refresh_from_db()
+media_cell_count = Cell.objects.filter(
+    dataset=dataset,
+    deleted=False,
+    status=CellStatus.RUNNING.value,
+    column__data_type__in=[
+        DataTypeChoices.IMAGE.value,
+        DataTypeChoices.IMAGES.value,
+        DataTypeChoices.AUDIO.value,
+        DataTypeChoices.DOCUMENT.value,
+    ],
+).count()
+print(json.dumps({
+    "dataset_id": str(dataset.id),
+    "processing_status": (dataset.dataset_config or {}).get("file_processing_status"),
+    "completed_columns": (dataset.dataset_config or {}).get("completed_columns"),
+    "error_columns": (dataset.dataset_config or {}).get("error_columns"),
+    "media_dispatch_skipped": media_cell_count == 0,
+}))
+`;
+  return runBackendShellJson(script);
+}
+
+async function loadLocalFileWorkerFixtureAudit({
+  fixture,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(fixture.dataset_id), "dataset_id must be a UUID for DB audit.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const sql = `
+WITH dataset_row AS (
+  SELECT id, name, organization_id, workspace_id, dataset_config
+  FROM model_hub_dataset
+  WHERE id = ${sqlUuid(fixture.dataset_id)}
+),
+rows AS (
+  SELECT id, "order"
+  FROM model_hub_row
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+    AND deleted = false
+),
+columns AS (
+  SELECT id, name, status
+  FROM model_hub_column
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+    AND deleted = false
+)
+SELECT json_build_object(
+  'dataset_id', d.id::text,
+  'dataset_name', d.name,
+  'organization_id', d.organization_id::text,
+  'workspace_id', d.workspace_id::text,
+  'dataset_source_local', COALESCE((d.dataset_config->>'dataset_source_local')::boolean, false),
+  'processing_status', d.dataset_config->>'file_processing_status',
+  'estimated_rows', d.dataset_config->>'estimated_rows',
+  'estimated_columns', d.dataset_config->>'estimated_columns',
+  'total_rows', d.dataset_config->>'total_rows',
+  'total_columns', d.dataset_config->>'total_columns',
+  'completed_columns', d.dataset_config->>'completed_columns',
+  'error_columns', d.dataset_config->>'error_columns',
+  'completed_at_set', d.dataset_config ? 'file_processing_completed_at',
+  'row_count', (SELECT count(*) FROM rows),
+  'column_count', (SELECT count(*) FROM columns),
+  'cell_count', (
+    SELECT count(*)
+    FROM model_hub_cell c
+    WHERE c.dataset_id = d.id
+      AND c.deleted = false
+  ),
+  'column_names', (
+    SELECT COALESCE(json_agg(name ORDER BY name), '[]'::json)
+    FROM columns
+  ),
+  'column_statuses', (
+    SELECT COALESCE(json_object_agg(name, status), '{}'::json)
+    FROM columns
+  ),
+  'input_values', (
+    SELECT COALESCE(json_agg(c.value ORDER BY r."order"), '[]'::json)
+    FROM rows r
+    JOIN columns col ON col.name = ${sqlTextLiteral(fixture.input_column_name)}
+    JOIN model_hub_cell c
+      ON c.row_id = r.id
+     AND c.column_id = col.id
+     AND c.deleted = false
+  ),
+  'expected_values', (
+    SELECT COALESCE(json_agg(c.value ORDER BY r."order"), '[]'::json)
+    FROM rows r
+    JOIN columns col ON col.name = ${sqlTextLiteral(fixture.expected_column_name)}
+    JOIN model_hub_cell c
+      ON c.row_id = r.id
+     AND c.column_id = col.id
+     AND c.deleted = false
+  )
+)
+FROM dataset_row d;
+`;
+  return runPostgresJson(sql);
+}
+
+function assertLocalFileWorkerFixtureAudit(
+  audit,
+  { fixture, organizationId, workspaceId },
+) {
+  assert(
+    audit?.dataset_id === fixture.dataset_id,
+    "Local-file DB audit dataset id mismatch.",
+  );
+  assert(
+    audit.dataset_name === fixture.dataset_name,
+    "Local-file DB audit dataset name mismatch.",
+  );
+  assert(
+    audit.organization_id === organizationId,
+    "Local-file DB audit organization mismatch.",
+  );
+  if (workspaceId) {
+    assert(
+      audit.workspace_id === workspaceId,
+      "Local-file DB audit workspace mismatch.",
+    );
+  }
+  assert(
+    audit.dataset_source_local === true,
+    "Local-file DB audit did not preserve dataset_source_local.",
+  );
+  assert(
+    audit.processing_status === "completed",
+    "Local-file DB audit processing status mismatch.",
+  );
+  assert(Number(audit.estimated_rows) === 2, "Local-file estimated rows mismatch.");
+  assert(
+    Number(audit.estimated_columns) === 2,
+    "Local-file estimated columns mismatch.",
+  );
+  assert(Number(audit.total_rows) === 2, "Local-file total rows mismatch.");
+  assert(Number(audit.total_columns) === 2, "Local-file total columns mismatch.");
+  assert(
+    Number(audit.completed_columns) === 2,
+    "Local-file completed columns mismatch.",
+  );
+  assert(Number(audit.error_columns) === 0, "Local-file error columns mismatch.");
+  assert(audit.completed_at_set === true, "Local-file completed_at was not set.");
+  assert(Number(audit.row_count) === 2, "Local-file row count mismatch.");
+  assert(Number(audit.column_count) === 2, "Local-file column count mismatch.");
+  assert(Number(audit.cell_count) === 4, "Local-file cell count mismatch.");
+  assert(
+    JSON.stringify(audit.input_values) ===
+      JSON.stringify([fixture.input_one, fixture.input_two]),
+    "Local-file input values did not persist in row order.",
+  );
+  assert(
+    JSON.stringify(audit.expected_values) ===
+      JSON.stringify([fixture.expected_one, fixture.expected_two]),
+    "Local-file expected values did not persist in row order.",
   );
 }
 
@@ -24587,6 +24971,56 @@ async function runPostgresJson(sql) {
   const text = stdout.trim();
   assert(text, "Postgres DB audit returned no JSON output.");
   return JSON.parse(text);
+}
+
+async function runBackendShellJson(script) {
+  let stdout;
+  if (process.env.API_JOURNEY_BACKEND_CONTAINER) {
+    const container = process.env.API_JOURNEY_BACKEND_CONTAINER;
+    const python = process.env.API_JOURNEY_BACKEND_PYTHON || "python";
+    ({ stdout } = await execFileAsync(
+      "docker",
+      [
+        "exec",
+        "-w",
+        "/app/backend",
+        container,
+        python,
+        "manage.py",
+        "shell",
+        "-c",
+        script,
+      ],
+      { maxBuffer: 20 * 1024 * 1024 },
+    ));
+  } else {
+    const backendDir = process.env.API_JOURNEY_BACKEND_DIR;
+    ({ stdout } = await execFileAsync(
+      "uv",
+      ["run", "python", "manage.py", "shell", "-c", script],
+      {
+        cwd: backendDir,
+        env: {
+          ...process.env,
+          EE_LICENSE_KEY: process.env.EE_LICENSE_KEY || "test-license-key",
+          PGBOUNCER_HOST: process.env.PGBOUNCER_HOST || "127.0.0.1",
+          PGBOUNCER_PORT: process.env.PGBOUNCER_PORT || "5436",
+          REDIS_URL: process.env.REDIS_URL || "redis://127.0.0.1:6382/0",
+          REDIS_CACHE_URL:
+            process.env.REDIS_CACHE_URL || "redis://127.0.0.1:6382/0",
+        },
+        maxBuffer: 20 * 1024 * 1024,
+      },
+    ));
+  }
+  const lines = stdout
+    .trim()
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const jsonLine = [...lines].reverse().find((line) => line.startsWith("{"));
+  assert(jsonLine, "Backend shell returned no JSON output.");
+  return JSON.parse(jsonLine);
 }
 
 async function multipartApiRequest({
