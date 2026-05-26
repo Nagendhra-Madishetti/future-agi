@@ -255,7 +255,12 @@ def fetch_voice_conversation_span(trace_id: str) -> dict:
     # CH's `span_attributes` is the merge of attrs_string/number/bool +
     # attributes_extra (without the round-tripped eval_attributes /
     # model_parameters keys, which live alongside in attributes_extra).
-    extra = type(reader).attributes_extra_as_dict(conversation_span) or {}
+    extra = type(reader).attributes_extra_as_dict(conversation_span)
+    # Defensive: attributes_extra_as_dict can yield a non-dict if the
+    # underlying CH column is a raw String (schema 013) rather than typed
+    # JSON. Treat anything that's not a dict as no overflow data.
+    if not isinstance(extra, dict):
+        extra = {}
     span_attributes: dict = {}
     span_attributes.update(conversation_span.attrs_string or {})
     span_attributes.update(conversation_span.attrs_number or {})
