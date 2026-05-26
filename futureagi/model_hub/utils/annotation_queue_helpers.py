@@ -209,7 +209,7 @@ def filter_available_source_ids_for_annotation(
     return available_ids, unavailable_count, message
 
 
-def _resolve_default_queue_scope(source_type, source_obj):
+def _resolve_default_queue_scope(source_type, source_obj, organization=None):
     """Return ``(lookup_kwargs, scope_name)`` identifying the default-queue
     scope for *source_obj*, or ``(None, None)`` if the source has no
     resolvable scope (e.g. a prototype_run without a develop project).
@@ -241,11 +241,18 @@ def _resolve_default_queue_scope(source_type, source_obj):
             if project is None:
                 # CHSpan path: no FK traversals available, but the row
                 # carries project_id. Resolve the PG Project explicitly.
+                # Codex wave-2 P2: scope the PG lookup by organization when
+                # one is provided. Defense-in-depth — current CHSpan callers
+                # gate on org upstream, but a future caller could forget;
+                # fail closed here.
                 pid = getattr(source_obj, "project_id", None)
                 if pid:
                     from tracer.models.project import Project
 
-                    project = Project.objects.filter(id=pid).first()
+                    qs = Project.objects.filter(id=pid)
+                    if organization is not None:
+                        qs = qs.filter(organization=organization)
+                    project = qs.first()
         else:  # trace_session
             project = getattr(source_obj, "project", None)
         if not project:
@@ -294,7 +301,9 @@ def resolve_default_queue_for_source(source_type, source_obj, organization, user
         AnnotationQueueStatusChoices,
     )
 
-    lookup, scope_name = _resolve_default_queue_scope(source_type, source_obj)
+    lookup, scope_name = _resolve_default_queue_scope(
+        source_type, source_obj, organization=organization
+    )
     if not lookup:
         return None
 

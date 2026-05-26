@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 from uuid import UUID
 
@@ -5,6 +6,8 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 
 from ai_tools.base import BaseTool, ToolContext, ToolResult
+
+logger = logging.getLogger(__name__)
 from ai_tools.formatting import (
     key_value_block,
     section,
@@ -125,11 +128,17 @@ class CreateTraceAnnotationTool(BaseTool):
 
         updated_by = str(context.user.id)
 
-        # Check for existing TraceAnnotation (duplicate detection) — update instead of creating duplicate
+        # Check for existing TraceAnnotation (duplicate detection) — update
+        # instead of creating duplicate.
+        # Codex wave-2 P1 (2026-05-26): `span` is now a CHSpan dataclass
+        # (not a Django ObservationSpan instance). Django FK *_id fields
+        # accept the raw id string directly; the bare-FK form
+        # (`observation_span=span`) is invalid model usage. Use
+        # `observation_span_id=span.id` consistently.
         lookup_kwargs = {
             "annotation_label": label,
             "user": context.user,
-            "observation_span": span,
+            "observation_span_id": span.id,
         }
 
         existing = TraceAnnotation.objects.filter(**lookup_kwargs).first()
@@ -144,7 +153,7 @@ class CreateTraceAnnotationTool(BaseTool):
         else:
             TraceAnnotation.objects.create(
                 trace=trace,
-                observation_span=span,
+                observation_span_id=span.id,
                 annotation_label=label,
                 annotation_value=params.value,
                 annotation_value_float=params.value_float,
@@ -190,23 +199,47 @@ class CreateTraceAnnotationTool(BaseTool):
             },
         )
 
-        # Create/update span notes if provided
+        # Create/update span notes if provided.
+        # Codex wave-2 P1: `span` is a CHSpan; SpanNotes.span is a Django FK
+        # to PG ObservationSpan. Use the *_id form. Guard against missing
+        # PG row (CH-only span) — span notes are annotator commentary, not
+        # load-bearing; degrade gracefully so the score/annotation write
+        # earlier in this function doesn't get unwound by an IntegrityError.
         if params.notes:
+            from django.db import IntegrityError
+            from tracer.models.observation_span import ObservationSpan
             from tracer.models.span_notes import SpanNotes
 
-            try:
-                span_note = SpanNotes.objects.get(
-                    span=span, created_by_user=context.user
+            pg_span_exists = ObservationSpan.no_workspace_objects.filter(
+                id=span.id
+            ).exists()
+            if not pg_span_exists:
+                logger.warning(
+                    "create_trace_annotation_span_notes_skipped",
+                    span_id=str(span.id),
+                    reason="CH span has no matching PG ObservationSpan row",
                 )
-                span_note.notes = params.notes
-                span_note.save(update_fields=["notes"])
-            except SpanNotes.DoesNotExist:
-                SpanNotes.objects.create(
-                    span=span,
-                    notes=params.notes,
-                    created_by_user=context.user,
-                    created_by_annotator=str(context.user.id),
-                )
+            else:
+                try:
+                    span_note = SpanNotes.objects.get(
+                        span_id=span.id, created_by_user=context.user
+                    )
+                    span_note.notes = params.notes
+                    span_note.save(update_fields=["notes"])
+                except SpanNotes.DoesNotExist:
+                    try:
+                        SpanNotes.objects.create(
+                            span_id=span.id,
+                            notes=params.notes,
+                            created_by_user=context.user,
+                            created_by_annotator=str(context.user.id),
+                        )
+                    except IntegrityError as e:
+                        logger.warning(
+                            "create_trace_annotation_span_notes_integrity",
+                            span_id=str(span.id),
+                            error=str(e),
+                        )
 
         is_update = existing is not None
         annotation_obj = (

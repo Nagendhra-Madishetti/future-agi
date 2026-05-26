@@ -8,7 +8,7 @@ from rest_framework.viewsets import ModelViewSet
 
 logger = structlog.get_logger(__name__)
 from model_hub.models.choices import DatasetSourceChoices, ModelTypes, SourceChoices
-from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
+from model_hub.models.develop_dataset import Column, Dataset
 from model_hub.serializers.develop_dataset import DatasetSerializer
 from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
 from tfc.utils.error_codes import get_error_message

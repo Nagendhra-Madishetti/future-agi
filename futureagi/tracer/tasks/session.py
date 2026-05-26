@@ -69,13 +69,37 @@ def _aggregate_spans_by_trace_ids(trace_ids):
     # either (a) traces that legitimately have no spans yet on either
     # store, or (b) CH lag where the spans exist in PG but haven't
     # replicated yet. The old PG-aggregate path masked this distinction
-    # (Count returned 0 either way), but reading from a different store
-    # than the write target makes (b) a new failure mode. Surface it via
-    # a `covered` flag so write-driving callers can warn-and-skip on
-    # next-tick rather than persisting an undercount.
+    # (Count returned 0 either way).
+    #
+    # Codex wave-2 P2 (2026-05-26): distinguish (a) from (b) by querying
+    # PG for whether the missing trace_ids have ANY span in PG. If yes,
+    # CH is lagging (treat as not covered → skip the write). If no, the
+    # trace is legitimately empty everywhere (treat as covered → write the
+    # zero aggregate). This restores the original Django semantics: a
+    # trace with zero spans shouldn't block the session write.
     seen_trace_ids = {str(s.trace_id) for s in spans}
     requested = {str(tid) for tid in trace_ids}
     missing_trace_ids = sorted(requested - seen_trace_ids)
+
+    lagging_trace_ids: list[str] = []
+    if missing_trace_ids:
+        from tracer.models.observation_span import ObservationSpan
+
+        pg_present_for_missing = set(
+            str(tid) for tid in ObservationSpan.no_workspace_objects.filter(
+                trace_id__in=missing_trace_ids, deleted=False,
+            ).values_list("trace_id", flat=True).distinct()
+        )
+        lagging_trace_ids = sorted(pg_present_for_missing)
+        if lagging_trace_ids:
+            logger.warning(
+                "session_agg_ch_lag",
+                requested=len(requested),
+                ch_seen=len(seen_trace_ids),
+                pg_present_in_gap=len(lagging_trace_ids),
+                lagging_sample=lagging_trace_ids[:10],
+            )
+
     return {
         "span_count": span_count,
         "total_tokens": total_tokens,
@@ -83,8 +107,12 @@ def _aggregate_spans_by_trace_ids(trace_ids):
         "total_duration": total_duration,
         "error_count": error_count,
         "last_activity_at": last_activity_at,
-        "covered": not missing_trace_ids,
+        # `covered=True` when every requested trace either had spans in CH
+        # OR has no spans in PG either (legitimately empty). Only treat as
+        # uncovered when PG has rows CH doesn't — that's the lag case.
+        "covered": not lagging_trace_ids,
         "missing_trace_ids": missing_trace_ids,
+        "lagging_trace_ids": lagging_trace_ids,
     }
 
 

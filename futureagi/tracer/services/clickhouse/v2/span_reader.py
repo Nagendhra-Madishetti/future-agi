@@ -586,10 +586,14 @@ class CHSpanReader:
         `interval` ∈ {"hour", "day", "week", "month"}; mapped to the CH
         toStartOfX function. Returns one row per non-empty bucket.
         """
+        # Codex wave-2 P2: align weekly bucket with the shared CH builder
+        # convention (tracer/services/clickhouse/query_builders/base.py:139
+        # uses `toMonday`). `toStartOfWeek` defaults to Sunday in CH 25.x;
+        # inconsistent with the rest of the codebase.
         bucket_fn = {
             "hour":  "toStartOfHour",
             "day":   "toStartOfDay",
-            "week":  "toStartOfWeek",
+            "week":  "toMonday",
             "month": "toStartOfMonth",
         }.get(interval)
         if bucket_fn is None:
@@ -643,13 +647,25 @@ class CHSpanReader:
         Equivalent to building a Q with those kwargs and counting. NOT
         a general-purpose Q→CH translator; intentionally narrow to the
         eval-task filter shape so behavior is testable in isolation.
+
+        Codex wave-2 fixes (2026-05-26):
+          • P1: created_at_* predicates target the CH `created_at` column
+            (schema 002 has it — earlier impl wrongly mapped to start_time
+            which broke eval-task rerun sampling parity with the PG path).
+          • P2: trace_ids=[] now correctly returns 0 (an empty IN-list is
+            "match nothing" per the Django Q semantic; the previous code
+            silently dropped the filter, overcounting).
         """
         where = ["is_deleted = 0"]
         params: dict[str, Any] = {}
         if project_id:
             where.append("project_id = %(pid)s")
             params["pid"] = project_id
-        if trace_ids:
+        if trace_ids is not None:
+            # Explicit empty-list = match nothing (matches Django
+            # .filter(trace_id__in=[]).count() == 0).
+            if len(trace_ids) == 0:
+                return 0
             where.append("trace_id IN %(tids)s")
             params["tids"] = tuple(trace_ids)
         if observation_type:
@@ -665,12 +681,13 @@ class CHSpanReader:
             where.append("trace_session_id = %(sid)s")
             params["sid"] = session_id
         if created_at_gte:
-            # CH spans don't have a `created_at` column; map to start_time
-            # which is the closest equivalent observable timestamp.
-            where.append("start_time >= %(cag)s")
+            # CH v2 spans table has a real `created_at` column (schema
+            # 002_spans_v2.sql); use it directly for parity with the PG
+            # Q-object path.
+            where.append("created_at >= %(cag)s")
             params["cag"] = created_at_gte
         if created_at_range:
-            where.append("start_time BETWEEN %(cr_s)s AND %(cr_e)s")
+            where.append("created_at BETWEEN %(cr_s)s AND %(cr_e)s")
             params["cr_s"], params["cr_e"] = created_at_range
         rows = self._client.query(
             "SELECT count() FROM spans FINAL " f"WHERE {' AND '.join(where)}",
