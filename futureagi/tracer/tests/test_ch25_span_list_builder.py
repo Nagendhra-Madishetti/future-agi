@@ -50,16 +50,20 @@ def test_build_count_query_uses_v2_columns():
 
 
 def test_build_content_query_uses_typed_json_overflow_column():
-    # build_content_query reads span_attributes_raw in v1 — v2 must read
-    # the typed JSON column (attributes_extra). The actual SELECT shape is
-    # asserted below; the legacy column must not appear.
+    # build_content_query reads span_attributes_raw in v1 — v2 must read the
+    # typed JSON column (attributes_extra) via toJSONString() wrapping to keep
+    # the row-key shape downstream Python expects: row["span_attributes_raw"]
+    # still returns a JSON STRING (just sourced from the typed column).
     sql, params = _make_builder().build_content_query(span_ids=["sp1", "sp2"])
-    assert "span_attributes_raw" not in sql
+
+    # No legacy column REFERENCE — only legitimate AS alias is allowed
     assert "_peerdb_is_deleted" not in sql
-    # The new column must be referenced
-    assert "attributes_extra" in sql
-    # Pagination via parameterized id list
-    assert "%(span_id_0)s" in sql or "%(span_id_" in sql or "sp1" in sql or len(params) > 0
+    # The v2 typed column IS used (wrapped with toJSONString for shape parity)
+    assert "toJSONString(attributes_extra)" in sql
+    # AS alias preserves the legacy result-row key
+    assert "AS span_attributes_raw" in sql
+    # Pagination via parameterized id list (or literal in v1 base)
+    assert len(params) > 0 or "%(content_span_ids)s" in sql
 
 
 def test_filter_compiler_class_yields_v2_columns():
@@ -82,3 +86,24 @@ def test_filter_compiler_class_yields_v2_columns():
     # for an attribute-key match).
     assert "_peerdb_is_deleted" not in sql
     assert "span_attr_str" not in sql
+
+
+def test_v2_builder_output_includes_critical_settings():
+    """Every v2 builder's build*() output MUST end with the SETTINGS clause
+    that enables use_skip_indexes_if_final, optimize_use_projections,
+    optimize_aggregation_in_order. These are required for sub-second query
+    behavior at trillion-row scale — see DECISIONS #026.
+    """
+    for method in ("build", "build_count_query"):
+        sql, _ = getattr(_make_builder(), method)()
+        assert "SETTINGS" in sql, (
+            f"{method}() output missing SETTINGS clause — required for "
+            f"trillion-row scale (use_skip_indexes_if_final etc.)"
+        )
+        assert "use_skip_indexes_if_final = 1" in sql
+        assert "optimize_use_projections = 1" in sql
+        assert "optimize_aggregation_in_order = 1" in sql
+
+    # build_content_query takes args
+    sql, _ = _make_builder().build_content_query(span_ids=["s1"])
+    assert "use_skip_indexes_if_final = 1" in sql

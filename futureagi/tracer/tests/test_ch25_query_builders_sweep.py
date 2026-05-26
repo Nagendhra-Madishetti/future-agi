@@ -41,28 +41,41 @@ from tracer.services.clickhouse.v2.query_builders.voice_call_list import (
 
 PROJECT_ID = "11111111-1111-1111-1111-111111111111"
 
-LEGACY_PATTERNS = (
-    r"\b_peerdb_is_deleted\b",
-    r"\b_peerdb_version\b",
-    r"\bspan_attr_str\b",
-    r"\bspan_attr_num\b",
-    r"\bspan_attr_bool\b",
-    r"\bspan_attributes_raw\b",
-    r"\bresource_attributes_raw\b",
-    r"\bmetadata_map\b",
+LEGACY_TOKENS = (
+    "_peerdb_is_deleted",
+    "_peerdb_version",
+    "span_attr_str",
+    "span_attr_num",
+    "span_attr_bool",
+    "span_attributes_raw",
+    "resource_attributes_raw",
+    "metadata_map",
 )
-LEGACY_RE = re.compile("|".join(LEGACY_PATTERNS))
+# Pattern matches a legacy token AS A COLUMN REFERENCE — not as an `AS` alias
+# name. The rewriter wraps legacy bare JSON columns as
+# `toJSONString(v2_col) AS legacy_col` to preserve the result-row key shape
+# for downstream Python callers; the legacy name in alias position is
+# intentional and SHOULD NOT fail the sweep.
+LEGACY_REF_RE = re.compile(
+    r"(?<!\bAS\s)"                       # not preceded by `AS ` (alias position)
+    r"(?<!\b[Aa][Ss]\s)"                  # case-insensitive AS
+    r"\b(" + "|".join(LEGACY_TOKENS) + r")\b"
+    r"(?![A-Za-z0-9_])"
+)
 
 
 def _assert_no_legacy(sql: str, label: str) -> None:
-    """Helper — fail with a helpful error pointing at the leaked token."""
-    match = LEGACY_RE.search(sql)
-    if match:
-        # Pull a snippet of context around the leak
-        start = max(0, match.start() - 40)
-        end   = min(len(sql), match.end() + 40)
+    """Fail with helpful context if a legacy column is REFERENCED (not aliased) in v2 SQL."""
+    for match in LEGACY_REF_RE.finditer(sql):
+        # The regex's lookbehind only checks the IMMEDIATELY preceding 3 chars;
+        # also reject any token preceded by `AS <whitespace>+` (any indent).
+        tail = sql[max(0, match.start() - 8):match.start()]
+        if tail.rstrip().lower().endswith(" as"):
+            continue                       # alias position, ignore
+        start = max(0, match.start() - 50)
+        end   = min(len(sql), match.end() + 50)
         raise AssertionError(
-            f"{label}: legacy column '{match.group(0)}' leaked into v2 SQL\n"
+            f"{label}: legacy column '{match.group(0)}' referenced in v2 SQL\n"
             f"  context: …{sql[start:end]}…"
         )
 
