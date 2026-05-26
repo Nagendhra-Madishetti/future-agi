@@ -1257,11 +1257,10 @@ class ProjectVersionView(BaseModelViewSetMixin, ModelViewSet):
             # filter null entries OUT of the input lists here. ``latency_ms``
             # is stored as non-nullable Int in CH (schema 001), so the
             # original PG ``filter=Q(parent_span_id__isnull=True)`` restricts
-            # to root spans — falsy-latency root spans are still counted by
-            # Django's Avg (0-divisor protection happens at the caller); we
-            # match that by including only positive latencies, since legacy
-            # PG would happily include 0 but the outlier scan also gated on
-            # ``span["latency_ms"]`` (truthy) below.
+            # to root spans. The list comprehension below uses
+            # ``latency_ms is not None`` — codex wave-3 P3 noted this
+            # accepts zero values (matching Django's Avg semantic; nulls
+            # are excluded by IS NOT NULL, zero is a valid sample).
             root_latencies = [
                 int(s.latency_ms)
                 for s in ch_spans

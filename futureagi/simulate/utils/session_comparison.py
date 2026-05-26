@@ -18,10 +18,24 @@ RECORDING_ATTR_KEYS = {
 }
 
 
-def fetch_base_session_metrics(session_id: str):
+def fetch_base_session_metrics(session_id: str, *, organization=None):
 
     if not session_id:
         raise ValueError("Session ID is required")
+
+    # Codex wave-3 P0 (2026-05-26): the legacy ORM path joined through
+    # `trace__session=session` which the caller had already org-scoped
+    # via `CallExecution.objects.filter(test_execution__organization=)`.
+    # The new CH path receives a raw `session_id` (from `Row.metadata`)
+    # and queries by id only — a forged/stale Row.metadata could return
+    # another tenant's metrics. Verify tenant scope BEFORE the CH read.
+    if organization is not None:
+        from tracer.models.trace_session import TraceSession
+
+        if not TraceSession.objects.filter(
+            id=session_id, project__organization=organization
+        ).exists():
+            raise ValueError("Session not found in organization scope")
 
     # Session-level aggregates from ClickHouse via wave-3 reader extension
     # ``CHSpanReader.aggregate_by_session_ids`` (commit 93c5c415f).
@@ -221,7 +235,16 @@ def fetch_comparison_metrics(call_execution: CallExecution, session_id: str):
     if not call_execution or not session_id:
         raise ValueError("Call execution and session ID are required")
 
-    base_session_metrics = fetch_base_session_metrics(session_id)
+    # Codex wave-3 P0: thread the call_execution's organization through to
+    # the session lookup so the CH read is tenant-scoped. The CallExecution
+    # is the caller's org-scoped anchor (test_execution__organization gate
+    # upstream); the session_id comes from Row.metadata which is untrusted.
+    organization = getattr(
+        getattr(call_execution, "test_execution", None), "organization", None
+    )
+    base_session_metrics = fetch_base_session_metrics(
+        session_id, organization=organization
+    )
     comparison_call_metrics = fetch_call_execution_metrics(call_execution)
 
     return _build_metric_comparisons(base_session_metrics, comparison_call_metrics)

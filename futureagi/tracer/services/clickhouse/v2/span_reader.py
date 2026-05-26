@@ -830,8 +830,12 @@ class CHSpanReader:
                 return []
             where.append("trace_id IN %(tids)s")
             params["tids"] = tuple(trace_ids)
-        if observation_type:
+        if observation_type is not None:
             if isinstance(observation_type, (list, tuple, set)):
+                # Codex wave-3 P2: empty list = match nothing (matches
+                # the Django .filter(observation_type__in=[]) semantic).
+                if len(observation_type) == 0:
+                    return []
                 where.append("observation_type IN %(otypes)s")
                 params["otypes"] = tuple(observation_type)
             else:
@@ -891,8 +895,14 @@ class CHSpanReader:
                         "cost": 0.0, "latency_ms": 0.0}
             where.append("trace_id IN %(tids)s")
             params["tids"] = tuple(trace_ids)
-        if observation_type:
+        if observation_type is not None:
             if isinstance(observation_type, (list, tuple, set)):
+                # Codex wave-3 P2: empty list = match nothing.
+                if len(observation_type) == 0:
+                    return {
+                        "span_count": 0, "error_count": 0, "tokens": 0,
+                        "cost": 0.0, "latency_ms": 0.0,
+                    }
                 where.append("observation_type IN %(otypes)s")
                 params["otypes"] = tuple(observation_type)
             else:
@@ -1092,6 +1102,12 @@ class CHSpanReader:
         Equivalent to:
             .filter(trace_id__in=[, parent_span_id__isnull=parent_only]).values("trace_id")
             .annotate(latency=Avg, latency_stddev=StdDev, cost=Sum, count=Count)
+
+        Codex wave-3 P1 (2026-05-26): Django's bare `StdDev()` is
+        STDDEV_POP (population), not sample. Use CH `stddevPop()` so
+        consumer z-scores match the legacy PG path. Callers computing
+        outliers from this method's `stddev_latency_ms` see the same
+        bands they did before.
         """
         if not trace_ids:
             return {}
@@ -1103,7 +1119,7 @@ class CHSpanReader:
             "SELECT toString(trace_id) AS tid, "
             "count() AS span_count, "
             "avg(latency_ms) AS avg_latency_ms, "
-            "stddevSamp(latency_ms) AS stddev_latency_ms, "
+            "stddevPop(latency_ms) AS stddev_latency_ms, "
             "sum(cost) AS cost, sum(total_tokens) AS tokens "
             f"FROM spans FINAL WHERE {' AND '.join(where)} "
             "GROUP BY toString(trace_id)",
@@ -1135,11 +1151,22 @@ class CHSpanReader:
         Replaces the row-walking pattern in
         tracer/views/observation_span.py::get_trace_id_by_index_spans_as_*.
         """
-        # First, look up the focal span's start_time + id.
+        # Codex wave-3 P2 (2026-05-26): scope the anchor lookup itself to
+        # the same project / version / type as the prev-next walk. An
+        # unscoped anchor leaked one tenant's start_time into another
+        # tenant's walk window (silent cross-org via foreign timestamp).
+        anchor_where = ["id = %(sid)s", "is_deleted = 0", "project_id = %(pid)s"]
+        anchor_params: dict[str, Any] = {"sid": span_id, "pid": project_id}
+        if project_version_id:
+            anchor_where.append("project_version_id = %(pvid)s")
+            anchor_params["pvid"] = project_version_id
+        if observation_type:
+            anchor_where.append("observation_type = %(otype)s")
+            anchor_params["otype"] = observation_type
         anchor_rows = self._client.query(
-            "SELECT start_time, id FROM spans FINAL "
-            "WHERE id = %(sid)s AND is_deleted = 0 LIMIT 1",
-            parameters={"sid": span_id},
+            f"SELECT start_time, id FROM spans FINAL "
+            f"WHERE {' AND '.join(anchor_where)} LIMIT 1",
+            parameters=anchor_params,
         ).result_rows
         if not anchor_rows:
             return (None, None)
@@ -1182,10 +1209,23 @@ class CHSpanReader:
         root-span start_time. Mirrors prev_next_span_by_start_time but at
         the trace level. Used by experiment-mode trace navigation.
         """
+        # Codex wave-3 P2 (2026-05-26): scope the anchor lookup to the
+        # same project (and optionally version) as the walk; an unscoped
+        # anchor leaks foreign trace timestamps into the walk window.
+        anchor_where = [
+            "trace_id = %(tid)s",
+            "is_deleted = 0",
+            "parent_span_id = ''",
+            "project_id = %(pid)s",
+        ]
+        anchor_params: dict[str, Any] = {"tid": trace_id, "pid": project_id}
+        if project_version_id:
+            anchor_where.append("project_version_id = %(pvid)s")
+            anchor_params["pvid"] = project_version_id
         anchor_rows = self._client.query(
             "SELECT min(start_time) AS st FROM spans FINAL "
-            "WHERE trace_id = %(tid)s AND is_deleted = 0 AND parent_span_id = ''",
-            parameters={"tid": trace_id},
+            f"WHERE {' AND '.join(anchor_where)}",
+            parameters=anchor_params,
         ).result_rows
         if not anchor_rows or anchor_rows[0][0] is None:
             return (None, None)
@@ -1199,16 +1239,19 @@ class CHSpanReader:
             where_base.append("project_version_id = %(pvid)s")
             params["pvid"] = project_version_id
         base = " AND ".join(where_base)
+        # Codex wave-3 P1 (2026-05-26): `trace_id` is declared as String in
+        # schema 002 (not UUID), so wrapping the param in toUUID() yielded
+        # a type mismatch in the tuple compare. Compare String-to-String.
         prev = self._client.query(
             f"SELECT toString(trace_id) FROM spans FINAL WHERE {base} "
-            "  AND (start_time, trace_id) < (%(anchor_st)s, toUUID(%(anchor_tid)s)) "
-            "ORDER BY start_time DESC, trace_id DESC LIMIT 1",
+            "  AND (start_time, toString(trace_id)) < (%(anchor_st)s, %(anchor_tid)s) "
+            "ORDER BY start_time DESC, toString(trace_id) DESC LIMIT 1",
             parameters=params,
         ).result_rows
         nxt = self._client.query(
             f"SELECT toString(trace_id) FROM spans FINAL WHERE {base} "
-            "  AND (start_time, trace_id) > (%(anchor_st)s, toUUID(%(anchor_tid)s)) "
-            "ORDER BY start_time ASC, trace_id ASC LIMIT 1",
+            "  AND (start_time, toString(trace_id)) > (%(anchor_st)s, %(anchor_tid)s) "
+            "ORDER BY start_time ASC, toString(trace_id) ASC LIMIT 1",
             parameters=params,
         ).result_rows
         return (
