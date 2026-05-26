@@ -232,6 +232,182 @@ class CHSpanReader:
         ).result_rows
         return [_row_to_chspan(r) for r in rows]
 
+    # ─── Bulk fetch by trace ids ──────────────────────────────────────────────
+    def list_by_trace_ids(self, trace_ids: list[str]) -> list[CHSpan]:
+        """Equivalent to ObservationSpan.objects.filter(trace_id__in=trace_ids).
+
+        Returns spans across multiple traces in (trace_id, start_time, id) order.
+        Empty input returns empty list.
+        """
+        if not trace_ids:
+            return []
+        rows = self._client.query(
+            f"SELECT {_SELECT_SQL} FROM spans FINAL "
+            "WHERE trace_id IN %(trace_ids)s AND is_deleted = 0 "
+            "ORDER BY trace_id, start_time, id",
+            parameters={"trace_ids": tuple(trace_ids)},
+        ).result_rows
+        return [_row_to_chspan(r) for r in rows]
+
+    # ─── Children of a parent span ────────────────────────────────────────────
+    def list_by_parent(self, parent_span_id: str, *, limit: Optional[int] = None) -> list[CHSpan]:
+        """Equivalent to ObservationSpan.objects.filter(parent_span_id=, deleted=False)
+        ordered by start_time, id. `limit` caps the result for display-list paths
+        (e.g. `[:20]` slices that the AI-tools `get_span` does)."""
+        lim_clause = f" LIMIT {int(limit)}" if limit else ""
+        rows = self._client.query(
+            f"SELECT {_SELECT_SQL} FROM spans FINAL "
+            "WHERE parent_span_id = %(parent)s AND is_deleted = 0 "
+            f"ORDER BY start_time, id{lim_clause}",
+            parameters={"parent": parent_span_id},
+        ).result_rows
+        return [_row_to_chspan(r) for r in rows]
+
+    # ─── Spans by id batch ────────────────────────────────────────────────────
+    def list_by_ids(self, span_ids: list[str]) -> list[CHSpan]:
+        """Equivalent to ObservationSpan.objects.filter(id__in=span_ids).
+
+        Result order is NOT preserved relative to the input list (CH orders
+        by id for determinism). Callers that need a specific order should
+        sort the result themselves.
+        """
+        if not span_ids:
+            return []
+        rows = self._client.query(
+            f"SELECT {_SELECT_SQL} FROM spans FINAL "
+            "WHERE id IN %(ids)s AND is_deleted = 0 "
+            "ORDER BY id",
+            parameters={"ids": tuple(span_ids)},
+        ).result_rows
+        return [_row_to_chspan(r) for r in rows]
+
+    # ─── Aggregations across many traces ──────────────────────────────────────
+    def aggregate_by_trace_ids(self, trace_ids: list[str]) -> dict[str, Any]:
+        """Sum(tokens, cost) + count across multiple traces in one query.
+
+        Used by AI tools that compute trace-list totals (e.g. get_trace_timeline
+        bucketing spans by time). Returns a single aggregate row across all
+        input trace_ids; for per-trace aggregates use trace_aggregate() in a
+        loop or extend this method later if a real call site needs it.
+        """
+        if not trace_ids:
+            return {"span_count": 0, "prompt_tokens": 0, "completion_tokens": 0,
+                    "total_tokens": 0, "cost": 0.0}
+        rows = self._client.query(
+            "SELECT count() AS n, "
+            "sum(prompt_tokens) AS pt, sum(completion_tokens) AS ct, "
+            "sum(total_tokens) AS tt, sum(cost) AS cost "
+            "FROM spans FINAL "
+            "WHERE trace_id IN %(trace_ids)s AND is_deleted = 0",
+            parameters={"trace_ids": tuple(trace_ids)},
+        ).result_rows
+        if not rows:
+            return {"span_count": 0, "prompt_tokens": 0, "completion_tokens": 0,
+                    "total_tokens": 0, "cost": 0.0}
+        n, pt, ct, tt, c = rows[0]
+        return {
+            "span_count": int(n or 0),
+            "prompt_tokens": int(pt or 0),
+            "completion_tokens": int(ct or 0),
+            "total_tokens": int(tt or 0),
+            "cost": float(c or 0.0),
+        }
+
+    # ─── Session-level aggregation ────────────────────────────────────────────
+    def session_aggregate(self, session_id: str) -> dict[str, Any]:
+        """Same shape as trace_aggregate but scoped by trace_session_id. Used by
+        get_session_analytics + the session detail view. Includes the start/end
+        bracket so callers can compute session duration."""
+        rows = self._client.query(
+            "SELECT count() AS n, "
+            "sum(prompt_tokens) AS pt, sum(completion_tokens) AS ct, "
+            "sum(total_tokens) AS tt, sum(cost) AS cost, "
+            "min(start_time) AS start_time, max(end_time) AS end_time "
+            "FROM spans FINAL "
+            "WHERE trace_session_id = %(sid)s AND is_deleted = 0",
+            parameters={"sid": session_id},
+        ).result_rows
+        if not rows:
+            return {}
+        n, pt, ct, tt, c, st, et = rows[0]
+        return {
+            "span_count": int(n or 0),
+            "prompt_tokens": int(pt or 0),
+            "completion_tokens": int(ct or 0),
+            "total_tokens": int(tt or 0),
+            "cost": float(c or 0.0),
+            "start_time": st,
+            "end_time": et,
+        }
+
+    # ─── Project-scoped fetches ───────────────────────────────────────────────
+    def list_by_project(
+        self,
+        project_id: str,
+        *,
+        observation_type: Optional[str] = None,
+        project_version_id: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> list[CHSpan]:
+        """Equivalent to ObservationSpan.objects.filter(project_id=, ...).
+
+        Keyword filters compose as ANDs. Used by views that scope spans to a
+        single project (delete cascades, project_version queries, etc.).
+        `limit` caps the result for paginated paths.
+        """
+        where = ["is_deleted = 0", "project_id = %(pid)s"]
+        params: dict[str, Any] = {"pid": project_id}
+        if observation_type:
+            where.append("observation_type = %(otype)s")
+            params["otype"] = observation_type
+        if project_version_id:
+            where.append("project_version_id = %(pvid)s")
+            params["pvid"] = project_version_id
+        lim_clause = f" LIMIT {int(limit)}" if limit else ""
+        rows = self._client.query(
+            f"SELECT {_SELECT_SQL} FROM spans FINAL "
+            f"WHERE {' AND '.join(where)} "
+            f"ORDER BY start_time, id{lim_clause}",
+            parameters=params,
+        ).result_rows
+        return [_row_to_chspan(r) for r in rows]
+
+    def count_by_project(
+        self,
+        project_id: str,
+        *,
+        observation_type: Optional[str] = None,
+        project_version_id: Optional[str] = None,
+    ) -> int:
+        """Count of spans matching the project + optional filters. Equivalent
+        to ObservationSpan.objects.filter(project_id=, ...).count()."""
+        where = ["is_deleted = 0", "project_id = %(pid)s"]
+        params: dict[str, Any] = {"pid": project_id}
+        if observation_type:
+            where.append("observation_type = %(otype)s")
+            params["otype"] = observation_type
+        if project_version_id:
+            where.append("project_version_id = %(pvid)s")
+            params["pvid"] = project_version_id
+        rows = self._client.query(
+            "SELECT count() FROM spans FINAL " f"WHERE {' AND '.join(where)}",
+            parameters=params,
+        ).result_rows
+        return int(rows[0][0]) if rows else 0
+
+    def count_by_trace(self, trace_id: str) -> int:
+        """Equivalent to ObservationSpan.objects.filter(trace_id=).count()."""
+        rows = self._client.query(
+            "SELECT count() FROM spans FINAL "
+            "WHERE trace_id = %(trace_id)s AND is_deleted = 0",
+            parameters={"trace_id": trace_id},
+        ).result_rows
+        return int(rows[0][0]) if rows else 0
+
+    def exists_for_trace(self, trace_id: str) -> bool:
+        """Equivalent to ObservationSpan.objects.filter(trace_id=).exists()."""
+        return self.count_by_trace(trace_id) > 0
+
     # ─── Aggregations ────────────────────────────────────────────────────────
     def trace_aggregate(self, trace_id: str) -> dict[str, Any]:
         """Computes the same aggregate the eval runner needs for trace-level
