@@ -3,8 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 import structlog
-from django.db.models import F, OuterRef, QuerySet, Subquery
-from django.db.models.functions import Coalesce
+from django.db.models import QuerySet
 
 from model_hub.models.choices import StatusType
 from simulate.models import AgentDefinition
@@ -17,7 +16,6 @@ from simulate.utils.session_comparison import (
     parse_voice_span_transcripts,
 )
 from simulate.utils.test_execution_utils import generate_simulator_agent_prompt
-from tracer.models.observation_span import ObservationSpan
 from tracer.models.project import Project
 from tracer.models.replay_session import ReplaySession
 from tracer.models.trace import Trace
@@ -537,32 +535,55 @@ def _get_transcripts_from_session_query(trace_query: QuerySet) -> dict[str, list
     Returns:
         Dictionary with session IDs as keys and transcript lists as values.
     """
-    # CH25-TODO: cross-store Subquery+OuterRef can't be expressed against
-    # CH spans directly. Pending reader extension:
-    #   CHSpanReader.per_trace_root_span_start_times(trace_ids) ->
-    #       dict[trace_id, start_time] (one row per trace, root span only).
-    # Once that lands, this becomes a bulk CH read + a Python join on the
-    # trace iterator. Until then the PG Subquery is correct because
-    # writes are still dual-write PG-then-CH (D-027), so PG still has
-    # every root span the CH path would.
-    root_span_start_time = Subquery(
-        ObservationSpan.objects.filter(
-            trace_id=OuterRef("id"),
-            parent_span_id__isnull=True,
-        ).values("start_time")[:1]
+    # Replaces the prior cross-store Subquery+OuterRef pattern with a
+    # 2-step PG-then-CH join, unlocked by wave-3 reader extension
+    # ``CHSpanReader.per_trace_root_span_start_times`` (commit 93c5c415f).
+    #
+    # Original PG path was:
+    #     trace_query.annotate(
+    #         span_start_time=Coalesce(
+    #             Subquery(ObservationSpan.objects.filter(
+    #                 trace_id=OuterRef("id"), parent_span_id__isnull=True
+    #             ).values("start_time")[:1]),
+    #             F("created_at"),
+    #         )
+    #     ).order_by("span_start_time").values(...)
+    #
+    # Step 1 — pull the trace rows from PG (Trace itself stays in PG, so
+    # this is a single PG read on the existing queryset). We include
+    # ``created_at`` so we can preserve the Coalesce fallback for traces
+    # whose root span hasn't landed in CH yet (or never existed).
+    traces = list(
+        trace_query.values("id", "session_id", "input", "output", "created_at")
     )
+
+    # Step 2 — bulk root-span start_time lookup in one CH query. Returns
+    # {trace_id: start_time or None} — empty dict iff trace_ids is empty
+    # (per-trace None when the trace has no CH root span yet).
+    from tracer.services.clickhouse.v2 import get_reader
+
+    trace_ids = [str(t["id"]) for t in traces]
+    if trace_ids:
+        with get_reader() as reader:
+            root_starts = reader.per_trace_root_span_start_times(trace_ids)
+    else:
+        root_starts = {}
+
+    # Step 3 — Python-side sort by Coalesce(root_start, created_at).
+    # Matches the prior PG ORDER BY exactly: the Subquery's first row
+    # (LIMIT 1 with no explicit ORDER BY) is implementation-defined in
+    # PG; the CH reader picks min(start_time) for ties, which is the
+    # only deterministic choice. For traces where CH has no root span,
+    # we fall back to ``created_at`` — same Coalesce semantic as before.
+    def _sort_key(t):
+        rs = root_starts.get(str(t["id"]))
+        return rs if rs is not None else t["created_at"]
+
+    traces.sort(key=_sort_key)
 
     # The has-key check used to run as a Django Exists() subquery against
     # ``span_attributes`` (PG JSONB). Now sourced from ClickHouse — see
     # migration 0074 / span_attribute_lookups.
-    traces = list(
-        trace_query.annotate(
-            span_start_time=Coalesce(root_span_start_time, F("created_at")),
-        )
-        .order_by("span_start_time")
-        .values("id", "session_id", "input", "output")
-    )
-
     simulator_trace_ids = trace_ids_with_simulator_call_execution_id(
         str(t["id"]) for t in traces
     )
