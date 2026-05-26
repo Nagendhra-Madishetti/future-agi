@@ -4377,6 +4377,468 @@ export const appCoreJourneys = [
     },
   },
   {
+    id: "CORE-API-016",
+    title:
+      "Falcon conversation create, list/detail, feedback, workspace isolation, delete, and DB cleanup",
+    tags: [
+      "core",
+      "falcon",
+      "conversations",
+      "mutating",
+      "data-integrity",
+      "workspace-scope",
+    ],
+    async run({
+      client,
+      user,
+      organizationId,
+      workspaceId,
+      cleanup,
+      runId,
+      evidence,
+    }) {
+      requireMutations();
+      const userId = currentUserId(user);
+      assert(
+        isUuid(userId),
+        "Falcon conversation journey requires current user id.",
+      );
+      assert(
+        isUuid(organizationId),
+        "Falcon conversation journey requires organization context.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Falcon conversation journey requires workspace context.",
+      );
+
+      const suffix = runId.replace(/[^a-z0-9]/gi, "_");
+      const titlePrefix = `api_journey_falcon_conversation_${suffix}`;
+      const title = `${titlePrefix} primary`;
+      const renamedTitle = `${titlePrefix} renamed`;
+      let hardCleaned = false;
+
+      await hardDeleteFalconConversationFixturesDb({
+        titlePrefix,
+        organizationId,
+      });
+      cleanup.defer("hard-delete Falcon conversation fixture", () =>
+        hardCleaned
+          ? null
+          : hardDeleteFalconConversationFixturesDb({
+              titlePrefix,
+              organizationId,
+            }),
+      );
+
+      const created = await client.post(apiPath("/falcon-ai/conversations/"), {
+        title,
+        context_page: "/dashboard/falcon-ai",
+      });
+      assert(
+        isUuid(created?.id) &&
+          created.title === title &&
+          created.context_page === "/dashboard/falcon-ai",
+        "Falcon conversation create response did not echo canonical fields.",
+      );
+      assert(
+        Array.isArray(created.messages) && created.messages.length === 0,
+        "New Falcon conversation should start without messages.",
+      );
+
+      const invalidCreate = await expectApiError(
+        () =>
+          client.post(apiPath("/falcon-ai/conversations/"), {
+            title: `${titlePrefix} invalid`,
+            displayName: "legacy alias",
+          }),
+        [400],
+        "Falcon conversation create accepted an unknown field.",
+      );
+      const invalidCreateShape = await expectApiError(
+        () =>
+          client.post(apiPath("/falcon-ai/conversations/"), {
+            title: { bad: "shape" },
+          }),
+        [400],
+        "Falcon conversation create accepted a non-string title.",
+      );
+
+      const seededMessages = await seedFalconConversationMessagesDb({
+        conversationId: created.id,
+        messages: [
+          {
+            role: "user",
+            content: `User asks for Falcon list coverage ${suffix}`,
+            thoughts: [],
+            toolCalls: [],
+            completionCard: null,
+            files: [],
+            feedback: "",
+            tokenCount: 7,
+            inputTokens: 7,
+            outputTokens: 0,
+            modelUsed: "",
+            latencyMs: 0,
+          },
+          {
+            role: "assistant",
+            content: `Assistant response for Falcon list coverage ${suffix}`,
+            thoughts: [{ title: "Read conversation state", status: "done" }],
+            toolCalls: [
+              {
+                name: "read_context",
+                arguments: { route: "/dashboard/falcon-ai" },
+              },
+            ],
+            completionCard: {
+              title: "Falcon conversation coverage",
+              status: "completed",
+            },
+            files: [],
+            feedback: "",
+            tokenCount: 11,
+            inputTokens: 2,
+            outputTokens: 9,
+            modelUsed: "api-journey-model",
+            latencyMs: 42,
+          },
+        ],
+      });
+      assert(
+        Number(seededMessages.inserted_message_count) === 2,
+        "Falcon conversation message seed did not insert both messages.",
+      );
+
+      const hidden = await seedHiddenFalconConversationDb({
+        title: `${titlePrefix} hidden`,
+        organizationId,
+        workspaceId,
+        userId,
+      });
+      const otherWorkspace = await seedOtherWorkspaceFalconConversationDb({
+        titlePrefix,
+        organizationId,
+        userId,
+      });
+
+      const listEnvelope = await client.get(
+        apiPath("/falcon-ai/conversations/"),
+        {
+          query: { search: titlePrefix, limit: 5, offset: 0 },
+          unwrap: false,
+        },
+      );
+      const list = asArray(listEnvelope);
+      assert(
+        listEnvelope.total === 1 && list.length === 1,
+        `Falcon conversation list should include only the active workspace visible conversation: ${JSON.stringify(listEnvelope)}`,
+      );
+      const listRow = list[0];
+      assert(
+        listRow.id === created.id &&
+          listRow.title === title &&
+          listRow.context_page === "/dashboard/falcon-ai",
+        "Falcon conversation list row did not match the created conversation.",
+      );
+      assert(
+        Number(listRow.message_count) === 2 &&
+          String(listRow.last_message_at || "").trim(),
+        "Falcon conversation list did not expose message_count and last_message_at.",
+      );
+      assert(
+        !list.some(
+          (conversation) =>
+            conversation.id === hidden.id ||
+            conversation.id === otherWorkspace.conversation_id,
+        ),
+        "Falcon conversation list leaked hidden or other-workspace conversations.",
+      );
+
+      const detail = await client.get(
+        apiPath("/falcon-ai/conversations/{conversation_id}/", {
+          conversation_id: created.id,
+        }),
+      );
+      assertFalconConversationDetail(detail, {
+        conversationId: created.id,
+        title,
+        workspaceId,
+        messageCount: 2,
+      });
+      const assistantMessage = detail.messages.find(
+        (message) => message.role === "assistant",
+      );
+      assert(
+        isUuid(assistantMessage?.id),
+        "Falcon conversation detail did not include assistant message id.",
+      );
+      assert(
+        assistantMessage.content.includes(suffix) &&
+          assistantMessage.model_used === "api-journey-model" &&
+          assistantMessage.latency_ms === 42,
+        "Falcon assistant message detail did not preserve seeded response metadata.",
+      );
+
+      const streamStatus = await client.get(
+        apiPath("/falcon-ai/conversations/{conversation_id}/stream-status/", {
+          conversation_id: created.id,
+        }),
+      );
+      assert(
+        streamStatus.stream_status === "none",
+        "Falcon stream-status for inactive seeded conversation was not none.",
+      );
+
+      const feedback = await client.post(
+        apiPath("/falcon-ai/messages/{message_id}/feedback/", {
+          message_id: assistantMessage.id,
+        }),
+        { feedback: "thumbs_up" },
+      );
+      assert(
+        feedback.feedback === "thumbs_up",
+        "Falcon message feedback did not persist thumbs_up.",
+      );
+      const invalidFeedback = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/falcon-ai/messages/{message_id}/feedback/", {
+              message_id: assistantMessage.id,
+            }),
+            { feedback: "invalid_value" },
+          ),
+        [400],
+        "Falcon message feedback accepted an invalid value.",
+      );
+      const unknownFeedbackField = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/falcon-ai/messages/{message_id}/feedback/", {
+              message_id: assistantMessage.id,
+            }),
+            { feedback: "thumbs_down", legacy_extra: true },
+          ),
+        [400],
+        "Falcon message feedback accepted an unknown field.",
+      );
+      const clearedFeedback = await client.post(
+        apiPath("/falcon-ai/messages/{message_id}/feedback/", {
+          message_id: assistantMessage.id,
+        }),
+        { feedback: "" },
+      );
+      assert(
+        clearedFeedback.feedback === "",
+        "Falcon message feedback did not clear.",
+      );
+
+      const otherWorkspaceDetail = await expectApiError(
+        () =>
+          client.get(
+            apiPath("/falcon-ai/conversations/{conversation_id}/", {
+              conversation_id: otherWorkspace.conversation_id,
+            }),
+          ),
+        [404],
+        "Falcon conversation detail leaked a same-org other-workspace conversation.",
+      );
+      const otherWorkspaceStream = await expectApiError(
+        () =>
+          client.get(
+            apiPath("/falcon-ai/conversations/{conversation_id}/stream-status/", {
+              conversation_id: otherWorkspace.conversation_id,
+            }),
+          ),
+        [404],
+        "Falcon stream-status leaked a same-org other-workspace conversation.",
+      );
+      const otherWorkspaceFeedback = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/falcon-ai/messages/{message_id}/feedback/", {
+              message_id: otherWorkspace.message_id,
+            }),
+            { feedback: "thumbs_up" },
+          ),
+        [404],
+        "Falcon message feedback leaked a same-org other-workspace message.",
+      );
+
+      const invalidPatch = await expectApiError(
+        () =>
+          client.patch(
+            apiPath("/falcon-ai/conversations/{conversation_id}/", {
+              conversation_id: created.id,
+            }),
+            { title: renamedTitle, displayName: "legacy alias" },
+          ),
+        [400],
+        "Falcon conversation PATCH accepted an unknown field.",
+      );
+      const invalidPatchShape = await expectApiError(
+        () =>
+          client.patch(
+            apiPath("/falcon-ai/conversations/{conversation_id}/", {
+              conversation_id: created.id,
+            }),
+            { title: { bad: "shape" } },
+          ),
+        [400],
+        "Falcon conversation PATCH accepted a non-string title.",
+      );
+      const renamed = await client.patch(
+        apiPath("/falcon-ai/conversations/{conversation_id}/", {
+          conversation_id: created.id,
+        }),
+        { title: renamedTitle },
+      );
+      assert(
+        renamed.title === renamedTitle,
+        "Falcon conversation PATCH did not persist renamed title.",
+      );
+
+      const oldSearchEnvelope = await client.get(
+        apiPath("/falcon-ai/conversations/"),
+        {
+          query: { search: title, limit: 5, offset: 0 },
+          unwrap: false,
+        },
+      );
+      assert(
+        oldSearchEnvelope.total === 0,
+        "Falcon conversation list still found the old title after rename.",
+      );
+      const renamedSearchEnvelope = await client.get(
+        apiPath("/falcon-ai/conversations/"),
+        {
+          query: { search: renamedTitle, limit: 5, offset: 0 },
+          unwrap: false,
+        },
+      );
+      assert(
+        renamedSearchEnvelope.total === 1 &&
+          asArray(renamedSearchEnvelope)[0]?.id === created.id,
+        "Falcon conversation list did not find the renamed title.",
+      );
+
+      const missingDetail = await expectApiError(
+        () =>
+          client.get(
+            apiPath("/falcon-ai/conversations/{conversation_id}/", {
+              conversation_id: "00000000-0000-0000-0000-000000000000",
+            }),
+          ),
+        [404],
+        "Falcon missing conversation detail unexpectedly succeeded.",
+      );
+      const missingFeedback = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/falcon-ai/messages/{message_id}/feedback/", {
+              message_id: "00000000-0000-0000-0000-000000000000",
+            }),
+            { feedback: "thumbs_up" },
+          ),
+        [404],
+        "Falcon missing message feedback unexpectedly succeeded.",
+      );
+
+      await client.delete(
+        apiPath("/falcon-ai/conversations/{conversation_id}/", {
+          conversation_id: created.id,
+        }),
+      );
+      const deletedDetail = await expectApiError(
+        () =>
+          client.get(
+            apiPath("/falcon-ai/conversations/{conversation_id}/", {
+              conversation_id: created.id,
+            }),
+          ),
+        [404],
+        "Falcon deleted conversation detail unexpectedly remained visible.",
+      );
+      const afterDeleteList = await client.get(
+        apiPath("/falcon-ai/conversations/"),
+        {
+          query: { search: renamedTitle, limit: 5, offset: 0 },
+          unwrap: false,
+        },
+      );
+      assert(
+        afterDeleteList.total === 0,
+        "Falcon deleted conversation remained visible in list.",
+      );
+
+      const deleteAudit = await loadFalconConversationDbAudit({
+        conversationIds: [
+          created.id,
+          hidden.id,
+          otherWorkspace.conversation_id,
+        ],
+        messageIds: [
+          ...seededMessages.message_ids,
+          otherWorkspace.message_id,
+        ],
+        organizationId,
+        workspaceId,
+        userId,
+      });
+      assert(
+        deleteAudit.conversation_count === 3 &&
+          deleteAudit.deleted_conversation_count === 1 &&
+          deleteAudit.deleted_at_count === 1,
+        `Falcon conversation DB audit did not find expected soft-delete state: ${JSON.stringify(deleteAudit)}`,
+      );
+      assert(
+        deleteAudit.message_count === 3 &&
+          deleteAudit.feedback_thumbs_up_count === 0,
+        "Falcon conversation DB audit did not preserve messages with cleared feedback.",
+      );
+
+      const cleanupAudit = await hardDeleteFalconConversationFixturesDb({
+        titlePrefix,
+        organizationId,
+      });
+      hardCleaned = true;
+      assert(
+        cleanupAudit.remaining_conversation_count === 0 &&
+          cleanupAudit.remaining_message_count === 0 &&
+          cleanupAudit.remaining_workspace_count === 0,
+        `Falcon conversation hard cleanup left disposable rows behind: ${JSON.stringify(cleanupAudit)}`,
+      );
+
+      evidence.push({
+        conversation_id: created.id,
+        renamed_title: renamedTitle,
+        message_ids: seededMessages.message_ids,
+        hidden_conversation_id: hidden.id,
+        other_workspace_id: otherWorkspace.workspace_id,
+        other_workspace_conversation_id: otherWorkspace.conversation_id,
+        list_total_after_search: listEnvelope.total,
+        message_count: listRow.message_count,
+        stream_status: streamStatus.stream_status,
+        invalid_create_status: invalidCreate.status,
+        invalid_create_shape_status: invalidCreateShape.status,
+        invalid_feedback_status: invalidFeedback.status,
+        unknown_feedback_field_status: unknownFeedbackField.status,
+        other_workspace_detail_status: otherWorkspaceDetail.status,
+        other_workspace_stream_status: otherWorkspaceStream.status,
+        other_workspace_feedback_status: otherWorkspaceFeedback.status,
+        invalid_patch_status: invalidPatch.status,
+        invalid_patch_shape_status: invalidPatchShape.status,
+        missing_detail_status: missingDetail.status,
+        missing_feedback_status: missingFeedback.status,
+        deleted_detail_status: deletedDetail.status,
+        db_deleted_at_count: deleteAudit.deleted_at_count,
+        cleanup_remaining_conversation_count:
+          cleanupAudit.remaining_conversation_count,
+        cleanup_remaining_message_count: cleanupAudit.remaining_message_count,
+      });
+    },
+  },
+  {
     id: "CORE-API-002",
     title:
       "Developer secret key create, masked list, disable, enable, and delete lifecycle",
@@ -7137,6 +7599,410 @@ SELECT json_build_object(
   'deleted_connector_count', (SELECT count(*) FROM deleted_connectors),
   'remaining_connector_count',
     (SELECT count(*) FROM target_connectors) - (SELECT count(*) FROM deleted_connectors)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+function assertFalconConversationDetail(
+  detail,
+  { conversationId, title, workspaceId, messageCount },
+) {
+  assert(
+    detail?.id === conversationId &&
+      detail.title === title &&
+      detail.workspace === workspaceId,
+    "Falcon conversation detail did not return the requested workspace row.",
+  );
+  assert(
+    detail.metadata && typeof detail.metadata === "object",
+    "Falcon conversation detail omitted metadata object.",
+  );
+  const messages = asArray(detail.messages);
+  assert(
+    messages.length === messageCount,
+    `Falcon conversation detail expected ${messageCount} messages but got ${messages.length}.`,
+  );
+  for (const message of messages) {
+    assert(isUuid(message?.id), "Falcon message omitted valid id.");
+    assert(
+      message.conversation === conversationId,
+      "Falcon message did not point at the detail conversation.",
+    );
+    assert(
+      ["user", "assistant", "system"].includes(message.role),
+      `Falcon message returned invalid role ${message.role}.`,
+    );
+    assert(
+      typeof message.content === "string",
+      "Falcon message content was not a string.",
+    );
+    assert(
+      Array.isArray(message.thoughts) && Array.isArray(message.tool_calls),
+      "Falcon message omitted thoughts/tool_calls arrays.",
+    );
+    assert(
+      Array.isArray(message.files),
+      "Falcon message omitted files array.",
+    );
+  }
+}
+
+async function seedFalconConversationMessagesDb({
+  conversationId,
+  messages,
+}) {
+  const rows = messages.map((message, index) => {
+    const messageId = randomUUID();
+    return {
+      id: messageId,
+      sql: `(
+    NOW() + (${index} * interval '1 millisecond'),
+    NOW() + (${index} * interval '1 millisecond'),
+    false,
+    NULL,
+    ${sqlUuid(messageId)},
+    ${sqlTextLiteral(message.role)},
+    ${sqlTextLiteral(message.content)},
+    ${sqlJson(message.thoughts || [])},
+    ${sqlJson(message.toolCalls || [])},
+    ${message.completionCard == null ? "NULL" : sqlJson(message.completionCard)},
+    ${sqlTextLiteral(message.feedback || "")},
+    ${Number(message.tokenCount || 0)},
+    ${sqlTextLiteral(message.modelUsed || "")},
+    ${Number(message.latencyMs || 0)},
+    ${sqlUuid(conversationId)},
+    ${Number(message.inputTokens || 0)},
+    ${Number(message.outputTokens || 0)},
+    ${sqlJson(message.files || [])}
+  )`,
+    };
+  });
+  const sql = `
+WITH inserted AS (
+  INSERT INTO falcon_ai_message (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    role,
+    content,
+    thoughts,
+    tool_calls,
+    completion_card,
+    feedback,
+    token_count,
+    model_used,
+    latency_ms,
+    conversation_id,
+    input_tokens,
+    output_tokens,
+    files
+  )
+  VALUES
+  ${rows.map((row) => row.sql).join(",\n")}
+  RETURNING id, created_at
+)
+SELECT json_build_object(
+  'inserted_message_count', (SELECT count(*) FROM inserted),
+  'message_ids',
+    COALESCE((SELECT json_agg(id::text ORDER BY created_at) FROM inserted), '[]'::json)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedHiddenFalconConversationDb({
+  title,
+  organizationId,
+  workspaceId,
+  userId,
+}) {
+  const conversationId = randomUUID();
+  const sql = `
+WITH inserted AS (
+  INSERT INTO falcon_ai_conversation (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    title,
+    context_page,
+    metadata,
+    organization_id,
+    user_id,
+    workspace_id,
+    mode,
+    active_skill_id,
+    context_summary,
+    total_tokens
+  )
+  VALUES (
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    ${sqlUuid(conversationId)},
+    ${sqlTextLiteral(title)},
+    '/dashboard/falcon-ai',
+    ${sqlJson({ hidden: true, source: "api-journey" })},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(userId)},
+    ${sqlUuid(workspaceId)},
+    '',
+    NULL,
+    '',
+    0
+  )
+  RETURNING id, title
+)
+SELECT json_build_object(
+  'id', (SELECT id::text FROM inserted LIMIT 1),
+  'title', (SELECT title FROM inserted LIMIT 1),
+  'hidden', true
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedOtherWorkspaceFalconConversationDb({
+  titlePrefix,
+  organizationId,
+  userId,
+}) {
+  const workspaceId = randomUUID();
+  const conversationId = randomUUID();
+  const messageId = randomUUID();
+  const workspaceName = `${titlePrefix} other workspace`;
+  const title = `${titlePrefix} other workspace conversation`;
+  const sql = `
+WITH inserted_workspace AS (
+  INSERT INTO accounts_workspace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    display_name,
+    description,
+    is_active,
+    is_default,
+    created_by_id,
+    organization_id
+  )
+  VALUES (
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    ${sqlUuid(workspaceId)},
+    ${sqlTextLiteral(workspaceName)},
+    ${sqlTextLiteral(workspaceName)},
+    ${sqlTextLiteral("Temporary workspace for Falcon conversation API journey.")},
+    true,
+    false,
+    ${sqlUuid(userId)},
+    ${sqlUuid(organizationId)}
+  )
+  RETURNING id, name
+),
+inserted_conversation AS (
+  INSERT INTO falcon_ai_conversation (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    title,
+    context_page,
+    metadata,
+    organization_id,
+    user_id,
+    workspace_id,
+    mode,
+    active_skill_id,
+    context_summary,
+    total_tokens
+  )
+  VALUES (
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    ${sqlUuid(conversationId)},
+    ${sqlTextLiteral(title)},
+    '/dashboard/falcon-ai',
+    ${sqlJson({ source: "api-journey-other-workspace" })},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(userId)},
+    ${sqlUuid(workspaceId)},
+    '',
+    NULL,
+    '',
+    0
+  )
+  RETURNING id, workspace_id, title
+),
+inserted_message AS (
+  INSERT INTO falcon_ai_message (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    role,
+    content,
+    thoughts,
+    tool_calls,
+    completion_card,
+    feedback,
+    token_count,
+    model_used,
+    latency_ms,
+    conversation_id,
+    input_tokens,
+    output_tokens,
+    files
+  )
+  VALUES (
+    NOW(),
+    NOW(),
+    false,
+    NULL,
+    ${sqlUuid(messageId)},
+    'assistant',
+    ${sqlTextLiteral("Other workspace Falcon response should not be visible.")},
+    '[]'::jsonb,
+    '[]'::jsonb,
+    NULL,
+    '',
+    4,
+    '',
+    0,
+    ${sqlUuid(conversationId)},
+    1,
+    3,
+    '[]'::jsonb
+  )
+  RETURNING id
+)
+SELECT json_build_object(
+  'workspace_id', (SELECT id::text FROM inserted_workspace LIMIT 1),
+  'workspace_name', (SELECT name FROM inserted_workspace LIMIT 1),
+  'conversation_id', (SELECT id::text FROM inserted_conversation LIMIT 1),
+  'conversation_title', (SELECT title FROM inserted_conversation LIMIT 1),
+  'message_id', (SELECT id::text FROM inserted_message LIMIT 1)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadFalconConversationDbAudit({
+  conversationIds,
+  messageIds,
+  organizationId,
+  workspaceId,
+  userId,
+}) {
+  const sql = `
+WITH requested_conversations AS (
+  SELECT unnest(${sqlUuidArray(conversationIds)}) AS conversation_id
+),
+requested_messages AS (
+  SELECT unnest(${sqlUuidArray(messageIds)}) AS message_id
+),
+conversation_rows AS (
+  SELECT conversation.*
+  FROM falcon_ai_conversation conversation
+  JOIN requested_conversations requested
+    ON conversation.id = requested.conversation_id
+  WHERE conversation.organization_id = ${sqlUuid(organizationId)}
+    AND conversation.user_id = ${sqlUuid(userId)}
+),
+message_rows AS (
+  SELECT message.*
+  FROM falcon_ai_message message
+  JOIN requested_messages requested
+    ON message.id = requested.message_id
+)
+SELECT json_build_object(
+  'conversation_count', (SELECT count(*) FROM conversation_rows),
+  'active_conversation_count',
+    (SELECT count(*) FROM conversation_rows WHERE deleted = false),
+  'deleted_conversation_count',
+    (SELECT count(*) FROM conversation_rows WHERE deleted = true),
+  'deleted_at_count',
+    (SELECT count(*) FROM conversation_rows WHERE deleted = true AND deleted_at IS NOT NULL),
+  'active_workspace_conversation_count',
+    (SELECT count(*) FROM conversation_rows WHERE workspace_id = ${sqlUuid(workspaceId)}),
+  'other_workspace_conversation_count',
+    (SELECT count(*) FROM conversation_rows WHERE workspace_id <> ${sqlUuid(workspaceId)}),
+  'hidden_conversation_count',
+    (SELECT count(*) FROM conversation_rows WHERE metadata @> '{"hidden": true}'::jsonb),
+  'message_count', (SELECT count(*) FROM message_rows),
+  'message_conversation_count',
+    (SELECT count(DISTINCT conversation_id) FROM message_rows),
+  'feedback_thumbs_up_count',
+    (SELECT count(*) FROM message_rows WHERE feedback = 'thumbs_up')
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteFalconConversationFixturesDb({
+  titlePrefix,
+  organizationId,
+}) {
+  const sql = `
+WITH target_conversations AS (
+  SELECT id
+  FROM falcon_ai_conversation
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND title LIKE ${sqlTextLiteral(`${titlePrefix}%`)}
+),
+target_messages AS (
+  SELECT message.id
+  FROM falcon_ai_message message
+  JOIN target_conversations conversation
+    ON message.conversation_id = conversation.id
+),
+deleted_messages AS (
+  DELETE FROM falcon_ai_message message
+  USING target_messages target
+  WHERE message.id = target.id
+  RETURNING message.id
+),
+deleted_conversations AS (
+  DELETE FROM falcon_ai_conversation conversation
+  USING target_conversations target
+  WHERE conversation.id = target.id
+  RETURNING conversation.id
+),
+target_workspaces AS (
+  SELECT id
+  FROM accounts_workspace
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlTextLiteral(`${titlePrefix}% other workspace%`)}
+),
+deleted_workspaces AS (
+  DELETE FROM accounts_workspace workspace
+  USING target_workspaces target
+  WHERE workspace.id = target.id
+  RETURNING workspace.id
+)
+SELECT json_build_object(
+  'deleted_conversation_count', (SELECT count(*) FROM deleted_conversations),
+  'remaining_conversation_count',
+    (SELECT count(*) FROM target_conversations) - (SELECT count(*) FROM deleted_conversations),
+  'deleted_message_count', (SELECT count(*) FROM deleted_messages),
+  'remaining_message_count',
+    (SELECT count(*) FROM target_messages) - (SELECT count(*) FROM deleted_messages),
+  'deleted_workspace_count', (SELECT count(*) FROM deleted_workspaces),
+  'remaining_workspace_count',
+    (SELECT count(*) FROM target_workspaces) - (SELECT count(*) FROM deleted_workspaces)
 );
 `;
   return runPostgresJson(sql);
