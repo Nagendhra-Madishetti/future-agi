@@ -3157,6 +3157,420 @@ export const simulationAgentccJourneys = [
     },
   },
   {
+    id: "SIM-API-009",
+    title:
+      "Simulation execution successful chat actions, comparison, refresh, and rerun dispatch",
+    tags: [
+      "simulation",
+      "run-tests",
+      "test-executions",
+      "call-executions",
+      "chat",
+      "rerun",
+      "refresh",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+      user,
+    }) {
+      requireMutations();
+      const userId = currentUserId(user);
+      assert(userId, "Simulation action journey requires current user id.");
+
+      const seed = await selectSimulationRunTestSeed(client);
+      if (!seed) {
+        skip(
+          "No completed text simulation seed with an agent definition and version was available.",
+        );
+      }
+
+      const template = await findEvalTemplateDetailByName(
+        client,
+        "word_count_in_range",
+      );
+      if (!template) {
+        skip("System eval word_count_in_range was not available.");
+      }
+
+      const name = `api journey sim actions ${runId}`;
+      let hardCleanedRuns = false;
+      let hardCleanedScenarios = false;
+      cleanup.defer("hard-delete API journey action scenario rows", () =>
+        hardCleanedScenarios
+          ? null
+          : deleteSimulationScenarioFixturesDb({ namePrefix: name, organizationId }),
+      );
+      cleanup.defer("hard-delete API journey action run rows", () =>
+        hardCleanedRuns
+          ? null
+          : hardDeleteSimulationRunActionFixturesDb({
+              namePrefix: name,
+              organizationId,
+            }),
+      );
+
+      await hardDeleteSimulationRunActionFixturesDb({
+        namePrefix: name,
+        organizationId,
+      });
+      await deleteSimulationScenarioFixturesDb({ namePrefix: name, organizationId });
+
+      const scenarioFixture = await seedSimulationScenarioFixturesDb({
+        namePrefix: name,
+        organizationId,
+        workspaceId,
+        userId,
+      });
+      const scenarioId = scenarioFixture.scenario_id;
+      assert(
+        isUuid(scenarioId),
+        "Scenario DB fixture did not return a scenario id.",
+      );
+
+      const runName = `${name} run`;
+      const created = await client.post(
+        apiPath("/simulate/run-tests/create/"),
+        {
+          name: runName,
+          description:
+            "Temporary run test for successful execution action coverage.",
+          agent_definition_id: seed.agentDefinitionId,
+          agent_version: seed.agentVersionId,
+          scenario_ids: [scenarioId],
+          enable_tool_evaluation: false,
+        },
+      );
+      assert(isUuid(created?.id), "Run-test create did not return a UUID id.");
+
+      const chatExecution = await client.post(
+        apiPath("/simulate/run-tests/{run_test_id}/chat-execute/", {
+          run_test_id: created.id,
+        }),
+        {},
+      );
+      const testExecutionId = firstUuid(chatExecution.execution_id);
+      assert(
+        testExecutionId,
+        "Chat execute did not return a test execution id.",
+      );
+
+      const batch = await client.post(
+        apiPath(
+          "/simulate/test-executions/{test_execution_id}/chat/call-executions/batch/",
+          { test_execution_id: testExecutionId },
+        ),
+        {},
+      );
+      const callExecutionIds = asArray(batch.call_execution_ids).filter(isUuid);
+      assert(
+        callExecutionIds.length > 0,
+        "Chat call-execution batch did not create any call executions.",
+      );
+      const callExecutionId = callExecutionIds[0];
+
+      const actionFixture = await seedSimulationRunActionStateDb({
+        namePrefix: name,
+        runTestId: created.id,
+        testExecutionId,
+        callExecutionId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        actionFixture.call_row_id,
+        "Action DB fixture did not attach a dataset row to the call execution.",
+      );
+
+      const chatResponse = await client.post(
+        apiPath(
+          "/simulate/call-executions/{call_execution_id}/chat/send-message/",
+          {
+            call_execution_id: callExecutionId,
+          },
+        ),
+        {
+          messages: [
+            {
+              role: "user",
+              content: "final message from successful action journey",
+            },
+          ],
+        },
+      );
+      assert(
+        chatResponse.chat_ended === true,
+        "Successful chat send-message did not end through the max-turn path.",
+      );
+      assert(
+        asArray(chatResponse.output_message).some((message) =>
+          String(message?.content || "").includes("Maximum conversation turns"),
+        ),
+        "Successful chat send-message did not return the max-turn output message.",
+      );
+
+      const completionSeed = await markSimulationRunActionFixtureCompletedDb({
+        testExecutionId,
+        callExecutionId,
+        callExecutionIds,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        Number(completionSeed.updated_call_count) === callExecutionIds.length &&
+          Number(completionSeed.updated_execution_count) === 1,
+        `Action completion DB seed failed: ${JSON.stringify(completionSeed)}`,
+      );
+
+      const sessionComparison = await client.get(
+        apiPath(
+          "/simulate/call-executions/{call_execution_id}/session-comparison/",
+          {
+            call_execution_id: callExecutionId,
+          },
+        ),
+      );
+      assert(
+        asArray(sessionComparison.comparison_metrics).some(
+          (item) => item.metric === "tokens",
+        ),
+        "Session comparison did not return token comparison metrics.",
+      );
+      assert(
+        asArray(
+          sessionComparison.comparison_transcripts
+            ?.base_session_transcripts,
+        ).length >= 2,
+        "Session comparison did not return base session transcripts.",
+      );
+      assert(
+        asArray(
+          sessionComparison.comparison_transcripts
+            ?.comparison_call_transcripts,
+        ).length >= 2,
+        "Session comparison did not return comparison call transcripts.",
+      );
+
+      const evalRefresh = await client.post(
+        apiPath(
+          "/simulate/test-executions/{test_execution_id}/eval-explanation-summary/refresh/",
+          { test_execution_id: testExecutionId },
+        ),
+        {},
+      );
+      assert(
+        String(evalRefresh.message || "").includes("initiated"),
+        "Eval explanation refresh did not return an initiated message.",
+      );
+
+      const optimiserRefresh = await client.post(
+        apiPath(
+          "/simulate/test-executions/{test_execution_id}/optimiser-analysis/refresh/",
+          { test_execution_id: testExecutionId },
+        ),
+        {},
+      );
+      assert(
+        String(optimiserRefresh.message || "").includes("initiated") &&
+          optimiserRefresh.status,
+        "Optimiser refresh did not create an optimiser run.",
+      );
+
+      const requiredKeys = simulationEvalRequiredKeys(template);
+      const mapping = buildSimulationEvalConfigMapping(requiredKeys);
+      const params = simulationEvalParamsForTemplate(template, {
+        min_words: "1",
+        max_words: "1000",
+        k: "3",
+      });
+      const evalName = `sim_actions_eval_${runId.replace(/[^a-z0-9]/gi, "_")}`;
+      const addEvalConfig = await client.post(
+        apiPath("/simulate/run-tests/{run_test_id}/eval-configs/", {
+          run_test_id: created.id,
+        }),
+        {
+          evaluations_config: [
+            {
+              template_id: template.id,
+              name: evalName,
+              mapping,
+              config: {
+                params: params.submitted,
+                run_config: { pass_threshold: 0.5 },
+              },
+              filters: [],
+              error_localizer: false,
+              model: "turing_small",
+            },
+          ],
+        },
+      );
+      const evalConfig = asArray(addEvalConfig.created_eval_configs)[0];
+      assert(isUuid(evalConfig?.id), "Eval-config create did not return a UUID.");
+
+      const runNewEvals = await client.post(
+        apiPath("/simulate/run-tests/{run_test_id}/run-new-evals/", {
+          run_test_id: created.id,
+        }),
+        {
+          test_execution_ids: [testExecutionId],
+          eval_config_ids: [evalConfig.id],
+          enable_tool_evaluation: false,
+        },
+      );
+      assert(
+        runNewEvals.call_execution_count === callExecutionIds.length,
+        "Run-new-evals did not dispatch all call executions.",
+      );
+
+      await markSimulationRunActionFixtureCompletedDb({
+        testExecutionId,
+        callExecutionId,
+        callExecutionIds,
+        organizationId,
+        workspaceId,
+      });
+
+      const callRerun = await client.post(
+        apiPath("/simulate/test-executions/{test_execution_id}/rerun-calls/", {
+          test_execution_id: testExecutionId,
+        }),
+        {
+          rerun_type: "eval_only",
+          call_execution_ids: [callExecutionId],
+        },
+      );
+      assert(
+        callRerun.success_count === 1 &&
+          asArray(callRerun.successful_reruns).includes(callExecutionId),
+        "Call rerun eval_only did not accept the completed call execution.",
+      );
+
+      await markSimulationRunActionFixtureCompletedDb({
+        testExecutionId,
+        callExecutionId,
+        callExecutionIds,
+        organizationId,
+        workspaceId,
+      });
+
+      const testExecutionRerunEnvelope = await client.post(
+        apiPath("/simulate/run-tests/{run_test_id}/rerun-test-executions/", {
+          run_test_id: created.id,
+        }),
+        {
+          rerun_type: "eval_only",
+          test_execution_ids: [testExecutionId],
+        },
+        { unwrap: false },
+      );
+      const testExecutionRerun =
+        testExecutionRerunEnvelope?.result || testExecutionRerunEnvelope;
+      assert(
+        testExecutionRerun.overall_success_count === callExecutionIds.length,
+        `Test execution rerun eval_only did not accept all completed call executions: ${JSON.stringify(
+          testExecutionRerun,
+        )}`,
+      );
+
+      const dbAudit = await loadSimulationRunActionDbAudit({
+        namePrefix: name,
+        runTestId: created.id,
+        testExecutionId,
+        callExecutionId,
+        evalConfigId: evalConfig.id,
+        organizationId,
+      });
+      assert(
+        Number(dbAudit.chat_session_count) === 1 &&
+          Number(dbAudit.trace_count) === 1 &&
+          Number(dbAudit.optimiser_run_count) >= 1 &&
+          Number(dbAudit.call_snapshot_count) >= 2,
+        `Action DB audit did not find expected side effects: ${JSON.stringify(
+          dbAudit,
+        )}`,
+      );
+
+      await ignoreNotFound(() =>
+        client.delete(
+          apiPath("/simulate/call-executions/{call_execution_id}/delete/", {
+            call_execution_id: callExecutionId,
+          }),
+        ),
+      );
+      await ignoreNotFound(() =>
+        client.delete(
+          apiPath("/simulate/test-executions/{test_execution_id}/delete/", {
+            test_execution_id: testExecutionId,
+          }),
+        ),
+      );
+      await ignoreNotFound(() =>
+        client.delete(
+          apiPath("/simulate/run-tests/{run_test_id}/delete/", {
+            run_test_id: created.id,
+          }),
+        ),
+      );
+
+      const hardCleanup = await hardDeleteSimulationRunActionFixturesDb({
+        namePrefix: name,
+        organizationId,
+      });
+      hardCleanedRuns = true;
+      const scenarioCleanup = await deleteSimulationScenarioFixturesDb({
+        namePrefix: name,
+        organizationId,
+      });
+      hardCleanedScenarios = true;
+      assert(
+        Number(hardCleanup.remaining_run_test_count) === 0 &&
+          Number(hardCleanup.remaining_test_execution_count) === 0 &&
+          Number(hardCleanup.remaining_call_execution_count) === 0 &&
+          Number(hardCleanup.remaining_trace_project_count) === 0,
+        `Action hard cleanup left run artifacts: ${JSON.stringify(
+          hardCleanup,
+        )}`,
+      );
+      assert(
+        Number(scenarioCleanup.remaining_scenario_count) === 0,
+        `Action hard cleanup left scenario artifacts: ${JSON.stringify(
+          scenarioCleanup,
+        )}`,
+      );
+
+      evidence.push({
+        seed_run_test_id: seed.runTestId,
+        seed_agent_definition_id: seed.agentDefinitionId,
+        run_test_id: created.id,
+        scenario_id: scenarioId,
+        test_execution_id: testExecutionId,
+        call_execution_id: callExecutionId,
+        call_execution_count: callExecutionIds.length,
+        eval_config_id: evalConfig.id,
+        chat_ended: chatResponse.chat_ended,
+        session_comparison_metric_count: asArray(
+          sessionComparison.comparison_metrics,
+        ).length,
+        optimiser_refresh_status: optimiserRefresh.status,
+        run_new_evals_call_count: runNewEvals.call_execution_count,
+        call_rerun_success_count: callRerun.success_count,
+        test_execution_rerun_success_count:
+          testExecutionRerun.overall_success_count,
+        db_audit: dbAudit,
+        hard_cleanup: hardCleanup,
+        scenario_cleanup: scenarioCleanup,
+      });
+    },
+  },
+  {
     id: "AGENTCC-API-001",
     title:
       "Gateway blocklist create, add words, remove words, update, and delete lifecycle",
@@ -7731,6 +8145,790 @@ SELECT json_build_object(
 );
 `;
   return runPostgresJson(sql);
+}
+
+async function seedSimulationRunActionStateDb({
+  namePrefix,
+  runTestId,
+  testExecutionId,
+  callExecutionId,
+  organizationId,
+  workspaceId,
+}) {
+  const maxTurnMessages = Array.from({ length: 1200 }, (_, index) => ({
+    role: "user",
+    content: `seeded max-turn message ${index + 1}`,
+  }));
+  const sql = `
+WITH target_call AS (
+  SELECT ce.id, ce.row_id, ce.test_execution_id
+  FROM simulate_call_execution ce
+  JOIN simulate_test_execution te ON te.id = ce.test_execution_id
+  JOIN simulate_run_test rt ON rt.id = te.run_test_id
+  WHERE rt.id = ${sqlUuid(runTestId)}
+    AND te.id = ${sqlUuid(testExecutionId)}
+    AND ce.id = ${sqlUuid(callExecutionId)}
+    AND rt.organization_id = ${sqlUuid(organizationId)}
+    AND rt.deleted = false
+    AND te.deleted = false
+    AND ce.deleted = false
+),
+inserted_project AS (
+  INSERT INTO tracer_project (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    organization_id,
+    workspace_id,
+    model_type,
+    name,
+    trace_type,
+    metadata,
+    config,
+    session_config,
+    user_id,
+    source,
+    tags
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    gen_random_uuid(),
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)},
+    'GenerativeLLM',
+    ${sqlString(`${namePrefix} trace project`)},
+    'observe',
+    ${sqlJson({ source: "api-journey", fixture: "simulation-actions" })},
+    '[]'::jsonb,
+    '[]'::jsonb,
+    NULL,
+    'simulator',
+    '[]'::jsonb
+  )
+  RETURNING id
+),
+inserted_trace_session AS (
+  INSERT INTO trace_session (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    project_id,
+    bookmarked,
+    name
+  )
+  SELECT
+    now(),
+    now(),
+    false,
+    NULL,
+    gen_random_uuid(),
+    p.id,
+    false,
+    ${sqlString(`${namePrefix} comparison session`)}
+  FROM inserted_project p
+  RETURNING id, project_id
+),
+inserted_trace AS (
+  INSERT INTO tracer_trace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    project_id,
+    project_version_id,
+    name,
+    metadata,
+    input,
+    output,
+    error,
+    session_id,
+    external_id,
+    tags,
+    error_analysis_status
+  )
+  SELECT
+    now() - interval '1 minute',
+    now(),
+    false,
+    NULL,
+    gen_random_uuid(),
+    s.project_id,
+    NULL,
+    ${sqlString(`${namePrefix} base trace`)},
+    ${sqlJson({ source: "api-journey", fixture: "simulation-actions" })},
+    ${sqlJson("baseline user input")},
+    ${sqlJson("baseline assistant output")},
+    NULL,
+    s.id,
+    ${sqlString(`${namePrefix}-base-trace`)},
+    '[]'::jsonb,
+    'completed'
+  FROM inserted_trace_session s
+  RETURNING id, project_id, session_id
+),
+inserted_span AS (
+  INSERT INTO tracer_observation_span (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    project_id,
+    project_version_id,
+    trace_id,
+    parent_span_id,
+    name,
+    observation_type,
+    operation_name,
+    start_time,
+    end_time,
+    input,
+    output,
+    model,
+    model_parameters,
+    latency_ms,
+    org_id,
+    org_user_id,
+    prompt_tokens,
+    completion_tokens,
+    total_tokens,
+    response_time,
+    eval_id,
+    cost,
+    status,
+    status_message,
+    tags,
+    metadata,
+    span_events,
+    provider,
+    input_images,
+    eval_input,
+    eval_attributes,
+    custom_eval_config_id,
+    eval_status,
+    end_user_id,
+    prompt_version_id,
+    prompt_label_id,
+    span_attributes,
+    resource_attributes,
+    semconv_source
+  )
+  SELECT
+    now() - interval '1 minute',
+    now(),
+    false,
+    NULL,
+    ${sqlString(`${namePrefix}-comparison-span`)},
+    t.project_id,
+    NULL,
+    t.id,
+    NULL,
+    ${sqlString(`${namePrefix} baseline llm`)},
+    'llm',
+    'chat',
+    now() - interval '1 minute',
+    now() - interval '55 seconds',
+    ${sqlJson("baseline user input")},
+    ${sqlJson("baseline assistant output")},
+    'gpt-4o-mini',
+    '{}'::jsonb,
+    1000,
+    ${sqlUuid(organizationId)},
+    NULL,
+    4,
+    8,
+    12,
+    1.0,
+    NULL,
+    0,
+    'OK',
+    NULL,
+    '[]'::jsonb,
+    ${sqlJson({ source: "api-journey", fixture: "simulation-actions" })},
+    '[]'::jsonb,
+    'futureagi',
+    '[]'::jsonb,
+    '[]'::jsonb,
+    '{}'::jsonb,
+    NULL,
+    'inactive',
+    NULL,
+    NULL,
+    NULL,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    'traceai'
+  FROM inserted_trace t
+  RETURNING id
+),
+inserted_assistant AS (
+  INSERT INTO simulate_chatsimulatorassistant (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    system_prompt,
+    model,
+    temperature,
+    max_tokens,
+    organization_id,
+    workspace_id
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    gen_random_uuid(),
+    ${sqlString(`${namePrefix} chat assistant`)},
+    'Temporary chat assistant for successful action coverage.',
+    'gpt-4o-mini',
+    0.2,
+    64,
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)}
+  )
+  RETURNING id
+),
+inserted_chat_session AS (
+  INSERT INTO simulate_chatsimulatorsession (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    assistant_id,
+    call_execution_id,
+    messages,
+    status,
+    has_chat_ended,
+    total_tokens,
+    organization_id,
+    workspace_id
+  )
+  SELECT
+    now(),
+    now(),
+    false,
+    NULL,
+    gen_random_uuid(),
+    a.id,
+    ${sqlUuid(callExecutionId)},
+    ${sqlJson(maxTurnMessages)},
+    'active',
+    false,
+    0,
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)}
+  FROM inserted_assistant a
+  RETURNING id, assistant_id
+),
+updated_row AS (
+  UPDATE model_hub_row r
+  SET
+    metadata = COALESCE(r.metadata, '{}'::jsonb)
+      || jsonb_build_object(
+        'session_id',
+        (SELECT id::text FROM inserted_trace_session),
+        'api_journey_fixture',
+        'simulation-actions'
+      ),
+    updated_at = now()
+  FROM target_call target
+  WHERE r.id = target.row_id
+  RETURNING r.id
+),
+updated_call AS (
+  UPDATE simulate_call_execution ce
+  SET
+    status = 'ongoing',
+    started_at = COALESCE(ce.started_at, now() - interval '30 seconds'),
+    assistant_id = (SELECT assistant_id::text FROM inserted_chat_session),
+    call_metadata = COALESCE(ce.call_metadata, '{}'::jsonb)
+      || jsonb_build_object(
+        'chat_session_id',
+        (SELECT id::text FROM inserted_chat_session),
+        'simulation_assistant_id',
+        (SELECT assistant_id::text FROM inserted_chat_session),
+        'chat_provider',
+        'futureagi',
+        'system_prompt',
+        'Temporary chat prompt for successful action coverage.'
+      ),
+    updated_at = now()
+  FROM target_call target
+  WHERE ce.id = target.id
+  RETURNING ce.id
+),
+updated_execution AS (
+  UPDATE simulate_test_execution te
+  SET
+    status = 'running',
+    picked_up_by_executor = true,
+    total_calls = 1,
+    completed_calls = 0,
+    failed_calls = 0,
+    updated_at = now()
+  WHERE te.id = ${sqlUuid(testExecutionId)}
+  RETURNING te.id
+)
+SELECT json_build_object(
+  'project_id', (SELECT id::text FROM inserted_project),
+  'trace_session_id', (SELECT id::text FROM inserted_trace_session),
+  'trace_id', (SELECT id::text FROM inserted_trace),
+  'chat_assistant_id', (SELECT assistant_id::text FROM inserted_chat_session),
+  'chat_session_id', (SELECT id::text FROM inserted_chat_session),
+  'call_row_id', (SELECT id::text FROM updated_row),
+  'inserted_span_count', (SELECT count(*) FROM inserted_span),
+  'updated_call_count', (SELECT count(*) FROM updated_call),
+  'updated_execution_count', (SELECT count(*) FROM updated_execution)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function markSimulationRunActionFixtureCompletedDb({
+  testExecutionId,
+  callExecutionId,
+  callExecutionIds,
+  organizationId,
+  workspaceId,
+}) {
+  const targetCallExecutionIds = asArray(callExecutionIds).length
+    ? asArray(callExecutionIds)
+    : [callExecutionId];
+  assert(
+    targetCallExecutionIds.every(isUuid),
+    "Action completion DB seed needs call execution UUIDs.",
+  );
+  const sql = `
+WITH target_call AS (
+  SELECT ce.id
+  FROM simulate_call_execution ce
+  JOIN simulate_test_execution te ON te.id = ce.test_execution_id
+  JOIN simulate_run_test rt ON rt.id = te.run_test_id
+  WHERE te.id = ${sqlUuid(testExecutionId)}
+    AND ce.id = ANY(${sqlUuidArray(targetCallExecutionIds)})
+    AND rt.organization_id = ${sqlUuid(organizationId)}
+),
+updated_call AS (
+  UPDATE simulate_call_execution ce
+  SET
+    status = 'completed',
+    started_at = COALESCE(ce.started_at, now() - interval '45 seconds'),
+    completed_at = COALESCE(ce.completed_at, now()),
+    ended_at = COALESCE(ce.ended_at, now()),
+    duration_seconds = COALESCE(ce.duration_seconds, 45),
+    response_time_ms = COALESCE(ce.response_time_ms, 1000),
+    overall_score = COALESCE(ce.overall_score, 9.0),
+    message_count = COALESCE(ce.message_count, 2),
+    transcript_available = true,
+    conversation_metrics_data = COALESCE(
+      ce.conversation_metrics_data,
+      ${sqlJson({
+        total_tokens: 36,
+        input_tokens: 12,
+        output_tokens: 24,
+        avg_latency_ms: 1000,
+        turn_count: 2,
+        bot_message_count: 1,
+        user_message_count: 1,
+        csat_score: 5,
+      })}
+    ),
+    call_summary = COALESCE(
+      ce.call_summary,
+      'Successful action journey completed chat call.'
+    ),
+    call_metadata = COALESCE(ce.call_metadata, '{}'::jsonb)
+      || jsonb_build_object('eval_started', true, 'eval_completed', true),
+    eval_outputs = COALESCE(ce.eval_outputs, '{}'::jsonb),
+    updated_at = now()
+  FROM target_call target
+  WHERE ce.id = target.id
+  RETURNING ce.id
+),
+inserted_messages AS (
+  INSERT INTO simulate_chat_message (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    call_execution_id,
+    role,
+    messages,
+    content,
+    session_id,
+    organization_id,
+    workspace_id,
+    tool_calls,
+    tokens,
+    latency_ms
+  )
+  SELECT
+    now(),
+    now(),
+    false,
+    NULL,
+    gen_random_uuid(),
+    tc.id,
+    payload.role,
+    payload.messages::jsonb,
+    payload.content::jsonb,
+    COALESCE(ce.call_metadata->>'chat_session_id', 'simulation-action-session'),
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)},
+    '[]'::jsonb,
+    payload.tokens,
+    payload.latency_ms
+  FROM target_call tc
+  JOIN simulate_call_execution ce ON ce.id = tc.id
+  CROSS JOIN (
+    VALUES
+      ('user', '["baseline simulator reply"]', '[{"role":"user","content":"baseline simulator reply"}]', 12, NULL),
+      ('assistant', '["agent response for comparison"]', '[{"role":"assistant","content":"agent response for comparison"}]', 24, 1000)
+  ) AS payload(role, messages, content, tokens, latency_ms)
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM simulate_chat_message existing
+    WHERE existing.call_execution_id = tc.id
+      AND existing.messages = payload.messages::jsonb
+  )
+  RETURNING id
+),
+updated_execution AS (
+  UPDATE simulate_test_execution te
+  SET
+    status = 'completed',
+    completed_at = COALESCE(te.completed_at, now()),
+    total_calls = ${targetCallExecutionIds.length},
+    completed_calls = ${targetCallExecutionIds.length},
+    failed_calls = 0,
+    picked_up_by_executor = true,
+    updated_at = now()
+  WHERE te.id = ${sqlUuid(testExecutionId)}
+  RETURNING te.id
+)
+SELECT json_build_object(
+  'updated_call_count', (SELECT count(*) FROM updated_call),
+  'inserted_message_count', (SELECT count(*) FROM inserted_messages),
+  'updated_execution_count', (SELECT count(*) FROM updated_execution)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadSimulationRunActionDbAudit({
+  namePrefix,
+  runTestId,
+  testExecutionId,
+  callExecutionId,
+  evalConfigId,
+  organizationId,
+}) {
+  const sql = `
+WITH target_run AS (
+  SELECT *
+  FROM simulate_run_test
+  WHERE id = ${sqlUuid(runTestId)}
+    AND organization_id = ${sqlUuid(organizationId)}
+),
+target_execution AS (
+  SELECT *
+  FROM simulate_test_execution
+  WHERE id = ${sqlUuid(testExecutionId)}
+    AND run_test_id IN (SELECT id FROM target_run)
+),
+target_call AS (
+  SELECT *
+  FROM simulate_call_execution
+  WHERE id = ${sqlUuid(callExecutionId)}
+    AND test_execution_id IN (SELECT id FROM target_execution)
+),
+target_eval_config AS (
+  SELECT *
+  FROM simulate_eval_config
+  WHERE id = ${sqlUuid(evalConfigId)}
+    AND run_test_id IN (SELECT id FROM target_run)
+),
+target_optimisers AS (
+  SELECT ao.*
+  FROM agent_optimiser ao
+  JOIN target_execution te ON te.agent_optimiser_id = ao.id
+),
+target_trace_projects AS (
+  SELECT *
+  FROM tracer_project
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+)
+SELECT json_build_object(
+  'run_test_status_deleted', (SELECT deleted FROM target_run),
+  'test_execution_status', (SELECT status FROM target_execution),
+  'call_status', (SELECT status FROM target_call),
+  'call_eval_outputs', (SELECT eval_outputs FROM target_call),
+  'eval_config_count', (SELECT count(*) FROM target_eval_config),
+  'chat_session_count', (
+    SELECT count(*)
+    FROM simulate_chatsimulatorsession
+    WHERE call_execution_id IN (SELECT id FROM target_call)
+  ),
+  'chat_message_count', (
+    SELECT count(*)
+    FROM simulate_chat_message
+    WHERE call_execution_id IN (SELECT id FROM target_call)
+  ),
+  'trace_count', (
+    SELECT count(*)
+    FROM tracer_trace
+    WHERE project_id IN (SELECT id FROM target_trace_projects)
+  ),
+  'trace_project_count', (
+    SELECT count(*)
+    FROM target_trace_projects
+  ),
+  'optimiser_count', (SELECT count(*) FROM target_optimisers),
+  'optimiser_run_count', (
+    SELECT count(*)
+    FROM agent_optimiser_run
+    WHERE agent_optimiser_id IN (SELECT id FROM target_optimisers)
+  ),
+  'call_snapshot_count', (
+    SELECT count(*)
+    FROM simulate_call_execution_snapshot
+    WHERE call_execution_id IN (SELECT id FROM target_call)
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteSimulationRunActionFixturesDb({
+  namePrefix,
+  organizationId,
+}) {
+  const sql = `
+WITH target_runs AS (
+  SELECT id
+  FROM simulate_run_test
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+),
+target_executions AS (
+  SELECT id, agent_optimiser_id
+  FROM simulate_test_execution
+  WHERE run_test_id IN (SELECT id FROM target_runs)
+),
+target_calls AS (
+  SELECT id
+  FROM simulate_call_execution
+  WHERE test_execution_id IN (SELECT id FROM target_executions)
+),
+target_optimisers AS (
+  SELECT DISTINCT agent_optimiser_id AS id
+  FROM target_executions
+  WHERE agent_optimiser_id IS NOT NULL
+),
+target_trace_projects AS (
+  SELECT id
+  FROM tracer_project
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+),
+updated_phone_numbers AS (
+  UPDATE simulate_phone_numbers
+  SET current_call_execution_id = NULL
+  WHERE current_call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_queue_items AS (
+  DELETE FROM model_hub_queueitem
+  WHERE call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_scores AS (
+  DELETE FROM model_hub_score
+  WHERE call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_trial_results AS (
+  DELETE FROM trial_item_result
+  WHERE call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_snapshots AS (
+  DELETE FROM simulate_call_execution_snapshot
+  WHERE call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_transcripts AS (
+  DELETE FROM simulate_call_transcript
+  WHERE call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_logs AS (
+  DELETE FROM simulate_call_log_entry
+  WHERE call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_chat_messages AS (
+  DELETE FROM simulate_chat_message
+  WHERE call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_chat_sessions AS (
+  DELETE FROM simulate_chatsimulatorsession
+  WHERE call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id, assistant_id
+),
+deleted_chat_assistants AS (
+  DELETE FROM simulate_chatsimulatorassistant
+  WHERE id IN (SELECT assistant_id FROM deleted_chat_sessions)
+     OR name LIKE ${sqlString(`${namePrefix}%`)}
+  RETURNING id
+),
+deleted_create_call_rows AS (
+  DELETE FROM simulate_createcallexecution
+  WHERE call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_call_executions AS (
+  DELETE FROM simulate_call_execution
+  WHERE id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_prompt_optimiser_steps AS (
+  DELETE FROM agent_prompt_optimiser_run_step
+  WHERE agent_prompt_optimiser_run_id IN (
+    SELECT id
+    FROM agent_prompt_optimiser_run
+    WHERE test_execution_id IN (SELECT id FROM target_executions)
+       OR agent_optimiser_id IN (SELECT id FROM target_optimisers)
+  )
+  RETURNING id
+),
+deleted_prompt_optimiser_runs AS (
+  DELETE FROM agent_prompt_optimiser_run
+  WHERE test_execution_id IN (SELECT id FROM target_executions)
+     OR agent_optimiser_id IN (SELECT id FROM target_optimisers)
+  RETURNING id
+),
+deleted_optimiser_runs AS (
+  DELETE FROM agent_optimiser_run
+  WHERE agent_optimiser_id IN (SELECT id FROM target_optimisers)
+  RETURNING id
+),
+deleted_test_executions AS (
+  DELETE FROM simulate_test_execution
+  WHERE id IN (SELECT id FROM target_executions)
+  RETURNING id
+),
+deleted_optimisers AS (
+  DELETE FROM agent_optimiser
+  WHERE id IN (SELECT id FROM target_optimisers)
+  RETURNING id
+),
+deleted_eval_configs AS (
+  DELETE FROM simulate_eval_config
+  WHERE run_test_id IN (SELECT id FROM target_runs)
+  RETURNING id
+),
+deleted_replay_sessions AS (
+  DELETE FROM tracer_replaysession
+  WHERE run_test_id IN (SELECT id FROM target_runs)
+  RETURNING id
+),
+deleted_run_scenarios AS (
+  DELETE FROM simulate_run_test_scenarios
+  WHERE runtest_id IN (SELECT id FROM target_runs)
+  RETURNING id
+),
+deleted_run_tests AS (
+  DELETE FROM simulate_run_test
+  WHERE id IN (SELECT id FROM target_runs)
+  RETURNING id
+),
+deleted_observation_spans AS (
+  DELETE FROM tracer_observation_span
+  WHERE project_id IN (SELECT id FROM target_trace_projects)
+  RETURNING id
+),
+deleted_traces AS (
+  DELETE FROM tracer_trace
+  WHERE project_id IN (SELECT id FROM target_trace_projects)
+  RETURNING id
+),
+deleted_trace_sessions AS (
+  DELETE FROM trace_session
+  WHERE project_id IN (SELECT id FROM target_trace_projects)
+  RETURNING id
+),
+deleted_trace_projects AS (
+  DELETE FROM tracer_project
+  WHERE id IN (SELECT id FROM target_trace_projects)
+  RETURNING id
+)
+SELECT json_build_object(
+  'deleted_run_test_count', (SELECT count(*) FROM deleted_run_tests),
+  'deleted_test_execution_count', (SELECT count(*) FROM deleted_test_executions),
+  'deleted_call_execution_count', (SELECT count(*) FROM deleted_call_executions),
+  'deleted_chat_session_count', (SELECT count(*) FROM deleted_chat_sessions),
+  'deleted_chat_assistant_count', (SELECT count(*) FROM deleted_chat_assistants),
+  'deleted_chat_message_count', (SELECT count(*) FROM deleted_chat_messages),
+  'deleted_optimiser_count', (SELECT count(*) FROM deleted_optimisers),
+  'deleted_optimiser_run_count', (SELECT count(*) FROM deleted_optimiser_runs),
+  'deleted_trace_project_count', (SELECT count(*) FROM deleted_trace_projects),
+  'deleted_trace_count', (SELECT count(*) FROM deleted_traces),
+  'deleted_trace_session_count', (SELECT count(*) FROM deleted_trace_sessions),
+  'deleted_observation_span_count', (SELECT count(*) FROM deleted_observation_spans)
+);
+`;
+  const cleanup = await runPostgresJson(sql);
+  const remainingSql = `
+WITH target_runs AS (
+  SELECT id
+  FROM simulate_run_test
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+),
+target_executions AS (
+  SELECT id
+  FROM simulate_test_execution
+  WHERE run_test_id IN (SELECT id FROM target_runs)
+),
+target_calls AS (
+  SELECT id
+  FROM simulate_call_execution
+  WHERE test_execution_id IN (SELECT id FROM target_executions)
+),
+target_trace_projects AS (
+  SELECT id
+  FROM tracer_project
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+)
+SELECT json_build_object(
+  'remaining_run_test_count', (SELECT count(*) FROM target_runs),
+  'remaining_test_execution_count', (SELECT count(*) FROM target_executions),
+  'remaining_call_execution_count', (SELECT count(*) FROM target_calls),
+  'remaining_trace_project_count', (SELECT count(*) FROM target_trace_projects)
+);
+`;
+  return {
+    ...cleanup,
+    ...(await runPostgresJson(remainingSql)),
+  };
 }
 
 async function loadSimulationEvalConfigDbAudit({
