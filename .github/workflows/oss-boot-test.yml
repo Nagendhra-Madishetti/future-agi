@@ -1,0 +1,138 @@
+# ============================================================================
+# OSS clean-room boot test
+#
+# Proves a *fresh public clone boots*: builds the backend from Dockerfile.oss
+# with the Enterprise (`ee/`) code absent — exactly what a community user gets —
+# then brings up the light stack and asserts the app actually works.
+#
+# This is the regression gate behind the "git clone && ./bin/install" promise.
+# It catches the class of bug that has repeatedly broken self-host: an
+# unguarded `from ee...` import or a missing `DeploymentMode` None-check that
+# only fails when `ee/` isn't present (it always is in the dev monorepo).
+#
+# Why build only the backend: it's the EE-coupled image, and the same tag
+# (futureagi/future-agi:latest) is used by both `backend` and `worker`. The
+# other services pull published images.
+# ============================================================================
+name: OSS clean-room boot
+
+on:
+  pull_request:
+    paths:
+      - "futureagi/**"
+      - "docker-compose.yml"
+      - ".env.example"
+      - ".github/workflows/oss-boot-test.yml"
+  push:
+    branches: [main, dev]
+    paths:
+      - "futureagi/**"
+      - "docker-compose.yml"
+      - ".env.example"
+      - ".github/workflows/oss-boot-test.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: oss-boot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  boot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guarantee clean-room (no EE code)
+        run: |
+          # ee/ is gitignored so checkout never includes it; remove defensively
+          # in case a future change accidentally tracks it.
+          rm -rf futureagi/ee
+          if [ -d futureagi/ee ]; then
+            echo "::error::futureagi/ee still present — not a clean OSS tree"; exit 1
+          fi
+          echo "clean-room OK: futureagi/ee absent"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build OSS backend image (ee/ absent)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./futureagi
+          file: ./futureagi/Dockerfile.oss
+          tags: futureagi/future-agi:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Boot the light stack (with admin auto-seed)
+        run: |
+          # Minimal .env: exercise the FAGI_ADMIN_* auto-seed path too.
+          cat > .env <<'EOF'
+          FAGI_ADMIN_EMAIL=ci-admin@example.com
+          FAGI_ADMIN_NAME=CI Admin
+          FAGI_ADMIN_PASSWORD=ci-test-password-123
+          ALLOW_ANY_EMAIL=true
+          EOF
+          # `up frontend` pulls in backend + its datastores via depends_on, but
+          # leaves the heavy serving/code-executor leaves down to fit the runner.
+          # No `pull` — that would clobber our locally built backend image.
+          docker compose up -d frontend
+
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/health/ >/dev/null 2>&1; then
+              echo "backend healthy after ~$((i * 10))s"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::backend did not pass /health/ within 10 minutes"; exit 1
+
+      - name: Assert health, EE stub (402 not 500), and frontend
+        run: |
+          set -x
+          health=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/health/)
+          [ "$health" = "200" ] || { echo "::error::/health/ expected 200, got $health"; exit 1; }
+
+          # An EE-only route must degrade to the 402 upgrade stub, never 500.
+          stub=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/falcon-ai/anything)
+          [ "$stub" = "402" ] || { echo "::error::EE stub expected 402, got $stub (an unguarded ee path?)"; exit 1; }
+
+          # Frontend only starts once the backend is healthy, so give nginx a
+          # moment to come up before asserting.
+          front=000
+          for i in $(seq 1 12); do
+            front=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/ || echo 000)
+            [ "$front" = "200" ] && break
+            sleep 5
+          done
+          [ "$front" = "200" ] || { echo "::error::frontend expected 200, got $front"; exit 1; }
+
+      - name: Assert no unguarded EE imports leaked into boot
+        run: |
+          logs=$(docker compose logs backend --no-color)
+          if echo "$logs" | grep -qE "No module named '?ee'?|ModuleNotFoundError: No module named .ee"; then
+            echo "::error::backend log shows a missing-ee import — an EE guard is missing"
+            echo "$logs" | grep -nE "No module named|ModuleNotFoundError" | head
+            exit 1
+          fi
+          echo "OK: no missing-ee imports in backend boot"
+
+      - name: Assert admin was auto-seeded
+        run: |
+          if ! docker compose logs backend --no-color | grep -q "ensure_admin: created admin"; then
+            echo "::error::admin auto-seed did not run"
+            docker compose logs backend --no-color | grep -i ensure_admin || true
+            exit 1
+          fi
+          echo "OK: admin account auto-seeded from FAGI_ADMIN_*"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs --no-color | tail -n 400
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
