@@ -165,7 +165,11 @@ services:
       # deployment (e.g. https://api.example.com for split-domain).
       VITE_HOST_API: ${VITE_HOST_API:-}
     depends_on:
-      - backend
+      # Wait for the backend to pass its healthcheck so the SPA never loads
+      # against an API that's still migrating (the "frontend startup errors"
+      # first-run symptom).
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
   backend:
@@ -200,6 +204,15 @@ services:
         condition: service_healthy
       agentcc-gateway:
         condition: service_started
+    healthcheck:
+      # /health/ is an anonymous 200 served by Granian on port 80 inside the
+      # container. start_period is generous: on first boot the backend waits
+      # on Temporal, then runs migrations + collectstatic before serving.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:80/health/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 180s
     restart: unless-stopped
 
   worker:
