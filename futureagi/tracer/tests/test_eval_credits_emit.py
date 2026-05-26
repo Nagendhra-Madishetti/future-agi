@@ -57,6 +57,10 @@ def patched_run_eval(monkeypatch):
 
     Stronger variant of conftest's ``stub_run_eval`` so we can assert
     credits calculation produces a non-zero amount.
+
+    Also zeroes ``BillingConfig.get_eval_per_run_fee`` so ``actual_cost`` in
+    ``_emit_eval_billing`` collapses to ``RAW_COST_USD`` and the assertions
+    below can compare against it directly.
     """
 
     def _stub(_request):
@@ -64,6 +68,10 @@ def patched_run_eval(monkeypatch):
 
     monkeypatch.setattr("evaluations.engine.run_eval", _stub, raising=False)
     monkeypatch.setattr("evaluations.engine.runner.run_eval", _stub, raising=False)
+
+    from ee.usage.services.config import BillingConfig
+
+    monkeypatch.setattr(BillingConfig, "get_eval_per_run_fee", lambda self: 0)
 
 
 @pytest.fixture

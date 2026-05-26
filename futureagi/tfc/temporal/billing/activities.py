@@ -4,6 +4,8 @@ Stripe meter events fire at invoice-close (see invoice_generation.py);
 no hourly catch-up. Errors re-raise so Temporal applies its retry policy.
 """
 
+from datetime import datetime
+
 from asgiref.sync import sync_to_async
 from django.db import close_old_connections
 from temporalio import activity
@@ -43,8 +45,6 @@ def _run_dunning_checks_sync() -> int:
     """Sync wrapper — processes all past_due orgs."""
     close_old_connections()
     try:
-        from datetime import datetime
-
         try:
             from ee.usage.models.usage import OrganizationSubscription
         except ImportError:
@@ -119,8 +119,6 @@ def _generate_monthly_invoices_sync(
     Delegates to ``InvoiceGenerationService`` so the CLI, Temporal schedule,
     and admin "Generate Invoice" page all share identical logic.
     """
-    from datetime import datetime
-
     try:
         from ee.usage.services.invoice_generation import InvoiceGenerationService
     except ImportError:
@@ -163,12 +161,17 @@ def _run_monthly_reset_sync(period: str) -> None:
         close_old_connections()
 
 
+def _parse_period(period: str) -> datetime:
+    """Parse a ``YYYY-MM`` period string into a ``datetime`` (day=1)."""
+    return datetime.strptime(period, "%Y-%m")
+
+
 def _next_period_str(period: str) -> str:
     """``'2026-05' → '2026-06'``."""
-    y, m = int(period[:4]), int(period[5:7])
-    if m == 12:
-        return f"{y + 1}-01"
-    return f"{y}-{m + 1:02d}"
+    d = _parse_period(period)
+    if d.month == 12:
+        return f"{d.year + 1}-01"
+    return f"{d.year}-{d.month + 1:02d}"
 
 
 @activity.defn(name="monthly_closing_activity")
@@ -184,7 +187,9 @@ async def monthly_closing_activity(
     close_old_connections()
     try:
         period_closed = input.period
-        if not period_closed or len(period_closed) != 7 or period_closed[4] != "-":
+        try:
+            _parse_period(period_closed or "")
+        except (TypeError, ValueError):
             raise ValueError(
                 f"monthly_closing_activity requires YYYY-MM period, got {period_closed!r}"
             )

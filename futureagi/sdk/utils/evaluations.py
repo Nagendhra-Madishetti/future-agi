@@ -316,20 +316,21 @@ def _run_eval(eval_template, inputs, model, user, workspace, eval_config=None):
             credits = billing_config.calculate_ai_credits(actual_cost)
 
             api_call_type = _get_api_call_type(model)
-            emit(
-                UsageEvent(
-                    org_id=str(user.organization.id),
-                    event_type=api_call_type,
-                    amount=credits,
-                    properties={
-                        "source": "standalone_v2",
-                        "source_id": str(eval_template.id),
-                        "raw_cost_usd": str(actual_cost),
-                        "log_id": str(api_call_log_row.log_id),
-                        **token_usage_properties(token_usage),
-                    },
+            if emit is not None and UsageEvent is not None:
+                emit(
+                    UsageEvent(
+                        org_id=str(user.organization.id),
+                        event_type=api_call_type,
+                        amount=credits,
+                        properties={
+                            "source": "standalone_v2",
+                            "source_id": str(eval_template.id),
+                            "raw_cost_usd": str(actual_cost),
+                            "log_id": str(api_call_log_row.log_id) if api_call_log_row else None,
+                            **token_usage_properties(token_usage),
+                        },
+                    )
                 )
-            )
 
     except Exception:
         pass  # Metering failure must not break the action
@@ -593,21 +594,22 @@ def _run_protect(
                 actual_cost = llm_cost + per_run_fee
                 credits = billing_config.calculate_ai_credits(actual_cost)
 
-                emit(
-                    UsageEvent(
-                        org_id=str(user.organization.id),
-                        event_type=_get_api_call_type(
-                            "protect_flash" if protect_flash else "protect"
-                        ),
-                        amount=credits,
-                        properties={
-                            "source": "standalone_v2",
-                            "source_id": str(eval_template.id),
-                            "raw_cost_usd": str(actual_cost),
-                            **token_usage_properties(token_usage),
-                        },
+                if emit is not None and UsageEvent is not None:
+                    emit(
+                        UsageEvent(
+                            org_id=str(user.organization.id),
+                            event_type=_get_api_call_type(
+                                "protect_flash" if protect_flash else "protect"
+                            ),
+                            amount=credits,
+                            properties={
+                                "source": "standalone_v2",
+                                "source_id": str(eval_template.id),
+                                "raw_cost_usd": str(actual_cost),
+                                **token_usage_properties(token_usage),
+                            },
+                        )
                     )
-                )
 
         except Exception:
             pass
