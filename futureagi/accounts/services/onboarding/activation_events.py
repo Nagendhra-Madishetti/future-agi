@@ -150,6 +150,7 @@ def record_event(
             **defaults,
         )
         _mark_lifecycle_completion(event)
+        _sync_quality_action(event)
         return event
 
     try:
@@ -163,6 +164,7 @@ def record_event(
                 )
             )
             _mark_lifecycle_completion(event)
+            _sync_quality_action(event)
             return event
     except IntegrityError:
         event = OnboardingActivationEvent.no_workspace_objects.get(
@@ -171,6 +173,7 @@ def record_event(
             idempotency_key=normalized_idempotency_key,
         )
         _mark_lifecycle_completion(event)
+        _sync_quality_action(event)
         return event
 
 
@@ -181,6 +184,17 @@ def _mark_lifecycle_completion(event):
         )
 
         mark_lifecycle_send_completed_for_event(event)
+    except Exception:
+        return None
+
+
+def _sync_quality_action(event):
+    try:
+        from accounts.services.onboarding.quality_actions import (
+            sync_quality_action_for_event,
+        )
+
+        return sync_quality_action_for_event(event)
     except Exception:
         return None
 

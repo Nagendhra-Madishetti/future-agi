@@ -9,6 +9,9 @@ from accounts.services.onboarding.activation_events import (
     events_for_workspace,
     latest_event,
 )
+from accounts.services.onboarding.quality_actions import (
+    open_quality_actions_for_context,
+)
 from accounts.services.onboarding.route_availability import route_entry
 
 REVIEW_EVENTS = (
@@ -16,16 +19,6 @@ REVIEW_EVENTS = (
     "daily_quality_top_change_reviewed",
     "daily_quality_action_completed",
 )
-ACTION_OPEN_EVENTS = (
-    "daily_quality_action_created",
-    "daily_quality_action_opened",
-    "daily_quality_action_assigned",
-)
-ACTION_CLOSE_EVENTS = (
-    "daily_quality_action_completed",
-    "daily_quality_action_dismissed",
-)
-ACTION_EVENTS = (*ACTION_OPEN_EVENTS, *ACTION_CLOSE_EVENTS)
 WEEKLY_REVIEW_COMPLETED_EVENTS = ("weekly_quality_review_completed",)
 WEEKLY_REVIEW_ROUTE = "/dashboard/home?mode=weekly-review"
 
@@ -195,111 +188,6 @@ def _recent_event_count(context, *, event_names, window):
         for event in events
         if window["start_at"] < event.occurred_at <= window["end_at"]
     )
-
-
-def _safe_metadata_text(metadata, key, fallback):
-    value = (metadata or {}).get(key)
-    if isinstance(value, str) and value.strip():
-        return value.strip()[:180]
-    return fallback
-
-
-def _action_identity(event):
-    metadata = event.metadata or {}
-    explicit_id = metadata.get("action_id") or metadata.get("quality_action_id")
-    if explicit_id:
-        return str(explicit_id)
-    source_type = metadata.get("source_type") or metadata.get("artifact_type")
-    source_id = metadata.get("source_id") or metadata.get("artifact_id")
-    if source_type and source_id:
-        return f"{source_type}:{source_id}"
-    return str(event.id)
-
-
-def _action_metadata(metadata):
-    return {
-        key: value
-        for key, value in (metadata or {}).items()
-        if value is not None and value != ""
-    }
-
-
-def _open_quality_actions(context, now):
-    if not context.organization or not context.workspace:
-        return []
-    events = events_for_workspace(
-        organization=context.organization,
-        workspace=context.workspace,
-        event_names=ACTION_EVENTS,
-        product_path=_path(context),
-        is_sample=False,
-        limit=500,
-    )
-    since = now - timedelta(days=30)
-    latest_by_action = {}
-    metadata_by_action = {}
-    for event in reversed(events):
-        if event.occurred_at < since:
-            continue
-        action_id = _action_identity(event)
-        metadata_by_action[action_id] = {
-            **metadata_by_action.get(action_id, {}),
-            **_action_metadata(event.metadata),
-        }
-        latest_by_action[action_id] = event
-
-    actions = []
-    for action_id, event in latest_by_action.items():
-        if event.event_name in ACTION_CLOSE_EVENTS:
-            continue
-        metadata = metadata_by_action.get(action_id) or event.metadata or {}
-        route = metadata.get("route") or metadata.get("href") or "/dashboard/home"
-        fallback_route = metadata.get("fallback_route") or "/dashboard/get-started"
-        if not _internal_route(route):
-            route = "/dashboard/home"
-        if not _internal_route(fallback_route):
-            fallback_route = "/dashboard/get-started"
-        source_type = metadata.get("source_type") or metadata.get("artifact_type")
-        source_id = metadata.get("source_id") or metadata.get("artifact_id")
-        actions.append(
-            (
-                event.occurred_at,
-                {
-                    "id": action_id,
-                    "label": _safe_metadata_text(
-                        metadata,
-                        "label",
-                        "Continue quality action",
-                    ),
-                    "body": _safe_metadata_text(
-                        metadata,
-                        "body",
-                        "Return to unresolved quality work from a previous review.",
-                    ),
-                    "route": route,
-                    "fallback_route": fallback_route,
-                    "route_available": True,
-                    "source_type": str(source_type or "workspace"),
-                    "source_id": str(source_id)
-                    if source_id
-                    else str(context.workspace.id),
-                    "success_event": "daily_quality_action_completed",
-                    "is_primary": False,
-                    "is_sample": False,
-                    "requires_permission": None,
-                    "activation_kind": "daily_quality",
-                },
-            )
-        )
-
-    return [
-        action
-        for _occurred_at, action in sorted(
-            actions,
-            key=lambda item: (item[0], item[1]["id"]),
-            reverse=True,
-        )[:5]
-    ]
 
 
 def _trace_queryset(context):
@@ -878,7 +766,7 @@ def resolve_daily_quality_state(*, context, flags, signals, routes, stage, now):
         return DailyQualityResult(_unavailable("sample_only", now), None)
 
     review_window = _window(context, signals, now)
-    open_actions = _open_quality_actions(context, now)
+    open_actions = open_quality_actions_for_context(context, now)
     top_signal, route_availability = _top_signal(
         context,
         signals,

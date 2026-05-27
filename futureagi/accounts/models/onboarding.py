@@ -532,6 +532,97 @@ class OnboardingLifecycleSendLog(BaseModel):
         return f"{self.campaign_key}:{self.status} for {self.user_id}"
 
 
+class OnboardingQualityAction(BaseModel):
+    STATUS_OPEN = "open"
+    STATUS_COMPLETED = "completed"
+    STATUS_DISMISSED = "dismissed"
+
+    STATUS_CHOICES = (
+        (STATUS_OPEN, STATUS_OPEN),
+        (STATUS_COMPLETED, STATUS_COMPLETED),
+        (STATUS_DISMISSED, STATUS_DISMISSED),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "accounts.Organization",
+        on_delete=models.CASCADE,
+        related_name="onboarding_quality_actions",
+    )
+    workspace = models.ForeignKey(
+        "accounts.Workspace",
+        on_delete=models.CASCADE,
+        related_name="onboarding_quality_actions",
+    )
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_onboarding_quality_actions",
+    )
+    assigned_to = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_onboarding_quality_actions",
+    )
+    product_path = models.CharField(max_length=32, db_index=True)
+    action_key = models.CharField(max_length=160)
+    status = models.CharField(
+        max_length=16,
+        choices=STATUS_CHOICES,
+        default=STATUS_OPEN,
+        db_index=True,
+    )
+    label = models.CharField(max_length=180)
+    body = models.CharField(max_length=300, blank=True, default="")
+    route = models.TextField(blank=True, default="/dashboard/home")
+    fallback_route = models.TextField(blank=True, default="/dashboard/get-started")
+    source_type = models.CharField(max_length=64, blank=True, default="workspace")
+    source_id = models.CharField(max_length=128, blank=True, default="")
+    is_sample = models.BooleanField(default=False, db_index=True)
+    opened_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    dismissed_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    last_event_at = models.DateTimeField(db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "accounts_onboarding_quality_action"
+        ordering = ("-last_event_at", "-created_at")
+        indexes = [
+            models.Index(
+                fields=["organization", "workspace", "product_path", "status"],
+                name="onb_qact_org_ws_path_status",
+            ),
+            models.Index(
+                fields=["workspace", "status", "-last_event_at"],
+                name="onb_qact_ws_status_ts",
+            ),
+            models.Index(
+                fields=["workspace", "source_type", "source_id"],
+                name="onb_qact_ws_source",
+            ),
+            models.Index(
+                fields=["assigned_to", "status", "-last_event_at"],
+                name="onb_qact_assignee_status",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "workspace", "product_path", "action_key"],
+                condition=models.Q(deleted=False),
+                name="onb_qact_unique_action",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.action_key}:{self.status} for {self.workspace_id}"
+
+
 class NotificationPreference(BaseModel):
     FAMILY_PRODUCT_ONBOARDING = "product_onboarding"
     FAMILY_DAILY_QUALITY_DIGEST = "daily_quality_digest"
