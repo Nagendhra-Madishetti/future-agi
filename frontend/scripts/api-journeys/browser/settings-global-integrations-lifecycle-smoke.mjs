@@ -18,6 +18,12 @@ const execFileAsync = promisify(execFile);
 const APP_BASE = process.env.APP_BASE || "http://127.0.0.1:3032";
 const EDIT_SCREENSHOT_PATH =
   "/tmp/settings-global-integrations-lifecycle-edit-smoke.png";
+const SYNC_GUARD_SCREENSHOT_PATH =
+  "/tmp/settings-global-integrations-lifecycle-sync-guard-smoke.png";
+const PAUSE_SCREENSHOT_PATH =
+  "/tmp/settings-global-integrations-lifecycle-pause-smoke.png";
+const RESUME_SCREENSHOT_PATH =
+  "/tmp/settings-global-integrations-lifecycle-resume-smoke.png";
 const DELETE_SCREENSHOT_PATH =
   "/tmp/settings-global-integrations-lifecycle-delete-smoke.png";
 const ERROR_SCREENSHOT_PATH =
@@ -108,7 +114,13 @@ async function main() {
         url.includes(`/integrations/connections/${seeded.connection_id}/`) &&
         response.request().method() === "GET" &&
         response.status() === 404;
-      if (!expectedDeletedDetail404) {
+      const expectedSyncGuard =
+        url.includes(
+          `/integrations/connections/${seeded.connection_id}/sync_now/`,
+        ) &&
+        response.request().method() === "POST" &&
+        response.status() === 400;
+      if (!expectedDeletedDetail404 && !expectedSyncGuard) {
         unexpectedApiFailures.push(`${response.status()} ${url}`);
       }
     }
@@ -173,6 +185,96 @@ async function main() {
       seeded.plain_public_key,
       seeded.plain_secret_key,
     ]);
+
+    const syncGuardResponsePromise = page.waitForResponse(
+      (response) =>
+        response
+          .url()
+          .includes(
+            `/integrations/connections/${seeded.connection_id}/sync_now/`,
+          ) && response.request().method() === "POST",
+      { timeout: 60000 },
+    );
+    await clickVisibleButton(page, "Sync Now");
+    const syncGuardResponse = await syncGuardResponsePromise;
+    await assertHttpResponseStatus(
+      syncGuardResponse,
+      400,
+      "integration sync-now cooldown guard",
+    );
+    const syncGuardBody = await safeJson(syncGuardResponse);
+    assert(
+      JSON.stringify(syncGuardBody).toLowerCase().includes("wait"),
+      "Sync Now guard response did not mention cooldown waiting.",
+    );
+    await page.screenshot({
+      path: SYNC_GUARD_SCREENSHOT_PATH,
+      fullPage: true,
+    });
+
+    const pauseResponsePromise = page.waitForResponse(
+      (response) =>
+        response
+          .url()
+          .includes(
+            `/integrations/connections/${seeded.connection_id}/pause/`,
+          ) && response.request().method() === "POST",
+      { timeout: 60000 },
+    );
+    await clickVisibleButton(page, "Pause");
+    const pauseResponse = await pauseResponsePromise;
+    await assertHttpResponseOk(pauseResponse, "integration pause");
+    const pauseBody = await safeJson(pauseResponse);
+    assert(
+      responseResult(pauseBody)?.status === "paused",
+      "Integration pause response did not return paused status.",
+    );
+    await waitForVisibleText(page, "Paused", { exact: true });
+    await waitForVisibleText(page, "Resume", { exact: true });
+    await page.screenshot({ path: PAUSE_SCREENSHOT_PATH, fullPage: true });
+
+    const pausedSyncResponsePromise = page.waitForResponse(
+      (response) =>
+        response
+          .url()
+          .includes(
+            `/integrations/connections/${seeded.connection_id}/sync_now/`,
+          ) && response.request().method() === "POST",
+      { timeout: 60000 },
+    );
+    await clickVisibleButton(page, "Sync Now");
+    const pausedSyncResponse = await pausedSyncResponsePromise;
+    await assertHttpResponseStatus(
+      pausedSyncResponse,
+      400,
+      "paused integration sync-now guard",
+    );
+    const pausedSyncBody = await safeJson(pausedSyncResponse);
+    assert(
+      JSON.stringify(pausedSyncBody).toLowerCase().includes("paused"),
+      "Paused Sync Now guard response did not mention paused state.",
+    );
+
+    const resumeResponsePromise = page.waitForResponse(
+      (response) =>
+        response
+          .url()
+          .includes(
+            `/integrations/connections/${seeded.connection_id}/resume/`,
+          ) && response.request().method() === "POST",
+      { timeout: 60000 },
+    );
+    await clickVisibleButton(page, "Resume");
+    const resumeResponse = await resumeResponsePromise;
+    await assertHttpResponseOk(resumeResponse, "integration resume");
+    const resumeBody = await safeJson(resumeResponse);
+    assert(
+      responseResult(resumeBody)?.status === "active",
+      "Integration resume response did not return active status.",
+    );
+    await waitForVisibleText(page, "Active", { exact: true });
+    await waitForVisibleText(page, "Pause", { exact: true });
+    await page.screenshot({ path: RESUME_SCREENSHOT_PATH, fullPage: true });
 
     await clickButtonByAriaLabel(page, "Integration options menu");
     await clickVisibleMenuItem(page, "Edit");
@@ -286,8 +388,8 @@ async function main() {
     );
     assert(pageErrors.length === 0, `Page errors: ${pageErrors.join("; ")}`);
     assert(
-      observedMutations.length === 2,
-      `Expected 2 integration mutations, saw ${observedMutations.length}.`,
+      observedMutations.length === 6,
+      `Expected 6 integration mutations, saw ${observedMutations.length}.`,
     );
 
     console.log(
@@ -301,12 +403,19 @@ async function main() {
           evidence: {
             connection_id: seeded.connection_id,
             display_name: updatedDisplayName,
+            sync_guard_status: syncGuardResponse.status(),
+            pause_status: responseResult(pauseBody)?.status,
+            paused_sync_guard_status: pausedSyncResponse.status(),
+            resume_status: responseResult(resumeBody)?.status,
             update_payload_fields: Object.keys(updatePayload).sort(),
             deleted_detail_status: deletedDetail.status,
             db_deleted_at_set: deletedAudit.deleted_at_set,
             cleanup_connection_count: cleanupAudit.connection_count,
             cleanup_sync_log_count: cleanupAudit.sync_log_count,
             expected_mutation_count: observedMutations.length,
+            sync_guard_screenshot: SYNC_GUARD_SCREENSHOT_PATH,
+            pause_screenshot: PAUSE_SCREENSHOT_PATH,
+            resume_screenshot: RESUME_SCREENSHOT_PATH,
             edit_screenshot: EDIT_SCREENSHOT_PATH,
             delete_screenshot: DELETE_SCREENSHOT_PATH,
           },
@@ -603,6 +712,19 @@ async function assertHttpResponseOk(response, label) {
       await safeJson(response),
     ).slice(0, 1000)}`,
   );
+}
+
+async function assertHttpResponseStatus(response, expectedStatus, label) {
+  if (response.status() === expectedStatus) return;
+  throw new Error(
+    `${label} expected HTTP ${expectedStatus}, got ${response.status()}: ${JSON.stringify(
+      await safeJson(response),
+    ).slice(0, 1000)}`,
+  );
+}
+
+function responseResult(body) {
+  return body?.result || body;
 }
 
 async function safeJson(response) {
