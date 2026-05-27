@@ -9,7 +9,14 @@ from accounts.services.onboarding.context import OnboardingContext
 from accounts.services.onboarding.signal_resolver import collect_onboarding_signals
 from accounts.tests.onboarding_model_factories import (
     create_custom_eval,
+    create_gateway_key,
+    create_gateway_provider,
+    create_gateway_request_log,
+    create_gateway_routing_policy,
     create_observe_project,
+    create_prompt_eval_config,
+    create_prompt_template,
+    create_prompt_version,
     create_trace,
 )
 
@@ -21,6 +28,16 @@ def _flags(**overrides):
         "onboarding_path_cards": True,
         "onboarding_sample_project": False,
         "onboarding_daily_quality_home": True,
+        "onboarding_prompt_path": True,
+        "onboarding_prompt_route_modes": True,
+        "onboarding_agent_path": True,
+        "onboarding_agent_route_modes": True,
+        "onboarding_gateway_path": True,
+        "onboarding_gateway_route_modes": True,
+        "onboarding_eval_path": True,
+        "onboarding_eval_route_modes": True,
+        "onboarding_voice_path": True,
+        "onboarding_voice_route_modes": True,
         "onboarding_lifecycle_email_dry_run": True,
         "onboarding_email_welcome_enabled": False,
         "onboarding_email_first_action_recovery_enabled": False,
@@ -40,7 +57,15 @@ def _flags(**overrides):
     return flags
 
 
-def _context(user, organization, workspace, *, can_write=True):
+def _context(
+    user,
+    organization,
+    workspace,
+    *,
+    can_write=True,
+    selected_goal="monitor_production_ai_app",
+    primary_path="observe",
+):
     return OnboardingContext(
         user=user,
         organization=organization,
@@ -49,8 +74,8 @@ def _context(user, organization, workspace, *, can_write=True):
         workspace_role="workspace_admin" if can_write else "workspace_viewer",
         organization_level=15 if can_write else 1,
         workspace_level=8 if can_write else 1,
-        selected_goal="monitor_production_ai_app",
-        primary_path="observe",
+        selected_goal=selected_goal,
+        primary_path=primary_path,
         persona="developer",
         source="test",
         email_context=None,
@@ -102,9 +127,25 @@ def _activated_observe_workspace(organization, workspace, user, *, now):
     return project
 
 
-def _activation_state(user, organization, workspace, *, flags=None, can_write=True):
+def _activation_state(
+    user,
+    organization,
+    workspace,
+    *,
+    flags=None,
+    can_write=True,
+    selected_goal="monitor_production_ai_app",
+    primary_path="observe",
+):
     return resolve_activation_state(
-        context=_context(user, organization, workspace, can_write=can_write),
+        context=_context(
+            user,
+            organization,
+            workspace,
+            can_write=can_write,
+            selected_goal=selected_goal,
+            primary_path=primary_path,
+        ),
         flags=flags or _flags(),
         signals=collect_onboarding_signals(
             user=user,
@@ -239,3 +280,126 @@ def test_permission_limited_daily_quality_routes_to_request_access(
     assert daily_quality["primary_action"]["id"] == "request_workspace_access"
     assert payload["recommended_action"]["kind"] == "request_access"
     assert payload["email_eligibility"]["suppression_reason"] == "permission_limited"
+
+
+@pytest.mark.django_db
+def test_daily_quality_promotes_gateway_failed_request_signal(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    create_gateway_provider(organization=organization, workspace=workspace)
+    key = create_gateway_key(organization=organization, workspace=workspace, user=user)
+    request_log = create_gateway_request_log(
+        organization=organization,
+        workspace=workspace,
+        gateway_key=key,
+        status_code=500,
+        is_error=True,
+        fallback_used=True,
+        started_at=now - timedelta(minutes=15),
+    )
+    record_event(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        event_name="gateway_log_opened",
+        source="test",
+        product_path="gateway",
+        activation_stage="review_gateway_log",
+        metadata={
+            "request_log_id": str(request_log.id),
+            "request_id": request_log.request_id,
+        },
+        occurred_at=now - timedelta(hours=1),
+    )
+    create_gateway_routing_policy(organization=organization, user=user)
+    record_event(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        event_name="first_quality_loop_completed",
+        source="test",
+        product_path="gateway",
+        occurred_at=now - timedelta(minutes=45),
+    )
+
+    payload = _activation_state(
+        user,
+        organization,
+        workspace,
+        flags=_flags(onboarding_email_daily_digest_enabled=True),
+        selected_goal="control_model_traffic",
+        primary_path="gateway",
+    )
+
+    daily_quality = payload["daily_quality"]
+    assert payload["stage"] == "daily_review"
+    assert payload["home_mode"] == "daily_quality"
+    assert daily_quality["mode"] == "new_signal"
+    assert daily_quality["top_signal"]["type"] == "gateway_request_issue"
+    assert daily_quality["top_signal"]["source_id"] == str(request_log.id)
+    assert payload["recommended_action"]["id"] == "review_gateway_request_issue"
+    assert payload["recommended_action"]["analytics"]["target_path"] == "gateway"
+    assert daily_quality["product_cards"][0]["path"] == "gateway"
+    assert daily_quality["digest_eligible"] is True
+
+
+@pytest.mark.django_db
+def test_daily_quality_prompt_path_returns_path_specific_review_action(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    template = create_prompt_template(
+        organization=organization,
+        workspace=workspace,
+        user=user,
+    )
+    create_prompt_version(
+        template=template,
+        is_draft=False,
+        commit_message="Initial quality version",
+        output=[{"role": "assistant", "content": "hello"}],
+    )
+    create_prompt_eval_config(
+        organization=organization,
+        workspace=workspace,
+        template=template,
+    )
+    record_event(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        event_name="prompt_comparison_completed",
+        source="test",
+        product_path="prompt",
+        occurred_at=now - timedelta(minutes=30),
+    )
+    record_event(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        event_name="first_quality_loop_completed",
+        source="test",
+        product_path="prompt",
+        occurred_at=now - timedelta(minutes=20),
+    )
+
+    payload = _activation_state(
+        user,
+        organization,
+        workspace,
+        selected_goal="improve_prompts",
+        primary_path="prompt",
+    )
+
+    daily_quality = payload["daily_quality"]
+    assert payload["stage"] == "daily_review"
+    assert daily_quality["mode"] == "no_new_signal"
+    assert daily_quality["top_signal"] is None
+    assert daily_quality["primary_action"]["id"] == "open_prompt_metrics"
+    assert payload["recommended_action"]["analytics"]["target_path"] == "prompt"
+    assert daily_quality["product_cards"][0]["path"] == "prompt"

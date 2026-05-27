@@ -14,6 +14,68 @@ REVIEW_EVENTS = (
     "daily_quality_action_completed",
 )
 
+SUPPORTED_PATHS = {"prompt", "agent", "observe", "gateway", "evals", "voice"}
+
+PATH_CARD_META = {
+    "prompt": {"label": "Prompts", "healthy_summary": "Review prompt metrics"},
+    "agent": {"label": "Agents", "healthy_summary": "Review agent runs"},
+    "observe": {"label": "Observe", "healthy_summary": "Review observe"},
+    "gateway": {"label": "Gateway", "healthy_summary": "Review gateway logs"},
+    "evals": {"label": "Evals", "healthy_summary": "Review eval runs"},
+    "voice": {"label": "Voice", "healthy_summary": "Monitor voice calls"},
+}
+
+PATH_REVIEW_ACTIONS = {
+    "prompt": {
+        "id": "open_prompt_metrics",
+        "label": "Review prompt metrics",
+        "body": "Inspect prompt test output and decide the next prompt change.",
+        "route_keys": ("prompt_metrics", "prompt_workbench"),
+        "source_type": "prompt",
+        "source_attr": "latest_prompt_id",
+    },
+    "agent": {
+        "id": "open_agent_quality",
+        "label": "Review agent runs",
+        "body": "Inspect recent agent runs and keep eval coverage current.",
+        "route_keys": ("agent_quality", "agent_list"),
+        "source_type": "agent",
+        "source_attr": "agent_id",
+    },
+    "gateway": {
+        "id": "open_gateway_logs",
+        "label": "Review gateway logs",
+        "body": "Inspect recent gateway requests, latency, cost, and routing behavior.",
+        "route_keys": ("gateway_log_review", "gateway_overview"),
+        "source_type": "gateway_request",
+        "source_attr": "gateway_request_log_id",
+    },
+    "evals": {
+        "id": "review_eval_runs",
+        "label": "Review eval runs",
+        "body": "Inspect recent eval results and pick the next source improvement.",
+        "route_keys": ("eval_review_failures", "eval_list"),
+        "source_type": "eval_run",
+        "source_attr": "eval_run_id",
+    },
+    "voice": {
+        "id": "monitor_voice_calls",
+        "label": "Monitor voice calls",
+        "body": "Review recent voice calls and keep success criteria fresh.",
+        "route_keys": ("voice_monitor_calls", "voice_list"),
+        "source_type": "voice_call",
+        "source_attr": "voice_call_execution_id",
+    },
+}
+
+SIGNAL_ACTION_LABELS = {
+    "trace_failure": ("review_failed_trace", "Review trace"),
+    "agent_run_issue": ("review_agent_run_issue", "Review run"),
+    "gateway_request_issue": ("review_gateway_request_issue", "Review request"),
+    "eval_failure": ("review_eval_failures", "Review failures"),
+    "voice_call_issue": ("review_voice_call_issue", "Review call"),
+}
+
 
 @dataclass(frozen=True)
 class DailyQualityResult:
@@ -32,6 +94,29 @@ def _route(routes, key, fallback="/dashboard/get-started"):
     )
 
 
+def _path(context):
+    return context.primary_path or "observe"
+
+
+def _first_available_route(routes, keys, fallback="/dashboard/get-started"):
+    fallback_route = route_entry(fallback, is_available=False, reason="missing_id")
+    for key in keys:
+        route = _route(routes, key, fallback)
+        href = route.get("href")
+        if not _internal_route(href):
+            continue
+        if route.get("is_available"):
+            return route, []
+        if fallback_route.get("reason") == "missing_id":
+            fallback_route = route
+    return fallback_route, ["route_fallback_used"]
+
+
+def _route_href(route, fallback="/dashboard/get-started"):
+    href = route.get("href")
+    return href if _internal_route(href) else fallback
+
+
 def _last_reviewed_at(context):
     if not context.organization or not context.workspace:
         return None
@@ -39,7 +124,7 @@ def _last_reviewed_at(context):
         organization=context.organization,
         workspace=context.workspace,
         event_names=REVIEW_EVENTS,
-        product_path="observe",
+        product_path=_path(context),
         is_sample=False,
     )
     return event.occurred_at if event else None
@@ -52,7 +137,7 @@ def _first_quality_loop_at(context):
         organization=context.organization,
         workspace=context.workspace,
         event_names=["first_quality_loop_completed"],
-        product_path="observe",
+        product_path=_path(context),
         is_sample=False,
     )
     return event.occurred_at if event else None
@@ -126,6 +211,214 @@ def _trace_failure_signal(context, review_window):
     )
 
 
+def _in_window(value, review_window):
+    if not value:
+        return False
+    return review_window["start_at"] < value <= review_window["end_at"]
+
+
+def _path_loop_completed(context, signals):
+    path = _path(context)
+    if path == "observe":
+        return signals.first_loop_completed
+    if path == "prompt":
+        return signals.prompt_first_loop_completed
+    if path == "agent":
+        return signals.agent_first_loop_completed
+    if path == "gateway":
+        return signals.gateway_first_loop_completed
+    if path == "evals":
+        return signals.eval_first_loop_completed
+    if path == "voice":
+        return signals.voice_first_loop_completed
+    return False
+
+
+def _path_sample_only(context, signals):
+    path = _path(context)
+    if path == "observe":
+        return bool(
+            signals.last_meaningful_event and signals.last_meaningful_event.is_sample
+        )
+    if path == "agent":
+        return bool(signals.agent_signals.is_sample_only)
+    if path == "gateway":
+        return bool(signals.gateway_is_sample_only)
+    if path == "evals":
+        return bool(signals.eval_is_sample_only)
+    if path == "voice":
+        return bool(signals.voice_is_sample_only)
+    return False
+
+
+def _signal_route(routes, *keys):
+    route, _diagnostics = _first_available_route(routes, keys)
+    if route.get("is_available") and _internal_route(route.get("href")):
+        return route
+    return None
+
+
+def _structured_signal(
+    *,
+    signal_id,
+    signal_type,
+    severity,
+    title,
+    body,
+    source_type,
+    source_id,
+    route,
+    created_at,
+):
+    return {
+        "id": signal_id,
+        "type": signal_type,
+        "severity": severity,
+        "title": title,
+        "body": body,
+        "source_type": source_type,
+        "source_id": str(source_id),
+        "project_id": None,
+        "route": route,
+        "is_sample": False,
+        "created_at": created_at,
+    }
+
+
+def _agent_signal(signals, routes, review_window):
+    completed_at = signals.agent_signals.run_completed_at
+    if not signals.agent_run_failed or not _in_window(completed_at, review_window):
+        return None, {}
+    route = _signal_route(routes, "agent_review_trace", "agent_quality")
+    if not route:
+        return None, {}
+    source_id = (
+        signals.agent_execution_id
+        or signals.agent_graph_execution_id
+        or signals.agent_call_execution_id
+        or signals.agent_id
+    )
+    if not source_id:
+        return None, {}
+    href = route["href"]
+    return (
+        _structured_signal(
+            signal_id=f"agent_run_issue:{source_id}",
+            signal_type="agent_run_issue",
+            severity="warning",
+            title="Review the latest agent run issue",
+            body="A real agent run needs review since the last quality check.",
+            source_type="agent_run",
+            source_id=source_id,
+            route=href,
+            created_at=completed_at,
+        ),
+        {"daily_quality_signal": route_entry(href)},
+    )
+
+
+def _gateway_signal(signals, routes, review_window):
+    started_at = signals.gateway_signals.request_started_at
+    if not signals.gateway_request_is_error or not _in_window(
+        started_at, review_window
+    ):
+        return None, {}
+    route = _signal_route(routes, "gateway_failure", "gateway_log_review")
+    if not route:
+        return None, {}
+    source_id = signals.gateway_request_log_id or signals.gateway_request_id
+    if not source_id:
+        return None, {}
+    href = route["href"]
+    return (
+        _structured_signal(
+            signal_id=f"gateway_request_issue:{source_id}",
+            signal_type="gateway_request_issue",
+            severity=(
+                "critical"
+                if (signals.gateway_request_status_code or 0) >= 500
+                else "warning"
+            ),
+            title="Review the latest failed gateway request",
+            body="A real gateway request failed since the last quality review.",
+            source_type="gateway_request",
+            source_id=source_id,
+            route=href,
+            created_at=started_at,
+        ),
+        {"daily_quality_signal": route_entry(href)},
+    )
+
+
+def _eval_signal(signals, routes, review_window):
+    completed_at = signals.eval_run_completed_at
+    if not signals.eval_has_failures or not _in_window(completed_at, review_window):
+        return None, {}
+    route = _signal_route(routes, "eval_review_failures")
+    if not route:
+        return None, {}
+    source_id = signals.eval_run_id or signals.eval_scorer_template_id
+    if not source_id:
+        return None, {}
+    href = route["href"]
+    return (
+        _structured_signal(
+            signal_id=f"eval_failure:{source_id}",
+            signal_type="eval_failure",
+            severity="warning",
+            title="Review the latest eval failures",
+            body="A real eval run has failures to inspect.",
+            source_type="eval_run",
+            source_id=source_id,
+            route=href,
+            created_at=completed_at,
+        ),
+        {"daily_quality_signal": route_entry(href)},
+    )
+
+
+def _voice_signal(signals, routes, review_window):
+    completed_at = signals.voice_call_completed_at
+    if not signals.voice_call_failed or not _in_window(completed_at, review_window):
+        return None, {}
+    route = _signal_route(routes, "voice_review_call")
+    if not route:
+        return None, {}
+    source_id = signals.voice_call_execution_id or signals.voice_test_execution_id
+    if not source_id:
+        return None, {}
+    href = route["href"]
+    return (
+        _structured_signal(
+            signal_id=f"voice_call_issue:{source_id}",
+            signal_type="voice_call_issue",
+            severity="warning",
+            title="Review the latest voice call issue",
+            body="A real voice call needs review since the last quality check.",
+            source_type="voice_call",
+            source_id=source_id,
+            route=href,
+            created_at=completed_at,
+        ),
+        {"daily_quality_signal": route_entry(href)},
+    )
+
+
+def _top_signal(context, signals, routes, review_window):
+    path = _path(context)
+    if path == "observe":
+        return _trace_failure_signal(context, review_window)
+    if path == "agent":
+        return _agent_signal(signals, routes, review_window)
+    if path == "gateway":
+        return _gateway_signal(signals, routes, review_window)
+    if path == "evals":
+        return _eval_signal(signals, routes, review_window)
+    if path == "voice":
+        return _voice_signal(signals, routes, review_window)
+    return None, {}
+
+
 def _observe_route(routes):
     for key in ("observe_project", "observe_dashboard", "get_started"):
         route = _route(routes, key)
@@ -159,6 +452,9 @@ def _request_access_action(context):
 
 
 def _next_action(context, signals, routes):
+    if _path(context) != "observe":
+        return _path_review_action(context, signals, routes)
+
     route, diagnostics = _observe_route(routes)
     source_id = signals.first_observe_id or (
         str(context.workspace.id) if context.workspace else None
@@ -233,11 +529,45 @@ def _next_action(context, signals, routes):
     )
 
 
+def _path_review_action(context, signals, routes):
+    path = _path(context)
+    action_config = PATH_REVIEW_ACTIONS.get(path)
+    if not action_config:
+        return _request_access_action(context), ["path_changed"]
+
+    route, diagnostics = _first_available_route(routes, action_config["route_keys"])
+    source_id = getattr(signals, action_config["source_attr"], None) or (
+        str(context.workspace.id) if context.workspace else None
+    )
+    return (
+        {
+            "id": action_config["id"],
+            "label": action_config["label"],
+            "body": action_config["body"],
+            "route": _route_href(route),
+            "fallback_route": "/dashboard/get-started",
+            "route_available": bool(route.get("is_available")),
+            "source_type": action_config["source_type"],
+            "source_id": str(source_id) if source_id else None,
+            "success_event": None,
+            "is_primary": True,
+            "is_sample": False,
+            "requires_permission": None,
+            "activation_kind": "daily_quality",
+        },
+        diagnostics,
+    )
+
+
 def _signal_action(top_signal):
+    action_id, label = SIGNAL_ACTION_LABELS.get(
+        top_signal["type"],
+        ("review_daily_quality_signal", "Review signal"),
+    )
     return {
-        "id": "review_failed_trace",
-        "label": "Review trace",
-        "body": "Open the failed trace and inspect the failure context.",
+        "id": action_id,
+        "label": label,
+        "body": top_signal["body"],
         "route": top_signal["route"],
         "fallback_route": "/dashboard/get-started",
         "route_available": True,
@@ -251,44 +581,48 @@ def _signal_action(top_signal):
     }
 
 
-def _product_card(*, mode, top_signal, action, routes):
-    route = _route(routes, "observe_project").get("href") or _route(
-        routes, "observe_dashboard"
-    ).get("href")
+def _product_card(*, path, mode, top_signal, action, routes):
+    if path == "observe":
+        route = _route(routes, "observe_project").get("href") or _route(
+            routes, "observe_dashboard"
+        ).get("href")
+    else:
+        route = action.get("route")
     if not _internal_route(route):
-        route = "/dashboard/observe"
+        route = "/dashboard/get-started"
+    meta = PATH_CARD_META.get(path, PATH_CARD_META["observe"])
     if top_signal:
         return {
-            "path": "observe",
+            "path": path,
             "status": "needs_review",
-            "label": "Observe",
-            "summary": "1 trace failure needs review",
+            "label": meta["label"],
+            "summary": top_signal["title"],
             "metric": "1",
             "change": "New since last review",
             "route": route,
         }
     if mode == "permission_limited":
         return {
-            "path": "observe",
+            "path": path,
             "status": "permission_limited",
-            "label": "Observe",
+            "label": meta["label"],
             "summary": "Access needed for the next setup action",
             "metric": "View",
             "change": "No new signal",
             "route": route,
         }
     return {
-        "path": "observe",
+        "path": path,
         "status": "healthy",
-        "label": "Observe",
-        "summary": action["label"],
+        "label": meta["label"],
+        "summary": action["label"] or meta["healthy_summary"],
         "metric": "0",
         "change": "No new signal",
         "route": route,
     }
 
 
-def _activation_action(action, fallback_href="/dashboard/get-started"):
+def _activation_action(action, target_path, fallback_href="/dashboard/get-started"):
     route_available = bool(action.get("route_available", True))
     return {
         "id": action["id"],
@@ -309,7 +643,7 @@ def _activation_action(action, fallback_href="/dashboard/get-started"):
         "analytics": {
             "event_name": "daily_quality_action_opened",
             "source": "daily_quality_home",
-            "target_path": "observe",
+            "target_path": target_path,
         },
     }
 
@@ -333,17 +667,25 @@ def _unavailable(reason, now):
 
 
 def resolve_daily_quality_state(*, context, flags, signals, routes, stage, now):
+    path = _path(context)
     if not flags.get("onboarding_daily_quality_home"):
         return DailyQualityResult(_unavailable("flag_disabled", now), None)
-    if stage not in {"activated", "daily_review"} or not signals.first_loop_completed:
-        return DailyQualityResult(_unavailable("not_activated", now), None)
-    if context.primary_path != "observe":
+    if path not in SUPPORTED_PATHS:
         return DailyQualityResult(_unavailable("path_changed", now), None)
-    if signals.last_meaningful_event and signals.last_meaningful_event.is_sample:
+    if stage not in {"activated", "daily_review"} or not _path_loop_completed(
+        context, signals
+    ):
+        return DailyQualityResult(_unavailable("not_activated", now), None)
+    if _path_sample_only(context, signals):
         return DailyQualityResult(_unavailable("sample_only", now), None)
 
     review_window = _window(context, signals, now)
-    top_signal, route_availability = _trace_failure_signal(context, review_window)
+    top_signal, route_availability = _top_signal(
+        context,
+        signals,
+        routes,
+        review_window,
+    )
     diagnostics = []
 
     if top_signal:
@@ -376,6 +718,7 @@ def resolve_daily_quality_state(*, context, flags, signals, routes, stage, now):
         "action_cards": [],
         "product_cards": [
             _product_card(
+                path=path,
                 mode=mode,
                 top_signal=top_signal,
                 action=primary_action,
@@ -388,6 +731,6 @@ def resolve_daily_quality_state(*, context, flags, signals, routes, stage, now):
     }
     return DailyQualityResult(
         state=state,
-        recommended_action=_activation_action(primary_action),
+        recommended_action=_activation_action(primary_action, path),
         route_availability=route_availability,
     )

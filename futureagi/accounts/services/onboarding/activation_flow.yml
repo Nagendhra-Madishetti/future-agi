@@ -1360,6 +1360,13 @@ stage_rules:
         - context_equals:
             primary_path: observe
         - signal: first_loop_completed
+  - stage: daily_review
+    when:
+      all:
+        - context_equals:
+            primary_path: prompt
+        - signal: prompt_first_loop_completed
+        - flag_enabled: onboarding_daily_quality_home
   - stage: activated
     when:
       all:
@@ -1398,6 +1405,13 @@ stage_rules:
     when:
       context_equals:
         primary_path: prompt
+  - stage: daily_review
+    when:
+      all:
+        - context_equals:
+            primary_path: agent
+        - signal: agent_first_loop_completed
+        - flag_enabled: onboarding_daily_quality_home
   - stage: activated
     when:
       all:
@@ -1437,6 +1451,13 @@ stage_rules:
     when:
       context_equals:
         primary_path: agent
+  - stage: daily_review
+    when:
+      all:
+        - context_equals:
+            primary_path: gateway
+        - signal: gateway_first_loop_completed
+        - flag_enabled: onboarding_daily_quality_home
   - stage: activated
     when:
       all:
@@ -1491,6 +1512,13 @@ stage_rules:
     when:
       context_equals:
         primary_path: gateway
+  - stage: daily_review
+    when:
+      all:
+        - context_equals:
+            primary_path: evals
+        - signal: eval_first_loop_completed
+        - flag_enabled: onboarding_daily_quality_home
   - stage: activated
     when:
       all:
@@ -1522,6 +1550,13 @@ stage_rules:
     when:
       context_equals:
         primary_path: evals
+  - stage: daily_review
+    when:
+      all:
+        - context_equals:
+            primary_path: voice
+        - signal: voice_first_loop_completed
+        - flag_enabled: onboarding_daily_quality_home
   - stage: activated
     when:
       all:
