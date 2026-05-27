@@ -2071,6 +2071,239 @@ export const AccountsMeTimezoneCreateResponse = zod.object({
 })
 
 
+export const AccountsNotificationChannelsTestCreateParams = zod.object({
+  "channel_id": zod.string()
+})
+
+export const AccountsNotificationChannelsTestCreateBody = zod.object({
+
+})
+
+
+export const accountsNotificationChannelsTestCreateResponseResultChannelIsActiveDefault = true;
+
+export const AccountsNotificationChannelsTestCreateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "channel": zod.object({
+  "id": zod.string().uuid().optional(),
+  "scope": zod.enum(['organization', 'workspace']).optional(),
+  "type": zod.enum(['email_list', 'slack_webhook', 'webhook']),
+  "display_name": zod.string().min(1),
+  "target_identifier": zod.string().optional(),
+  "config": zod.object({
+
+}).passthrough().optional(),
+  "is_active": zod.boolean().default(accountsNotificationChannelsTestCreateResponseResultChannelIsActiveDefault),
+  "last_tested_at": zod.string().datetime({"offset":true}).optional(),
+  "last_test_status": zod.enum(['untested', 'ready', 'failed']).optional(),
+  "metadata": zod.object({
+
+}).passthrough().optional()
+})
+})
+})
+
+
+
+
+
+export const accountsNotificationPreferencesListResponseResultChannelsItemIsActiveDefault = true;
+
+
+
+
+
+export const AccountsNotificationPreferencesListResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "families": zod.array(zod.object({
+  "id": zod.enum(['product_onboarding', 'daily_quality_digest', 'usage_budget', 'gateway_alert', 'observe_monitor', 'eval_quality_alert', 'workspace_admin']),
+  "label": zod.string().min(1),
+  "description": zod.string().min(1),
+  "default_channels": zod.array(zod.enum(['email', 'in_app', 'slack', 'webhook'])),
+  "non_critical": zod.boolean(),
+  "user_controllable": zod.boolean(),
+  "workspace_controllable": zod.boolean()
+})),
+  "channels": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "scope": zod.enum(['organization', 'workspace']).optional(),
+  "type": zod.enum(['email_list', 'slack_webhook', 'webhook']),
+  "display_name": zod.string().min(1),
+  "target_identifier": zod.string().optional(),
+  "config": zod.object({
+
+}).passthrough().optional(),
+  "is_active": zod.boolean().default(accountsNotificationPreferencesListResponseResultChannelsItemIsActiveDefault),
+  "last_tested_at": zod.string().datetime({"offset":true}).optional(),
+  "last_test_status": zod.enum(['untested', 'ready', 'failed']).optional(),
+  "metadata": zod.object({
+
+}).passthrough().optional()
+})),
+  "preferences": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "scope": zod.enum(['organization', 'workspace', 'user', 'user_workspace']),
+  "family": zod.enum(['product_onboarding', 'daily_quality_digest', 'usage_budget', 'gateway_alert', 'observe_monitor', 'eval_quality_alert', 'workspace_admin']),
+  "channel": zod.enum(['email', 'in_app', 'slack', 'webhook']),
+  "enabled": zod.boolean(),
+  "mute_until": zod.string().datetime({"offset":true}).optional(),
+  "frequency_cap_minutes": zod.number().min(1).optional(),
+  "settings": zod.object({
+
+}).passthrough().optional(),
+  "source": zod.string().min(1).optional()
+})),
+  "decisions": zod.array(zod.object({
+  "allowed": zod.boolean(),
+  "family": zod.enum(['product_onboarding', 'daily_quality_digest', 'usage_budget', 'gateway_alert', 'observe_monitor', 'eval_quality_alert', 'workspace_admin']),
+  "channel": zod.enum(['email', 'in_app', 'slack', 'webhook']),
+  "reason": zod.string().optional(),
+  "source": zod.string().min(1),
+  "preference_id": zod.string().uuid().optional()
+})),
+  "delivery_logs": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "family": zod.enum(['product_onboarding', 'daily_quality_digest', 'usage_budget', 'gateway_alert', 'observe_monitor', 'eval_quality_alert', 'workspace_admin']),
+  "source_type": zod.string().min(1),
+  "source_id": zod.string().optional(),
+  "channel": zod.enum(['email', 'in_app', 'slack', 'webhook']),
+  "recipient_type": zod.string().optional(),
+  "recipient_identifier_masked": zod.string().optional(),
+  "notification_key": zod.string().optional(),
+  "stage": zod.string().optional(),
+  "severity": zod.string().optional(),
+  "status": zod.enum(['eligible', 'suppressed', 'sent', 'failed', 'clicked', 'completed']),
+  "suppressed_reason": zod.string().optional(),
+  "route_url": zod.string().optional(),
+  "sent_at": zod.string().datetime({"offset":true}).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "metadata": zod.object({
+
+}).passthrough().optional()
+})),
+  "can_manage_workspace": zod.boolean()
+})
+})
+
+
+export const accountsNotificationPreferencesPartialUpdateBodyPreferencesItemScopeDefault = `user`;
+export const accountsNotificationPreferencesPartialUpdateBodyChannelsItemScopeDefault = `workspace`;
+export const accountsNotificationPreferencesPartialUpdateBodyChannelsItemDisplayNameMax = 120;
+
+export const accountsNotificationPreferencesPartialUpdateBodyChannelsItemIsActiveDefault = true;
+
+export const AccountsNotificationPreferencesPartialUpdateBody = zod.object({
+  "preferences": zod.array(zod.object({
+  "scope": zod.enum(['organization', 'workspace', 'user', 'user_workspace']).default(accountsNotificationPreferencesPartialUpdateBodyPreferencesItemScopeDefault),
+  "family": zod.enum(['product_onboarding', 'daily_quality_digest', 'usage_budget', 'gateway_alert', 'observe_monitor', 'eval_quality_alert', 'workspace_admin']),
+  "channel": zod.enum(['email', 'in_app', 'slack', 'webhook']),
+  "enabled": zod.boolean(),
+  "mute_until": zod.string().datetime({"offset":true}).optional(),
+  "frequency_cap_minutes": zod.number().min(1).optional(),
+  "settings": zod.object({
+
+}).passthrough().optional()
+})).optional(),
+  "channels": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "scope": zod.enum(['organization', 'workspace']).default(accountsNotificationPreferencesPartialUpdateBodyChannelsItemScopeDefault),
+  "type": zod.enum(['email_list', 'slack_webhook', 'webhook']),
+  "display_name": zod.string().min(1).max(accountsNotificationPreferencesPartialUpdateBodyChannelsItemDisplayNameMax),
+  "config": zod.object({
+
+}).passthrough().optional(),
+  "is_active": zod.boolean().default(accountsNotificationPreferencesPartialUpdateBodyChannelsItemIsActiveDefault),
+  "metadata": zod.object({
+
+}).passthrough().optional()
+})).optional()
+})
+
+
+
+
+export const accountsNotificationPreferencesPartialUpdateResponseResultChannelsItemIsActiveDefault = true;
+
+
+
+
+
+export const AccountsNotificationPreferencesPartialUpdateResponse = zod.object({
+  "status": zod.boolean(),
+  "result": zod.object({
+  "families": zod.array(zod.object({
+  "id": zod.enum(['product_onboarding', 'daily_quality_digest', 'usage_budget', 'gateway_alert', 'observe_monitor', 'eval_quality_alert', 'workspace_admin']),
+  "label": zod.string().min(1),
+  "description": zod.string().min(1),
+  "default_channels": zod.array(zod.enum(['email', 'in_app', 'slack', 'webhook'])),
+  "non_critical": zod.boolean(),
+  "user_controllable": zod.boolean(),
+  "workspace_controllable": zod.boolean()
+})),
+  "channels": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "scope": zod.enum(['organization', 'workspace']).optional(),
+  "type": zod.enum(['email_list', 'slack_webhook', 'webhook']),
+  "display_name": zod.string().min(1),
+  "target_identifier": zod.string().optional(),
+  "config": zod.object({
+
+}).passthrough().optional(),
+  "is_active": zod.boolean().default(accountsNotificationPreferencesPartialUpdateResponseResultChannelsItemIsActiveDefault),
+  "last_tested_at": zod.string().datetime({"offset":true}).optional(),
+  "last_test_status": zod.enum(['untested', 'ready', 'failed']).optional(),
+  "metadata": zod.object({
+
+}).passthrough().optional()
+})),
+  "preferences": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "scope": zod.enum(['organization', 'workspace', 'user', 'user_workspace']),
+  "family": zod.enum(['product_onboarding', 'daily_quality_digest', 'usage_budget', 'gateway_alert', 'observe_monitor', 'eval_quality_alert', 'workspace_admin']),
+  "channel": zod.enum(['email', 'in_app', 'slack', 'webhook']),
+  "enabled": zod.boolean(),
+  "mute_until": zod.string().datetime({"offset":true}).optional(),
+  "frequency_cap_minutes": zod.number().min(1).optional(),
+  "settings": zod.object({
+
+}).passthrough().optional(),
+  "source": zod.string().min(1).optional()
+})),
+  "decisions": zod.array(zod.object({
+  "allowed": zod.boolean(),
+  "family": zod.enum(['product_onboarding', 'daily_quality_digest', 'usage_budget', 'gateway_alert', 'observe_monitor', 'eval_quality_alert', 'workspace_admin']),
+  "channel": zod.enum(['email', 'in_app', 'slack', 'webhook']),
+  "reason": zod.string().optional(),
+  "source": zod.string().min(1),
+  "preference_id": zod.string().uuid().optional()
+})),
+  "delivery_logs": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "family": zod.enum(['product_onboarding', 'daily_quality_digest', 'usage_budget', 'gateway_alert', 'observe_monitor', 'eval_quality_alert', 'workspace_admin']),
+  "source_type": zod.string().min(1),
+  "source_id": zod.string().optional(),
+  "channel": zod.enum(['email', 'in_app', 'slack', 'webhook']),
+  "recipient_type": zod.string().optional(),
+  "recipient_identifier_masked": zod.string().optional(),
+  "notification_key": zod.string().optional(),
+  "stage": zod.string().optional(),
+  "severity": zod.string().optional(),
+  "status": zod.enum(['eligible', 'suppressed', 'sent', 'failed', 'clicked', 'completed']),
+  "suppressed_reason": zod.string().optional(),
+  "route_url": zod.string().optional(),
+  "sent_at": zod.string().datetime({"offset":true}).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "metadata": zod.object({
+
+}).passthrough().optional()
+})),
+  "can_manage_workspace": zod.boolean()
+})
+})
+
+
 /**
  * Snooze the realtime track for N days (default 7). Daily still fires.
  */

@@ -748,6 +748,9 @@ import type {
   NodeExecutionDetailResponseApi,
   NodeReadApi,
   NodeTemplateDetailApi,
+  NotificationChannelTestResponseApi,
+  NotificationSettingsPatchRequestApi,
+  NotificationSettingsResponseApi,
   OTLPHTTPErrorResponseApi,
   OTLPHTTPTraceResponseApi,
   OTLPHealthResponseApi,
@@ -3715,6 +3718,204 @@ export const accountsMeTimezoneCreate = async (timezoneRequestApi: TimezoneReque
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       timezoneRequestApi,)
+  }
+);}
+
+
+
+export type accountsNotificationChannelsTestCreateResponse200 = {
+  data: NotificationChannelTestResponseApi
+  status: 200
+}
+
+export type accountsNotificationChannelsTestCreateResponse400 = {
+  data: AccountsErrorResponseApi
+  status: 400
+}
+
+export type accountsNotificationChannelsTestCreateResponse401 = {
+  data: AccountsErrorResponseApi
+  status: 401
+}
+
+export type accountsNotificationChannelsTestCreateResponse403 = {
+  data: AccountsErrorResponseApi
+  status: 403
+}
+
+export type accountsNotificationChannelsTestCreateResponse404 = {
+  data: AccountsErrorResponseApi
+  status: 404
+}
+
+export type accountsNotificationChannelsTestCreateResponse500 = {
+  data: AccountsErrorResponseApi
+  status: 500
+}
+
+export type accountsNotificationChannelsTestCreateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 401 | 403 | 404 | 500>
+}
+
+export type accountsNotificationChannelsTestCreateResponseSuccess = (accountsNotificationChannelsTestCreateResponse200) & {
+  headers: Headers;
+};
+export type accountsNotificationChannelsTestCreateResponseError = (accountsNotificationChannelsTestCreateResponse400 | accountsNotificationChannelsTestCreateResponse401 | accountsNotificationChannelsTestCreateResponse403 | accountsNotificationChannelsTestCreateResponse404 | accountsNotificationChannelsTestCreateResponse500 | accountsNotificationChannelsTestCreateResponseDefault) & {
+  headers: Headers;
+};
+
+export type accountsNotificationChannelsTestCreateResponse = (accountsNotificationChannelsTestCreateResponseSuccess | accountsNotificationChannelsTestCreateResponseError)
+
+export const getAccountsNotificationChannelsTestCreateUrl = (channelId: string,) => {
+
+
+
+
+  return `/accounts/notification-channels/${channelId}/test/`
+}
+
+export const accountsNotificationChannelsTestCreate = async (channelId: string,
+    accountsEmptyRequestApi: AccountsEmptyRequestApi, options?: RequestInit): Promise<accountsNotificationChannelsTestCreateResponse> => {
+
+  return apiMutator<accountsNotificationChannelsTestCreateResponse>(getAccountsNotificationChannelsTestCreateUrl(channelId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      accountsEmptyRequestApi,)
+  }
+);}
+
+
+
+export type accountsNotificationPreferencesListResponse200 = {
+  data: NotificationSettingsResponseApi
+  status: 200
+}
+
+export type accountsNotificationPreferencesListResponse400 = {
+  data: AccountsErrorResponseApi
+  status: 400
+}
+
+export type accountsNotificationPreferencesListResponse401 = {
+  data: AccountsErrorResponseApi
+  status: 401
+}
+
+export type accountsNotificationPreferencesListResponse403 = {
+  data: AccountsErrorResponseApi
+  status: 403
+}
+
+export type accountsNotificationPreferencesListResponse404 = {
+  data: AccountsErrorResponseApi
+  status: 404
+}
+
+export type accountsNotificationPreferencesListResponse500 = {
+  data: AccountsErrorResponseApi
+  status: 500
+}
+
+export type accountsNotificationPreferencesListResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 401 | 403 | 404 | 500>
+}
+
+export type accountsNotificationPreferencesListResponseSuccess = (accountsNotificationPreferencesListResponse200) & {
+  headers: Headers;
+};
+export type accountsNotificationPreferencesListResponseError = (accountsNotificationPreferencesListResponse400 | accountsNotificationPreferencesListResponse401 | accountsNotificationPreferencesListResponse403 | accountsNotificationPreferencesListResponse404 | accountsNotificationPreferencesListResponse500 | accountsNotificationPreferencesListResponseDefault) & {
+  headers: Headers;
+};
+
+export type accountsNotificationPreferencesListResponse = (accountsNotificationPreferencesListResponseSuccess | accountsNotificationPreferencesListResponseError)
+
+export const getAccountsNotificationPreferencesListUrl = () => {
+
+
+
+
+  return `/accounts/notification-preferences/`
+}
+
+export const accountsNotificationPreferencesList = async ( options?: RequestInit): Promise<accountsNotificationPreferencesListResponse> => {
+
+  return apiMutator<accountsNotificationPreferencesListResponse>(getAccountsNotificationPreferencesListUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type accountsNotificationPreferencesPartialUpdateResponse200 = {
+  data: NotificationSettingsResponseApi
+  status: 200
+}
+
+export type accountsNotificationPreferencesPartialUpdateResponse400 = {
+  data: AccountsErrorResponseApi
+  status: 400
+}
+
+export type accountsNotificationPreferencesPartialUpdateResponse401 = {
+  data: AccountsErrorResponseApi
+  status: 401
+}
+
+export type accountsNotificationPreferencesPartialUpdateResponse403 = {
+  data: AccountsErrorResponseApi
+  status: 403
+}
+
+export type accountsNotificationPreferencesPartialUpdateResponse404 = {
+  data: AccountsErrorResponseApi
+  status: 404
+}
+
+export type accountsNotificationPreferencesPartialUpdateResponse500 = {
+  data: AccountsErrorResponseApi
+  status: 500
+}
+
+export type accountsNotificationPreferencesPartialUpdateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 401 | 403 | 404 | 500>
+}
+
+export type accountsNotificationPreferencesPartialUpdateResponseSuccess = (accountsNotificationPreferencesPartialUpdateResponse200) & {
+  headers: Headers;
+};
+export type accountsNotificationPreferencesPartialUpdateResponseError = (accountsNotificationPreferencesPartialUpdateResponse400 | accountsNotificationPreferencesPartialUpdateResponse401 | accountsNotificationPreferencesPartialUpdateResponse403 | accountsNotificationPreferencesPartialUpdateResponse404 | accountsNotificationPreferencesPartialUpdateResponse500 | accountsNotificationPreferencesPartialUpdateResponseDefault) & {
+  headers: Headers;
+};
+
+export type accountsNotificationPreferencesPartialUpdateResponse = (accountsNotificationPreferencesPartialUpdateResponseSuccess | accountsNotificationPreferencesPartialUpdateResponseError)
+
+export const getAccountsNotificationPreferencesPartialUpdateUrl = () => {
+
+
+
+
+  return `/accounts/notification-preferences/`
+}
+
+export const accountsNotificationPreferencesPartialUpdate = async (notificationSettingsPatchRequestApi: NotificationSettingsPatchRequestApi, options?: RequestInit): Promise<accountsNotificationPreferencesPartialUpdateResponse> => {
+
+  return apiMutator<accountsNotificationPreferencesPartialUpdateResponse>(getAccountsNotificationPreferencesPartialUpdateUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      notificationSettingsPatchRequestApi,)
   }
 );}
 

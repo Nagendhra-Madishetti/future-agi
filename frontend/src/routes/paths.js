@@ -42,6 +42,7 @@ export const paths = {
       falconAIConnectors: `${ROOTS.DASHBOARD}/settings/falcon-ai-connectors`,
       orgSettings: `${ROOTS.DASHBOARD}/settings/org-settings`,
       usageSummary: `${ROOTS.DASHBOARD}/settings/usage-summary`,
+      notifications: `${ROOTS.DASHBOARD}/settings/notifications`,
       billing: `${ROOTS.DASHBOARD}/settings/billing`,
       pricing: `${ROOTS.DASHBOARD}/settings/pricing`,
       eeLicenses: `${ROOTS.DASHBOARD}/settings/ee-licenses`,

@@ -569,6 +569,11 @@ export const endpoints = {
     usageTotals: apiPath("/usage/workspace-usage-summary/"),
     workspaceUsage: apiPath("/usage/workspace-eval-summary/"),
     usageMetrics: apiPath("/usage/usage-summary/"),
+    notifications: apiPath("/accounts/notification-preferences/"),
+    notificationChannelTest: (id) =>
+      apiPath("/accounts/notification-channels/{channel_id}/test/", {
+        channel_id: id,
+      }),
     v2: {
       usageOverview: apiPath("/usage/v2/usage-overview/"),
       usageTimeSeries: apiPath("/usage/v2/usage-time-series/"),

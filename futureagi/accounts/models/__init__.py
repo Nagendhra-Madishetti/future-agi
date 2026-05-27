@@ -1,6 +1,9 @@
 from accounts.models.audit_log import AuditLog
 from accounts.models.aws_marketplace import AWSMarketplaceCustomer
 from accounts.models.onboarding import (
+    NotificationChannel,
+    NotificationDeliveryLog,
+    NotificationPreference,
     OnboardingActivationEvent,
     OnboardingGoal,
     OnboardingLifecycleEvaluationLog,

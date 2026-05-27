@@ -5,7 +5,7 @@
 export const API_SURFACE_CONTRACT = Object.freeze({
   "generatedFrom": "api_contracts/openapi/swagger.json",
   "swaggerVersion": "2.0",
-  "endpointCount": 985,
+  "endpointCount": 987,
   "groups": {
     "accounts": {
       "/accounts/2fa/recovery-codes/": [
@@ -105,6 +105,13 @@ export const API_SURFACE_CONTRACT = Object.freeze({
       ],
       "/accounts/me/timezone/": [
         "post"
+      ],
+      "/accounts/notification-channels/{channel_id}/test/": [
+        "post"
+      ],
+      "/accounts/notification-preferences/": [
+        "get",
+        "patch"
       ],
       "/accounts/notifications/snooze/": [
         "get"
@@ -3456,6 +3463,13 @@ export const API_SURFACE_PATHS = Object.freeze({
   ],
   "/accounts/me/timezone/": [
     "post"
+  ],
+  "/accounts/notification-channels/{channel_id}/test/": [
+    "post"
+  ],
+  "/accounts/notification-preferences/": [
+    "get",
+    "patch"
   ],
   "/accounts/notifications/snooze/": [
     "get"

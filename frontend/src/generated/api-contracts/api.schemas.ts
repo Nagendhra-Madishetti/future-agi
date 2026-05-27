@@ -1858,6 +1858,333 @@ export interface TimezoneResponseApi {
   timezone: string;
 }
 
+export type NotificationChannelApiScope = typeof NotificationChannelApiScope[keyof typeof NotificationChannelApiScope];
+
+
+export const NotificationChannelApiScope = {
+  organization: 'organization',
+  workspace: 'workspace',
+} as const;
+
+export type NotificationChannelApiType = typeof NotificationChannelApiType[keyof typeof NotificationChannelApiType];
+
+
+export const NotificationChannelApiType = {
+  email_list: 'email_list',
+  slack_webhook: 'slack_webhook',
+  webhook: 'webhook',
+} as const;
+
+export type NotificationChannelApiLastTestStatus = typeof NotificationChannelApiLastTestStatus[keyof typeof NotificationChannelApiLastTestStatus];
+
+
+export const NotificationChannelApiLastTestStatus = {
+  untested: 'untested',
+  ready: 'ready',
+  failed: 'failed',
+} as const;
+
+export type NotificationChannelApiConfig = { [key: string]: unknown };
+
+export type NotificationChannelApiMetadata = { [key: string]: unknown };
+
+export interface NotificationChannelApi {
+  id?: string;
+  scope?: NotificationChannelApiScope;
+  type: NotificationChannelApiType;
+  /** @minLength 1 */
+  display_name: string;
+  target_identifier?: string;
+  config?: NotificationChannelApiConfig;
+  is_active?: boolean;
+  last_tested_at?: string;
+  last_test_status?: NotificationChannelApiLastTestStatus;
+  metadata?: NotificationChannelApiMetadata;
+}
+
+export interface NotificationChannelTestResultApi {
+  channel: NotificationChannelApi;
+}
+
+export interface NotificationChannelTestResponseApi {
+  status: boolean;
+  result: NotificationChannelTestResultApi;
+}
+
+export type NotificationFamilyApiId = typeof NotificationFamilyApiId[keyof typeof NotificationFamilyApiId];
+
+
+export const NotificationFamilyApiId = {
+  product_onboarding: 'product_onboarding',
+  daily_quality_digest: 'daily_quality_digest',
+  usage_budget: 'usage_budget',
+  gateway_alert: 'gateway_alert',
+  observe_monitor: 'observe_monitor',
+  eval_quality_alert: 'eval_quality_alert',
+  workspace_admin: 'workspace_admin',
+} as const;
+
+export type NotificationFamilyApiDefaultChannelsItem = typeof NotificationFamilyApiDefaultChannelsItem[keyof typeof NotificationFamilyApiDefaultChannelsItem];
+
+
+export const NotificationFamilyApiDefaultChannelsItem = {
+  email: 'email',
+  in_app: 'in_app',
+  slack: 'slack',
+  webhook: 'webhook',
+} as const;
+
+export interface NotificationFamilyApi {
+  id: NotificationFamilyApiId;
+  /** @minLength 1 */
+  label: string;
+  /** @minLength 1 */
+  description: string;
+  default_channels: NotificationFamilyApiDefaultChannelsItem[];
+  non_critical: boolean;
+  user_controllable: boolean;
+  workspace_controllable: boolean;
+}
+
+export type NotificationPreferenceApiScope = typeof NotificationPreferenceApiScope[keyof typeof NotificationPreferenceApiScope];
+
+
+export const NotificationPreferenceApiScope = {
+  organization: 'organization',
+  workspace: 'workspace',
+  user: 'user',
+  user_workspace: 'user_workspace',
+} as const;
+
+export type NotificationPreferenceApiFamily = typeof NotificationPreferenceApiFamily[keyof typeof NotificationPreferenceApiFamily];
+
+
+export const NotificationPreferenceApiFamily = {
+  product_onboarding: 'product_onboarding',
+  daily_quality_digest: 'daily_quality_digest',
+  usage_budget: 'usage_budget',
+  gateway_alert: 'gateway_alert',
+  observe_monitor: 'observe_monitor',
+  eval_quality_alert: 'eval_quality_alert',
+  workspace_admin: 'workspace_admin',
+} as const;
+
+export type NotificationPreferenceApiChannel = typeof NotificationPreferenceApiChannel[keyof typeof NotificationPreferenceApiChannel];
+
+
+export const NotificationPreferenceApiChannel = {
+  email: 'email',
+  in_app: 'in_app',
+  slack: 'slack',
+  webhook: 'webhook',
+} as const;
+
+export type NotificationPreferenceApiSettings = { [key: string]: unknown };
+
+export interface NotificationPreferenceApi {
+  id?: string;
+  scope: NotificationPreferenceApiScope;
+  family: NotificationPreferenceApiFamily;
+  channel: NotificationPreferenceApiChannel;
+  enabled: boolean;
+  mute_until?: string;
+  /** @minimum 1 */
+  frequency_cap_minutes?: number;
+  settings?: NotificationPreferenceApiSettings;
+  /** @minLength 1 */
+  source?: string;
+}
+
+export type NotificationDecisionApiFamily = typeof NotificationDecisionApiFamily[keyof typeof NotificationDecisionApiFamily];
+
+
+export const NotificationDecisionApiFamily = {
+  product_onboarding: 'product_onboarding',
+  daily_quality_digest: 'daily_quality_digest',
+  usage_budget: 'usage_budget',
+  gateway_alert: 'gateway_alert',
+  observe_monitor: 'observe_monitor',
+  eval_quality_alert: 'eval_quality_alert',
+  workspace_admin: 'workspace_admin',
+} as const;
+
+export type NotificationDecisionApiChannel = typeof NotificationDecisionApiChannel[keyof typeof NotificationDecisionApiChannel];
+
+
+export const NotificationDecisionApiChannel = {
+  email: 'email',
+  in_app: 'in_app',
+  slack: 'slack',
+  webhook: 'webhook',
+} as const;
+
+export interface NotificationDecisionApi {
+  allowed: boolean;
+  family: NotificationDecisionApiFamily;
+  channel: NotificationDecisionApiChannel;
+  reason?: string;
+  /** @minLength 1 */
+  source: string;
+  preference_id?: string;
+}
+
+export type NotificationDeliveryLogApiFamily = typeof NotificationDeliveryLogApiFamily[keyof typeof NotificationDeliveryLogApiFamily];
+
+
+export const NotificationDeliveryLogApiFamily = {
+  product_onboarding: 'product_onboarding',
+  daily_quality_digest: 'daily_quality_digest',
+  usage_budget: 'usage_budget',
+  gateway_alert: 'gateway_alert',
+  observe_monitor: 'observe_monitor',
+  eval_quality_alert: 'eval_quality_alert',
+  workspace_admin: 'workspace_admin',
+} as const;
+
+export type NotificationDeliveryLogApiChannel = typeof NotificationDeliveryLogApiChannel[keyof typeof NotificationDeliveryLogApiChannel];
+
+
+export const NotificationDeliveryLogApiChannel = {
+  email: 'email',
+  in_app: 'in_app',
+  slack: 'slack',
+  webhook: 'webhook',
+} as const;
+
+export type NotificationDeliveryLogApiStatus = typeof NotificationDeliveryLogApiStatus[keyof typeof NotificationDeliveryLogApiStatus];
+
+
+export const NotificationDeliveryLogApiStatus = {
+  eligible: 'eligible',
+  suppressed: 'suppressed',
+  sent: 'sent',
+  failed: 'failed',
+  clicked: 'clicked',
+  completed: 'completed',
+} as const;
+
+export type NotificationDeliveryLogApiMetadata = { [key: string]: unknown };
+
+export interface NotificationDeliveryLogApi {
+  id: string;
+  family: NotificationDeliveryLogApiFamily;
+  /** @minLength 1 */
+  source_type: string;
+  source_id?: string;
+  channel: NotificationDeliveryLogApiChannel;
+  recipient_type?: string;
+  recipient_identifier_masked?: string;
+  notification_key?: string;
+  stage?: string;
+  severity?: string;
+  status: NotificationDeliveryLogApiStatus;
+  suppressed_reason?: string;
+  route_url?: string;
+  sent_at?: string;
+  created_at?: string;
+  metadata?: NotificationDeliveryLogApiMetadata;
+}
+
+export interface NotificationSettingsResultApi {
+  families: NotificationFamilyApi[];
+  channels: NotificationChannelApi[];
+  preferences: NotificationPreferenceApi[];
+  decisions: NotificationDecisionApi[];
+  delivery_logs: NotificationDeliveryLogApi[];
+  can_manage_workspace: boolean;
+}
+
+export interface NotificationSettingsResponseApi {
+  status: boolean;
+  result: NotificationSettingsResultApi;
+}
+
+export type NotificationPreferencePatchItemApiScope = typeof NotificationPreferencePatchItemApiScope[keyof typeof NotificationPreferencePatchItemApiScope];
+
+
+export const NotificationPreferencePatchItemApiScope = {
+  organization: 'organization',
+  workspace: 'workspace',
+  user: 'user',
+  user_workspace: 'user_workspace',
+} as const;
+
+export type NotificationPreferencePatchItemApiFamily = typeof NotificationPreferencePatchItemApiFamily[keyof typeof NotificationPreferencePatchItemApiFamily];
+
+
+export const NotificationPreferencePatchItemApiFamily = {
+  product_onboarding: 'product_onboarding',
+  daily_quality_digest: 'daily_quality_digest',
+  usage_budget: 'usage_budget',
+  gateway_alert: 'gateway_alert',
+  observe_monitor: 'observe_monitor',
+  eval_quality_alert: 'eval_quality_alert',
+  workspace_admin: 'workspace_admin',
+} as const;
+
+export type NotificationPreferencePatchItemApiChannel = typeof NotificationPreferencePatchItemApiChannel[keyof typeof NotificationPreferencePatchItemApiChannel];
+
+
+export const NotificationPreferencePatchItemApiChannel = {
+  email: 'email',
+  in_app: 'in_app',
+  slack: 'slack',
+  webhook: 'webhook',
+} as const;
+
+export type NotificationPreferencePatchItemApiSettings = { [key: string]: unknown };
+
+export interface NotificationPreferencePatchItemApi {
+  scope?: NotificationPreferencePatchItemApiScope;
+  family: NotificationPreferencePatchItemApiFamily;
+  channel: NotificationPreferencePatchItemApiChannel;
+  enabled: boolean;
+  mute_until?: string;
+  /** @minimum 1 */
+  frequency_cap_minutes?: number;
+  settings?: NotificationPreferencePatchItemApiSettings;
+}
+
+export type NotificationChannelPatchItemApiScope = typeof NotificationChannelPatchItemApiScope[keyof typeof NotificationChannelPatchItemApiScope];
+
+
+export const NotificationChannelPatchItemApiScope = {
+  organization: 'organization',
+  workspace: 'workspace',
+} as const;
+
+export type NotificationChannelPatchItemApiType = typeof NotificationChannelPatchItemApiType[keyof typeof NotificationChannelPatchItemApiType];
+
+
+export const NotificationChannelPatchItemApiType = {
+  email_list: 'email_list',
+  slack_webhook: 'slack_webhook',
+  webhook: 'webhook',
+} as const;
+
+export type NotificationChannelPatchItemApiConfig = { [key: string]: unknown };
+
+export type NotificationChannelPatchItemApiMetadata = { [key: string]: unknown };
+
+export interface NotificationChannelPatchItemApi {
+  id?: string;
+  scope?: NotificationChannelPatchItemApiScope;
+  type: NotificationChannelPatchItemApiType;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  display_name: string;
+  config?: NotificationChannelPatchItemApiConfig;
+  is_active?: boolean;
+  metadata?: NotificationChannelPatchItemApiMetadata;
+}
+
+export interface NotificationSettingsPatchRequestApi {
+  preferences?: NotificationPreferencePatchItemApi[];
+  channels?: NotificationChannelPatchItemApi[];
+}
+
 export interface UserOnboardingResultApi {
   role: string;
   goals: string[];

@@ -11,6 +11,8 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from accounts.models import (
+    NotificationDeliveryLog,
+    NotificationPreference,
     OnboardingLifecycleEvaluationLog,
     OnboardingLifecycleSendAllowlist,
     OnboardingLifecycleSendLog,
@@ -28,6 +30,11 @@ from accounts.services.onboarding.lifecycle_template_context import (
     subject_for_campaign,
     template_path,
 )
+from accounts.services.onboarding.notification_preferences import (
+    notification_preference_decision,
+    record_notification_delivery,
+)
+from accounts.services.onboarding.notification_registry import family_for_campaign_group
 from accounts.services.onboarding.signal_resolver import collect_onboarding_signals
 from analytics.posthog_util import posthog_tracker
 from tfc.utils.email import email_helper
@@ -150,6 +157,39 @@ def _record_lifecycle_event(event_name, send_log, now, metadata=None):
     )
 
 
+def _notification_family_for_campaign(campaign_group):
+    return family_for_campaign_group(campaign_group)
+
+
+def _record_delivery(send_log, *, status, now, reason=None, error=None):
+    family = _notification_family_for_campaign(send_log.campaign_group)
+    return record_notification_delivery(
+        organization=send_log.organization,
+        workspace=send_log.workspace,
+        user=send_log.user,
+        family=family,
+        source_type="onboarding_lifecycle",
+        source_id=str(send_log.id),
+        channel=NotificationPreference.CHANNEL_EMAIL,
+        status=status,
+        recipient_type="user",
+        recipient_identifier=getattr(send_log.user, "email", ""),
+        notification_key=send_log.campaign_key,
+        idempotency_key=f"onboarding_lifecycle:{send_log.id}:email:{status}",
+        stage=send_log.activation_stage,
+        severity="info",
+        suppressed_reason=reason,
+        route_url=send_log.target_route,
+        error=error,
+        metadata={
+            "campaign_group": send_log.campaign_group,
+            "template_key": send_log.template_key,
+            "target_success_event": send_log.target_success_event,
+        },
+        now=now,
+    )
+
+
 def _fresh_activation_state(evaluation_log, now):
     request = _LifecycleSendRequest(
         user=evaluation_log.user,
@@ -269,6 +309,19 @@ def _preference_suppression(evaluation_log, now, campaign):
     }.get(campaign.get("campaign_group") if campaign else None)
     if group_field and not getattr(preference, group_field):
         return "unsubscribed"
+    family = _notification_family_for_campaign(
+        campaign.get("campaign_group") if campaign else None
+    )
+    decision = notification_preference_decision(
+        organization=evaluation_log.organization,
+        workspace=evaluation_log.workspace,
+        user=evaluation_log.user,
+        family=family,
+        channel=NotificationPreference.CHANNEL_EMAIL,
+        now=now,
+    )
+    if not decision.allowed:
+        return decision.reason or "user_disabled_family"
     return None
 
 
@@ -412,6 +465,12 @@ def _mark_suppressed(send_log, reason, now):
     )
     _track("lifecycle_email_send_suppressed", send_log)
     _record_lifecycle_event("lifecycle_email_send_suppressed", send_log, now)
+    _record_delivery(
+        send_log,
+        status=NotificationDeliveryLog.STATUS_SUPPRESSED,
+        now=now,
+        reason=reason,
+    )
     return send_log
 
 
@@ -458,6 +517,12 @@ def send_onboarding_lifecycle_email(send_log, *, now=None):
             update_fields=["status", "failure_reason", "provider_status", "updated_at"]
         )
         _track("lifecycle_email_send_failed", send_log)
+        _record_delivery(
+            send_log,
+            status=NotificationDeliveryLog.STATUS_FAILED,
+            now=now,
+            error="missing_template",
+        )
         return send_log
     context = build_lifecycle_template_context(
         send_log=send_log,
@@ -488,6 +553,12 @@ def send_onboarding_lifecycle_email(send_log, *, now=None):
         )
         _track("lifecycle_email_send_failed", send_log)
         _record_lifecycle_event("lifecycle_email_send_failed", send_log, now)
+        _record_delivery(
+            send_log,
+            status=NotificationDeliveryLog.STATUS_FAILED,
+            now=now,
+            error=exc,
+        )
         return send_log
 
     send_log.status = OnboardingLifecycleSendLog.STATUS_SENT
@@ -505,6 +576,11 @@ def send_onboarding_lifecycle_email(send_log, *, now=None):
     )
     _track("lifecycle_email_sent", send_log)
     _record_lifecycle_event("lifecycle_email_sent", send_log, now)
+    _record_delivery(
+        send_log,
+        status=NotificationDeliveryLog.STATUS_SENT,
+        now=now,
+    )
     return send_log
 
 

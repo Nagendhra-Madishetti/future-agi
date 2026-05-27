@@ -21,6 +21,10 @@ from accounts.views.onboarding_lifecycle_preferences import (
     OnboardingLifecycleSnoozeView,
     OnboardingLifecycleUnsubscribeView,
 )
+from accounts.views.onboarding_notifications import (
+    NotificationChannelTestView,
+    NotificationSettingsView,
+)
 from accounts.views.organization_selection import (
     OrganizationSelectionView,
     SwitchOrganizationView,
@@ -158,6 +162,16 @@ user_urls = [
     ),
     path("onboarding/", user_onboarding, name="user-onboarding"),
     path("onboarding/goal/", OnboardingGoalView.as_view(), name="onboarding-goal"),
+    path(
+        "notification-preferences/",
+        NotificationSettingsView.as_view(),
+        name="notification-preferences",
+    ),
+    path(
+        "notification-channels/<uuid:channel_id>/test/",
+        NotificationChannelTestView.as_view(),
+        name="notification-channel-test",
+    ),
     path(
         "onboarding/lifecycle/click/",
         OnboardingLifecycleClickView.as_view(),

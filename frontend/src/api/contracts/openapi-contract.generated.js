@@ -5,7 +5,7 @@
 export const OPENAPI_CONTRACT = Object.freeze({
   "generatedFrom": "api_contracts/openapi/swagger.json",
   "swaggerVersion": "2.0",
-  "endpointCount": 985,
+  "endpointCount": 987,
   "endpoints": {
     "/accounts/2fa/recovery-codes/": {
       "get": {
@@ -1258,6 +1258,104 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/TimezoneResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "default": {
+            "$ref": "#/definitions/ManagementAPIErrorResponse"
+          }
+        }
+      }
+    },
+    "/accounts/notification-channels/{channel_id}/test/": {
+      "post": {
+        "operationId": "accounts_notification-channels_test_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
+        "requestBody": {
+          "$ref": "#/definitions/AccountsEmptyRequest"
+        },
+        "queryParameters": {},
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/NotificationChannelTestResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "default": {
+            "$ref": "#/definitions/ManagementAPIErrorResponse"
+          }
+        }
+      }
+    },
+    "/accounts/notification-preferences/": {
+      "get": {
+        "operationId": "accounts_notification-preferences_list",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": true,
+        "requestBody": null,
+        "queryParameters": {},
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/NotificationSettingsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "default": {
+            "$ref": "#/definitions/ManagementAPIErrorResponse"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "accounts_notification-preferences_partial_update",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
+        "requestBody": {
+          "$ref": "#/definitions/NotificationSettingsPatchRequest"
+        },
+        "queryParameters": {},
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/NotificationSettingsResponse"
           },
           "400": {
             "$ref": "#/definitions/AccountsErrorResponse"
@@ -61059,6 +61157,55 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "NotificationChannelTestResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/NotificationChannelTestResult"
+        }
+      }
+    },
+    "NotificationSettingsPatchRequest": {
+      "type": "object",
+      "properties": {
+        "preferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NotificationPreferencePatchItem"
+          }
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NotificationChannelPatchItem"
+          }
+        }
+      }
+    },
+    "NotificationSettingsResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/NotificationSettingsResult"
+        }
+      }
+    },
     "OTLPHTTPErrorResponse": {
       "type": "object",
       "properties": {
@@ -84587,6 +84734,179 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "NotificationChannelTestResult": {
+      "required": [
+        "channel"
+      ],
+      "type": "object",
+      "properties": {
+        "channel": {
+          "$ref": "#/definitions/NotificationChannel"
+        }
+      }
+    },
+    "NotificationChannelPatchItem": {
+      "required": [
+        "type",
+        "display_name"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string",
+          "enum": [
+            "organization",
+            "workspace"
+          ],
+          "default": "workspace"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "email_list",
+            "slack_webhook",
+            "webhook"
+          ]
+        },
+        "display_name": {
+          "title": "Display name",
+          "type": "string",
+          "maxLength": 120,
+          "minLength": 1
+        },
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean",
+          "default": true
+        },
+        "metadata": {
+          "title": "Metadata",
+          "type": "object"
+        }
+      }
+    },
+    "NotificationPreferencePatchItem": {
+      "required": [
+        "family",
+        "channel",
+        "enabled"
+      ],
+      "type": "object",
+      "properties": {
+        "scope": {
+          "title": "Scope",
+          "type": "string",
+          "enum": [
+            "organization",
+            "workspace",
+            "user",
+            "user_workspace"
+          ],
+          "default": "user"
+        },
+        "family": {
+          "title": "Family",
+          "type": "string",
+          "enum": [
+            "product_onboarding",
+            "daily_quality_digest",
+            "usage_budget",
+            "gateway_alert",
+            "observe_monitor",
+            "eval_quality_alert",
+            "workspace_admin"
+          ]
+        },
+        "channel": {
+          "title": "Channel",
+          "type": "string",
+          "enum": [
+            "email",
+            "in_app",
+            "slack",
+            "webhook"
+          ]
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "mute_until": {
+          "title": "Mute until",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "frequency_cap_minutes": {
+          "title": "Frequency cap minutes",
+          "type": "integer",
+          "minimum": 1,
+          "x-nullable": true
+        },
+        "settings": {
+          "title": "Settings",
+          "type": "object"
+        }
+      }
+    },
+    "NotificationSettingsResult": {
+      "required": [
+        "families",
+        "channels",
+        "preferences",
+        "decisions",
+        "delivery_logs",
+        "can_manage_workspace"
+      ],
+      "type": "object",
+      "properties": {
+        "families": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NotificationFamily"
+          }
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NotificationChannel"
+          }
+        },
+        "preferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NotificationPreference"
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NotificationDecision"
+          }
+        },
+        "delivery_logs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/NotificationDeliveryLog"
+          }
+        },
+        "can_manage_workspace": {
+          "title": "Can manage workspace",
+          "type": "boolean"
+        }
+      }
+    },
     "OTLPPartialSuccess": {
       "type": "object",
       "properties": {
@@ -97495,6 +97815,370 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "object",
           "readOnly": true,
           "x-nullable": true
+        }
+      }
+    },
+    "NotificationChannel": {
+      "required": [
+        "type",
+        "display_name"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string",
+          "enum": [
+            "organization",
+            "workspace"
+          ]
+        },
+        "type": {
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "email_list",
+            "slack_webhook",
+            "webhook"
+          ]
+        },
+        "display_name": {
+          "title": "Display name",
+          "type": "string",
+          "minLength": 1
+        },
+        "target_identifier": {
+          "title": "Target identifier",
+          "type": "string",
+          "x-nullable": true
+        },
+        "config": {
+          "title": "Config",
+          "type": "object"
+        },
+        "is_active": {
+          "title": "Is active",
+          "type": "boolean",
+          "default": true
+        },
+        "last_tested_at": {
+          "title": "Last tested at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "last_test_status": {
+          "title": "Last test status",
+          "type": "string",
+          "enum": [
+            "untested",
+            "ready",
+            "failed"
+          ]
+        },
+        "metadata": {
+          "title": "Metadata",
+          "type": "object"
+        }
+      }
+    },
+    "NotificationDecision": {
+      "required": [
+        "allowed",
+        "family",
+        "channel",
+        "source"
+      ],
+      "type": "object",
+      "properties": {
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "family": {
+          "title": "Family",
+          "type": "string",
+          "enum": [
+            "product_onboarding",
+            "daily_quality_digest",
+            "usage_budget",
+            "gateway_alert",
+            "observe_monitor",
+            "eval_quality_alert",
+            "workspace_admin"
+          ]
+        },
+        "channel": {
+          "title": "Channel",
+          "type": "string",
+          "enum": [
+            "email",
+            "in_app",
+            "slack",
+            "webhook"
+          ]
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string",
+          "x-nullable": true
+        },
+        "source": {
+          "title": "Source",
+          "type": "string",
+          "minLength": 1
+        },
+        "preference_id": {
+          "title": "Preference id",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        }
+      }
+    },
+    "NotificationDeliveryLog": {
+      "required": [
+        "id",
+        "family",
+        "source_type",
+        "channel",
+        "status"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "family": {
+          "title": "Family",
+          "type": "string",
+          "enum": [
+            "product_onboarding",
+            "daily_quality_digest",
+            "usage_budget",
+            "gateway_alert",
+            "observe_monitor",
+            "eval_quality_alert",
+            "workspace_admin"
+          ]
+        },
+        "source_type": {
+          "title": "Source type",
+          "type": "string",
+          "minLength": 1
+        },
+        "source_id": {
+          "title": "Source id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "channel": {
+          "title": "Channel",
+          "type": "string",
+          "enum": [
+            "email",
+            "in_app",
+            "slack",
+            "webhook"
+          ]
+        },
+        "recipient_type": {
+          "title": "Recipient type",
+          "type": "string"
+        },
+        "recipient_identifier_masked": {
+          "title": "Recipient identifier masked",
+          "type": "string"
+        },
+        "notification_key": {
+          "title": "Notification key",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "enum": [
+            "eligible",
+            "suppressed",
+            "sent",
+            "failed",
+            "clicked",
+            "completed"
+          ]
+        },
+        "suppressed_reason": {
+          "title": "Suppressed reason",
+          "type": "string",
+          "x-nullable": true
+        },
+        "route_url": {
+          "title": "Route url",
+          "type": "string"
+        },
+        "sent_at": {
+          "title": "Sent at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "created_at": {
+          "title": "Created at",
+          "type": "string",
+          "format": "date-time"
+        },
+        "metadata": {
+          "title": "Metadata",
+          "type": "object"
+        }
+      }
+    },
+    "NotificationFamily": {
+      "required": [
+        "id",
+        "label",
+        "description",
+        "default_channels",
+        "non_critical",
+        "user_controllable",
+        "workspace_controllable"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "enum": [
+            "product_onboarding",
+            "daily_quality_digest",
+            "usage_budget",
+            "gateway_alert",
+            "observe_monitor",
+            "eval_quality_alert",
+            "workspace_admin"
+          ]
+        },
+        "label": {
+          "title": "Label",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "title": "Description",
+          "type": "string",
+          "minLength": 1
+        },
+        "default_channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "email",
+              "in_app",
+              "slack",
+              "webhook"
+            ]
+          }
+        },
+        "non_critical": {
+          "title": "Non critical",
+          "type": "boolean"
+        },
+        "user_controllable": {
+          "title": "User controllable",
+          "type": "boolean"
+        },
+        "workspace_controllable": {
+          "title": "Workspace controllable",
+          "type": "boolean"
+        }
+      }
+    },
+    "NotificationPreference": {
+      "required": [
+        "scope",
+        "family",
+        "channel",
+        "enabled"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string",
+          "enum": [
+            "organization",
+            "workspace",
+            "user",
+            "user_workspace"
+          ]
+        },
+        "family": {
+          "title": "Family",
+          "type": "string",
+          "enum": [
+            "product_onboarding",
+            "daily_quality_digest",
+            "usage_budget",
+            "gateway_alert",
+            "observe_monitor",
+            "eval_quality_alert",
+            "workspace_admin"
+          ]
+        },
+        "channel": {
+          "title": "Channel",
+          "type": "string",
+          "enum": [
+            "email",
+            "in_app",
+            "slack",
+            "webhook"
+          ]
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "mute_until": {
+          "title": "Mute until",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "frequency_cap_minutes": {
+          "title": "Frequency cap minutes",
+          "type": "integer",
+          "minimum": 1,
+          "x-nullable": true
+        },
+        "settings": {
+          "title": "Settings",
+          "type": "object"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string",
+          "minLength": 1
         }
       }
     },

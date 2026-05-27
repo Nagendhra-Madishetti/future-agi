@@ -98,6 +98,12 @@ const UserManagementV2 = lazyWithRetry(
 const BillingPageV2 = lazyWithRetry(
   () => import("src/sections/settings/BillingV2/BillingPage"),
 );
+const NotificationSettingsPage = lazyWithRetry(
+  () =>
+    import(
+      "src/sections/settings/NotificationSettings/NotificationSettingsPage"
+    ),
+);
 const EELicensesPage = lazyWithRetry(
   () => import("src/sections/settings/EELicenses/EELicensesPage"),
 );
@@ -577,6 +583,24 @@ export const dashboardRoutes = (
           ]}
         >
           <UsageSummary />
+        </RoleProtection>
+      ),
+    },
+    {
+      path: "notifications",
+      element: (
+        <RoleProtection
+          allowedRoles={[
+            "Owner",
+            "Admin",
+            "Member",
+            "Viewer",
+            "workspace_admin",
+            "workspace_member",
+            "workspace_viewer",
+          ]}
+        >
+          <NotificationSettingsPage />
         </RoleProtection>
       ),
     },

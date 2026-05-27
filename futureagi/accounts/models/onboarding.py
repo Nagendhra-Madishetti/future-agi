@@ -530,3 +530,296 @@ class OnboardingLifecycleSendLog(BaseModel):
 
     def __str__(self):
         return f"{self.campaign_key}:{self.status} for {self.user_id}"
+
+
+class NotificationPreference(BaseModel):
+    FAMILY_PRODUCT_ONBOARDING = "product_onboarding"
+    FAMILY_DAILY_QUALITY_DIGEST = "daily_quality_digest"
+    FAMILY_USAGE_BUDGET = "usage_budget"
+    FAMILY_GATEWAY_ALERT = "gateway_alert"
+    FAMILY_OBSERVE_MONITOR = "observe_monitor"
+    FAMILY_EVAL_QUALITY_ALERT = "eval_quality_alert"
+    FAMILY_WORKSPACE_ADMIN = "workspace_admin"
+
+    CHANNEL_EMAIL = "email"
+    CHANNEL_IN_APP = "in_app"
+    CHANNEL_SLACK = "slack"
+    CHANNEL_WEBHOOK = "webhook"
+
+    FAMILY_CHOICES = (
+        (FAMILY_PRODUCT_ONBOARDING, FAMILY_PRODUCT_ONBOARDING),
+        (FAMILY_DAILY_QUALITY_DIGEST, FAMILY_DAILY_QUALITY_DIGEST),
+        (FAMILY_USAGE_BUDGET, FAMILY_USAGE_BUDGET),
+        (FAMILY_GATEWAY_ALERT, FAMILY_GATEWAY_ALERT),
+        (FAMILY_OBSERVE_MONITOR, FAMILY_OBSERVE_MONITOR),
+        (FAMILY_EVAL_QUALITY_ALERT, FAMILY_EVAL_QUALITY_ALERT),
+        (FAMILY_WORKSPACE_ADMIN, FAMILY_WORKSPACE_ADMIN),
+    )
+    CHANNEL_CHOICES = (
+        (CHANNEL_EMAIL, CHANNEL_EMAIL),
+        (CHANNEL_IN_APP, CHANNEL_IN_APP),
+        (CHANNEL_SLACK, CHANNEL_SLACK),
+        (CHANNEL_WEBHOOK, CHANNEL_WEBHOOK),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "accounts.Organization",
+        on_delete=models.CASCADE,
+        related_name="notification_preferences",
+    )
+    workspace = models.ForeignKey(
+        "accounts.Workspace",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notification_preferences",
+    )
+    user = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notification_preferences",
+    )
+    family = models.CharField(max_length=64, choices=FAMILY_CHOICES, db_index=True)
+    channel = models.CharField(max_length=32, choices=CHANNEL_CHOICES, db_index=True)
+    enabled = models.BooleanField(default=True, db_index=True)
+    mute_until = models.DateTimeField(null=True, blank=True, db_index=True)
+    frequency_cap_minutes = models.PositiveIntegerField(null=True, blank=True)
+    settings = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_notification_preferences",
+    )
+    updated_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="updated_notification_preferences",
+    )
+
+    class Meta:
+        db_table = "accounts_notification_preference"
+        ordering = ("family", "channel", "-updated_at")
+        indexes = [
+            models.Index(
+                fields=["organization", "workspace", "family", "channel"],
+                name="notif_pref_org_ws_family",
+            ),
+            models.Index(
+                fields=["organization", "user", "family", "channel"],
+                name="notif_pref_org_user_family",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "family", "channel"],
+                condition=models.Q(
+                    workspace__isnull=True,
+                    user__isnull=True,
+                    deleted=False,
+                ),
+                name="notif_pref_unique_org",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "workspace", "family", "channel"],
+                condition=models.Q(
+                    workspace__isnull=False,
+                    user__isnull=True,
+                    deleted=False,
+                ),
+                name="notif_pref_unique_ws",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "user", "family", "channel"],
+                condition=models.Q(
+                    workspace__isnull=True,
+                    user__isnull=False,
+                    deleted=False,
+                ),
+                name="notif_pref_unique_user_org",
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "workspace", "user", "family", "channel"],
+                condition=models.Q(
+                    workspace__isnull=False,
+                    user__isnull=False,
+                    deleted=False,
+                ),
+                name="notif_pref_unique_user_ws",
+            ),
+        ]
+
+    def __str__(self):
+        scope = self.workspace_id or self.user_id or "organization"
+        return f"{self.family}:{self.channel}:{scope}"
+
+
+class NotificationChannel(BaseModel):
+    TYPE_EMAIL_LIST = "email_list"
+    TYPE_SLACK_WEBHOOK = "slack_webhook"
+    TYPE_WEBHOOK = "webhook"
+
+    STATUS_UNTESTED = "untested"
+    STATUS_READY = "ready"
+    STATUS_FAILED = "failed"
+
+    TYPE_CHOICES = (
+        (TYPE_EMAIL_LIST, TYPE_EMAIL_LIST),
+        (TYPE_SLACK_WEBHOOK, TYPE_SLACK_WEBHOOK),
+        (TYPE_WEBHOOK, TYPE_WEBHOOK),
+    )
+    STATUS_CHOICES = (
+        (STATUS_UNTESTED, STATUS_UNTESTED),
+        (STATUS_READY, STATUS_READY),
+        (STATUS_FAILED, STATUS_FAILED),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "accounts.Organization",
+        on_delete=models.CASCADE,
+        related_name="notification_channels",
+    )
+    workspace = models.ForeignKey(
+        "accounts.Workspace",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notification_channels",
+    )
+    type = models.CharField(max_length=32, choices=TYPE_CHOICES, db_index=True)
+    display_name = models.CharField(max_length=120)
+    target_identifier = models.CharField(max_length=255, blank=True, default="")
+    encrypted_config = models.TextField(null=True, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_notification_channels",
+    )
+    last_tested_at = models.DateTimeField(null=True, blank=True)
+    last_test_status = models.CharField(
+        max_length=32,
+        choices=STATUS_CHOICES,
+        default=STATUS_UNTESTED,
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "accounts_notification_channel"
+        ordering = ("type", "display_name")
+        indexes = [
+            models.Index(
+                fields=["organization", "workspace", "type", "is_active"],
+                name="notif_channel_org_ws_type",
+            ),
+            models.Index(
+                fields=["organization", "is_active"],
+                name="notif_channel_org_active",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.type}:{self.display_name}"
+
+
+class NotificationDeliveryLog(BaseModel):
+    STATUS_ELIGIBLE = "eligible"
+    STATUS_SUPPRESSED = "suppressed"
+    STATUS_SENT = "sent"
+    STATUS_FAILED = "failed"
+    STATUS_CLICKED = "clicked"
+    STATUS_COMPLETED = "completed"
+
+    STATUS_CHOICES = (
+        (STATUS_ELIGIBLE, STATUS_ELIGIBLE),
+        (STATUS_SUPPRESSED, STATUS_SUPPRESSED),
+        (STATUS_SENT, STATUS_SENT),
+        (STATUS_FAILED, STATUS_FAILED),
+        (STATUS_CLICKED, STATUS_CLICKED),
+        (STATUS_COMPLETED, STATUS_COMPLETED),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "accounts.Organization",
+        on_delete=models.CASCADE,
+        related_name="notification_delivery_logs",
+    )
+    workspace = models.ForeignKey(
+        "accounts.Workspace",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notification_delivery_logs",
+    )
+    user = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notification_delivery_logs",
+    )
+    family = models.CharField(max_length=64, db_index=True)
+    source_type = models.CharField(max_length=64)
+    source_id = models.CharField(max_length=128, null=True, blank=True)
+    channel = models.CharField(max_length=32, db_index=True)
+    recipient_type = models.CharField(max_length=64, blank=True, default="")
+    recipient_identifier_masked = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
+    notification_key = models.CharField(max_length=160, blank=True, default="")
+    idempotency_key = models.CharField(
+        max_length=220,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    stage = models.CharField(max_length=96, blank=True, default="")
+    severity = models.CharField(max_length=32, blank=True, default="")
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, db_index=True)
+    suppressed_reason = models.CharField(max_length=64, null=True, blank=True)
+    route_url = models.TextField(blank=True, default="")
+    sent_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    clicked_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    error = models.TextField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "accounts_notification_delivery_log"
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(
+                fields=["organization", "workspace", "family", "-created_at"],
+                name="notif_log_org_ws_family",
+            ),
+            models.Index(
+                fields=["organization", "status", "-created_at"],
+                name="notif_log_org_status",
+            ),
+            models.Index(
+                fields=["family", "channel", "status"],
+                name="notif_log_family_channel",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "idempotency_key"],
+                condition=models.Q(idempotency_key__isnull=False, deleted=False),
+                name="notif_log_unique_idempotency",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.family}:{self.channel}:{self.status}"

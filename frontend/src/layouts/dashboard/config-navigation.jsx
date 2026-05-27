@@ -334,6 +334,7 @@ const SettingsIcons = {
   Pricing: settingsIcon("plansPricing_new"),
   Billing: settingsIcon("Billing_new"),
   Profile: settingsIcon("Profile_new"),
+  Notifications: <Iconify icon="mdi:bell-outline" width={20} />,
   Workspaces: settingsIcon("ic_new_workspace"),
   General: settingsIcon("ic_new_setting"),
   Security: settingsIcon("Security"),
@@ -394,6 +395,11 @@ export function useNavSettingsData() {
             title: "Profile",
             path: "/dashboard/settings/profile-settings",
             icon: SettingsIcons.Profile,
+          },
+          {
+            title: "Notifications",
+            path: "/dashboard/settings/notifications",
+            icon: SettingsIcons.Notifications,
           },
         ],
       });
