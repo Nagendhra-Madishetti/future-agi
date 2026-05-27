@@ -29,6 +29,7 @@ import { useSearchParams } from "react-router-dom";
 import { useSnackbar } from "notistack";
 import { useDeploymentMode } from "src/hooks/useDeploymentMode";
 import Iconify from "src/components/iconify";
+import CustomTooltip from "src/components/tooltip/CustomTooltip";
 import axios, { endpoints } from "src/utils/axios";
 
 import { useEvalDetail, useUpdateEval } from "../hooks/useEvalDetail";
@@ -594,6 +595,17 @@ const EvalDetailPage = () => {
 
   const evalType = evalData?.eval_type || "llm";
   const isSystemEval = evalData?.owner === "system";
+
+  const hasDataInjection =
+    evalType === "agent" &&
+    Array.isArray(contextOptions) &&
+    contextOptions.some((o) => o && o !== "variables_only");
+
+  const needsTemplateVariable =
+    evalType !== "code" &&
+    !hasDataInjection &&
+    !isComposite &&
+    !/\{\{\s*[^{}]+?\s*\}\}/.test(instructions);
 
   // Fetch composite detail (children, weights) when viewing a composite
   const { data: compositeDetail } = useCompositeDetail(evalId, isComposite);
@@ -1842,9 +1854,11 @@ const EvalDetailPage = () => {
 
                   <Tooltip
                     title={
-                      !isPlaygroundReady && !isTesting
-                        ? "Map all required keys before running"
-                        : ""
+                      needsTemplateVariable
+                        ? "Instructions must contain at least one template variable (e.g. {{input}})"
+                        : !isPlaygroundReady && !isTesting
+                          ? "Map all required keys before running"
+                          : ""
                     }
                     placement="top"
                   >
@@ -1853,7 +1867,7 @@ const EvalDetailPage = () => {
                         variant={isComposite ? "contained" : "outlined"}
                         size="small"
                         onClick={handleTestEvaluation}
-                        disabled={isTesting || !isPlaygroundReady}
+                        disabled={isTesting || !isPlaygroundReady || needsTemplateVariable}
                         startIcon={
                           isTesting ? (
                             <CircularProgress size={14} />
@@ -1875,22 +1889,33 @@ const EvalDetailPage = () => {
                     </span>
                   </Tooltip>
                   {!isSystemEval && !isComposite && (
-                    <Button
-                      variant="contained"
+                    <CustomTooltip
+                      show={needsTemplateVariable}
+                      title="Instructions must contain at least one template variable (e.g. {{input}})"
+                      arrow
                       size="small"
-                      onClick={handleSaveVersion}
-                      disabled={isSaving || !isDirty}
-                      startIcon={
-                        isSaving ? (
-                          <CircularProgress size={14} />
-                        ) : (
-                          <Iconify icon="mdi:content-save-outline" width={16} />
-                        )
-                      }
-                      sx={{ textTransform: "none" }}
+                      type="black"
+                      placement="top"
                     >
-                      {isSaving ? "Saving..." : "Save Version"}
-                    </Button>
+                      <span>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={handleSaveVersion}
+                          disabled={isSaving || !isDirty || needsTemplateVariable}
+                          startIcon={
+                            isSaving ? (
+                              <CircularProgress size={14} />
+                            ) : (
+                              <Iconify icon="mdi:content-save-outline" width={16} />
+                            )
+                          }
+                          sx={{ textTransform: "none" }}
+                        >
+                          {isSaving ? "Saving..." : "Save Version"}
+                        </Button>
+                      </span>
+                    </CustomTooltip>
                   )}
                   {!isSystemEval && isComposite && (
                     <Button
