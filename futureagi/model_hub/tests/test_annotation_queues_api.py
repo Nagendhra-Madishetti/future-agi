@@ -23,6 +23,7 @@ from accounts.models.user import User
 from accounts.models.workspace import Workspace, WorkspaceMembership
 from model_hub.models.annotation_queues import AnnotationQueue, AnnotationQueueAnnotator
 from model_hub.models.choices import AnnotationQueueStatusChoices, AnnotatorRole
+from model_hub.models.develop_annotations import AnnotationsLabels
 from tfc.constants.levels import Level
 from tfc.constants.roles import OrganizationRoles
 from tfc.ee_gating import EEResource, FeatureUnavailable
@@ -254,6 +255,18 @@ class TestCreateQueue:
         assert membership.role == AnnotatorRole.MANAGER.value
         assert set(membership.roles) == set(creator["roles"])
 
+    def test_create_persists_request_workspace_and_creator_roles(
+        self, auth_client, user, workspace
+    ):
+        """Public queue create must keep active workspace scope."""
+        resp = create_queue(auth_client, name="Workspace Scoped Queue")
+        assert resp.status_code == status.HTTP_201_CREATED, resp.data
+
+        queue = AnnotationQueue.objects.get(pk=resp.data["id"])
+        assert queue.workspace_id == workspace.id
+        assert queue.created_by_id == user.id
+        assert_default_queue_full_access(queue.id, user)
+
     def test_model_create_gives_creator_all_roles(self, organization, workspace, user):
         """Non-serializer queue creation keeps creator permissions intact."""
         queue = AnnotationQueue.objects.create(
@@ -278,6 +291,66 @@ class TestCreateQueue:
         # Verify nested data
         data = resp.data
         assert len(data.get("labels", [])) > 0
+
+    def test_create_rejects_cross_workspace_label_id(
+        self, auth_client, organization, workspace, user
+    ):
+        other_workspace = Workspace.objects.create(
+            name="Other Label Workspace",
+            organization=organization,
+            is_active=True,
+            created_by=user,
+        )
+        label = AnnotationsLabels.all_objects.create(
+            name=f"Other Workspace Label {uuid.uuid4()}",
+            type="text",
+            organization=organization,
+            workspace=other_workspace,
+        )
+
+        resp = create_queue(
+            auth_client,
+            name="Cross Workspace Label Queue",
+            label_ids=[str(label.id)],
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "label" in str(resp.data).lower()
+        assert not AnnotationQueue.objects.filter(
+            name="Cross Workspace Label Queue",
+            workspace=workspace,
+        ).exists()
+
+    def test_create_rejects_annotator_without_workspace_membership(
+        self, auth_client, organization, workspace
+    ):
+        user_without_workspace = User.objects.create_user(
+            email=f"no-workspace-{uuid.uuid4().hex[:8]}@futureagi.com",
+            password="testpassword123",
+            name="No Workspace Member",
+            organization=organization,
+            organization_role=OrganizationRoles.MEMBER,
+        )
+        OrganizationMembership.no_workspace_objects.create(
+            user=user_without_workspace,
+            organization=organization,
+            role=OrganizationRoles.MEMBER,
+            level=Level.MEMBER,
+            is_active=True,
+        )
+
+        resp = create_queue(
+            auth_client,
+            name="Invalid Annotator Queue",
+            annotator_ids=[str(user_without_workspace.id)],
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "annotator" in str(resp.data).lower()
+        assert not AnnotationQueue.objects.filter(
+            name="Invalid Annotator Queue",
+            workspace=workspace,
+        ).exists()
 
     def test_create_with_description_instructions(self, auth_client):
         """TC-9: Create with description + instructions."""
@@ -391,6 +464,50 @@ class TestCreateQueue:
         assert resp.data["error"]["detail"]["current_usage"] == 3
         assert resp.data["error"]["detail"]["limit"] == 3
         assert not AnnotationQueue.objects.filter(name="Denied Queue").exists()
+
+    def test_plan_limit_blocks_multi_user_create_without_member_rows(
+        self, auth_client, organization, workspace, user
+    ):
+        annotator = create_workspace_member_user(organization, workspace)
+
+        with (
+            patch("tfc.ee_gating.is_oss", return_value=False),
+            patch(
+                "tfc.ee_gating.check_ee_can_create",
+                side_effect=FeatureUnavailable(
+                    EEResource.ANNOTATION_QUEUES.value,
+                    detail="You've reached the 1 annotation queues limit",
+                    code="ENTITLEMENT_LIMIT",
+                    metadata={
+                        "resource": EEResource.ANNOTATION_QUEUES.value,
+                        "current_usage": 1,
+                        "limit": 1,
+                    },
+                ),
+            ),
+        ):
+            resp = create_queue(
+                auth_client,
+                name="Denied Multi User Queue",
+                annotator_ids=[str(user.id), str(annotator.id)],
+                annotator_roles={
+                    str(user.id): [
+                        AnnotatorRole.MANAGER.value,
+                        AnnotatorRole.REVIEWER.value,
+                        AnnotatorRole.ANNOTATOR.value,
+                    ],
+                    str(annotator.id): [AnnotatorRole.ANNOTATOR.value],
+                },
+            )
+
+        assert resp.status_code == status.HTTP_402_PAYMENT_REQUIRED
+        assert resp.data["error"]["code"] == "ENTITLEMENT_LIMIT"
+        assert not AnnotationQueue.objects.filter(
+            name="Denied Multi User Queue"
+        ).exists()
+        assert not AnnotationQueueAnnotator.objects.filter(
+            queue__name="Denied Multi User Queue"
+        ).exists()
 
     def test_create_limit_message_explains_other_workspace_queues(
         self, auth_client, organization, user, workspace
@@ -832,6 +949,53 @@ class TestAnnotationQueueRoleBackfill:
             AnnotatorRole.ANNOTATOR.value,
         ]
         assert "1 creator memberships created" in out.getvalue()
+
+    def test_backfill_command_preserves_non_creator_legacy_reviewer_role(
+        self, organization, workspace, user
+    ):
+        reviewer = create_workspace_member_user(organization, workspace)
+        queue = AnnotationQueue.objects.create(
+            name=f"Legacy Reviewer Queue {uuid.uuid4()}",
+            organization=organization,
+            workspace=workspace,
+            created_by=user,
+        )
+        membership = AnnotationQueueAnnotator.objects.create(
+            queue=queue,
+            user=reviewer,
+            role=AnnotatorRole.REVIEWER.value,
+            roles=[],
+        )
+
+        out = StringIO()
+        call_command("backfill_annotation_queue_roles", stdout=out)
+
+        membership.refresh_from_db()
+        assert membership.role == AnnotatorRole.REVIEWER.value
+        assert membership.roles == [AnnotatorRole.REVIEWER.value]
+        assert "1 memberships updated" in out.getvalue()
+
+    def test_backfill_command_dry_run_rolls_back_membership_updates(
+        self, organization, workspace, user
+    ):
+        queue = AnnotationQueue.objects.create(
+            name=f"Legacy Dry Run Queue {uuid.uuid4()}",
+            organization=organization,
+            workspace=workspace,
+            created_by=user,
+        )
+        membership = AnnotationQueueAnnotator.objects.get(queue=queue, user=user)
+        membership.roles = []
+        membership.save(update_fields=["roles", "updated_at"])
+
+        out = StringIO()
+        call_command("backfill_annotation_queue_roles", "--dry-run", stdout=out)
+
+        membership.refresh_from_db()
+        assert membership.role == AnnotatorRole.MANAGER.value
+        assert membership.roles == []
+        assert "DRY RUN:" in out.getvalue()
+        assert "1 memberships updated" in out.getvalue()
 
 
 # ---------------------------------------------------------------------------

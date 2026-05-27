@@ -8,9 +8,7 @@ Pure data-access layer: no HTTP, no business logic. Service layer composes.
 import re
 import statistics
 from collections import Counter
-from datetime import datetime, timedelta
-from datetime import timezone as dt_tz
-from typing import List, Optional, Tuple
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from django.contrib.auth import get_user_model
@@ -104,11 +102,11 @@ _PRIORITY_TO_SEVERITY = {
 _SEVERITY_TO_PRIORITY = {v: k for k, v in _PRIORITY_TO_SEVERITY.items()}
 
 
-def priority_to_severity(priority: Optional[str]) -> str:
+def priority_to_severity(priority: str | None) -> str:
     return _PRIORITY_TO_SEVERITY.get(priority or "", priority or "medium")
 
 
-def severity_to_priority(severity: Optional[str]) -> str:
+def severity_to_priority(severity: str | None) -> str:
     return _SEVERITY_TO_PRIORITY.get(severity or "", severity or "medium")
 
 
@@ -117,7 +115,7 @@ def severity_to_priority(severity: Optional[str]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _base_qs(project_ids: List[str]) -> QuerySet:
+def _base_qs(project_ids: list[str]) -> QuerySet:
     """Base queryset for scanner + eval clusters across one or more projects."""
     # Exclude legacy pre-revamp rows (old agent-compass) that predate
     # feed fields — they have no issue_group and render as fallback K-IDs.
@@ -131,13 +129,13 @@ def _base_qs(project_ids: List[str]) -> QuerySet:
 def _apply_filters(
     qs: QuerySet,
     *,
-    search: Optional[str] = None,
-    status: Optional[str] = None,
-    severity: Optional[str] = None,
-    fix_layer: Optional[str] = None,
-    source: Optional[str] = None,
-    issue_group: Optional[str] = None,
-    time_range_days: Optional[int] = None,
+    search: str | None = None,
+    status: str | None = None,
+    severity: str | None = None,
+    fix_layer: str | None = None,
+    source: str | None = None,
+    issue_group: str | None = None,
+    time_range_days: int | None = None,
 ) -> QuerySet:
     if search:
         qs = qs.filter(
@@ -166,7 +164,7 @@ def _apply_filters(
 # ---------------------------------------------------------------------------
 
 
-def _fetch_trends_batch(cluster_ids: List[str], days: int = 14) -> dict:
+def _fetch_trends_batch(cluster_ids: list[str], days: int = 14) -> dict:
     """
     Return {cluster_id: [TrendPoint, ...]} with daily buckets over `days`.
 
@@ -194,14 +192,14 @@ def _fetch_trends_batch(cluster_ids: List[str], days: int = 14) -> dict:
             bucket = row["bucket"]
             # TruncDate returns date, serializer needs datetime
             if not isinstance(bucket, datetime):
-                bucket = datetime.combine(bucket, datetime.min.time(), tzinfo=dt_tz.utc)
+                bucket = datetime.combine(bucket, datetime.min.time(), tzinfo=UTC)
             result[cid].append(
                 TrendPoint(timestamp=bucket, value=row["value"], users=0)
             )
     return result
 
 
-def _fetch_users_affected_batch(cluster_ids: List[str]) -> dict:
+def _fetch_users_affected_batch(cluster_ids: list[str]) -> dict:
     """
     Return {cluster_id: distinct_end_user_count}.
 
@@ -262,7 +260,7 @@ def _fetch_users_affected_batch(cluster_ids: List[str]) -> dict:
     return {cid: len(users) for cid, users in users_by_cluster.items() if users}
 
 
-def _fetch_sessions_batch(cluster_ids: List[str]) -> dict:
+def _fetch_sessions_batch(cluster_ids: list[str]) -> dict:
     """Return {cluster_id: distinct_session_count}."""
     if not cluster_ids:
         return {}
@@ -278,7 +276,7 @@ def _fetch_sessions_batch(cluster_ids: List[str]) -> dict:
     return {r["cluster__cluster_id"]: r["sessions"] for r in rows}
 
 
-def _fetch_latest_trace_id_batch(cluster_ids: List[str]) -> dict:
+def _fetch_latest_trace_id_batch(cluster_ids: list[str]) -> dict:
     """Return {cluster_id: latest_trace_id_str}.
 
     Single Postgres DISTINCT ON query — relies on the
@@ -299,9 +297,7 @@ def _fetch_latest_trace_id_batch(cluster_ids: List[str]) -> dict:
     )
 
     return {
-        str(r["cluster__cluster_id"]): str(r["trace_id"])
-        for r in rows
-        if r["trace_id"]
+        str(r["cluster__cluster_id"]): str(r["trace_id"]) for r in rows if r["trace_id"]
     }
 
 
@@ -313,13 +309,13 @@ def _fetch_latest_trace_id_batch(cluster_ids: List[str]) -> dict:
 def _row_from_cluster(
     cluster: TraceErrorGroup,
     *,
-    trends: List[TrendPoint],
+    trends: list[TrendPoint],
     users_affected: int,
     sessions: int,
-    latest_trace_id: Optional[str],
+    latest_trace_id: str | None,
 ) -> FeedListRow:
     """Build a FeedListRow from a TraceErrorGroup + pre-fetched batch data."""
-    assignees: List[str] = []
+    assignees: list[str] = []
     if cluster.assignee:
         assignees.append(cluster.assignee.email or str(cluster.assignee.id))
 
@@ -355,15 +351,15 @@ def _row_from_cluster(
 
 
 def list_clusters(
-    project_ids: List[str],
+    project_ids: list[str],
     *,
-    search: Optional[str] = None,
-    status: Optional[str] = None,
-    severity: Optional[str] = None,
-    fix_layer: Optional[str] = None,
-    source: Optional[str] = None,
-    issue_group: Optional[str] = None,
-    time_range_days: Optional[int] = None,
+    search: str | None = None,
+    status: str | None = None,
+    severity: str | None = None,
+    fix_layer: str | None = None,
+    source: str | None = None,
+    issue_group: str | None = None,
+    time_range_days: int | None = None,
     sort_by: str = "last_seen",
     sort_dir: str = "desc",
     limit: int = 25,
@@ -436,7 +432,7 @@ def list_clusters(
 
 
 def get_stats(
-    project_ids: List[str], *, time_range_days: Optional[int] = None
+    project_ids: list[str], *, time_range_days: int | None = None
 ) -> FeedStats:
     """Top stats bar: counts by status + total affected users."""
     qs = _base_qs(project_ids)
@@ -464,8 +460,8 @@ def get_stats(
 
 
 def get_cluster_detail(
-    cluster_id: str, project_ids: Optional[List[str]] = None
-) -> Optional[FeedDetailCore]:
+    cluster_id: str, project_ids: list[str] | None = None
+) -> FeedDetailCore | None:
     """
     Full detail core for a single cluster.
 
@@ -494,7 +490,7 @@ def get_cluster_detail(
         latest_trace_id=latest_trace_map.get(cluster.cluster_id),
     )
 
-    success_trace: Optional[TracePreview] = None
+    success_trace: TracePreview | None = None
     if cluster.success_trace_id:
         success_trace = TracePreview(
             trace_id=str(cluster.success_trace_id),
@@ -502,7 +498,7 @@ def get_cluster_detail(
             output=_trace_output_str(cluster.success_trace),
         )
 
-    representative_trace: Optional[TracePreview] = None
+    representative_trace: TracePreview | None = None
     if row.trace_id:
         rep = (
             ErrorClusterTraces.objects.filter(
@@ -529,9 +525,9 @@ def get_cluster_detail(
 
 def update_cluster(
     cluster_id: str,
-    project_ids: Optional[List[str]],
+    project_ids: list[str] | None,
     payload: FeedUpdatePayload,
-) -> Optional[FeedDetailCore]:
+) -> FeedDetailCore | None:
     """Update status/severity/assignee on a cluster, return fresh detail."""
     qs = TraceErrorGroup.objects.filter(cluster_id=cluster_id, deleted=False)
     if project_ids is not None:
@@ -540,7 +536,7 @@ def update_cluster(
     if not cluster:
         return None
 
-    update_fields: List[str] = []
+    update_fields: list[str] = []
 
     if payload.status is not None:
         cluster.status = payload.status
@@ -550,8 +546,26 @@ def update_cluster(
         cluster.priority = severity_to_priority(payload.severity)
         update_fields.append("priority")
 
-    if payload.assignee is not None:
-        user = User.objects.filter(email=payload.assignee).first()
+    if payload.assignee_provided:
+        user = None
+        if payload.assignee:
+            user = (
+                User.objects.filter(email__iexact=payload.assignee, is_active=True)
+                .filter(
+                    Q(organization_id=cluster.project.organization_id)
+                    | Q(
+                        organization_memberships__organization_id=cluster.project.organization_id,
+                        organization_memberships__is_active=True,
+                        organization_memberships__deleted=False,
+                    )
+                )
+                .distinct()
+                .first()
+            )
+            if user is None:
+                raise ValueError(
+                    "Assignee is not an active member of this organization"
+                )
         cluster.assignee = user
         update_fields.append("assignee")
 
@@ -567,7 +581,7 @@ def update_cluster(
 # ---------------------------------------------------------------------------
 
 
-def _safe_str(val) -> Optional[str]:
+def _safe_str(val) -> str | None:
     """Ensure a value is a plain string (not a dict/list that would serialize as [object Object])."""
     if val is None:
         return None
@@ -580,19 +594,19 @@ def _safe_str(val) -> Optional[str]:
     return str(val)
 
 
-def _trace_input_str(trace) -> Optional[str]:
+def _trace_input_str(trace) -> str | None:
     if not trace or trace.input is None:
         return None
     return _safe_str(trace.input)
 
 
-def _trace_output_str(trace) -> Optional[str]:
+def _trace_output_str(trace) -> str | None:
     if not trace or trace.output is None:
         return None
     return _safe_str(trace.output)
 
 
-def _trace_ids_for_cluster(cluster_id: str) -> List[str]:
+def _trace_ids_for_cluster(cluster_id: str) -> list[str]:
     """Return all trace_ids linked to a cluster via ErrorClusterTraces."""
     return [
         str(tid)
@@ -609,7 +623,7 @@ def _trace_ids_for_cluster(cluster_id: str) -> List[str]:
 
 def _fetch_events_over_time(
     cluster_id: str, days: int = 14
-) -> List[EventsOverTimePoint]:
+) -> list[EventsOverTimePoint]:
     """Bucket ErrorClusterTraces.created_at into daily error counts."""
     since = timezone.now() - timedelta(days=days)
     rows = (
@@ -704,10 +718,10 @@ _SCANNER_FILLER_STOPWORDS = frozenset(
 
 def _tfidf_distinctive_terms(
     target_doc: str,
-    corpus: List[str],
+    corpus: list[str],
     top_k: int,
-    ngram_range: Tuple[int, int] = (1, 1),
-) -> List[Tuple[str, float]]:
+    ngram_range: tuple[int, int] = (1, 1),
+) -> list[tuple[str, float]]:
     """Rank terms in ``target_doc`` by TF-IDF weight against ``corpus``.
 
     ``corpus`` must include ``target_doc`` as one of its entries. Returns
@@ -740,7 +754,7 @@ def _tfidf_distinctive_terms(
     terms = vec.get_feature_names_out()
     scored = [
         (str(t), float(s))
-        for t, s in zip(terms, row)
+        for t, s in zip(terms, row, strict=True)
         if s > 0 and str(t) not in _SCANNER_FILLER_STOPWORDS
     ]
     scored.sort(key=lambda pair: pair[1], reverse=True)
@@ -749,7 +763,7 @@ def _tfidf_distinctive_terms(
 
 def _project_cluster_briefs_corpus(
     project_id: str,
-) -> Tuple[List[str], List[str]]:
+) -> tuple[list[str], list[str]]:
     """One ``(cluster_ids, docs)`` pair per project — each doc is a cluster's
     concatenated scanner issue briefs. Clusters without briefs are skipped.
     Single query, grouped in Python.
@@ -759,7 +773,7 @@ def _project_cluster_briefs_corpus(
         cluster__source=ClusterSource.SCANNER,
     ).values_list("cluster__cluster_id", "brief")
 
-    by_cluster: dict[str, List[str]] = {}
+    by_cluster: dict[str, list[str]] = {}
     for cid, brief in rows:
         if not cid or not brief:
             continue
@@ -772,7 +786,7 @@ def _project_cluster_briefs_corpus(
 
 def _project_cluster_inputs_corpus(
     project_id: str,
-) -> Tuple[List[str], List[str], dict]:
+) -> tuple[list[str], list[str], dict]:
     """One doc per cluster = all its traces' root inputs concatenated.
 
     Returns ``(cluster_ids, docs, cluster_to_trace_inputs)`` where the last
@@ -783,7 +797,7 @@ def _project_cluster_inputs_corpus(
         cluster__project_id=project_id,
         cluster__source=ClusterSource.SCANNER,
     ).values_list("cluster__cluster_id", "trace_id")
-    cluster_to_traces: dict[str, List[str]] = {}
+    cluster_to_traces: dict[str, list[str]] = {}
     all_trace_ids: set = set()
     for cid, tid in ect_rows:
         if not cid or not tid:
@@ -814,8 +828,8 @@ def _project_cluster_inputs_corpus(
         if text:
             trace_input[tid_str] = str(text)
 
-    cluster_ids: List[str] = []
-    corpus: List[str] = []
+    cluster_ids: list[str] = []
+    corpus: list[str] = []
     per_cluster_inputs: dict = {}
     for cid, tids in cluster_to_traces.items():
         inputs = {tid: trace_input[tid] for tid in tids if tid in trace_input}
@@ -829,7 +843,7 @@ def _project_cluster_inputs_corpus(
 
 def _cluster_highlight_terms(
     cluster_id: str, project_id: str, top_k: int = 10
-) -> List[str]:
+) -> list[str]:
     """TF-IDF-distinctive terms for this cluster's briefs vs the rest of
     the project. Used to light up matching substrings in the failing trace
     evidence reel.
@@ -848,8 +862,8 @@ def _cluster_highlight_terms(
 
 
 def _insight_affected_scope(
-    cluster_id: str, project_id: str, trace_ids: List[str]
-) -> Optional[PatternInsight]:
+    cluster_id: str, project_id: str, trace_ids: list[str]
+) -> PatternInsight | None:
     n = len(trace_ids)
     total = TraceScanResult.objects.filter(project_id=project_id).count()
     if n == 0 or total == 0:
@@ -861,7 +875,7 @@ def _insight_affected_scope(
     )
 
 
-def _insight_category_concentration(cluster_id: str) -> Optional[PatternInsight]:
+def _insight_category_concentration(cluster_id: str) -> PatternInsight | None:
     cats = list(
         TraceScanIssue.objects.filter(cluster__cluster_id=cluster_id).values_list(
             "category", flat=True
@@ -879,7 +893,7 @@ def _insight_category_concentration(cluster_id: str) -> Optional[PatternInsight]
     return PatternInsight(value=value, caption=top)
 
 
-def _insight_fix_layer_concentration(cluster_id: str) -> Optional[PatternInsight]:
+def _insight_fix_layer_concentration(cluster_id: str) -> PatternInsight | None:
     layers = list(
         TraceScanIssue.objects.filter(cluster__cluster_id=cluster_id).values_list(
             "fix_layer", flat=True
@@ -897,9 +911,7 @@ def _insight_fix_layer_concentration(cluster_id: str) -> Optional[PatternInsight
     return PatternInsight(value=value, caption=f"need {top} fix")
 
 
-def _insight_failure_phrase(
-    cluster_id: str, project_id: str
-) -> Optional[PatternInsight]:
+def _insight_failure_phrase(cluster_id: str, project_id: str) -> PatternInsight | None:
     """TF-IDF-distinctive word in this cluster's briefs vs the rest of the
     project. A word with high score is frequent HERE but rare in other
     clusters' briefs — that's signal, not boilerplate.
@@ -934,7 +946,7 @@ def _insight_failure_phrase(
     )
 
 
-def _insight_input_topic(cluster_id: str, project_id: str) -> Optional[PatternInsight]:
+def _insight_input_topic(cluster_id: str, project_id: str) -> PatternInsight | None:
     """TF-IDF-distinctive word in this cluster's user inputs vs the rest of
     the project. Signal: "these traces all share topic X".
     """
@@ -962,7 +974,7 @@ def _insight_input_topic(cluster_id: str, project_id: str) -> Optional[PatternIn
     )
 
 
-def _insight_avg_turns(trace_ids: List[str]) -> Optional[PatternInsight]:
+def _insight_avg_turns(trace_ids: list[str]) -> PatternInsight | None:
     if not trace_ids:
         return None
     metas = TraceScanResult.objects.filter(trace_id__in=trace_ids).values_list(
@@ -982,7 +994,7 @@ def _insight_avg_turns(trace_ids: List[str]) -> Optional[PatternInsight]:
     )
 
 
-def _insight_missing_tools(trace_ids: List[str]) -> Optional[PatternInsight]:
+def _insight_missing_tools(trace_ids: list[str]) -> PatternInsight | None:
     if not trace_ids:
         return None
     metas = TraceScanResult.objects.filter(trace_id__in=trace_ids).values_list(
@@ -1009,7 +1021,7 @@ def _insight_missing_tools(trace_ids: List[str]) -> Optional[PatternInsight]:
     )
 
 
-def _insight_flow_anomaly(cluster_id: str) -> Optional[PatternInsight]:
+def _insight_flow_anomaly(cluster_id: str) -> PatternInsight | None:
     """Fraction of briefs mentioning flow / ordering / missing-step phrases."""
     briefs = list(
         TraceScanIssue.objects.filter(cluster__cluster_id=cluster_id).values_list(
@@ -1030,7 +1042,7 @@ def _insight_flow_anomaly(cluster_id: str) -> Optional[PatternInsight]:
     )
 
 
-def _eval_score_insights(trace_ids: List[str]) -> List[PatternInsight]:
+def _eval_score_insights(trace_ids: list[str]) -> list[PatternInsight]:
     """Build per-eval average score insight cards for eval-sourced clusters.
 
     Returns one card per CustomEvalConfig that has scores on the cluster's traces,
@@ -1085,7 +1097,7 @@ def _fetch_pattern_summary(cluster_id: str) -> PatternSummary:
     ).values_list("key_moments", flat=True)
 
     seen: set = set()
-    key_moments: List[KeyMoment] = []
+    key_moments: list[KeyMoment] = []
     for km_list in scan_key_moments:
         for km in km_list or []:
             kv = km.get("kevinified", "")
@@ -1115,10 +1127,10 @@ def _fetch_pattern_summary(cluster_id: str) -> PatternSummary:
     return PatternSummary(insights=insights, key_moments=key_moments)
 
 
-def _get_root_span(trace_id: str) -> Optional[CHSpan]:
+def _get_root_span(trace_id: str) -> CHSpan | None:
     """Root span = no parent (NULL or empty string).
 
-    Single-trace convenience — uses CHSpanReader.list_by_trace and picks
+    Single-trace convenience -- uses CHSpanReader.list_by_trace and picks
     the LAST parentless span (the legacy ObservationSpan.Meta.ordering
     is `["-start_time"]`, so the old `.first()` returned the newest
     root). Callers iterating many trace ids should use
@@ -1126,24 +1138,14 @@ def _get_root_span(trace_id: str) -> Optional[CHSpan]:
     """
     with get_reader() as reader:
         spans = reader.list_by_trace(str(trace_id))
-    # CH list_by_trace orders by (start_time, id) ASC; legacy PG default
-    # was `-start_time` so .first() returned the latest. Walk in reverse
-    # to preserve the "latest root" pick.
     for s in reversed(spans):
-        if not s.parent_span_id:  # CHSpan.parent_span_id is "" when absent
+        if not s.parent_span_id:
             return s
     return None
 
 
-def _get_root_spans_batch(trace_ids: List[str]) -> dict:
-    """Return {trace_id_str: CHSpan} — latest root span per trace.
-
-    Legacy ObservationSpan.Meta.ordering is `-start_time`, so the PG
-    queryset iteration consumed rows in descending start_time order and
-    the per-trace dict-assignment kept the *first seen* row = the
-    newest root. We match that with one CH read + Python pick of the
-    last parentless span per (start_time ASC) group.
-    """
+def _get_root_spans_batch(trace_ids: list[str]) -> dict:
+    """Return {trace_id_str: CHSpan} -- latest root span per trace."""
     if not trace_ids:
         return {}
     with get_reader() as reader:
@@ -1161,50 +1163,23 @@ def _get_root_spans_batch(trace_ids: List[str]) -> dict:
 
 def _get_trace_totals(
     trace_id: str,
-) -> tuple[Optional[int], Optional[int], Optional[int]]:
+) -> tuple[int | None, int | None, int | None]:
     """Return (latency_ms, prompt_tokens, completion_tokens) aggregated from spans.
 
-    Single-trace convenience — uses _get_trace_totals_batch under the
-    hood so the CH query shape is identical. Callers in a per-trace
-    loop should prefer the batch variant directly to avoid N+1 CH reads.
+    Single-trace convenience -- uses _get_trace_totals_batch under the
+    hood so the CH query shape is identical.
     """
     totals = _get_trace_totals_batch([str(trace_id)])
     return totals.get(str(trace_id), (None, None, None))
 
 
-def _get_trace_totals_batch(trace_ids: List[str]) -> dict:
-    """Return {trace_id_str: (latency, prompt, completion)} aggregated from spans.
-
-    Was: ObservationSpan.filter(trace_id__in=).values("trace_id")
-         .annotate(Sum(latency_ms), Sum(prompt_tokens), Sum(completion_tokens))
-
-    CH replacement: single list_by_trace_ids call + Python rollup keyed
-    by trace_id. Feed page sizes are bounded (~50 traces, span count per
-    trace is bounded) so the in-Python aggregation is cheap.
-
-    Semantic preservation — None vs zero handling:
-      • Trace with no spans → not in the result dict at all. Callers
-        get (None, None, None) via .get default. Matches legacy
-        Sum()-over-empty-set = None.
-      • Trace with spans but every value is None (a defensive case;
-        CHSpan declares these int, not Optional[int]) → slot stays
-        None. Matches legacy Sum()-over-all-NULL = None.
-      • Trace with spans and any non-None value → slot accumulates
-        normally. A span reporting 0 contributes 0 (not promoting
-        None → 0). Matches legacy Sum() ignoring NULLs.
-
-    Caveat: CH schema stores latency_ms / prompt_tokens / completion_tokens
-    as non-nullable int (default 0), so spans that PG would have marked
-    NULL now arrive as 0. p50/p95 latency consumers may pick up zero
-    rows the PG path would have excluded as NULL. This is a schema-
-    level decision (CH25 migration) not a query-helper bug — flagged
-    for the migration's regression suite.
-    """
+def _get_trace_totals_batch(trace_ids: list[str]) -> dict:
+    """Return {trace_id_str: (latency, prompt, completion)} aggregated from spans."""
     if not trace_ids:
         return {}
     with get_reader() as reader:
         spans = reader.list_by_trace_ids([str(t) for t in trace_ids])
-    rollup: dict[str, list[Optional[int]]] = {}
+    rollup: dict[str, list[int | None]] = {}
     for s in spans:
         tid = str(s.trace_id)
         row = rollup.setdefault(tid, [None, None, None])
@@ -1215,7 +1190,7 @@ def _get_trace_totals_batch(trace_ids: List[str]) -> dict:
     return {tid: tuple(values) for tid, values in rollup.items()}
 
 
-def _get_trace_score(trace_id: str) -> Optional[float]:
+def _get_trace_score(trace_id: str) -> float | None:
     """Average EvalLogger score across span-level evals on the trace.
 
     PR3: target_type='span' keeps this average comparable to its pre-row_type
@@ -1225,12 +1200,12 @@ def _get_trace_score(trace_id: str) -> Optional[float]:
     Bool-typed evals contribute via EVAL_SCORE_EXPR (0/1) — sim/voice
     clusters need this or output_bool-only evals silently score 0.
     """
-    return EvalLogger.objects.filter(
-        trace_id=trace_id, target_type="span"
-    ).aggregate(avg=Avg(EVAL_SCORE_EXPR))["avg"]
+    return EvalLogger.objects.filter(trace_id=trace_id, target_type="span").aggregate(
+        avg=Avg(EVAL_SCORE_EXPR)
+    )["avg"]
 
 
-def _get_trace_scores_batch(trace_ids: List[str]) -> dict:
+def _get_trace_scores_batch(trace_ids: list[str]) -> dict:
     """Return {trace_id_str: avg eval score} — span-level evals; bool counted as 0/1."""
     if not trace_ids:
         return {}
@@ -1243,7 +1218,7 @@ def _get_trace_scores_batch(trace_ids: List[str]) -> dict:
     return {str(r["trace_id"]): r["avg"] for r in rows}
 
 
-def _get_scan_results_batch(trace_ids: List[str]) -> dict:
+def _get_scan_results_batch(trace_ids: list[str]) -> dict:
     """Return {trace_id_str: TraceScanResult} — first scan result per trace."""
     if not trace_ids:
         return {}
@@ -1258,7 +1233,7 @@ def _get_scan_results_batch(trace_ids: List[str]) -> dict:
     return out
 
 
-def _highlight_text(text: str, terms: List[str], hl: str) -> object:
+def _highlight_text(text: str, terms: list[str], hl: str) -> object:
     """Wrap matching substrings in ``text`` as rich-text segments.
 
     Returns the original string when nothing matches (frontend ``RichText``
@@ -1277,7 +1252,7 @@ def _highlight_text(text: str, terms: List[str], hl: str) -> object:
         re.IGNORECASE,
     )
 
-    segments: List[dict] = []
+    segments: list[dict] = []
     last = 0
     for m in pattern.finditer(text):
         start, end = m.span()
@@ -1293,10 +1268,10 @@ def _highlight_text(text: str, terms: List[str], hl: str) -> object:
 
 
 def _key_moments_to_reel(
-    key_moments: Optional[list],
-    highlight_terms: Optional[List[str]] = None,
+    key_moments: list | None,
+    highlight_terms: list[str] | None = None,
     hl: str = "error",
-) -> List[dict]:
+) -> list[dict]:
     """
     Map TraceScanResult.key_moments to ReelStep dicts the frontend renders.
 
@@ -1304,7 +1279,7 @@ def _key_moments_to_reel(
     When ``highlight_terms`` is provided, matching substrings inside each
     step's text are wrapped as rich-text segments so the UI can paint them.
     """
-    steps: List[dict] = []
+    steps: list[dict] = []
     for km in key_moments or []:
         verbatim = (km.get("verbatim") or "").strip()
         kevinified = (km.get("kevinified") or "").strip()
@@ -1319,13 +1294,13 @@ def _key_moments_to_reel(
 def _build_representative_trace(
     trace: Trace,
     has_issues: bool,
-    pass_reel: Optional[List[dict]] = None,
-    highlight_terms: Optional[List[str]] = None,
+    pass_reel: list[dict] | None = None,
+    highlight_terms: list[str] | None = None,
     *,
-    root: Optional[CHSpan] = None,
-    totals: Optional[Tuple[Optional[int], Optional[int], Optional[int]]] = None,
-    score: Optional[float] = None,
-    scan_result: Optional[TraceScanResult] = None,
+    root: CHSpan | None = None,
+    totals: tuple[int | None, int | None, int | None] | None = None,
+    score: float | None = None,
+    scan_result: TraceScanResult | None = None,
     _prefetched: bool = False,
 ) -> RepresentativeTrace:
     """Turn a Trace into a RepresentativeTrace dataclass.
@@ -1364,7 +1339,7 @@ def _build_representative_trace(
         output_text = _trace_output_str(trace)
 
     turns = None
-    fail_reel: List[dict] = []
+    fail_reel: list[dict] = []
     if not _prefetched and scan_result is None:
         scan_result = (
             TraceScanResult.objects.filter(trace_id=trace.id)
@@ -1401,7 +1376,7 @@ def _build_representative_trace(
     )
 
 
-def _fetch_success_trace_pass_reel(cluster_id: str) -> List[dict]:
+def _fetch_success_trace_pass_reel(cluster_id: str) -> list[dict]:
     """
     Build the "Working Trace" reel from the cluster's success trace.
 
@@ -1420,7 +1395,7 @@ def _fetch_success_trace_pass_reel(cluster_id: str) -> List[dict]:
         return []
 
     success = cluster.success_trace
-    steps: List[dict] = []
+    steps: list[dict] = []
 
     # 1. User input (from root span or Trace.input)
     root = _get_root_span(str(success.id))
@@ -1454,8 +1429,8 @@ def _fetch_success_trace_pass_reel(cluster_id: str) -> List[dict]:
 def _fetch_representative_traces(
     cluster_id: str,
     project_id: str,
-    limit: Optional[int] = None,
-) -> List[RepresentativeTrace]:
+    limit: int | None = None,
+) -> list[RepresentativeTrace]:
     """
     Failing traces in the cluster (Overview tab's "Traces affected" list).
 
@@ -1487,7 +1462,7 @@ def _fetch_representative_traces(
 
     # First pass: dedupe by trace id so the batch helpers below only fetch
     # what we'll actually emit.
-    deduped: List[Trace] = []
+    deduped: list[Trace] = []
     seen_ids: set = set()
     for ect in ect_rows:
         if not ect.trace:
@@ -1526,7 +1501,7 @@ def _fetch_representative_traces(
 
 
 def _cluster_qs_for_access(
-    cluster_id: str, project_ids: Optional[List[str]] = None
+    cluster_id: str, project_ids: list[str] | None = None
 ) -> QuerySet:
     qs = TraceErrorGroup.objects.filter(cluster_id=cluster_id, deleted=False)
     if project_ids is not None:
@@ -1535,8 +1510,8 @@ def _cluster_qs_for_access(
 
 
 def get_overview(
-    cluster_id: str, project_ids: Optional[List[str]] = None
-) -> Optional[OverviewResponse]:
+    cluster_id: str, project_ids: list[str] | None = None
+) -> OverviewResponse | None:
     """Full Overview tab payload for a cluster."""
     cluster = _cluster_qs_for_access(cluster_id, project_ids).first()
     if not cluster:
@@ -1555,7 +1530,7 @@ def get_overview(
 # ---------------------------------------------------------------------------
 
 
-def _percentile(values: List[int], pct: float) -> int:
+def _percentile(values: list[int], pct: float) -> int:
     """Simple percentile (no numpy dep). pct in [0, 100]."""
     if not values:
         return 0
@@ -1589,14 +1564,9 @@ def _fetch_traces_aggregates(cluster_id: str) -> TracesAggregates:
     # Helper uses EVAL_SCORE_EXPR for bool-aware avg (sim/voice clusters).
     avg_score = _avg_eval_score(trace_ids) or 0.0
 
-    # Latency percentiles: sum(latency_ms) per trace.
-    # Was: ObservationSpan.filter(trace_id__in=).values("trace_id").annotate(
-    #          total=Sum("latency_ms"))
-    # CH replacement reuses _get_trace_totals_batch which already does
-    # the per-trace rollup we need (its tuple shape is
-    # (latency, prompt_tokens, completion_tokens) — pick the first).
+    # Latency percentiles: sum(latency_ms) per trace via CH batch helper.
     totals_by_trace = _get_trace_totals_batch(trace_ids)
-    per_trace_latency: List[int] = [
+    per_trace_latency: list[int] = [
         t[0] for t in totals_by_trace.values() if t[0] is not None
     ]
 
@@ -1604,7 +1574,7 @@ def _fetch_traces_aggregates(cluster_id: str) -> TracesAggregates:
     p95 = _percentile(per_trace_latency, 95)
 
     # Average turn count from scan meta
-    turn_counts: List[int] = []
+    turn_counts: list[int] = []
     for meta in TraceScanResult.objects.filter(trace_id__in=trace_ids).values_list(
         "meta", flat=True
     ):
@@ -1632,18 +1602,8 @@ _COST_PER_TOKEN = 0.0000037
 
 def _fetch_trace_rows(
     cluster_id: str, limit: int, offset: int
-) -> tuple[List[TracesListRow], int]:
-    """Paginated list of traces in the cluster for the AG Grid.
-
-    Pagination order (ECT.created_at DESC) is preserved end-to-end:
-    the dedupe pass walks the over-fetched ECT rows in their original
-    order, and the build loop emits TracesListRow in the same order.
-
-    N+1 avoidance: every per-trace lookup (_get_trace_totals,
-    _get_trace_score, _get_root_span) is replaced with a single
-    pre-batched fetch keyed by the deduped trace_ids slice. CH reads
-    drop from up to `limit` per page to a single round-trip per helper.
-    """
+) -> tuple[list[TracesListRow], int]:
+    """Paginated list of traces in the cluster for the AG Grid."""
     base = (
         ErrorClusterTraces.objects.filter(cluster__cluster_id=cluster_id)
         .select_related("trace")
@@ -1652,10 +1612,7 @@ def _fetch_trace_rows(
 
     total = base.values("trace_id").distinct().count()
 
-    # First pass: dedupe by trace_id, preserving ECT.created_at DESC order.
-    # Stop once we have `limit` distinct traces — saves the batch helpers
-    # from loading data for traces we'd discard.
-    page_traces: List[Trace] = []
+    page_traces: list[Trace] = []
     seen: set = set()
     for ect in base[offset : offset + limit * 3]:  # over-fetch for dedupe
         if not ect.trace:
@@ -1723,10 +1680,10 @@ def _fetch_trace_rows(
 
 def get_traces_tab(
     cluster_id: str,
-    project_ids: Optional[List[str]] = None,
+    project_ids: list[str] | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> Optional[TracesTabResponse]:
+) -> TracesTabResponse | None:
     """Full Traces tab payload."""
     if not _cluster_qs_for_access(cluster_id, project_ids).exists():
         return None
@@ -1742,8 +1699,8 @@ def get_traces_tab(
 
 
 def _trace_ids_in_cluster_window(
-    cluster_id: str, since: datetime, until: Optional[datetime] = None
-) -> List[str]:
+    cluster_id: str, since: datetime, until: datetime | None = None
+) -> list[str]:
     """Trace IDs that joined the cluster within a time window (via ECT)."""
     qs = ErrorClusterTraces.objects.filter(
         cluster__cluster_id=cluster_id, created_at__gte=since
@@ -1753,13 +1710,8 @@ def _trace_ids_in_cluster_window(
     return [str(tid) for tid in qs.values_list("trace_id", flat=True) if tid]
 
 
-def _users_affected_in_window(trace_ids: List[str]) -> int:
-    """Distinct end_user_id across the given traces.
-
-    Was: ObservationSpan.filter(trace_id__in=, end_user__isnull=False)
-         .values("end_user_id").distinct().count()
-    CH: list_by_trace_ids + Python set membership over end_user_id.
-    """
+def _users_affected_in_window(trace_ids: list[str]) -> int:
+    """Distinct end_user_id across the given traces."""
     if not trace_ids:
         return 0
     with get_reader() as reader:
@@ -1771,7 +1723,7 @@ def _users_affected_in_window(trace_ids: List[str]) -> int:
     return len(users)
 
 
-def _avg_eval_score(trace_ids: List[str]) -> Optional[float]:
+def _avg_eval_score(trace_ids: list[str]) -> float | None:
     """Average eval score over span-level evals on a list of traces.
 
     PR3: span-only filter. Trace-level evals (PR4) surface elsewhere.
@@ -1785,9 +1737,7 @@ def _avg_eval_score(trace_ids: List[str]) -> Optional[float]:
     ).aggregate(avg=Avg(EVAL_SCORE_EXPR))["avg"]
 
 
-def _project_scope_total(
-    project_id: str, source: str, start, end=None
-) -> int:
+def _project_scope_total(project_id: str, source: str, start, end=None) -> int:
     """Total project-wide events in a window, matched to the cluster's source.
 
     Scanner clusters: scanner ran on every trace, so denominator = scanner runs.
@@ -1807,7 +1757,7 @@ def _project_scope_total(
 
 def _fetch_trend_metrics(
     cluster_id: str, project_id: str, days: int
-) -> List[TrendMetric]:
+) -> list[TrendMetric]:
     """Build the 3 KPI cards — current vs previous window."""
     cluster = TraceErrorGroup.objects.filter(cluster_id=cluster_id).first()
     cluster_source = cluster.source if cluster else ClusterSource.SCANNER
@@ -1821,9 +1771,7 @@ def _fetch_trend_metrics(
     prev_traces = _trace_ids_in_cluster_window(cluster_id, prev_start, cur_start)
 
     cur_total = _project_scope_total(project_id, cluster_source, cur_start)
-    prev_total = _project_scope_total(
-        project_id, cluster_source, prev_start, cur_start
-    )
+    prev_total = _project_scope_total(project_id, cluster_source, prev_start, cur_start)
 
     cur_err_rate = (100.0 * len(cur_traces) / cur_total) if cur_total else 0.0
     prev_err_rate = (100.0 * len(prev_traces) / prev_total) if prev_total else 0.0
@@ -1856,7 +1804,7 @@ def _fetch_trend_metrics(
 
 def _fetch_events_over_time_with_passing(
     cluster_id: str, project_id: str, days: int
-) -> List[EventsOverTimePoint]:
+) -> list[EventsOverTimePoint]:
     """Daily bucket: cluster errors + project-wide passing + users."""
     since = timezone.now() - timedelta(days=days)
 
@@ -1953,7 +1901,7 @@ def _fetch_events_over_time_with_passing(
 
 def _fetch_score_trends(
     cluster_id: str, days: int, max_labels: int = 4
-) -> List[ScoreTrend]:
+) -> list[ScoreTrend]:
     """Per-CustomEvalConfig.name score sparkline over the last ``days``.
 
     Splits the window in half: first half = prev, second half = current.
@@ -2000,7 +1948,7 @@ def _fetch_score_trends(
         :max_labels
     ]
 
-    result: List[ScoreTrend] = []
+    result: list[ScoreTrend] = []
     for label, g in top_labels:
         daily = [
             (day, statistics.fmean(scores)) for day, scores in sorted(g["days"].items())
@@ -2027,7 +1975,7 @@ def _fetch_score_trends(
     return result
 
 
-def _fetch_activity_heatmap(cluster_id: str, days: int = 30) -> List[List[HeatmapCell]]:
+def _fetch_activity_heatmap(cluster_id: str, days: int = 30) -> list[list[HeatmapCell]]:
     """Build a 7×24 grid (day 0=Sun … 6=Sat) of cluster-error counts."""
     since = timezone.now() - timedelta(days=days)
     rows = ErrorClusterTraces.objects.filter(
@@ -2050,8 +1998,8 @@ def _fetch_activity_heatmap(cluster_id: str, days: int = 30) -> List[List[Heatma
 
 
 def get_trends_tab(
-    cluster_id: str, project_ids: Optional[List[str]] = None, days: int = 14
-) -> Optional[TrendsTabResponse]:
+    cluster_id: str, project_ids: list[str] | None = None, days: int = 14
+) -> TrendsTabResponse | None:
     """Full Trends tab payload."""
     cluster = _cluster_qs_for_access(cluster_id, project_ids).first()
     if not cluster:
@@ -2075,8 +2023,8 @@ def get_trends_tab(
 
 def _fetch_sidebar_ai_metadata(
     cluster: TraceErrorGroup,
-    trace_ids: List[str],
-    selected_trace_id: Optional[str] = None,
+    trace_ids: list[str],
+    selected_trace_id: str | None = None,
 ) -> SidebarAIMetadata:
     """Model / version / project / eval score / trace id for the sidebar.
 
@@ -2089,7 +2037,7 @@ def _fetch_sidebar_ai_metadata(
     project = cluster.project.name if cluster.project_id else None
 
     # Trace to inspect: caller's pick, or cluster's latest as fallback.
-    focus_trace_id: Optional[str] = selected_trace_id
+    focus_trace_id: str | None = selected_trace_id
     if focus_trace_id is None:
         latest = (
             ErrorClusterTraces.objects.filter(cluster__cluster_id=cluster.cluster_id)
@@ -2100,8 +2048,8 @@ def _fetch_sidebar_ai_metadata(
         if latest:
             focus_trace_id = str(latest)
 
-    model: Optional[str] = None
-    model_version: Optional[str] = None
+    model: str | None = None
+    model_version: str | None = None
     if focus_trace_id:
         # Was: ObservationSpan.filter(trace_id=, observation_type__iexact="llm")
         #          .order_by("start_time").only("model", "span_attributes").first()
@@ -2145,9 +2093,9 @@ def _fetch_sidebar_ai_metadata(
 
 
 def _fetch_sidebar_evaluations(
-    trace_ids: List[str],
-    selected_trace_id: Optional[str] = None,
-) -> List[EvaluationResult]:
+    trace_ids: list[str],
+    selected_trace_id: str | None = None,
+) -> list[EvaluationResult]:
     """Roll up EvalLogger rows to one row per CustomEvalConfig.name.
 
     Type is inferred from the output shape — the spec's
@@ -2195,7 +2143,7 @@ def _fetch_sidebar_evaluations(
         if r["output_str"]:
             g["strs"].append(r["output_str"])
 
-    result: List[EvaluationResult] = []
+    result: list[EvaluationResult] = []
     for label, g in groups.items():
         has_floats = bool(g["floats"])
         eval_type = "llm_judge" if has_floats else "deterministic"
@@ -2210,10 +2158,10 @@ def _fetch_sidebar_evaluations(
         else:
             result_str = "failed"
 
-        score: Optional[float] = (
+        score: float | None = (
             round(statistics.fmean(g["floats"]), 4) if has_floats else None
         )
-        value: Optional[str] = None
+        value: str | None = None
         if not has_floats and g["strs"]:
             value = Counter(g["strs"]).most_common(1)[0][0]
         elif not has_floats and g["bools"]:
@@ -2235,7 +2183,7 @@ def _fetch_sidebar_evaluations(
 
 def _fetch_co_occurring_issues(
     cluster_id: str, project_id: str, limit: int = 5
-) -> List[CoOccurringIssue]:
+) -> list[CoOccurringIssue]:
     """Jaccard-rank other clusters in the same project that share traces.
 
     Pulls (cluster_id, trace_id) pairs for every scanner cluster in the project
@@ -2255,7 +2203,7 @@ def _fetch_co_occurring_issues(
             continue
         other_traces.setdefault(cid, set()).add(str(tid))
 
-    scored: List[Tuple[str, int, float]] = []
+    scored: list[tuple[str, int, float]] = []
     for other_cid, traces in other_traces.items():
         shared = this_traces_set & traces
         if not shared:
@@ -2275,7 +2223,7 @@ def _fetch_co_occurring_issues(
     ).only("cluster_id", "title", "issue_category", "priority")
     cluster_map = {c.cluster_id: c for c in cluster_rows}
 
-    result: List[CoOccurringIssue] = []
+    result: list[CoOccurringIssue] = []
     for cid, count, jaccard in top:
         c = cluster_map.get(cid)
         if not c:
@@ -2295,9 +2243,9 @@ def _fetch_co_occurring_issues(
 
 def get_sidebar(
     cluster_id: str,
-    project_ids: Optional[List[str]] = None,
-    trace_id: Optional[str] = None,
-) -> Optional[FeedSidebar]:
+    project_ids: list[str] | None = None,
+    trace_id: str | None = None,
+) -> FeedSidebar | None:
     """Full sidebar payload for a cluster.
 
     When ``trace_id`` is provided, the trace-level sections (AI Metadata +
@@ -2321,12 +2269,12 @@ def get_sidebar(
     trace_ids = _trace_ids_for_cluster(cluster_id)
 
     # Guardrail: only honor trace_id if it actually belongs to this cluster.
-    selected_trace_id: Optional[str] = None
+    selected_trace_id: str | None = None
     if trace_id and str(trace_id) in trace_ids:
         selected_trace_id = str(trace_id)
 
     # Age since first_seen — frontend renders as integer days
-    age_days: Optional[int] = None
+    age_days: int | None = None
     if cluster.first_seen:
         delta = timezone.now() - cluster.first_seen
         age_days = max(delta.days, 0)
@@ -2365,13 +2313,13 @@ _URGENCY_TO_PRIORITY = {
 }
 
 
-def _urgency_to_priority(urgency: Optional[str]) -> str:
+def _urgency_to_priority(urgency: str | None) -> str:
     """Map TraceErrorDetail.urgency_to_fix (uppercase enum) to the frontend's
     lowercase priority bucket. Falls back to ``medium`` for unknown values."""
     return _URGENCY_TO_PRIORITY.get((urgency or "").upper(), "medium")
 
 
-def _recommendation_title_from_category(category: Optional[str]) -> str:
+def _recommendation_title_from_category(category: str | None) -> str:
     """The error category path looks like "A > B > C"; the leaf is the most
     specific label and reads best as a card title."""
     if not category:
@@ -2385,7 +2333,7 @@ def _recommendation_title_from_category(category: Optional[str]) -> str:
 _MAX_ROOT_CAUSES = 4
 
 
-def _build_root_causes(details: List[TraceErrorDetail]) -> List[RootCause]:
+def _build_root_causes(details: list[TraceErrorDetail]) -> list[RootCause]:
     """Flatten ``TraceErrorDetail.root_causes`` across every detail for a
     trace, dedupe, and produce a ranked ``RootCause`` list.
 
@@ -2423,7 +2371,7 @@ def _build_root_causes(details: List[TraceErrorDetail]) -> List[RootCause]:
     # Most-recurrent first; stable on first-seen order for ties.
     ranked = sorted(counts.values(), key=lambda e: -e["count"])
 
-    result: List[RootCause] = []
+    result: list[RootCause] = []
     for rank, entry in enumerate(ranked[:_MAX_ROOT_CAUSES], start=1):
         text = entry["text"]
         # Headline: first clause before . or ,
@@ -2439,8 +2387,8 @@ def _build_root_causes(details: List[TraceErrorDetail]) -> List[RootCause]:
 
 
 def _build_recommendations(
-    details: List[TraceErrorDetail], root_causes: List[RootCause]
-) -> List[Recommendation]:
+    details: list[TraceErrorDetail], root_causes: list[RootCause]
+) -> list[Recommendation]:
     """Produce one ``Recommendation`` card per ``TraceErrorDetail`` row.
 
     ``root_cause_link`` points into ``root_causes`` by rank — we match
@@ -2450,9 +2398,9 @@ def _build_recommendations(
     # Index for quick lookup: normalized text → rank
     by_text: dict = {rc.description.lower(): rc.rank for rc in root_causes}
 
-    result: List[Recommendation] = []
+    result: list[Recommendation] = []
     for d in details:
-        linked_rank: Optional[int] = None
+        linked_rank: int | None = None
         for raw in d.root_causes or []:
             if not raw:
                 continue
@@ -2503,7 +2451,7 @@ def _deep_analysis_status(trace: Trace, has_analysis: bool) -> str:
 
 
 def _cluster_has_trace(
-    cluster_id: str, trace_id: str, project_ids: Optional[List[str]] = None
+    cluster_id: str, trace_id: str, project_ids: list[str] | None = None
 ) -> bool:
     """Guardrail: the POST / GET endpoints only act on traces that are
     actually linked to the given cluster. Prevents a user from analyzing
@@ -2517,8 +2465,8 @@ def _cluster_has_trace(
 
 
 def get_deep_analysis(
-    cluster_id: str, trace_id: str, project_ids: Optional[List[str]] = None
-) -> Optional[DeepAnalysisResponse]:
+    cluster_id: str, trace_id: str, project_ids: list[str] | None = None
+) -> DeepAnalysisResponse | None:
     """Read the cached deep analysis for ``trace_id`` within ``cluster_id``.
 
     Returns ``None`` when the cluster doesn't exist or the trace isn't
@@ -2556,7 +2504,7 @@ def get_deep_analysis(
 
     # Show the first IMMEDIATE-urgency immediate_fix as the headline fix —
     # if none, fall back to the first non-empty immediate_fix we find.
-    immediate_fix: Optional[str] = None
+    immediate_fix: str | None = None
     for d in details:
         if (d.urgency_to_fix or "").upper() == "IMMEDIATE" and d.immediate_fix:
             immediate_fix = d.immediate_fix.strip()
@@ -2579,9 +2527,9 @@ def get_deep_analysis(
 def dispatch_deep_analysis(
     cluster_id: str,
     trace_id: str,
-    project_ids: Optional[List[str]] = None,
+    project_ids: list[str] | None = None,
     force: bool = False,
-) -> Optional[DeepAnalysisDispatchResponse]:
+) -> DeepAnalysisDispatchResponse | None:
     """POST handler for running deep analysis on a single trace.
 
     Semantics:

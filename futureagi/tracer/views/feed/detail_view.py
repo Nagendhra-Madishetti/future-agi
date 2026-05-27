@@ -87,6 +87,7 @@ class FeedDetailView(APIView):
             status=request.validated_data.get("status"),
             severity=request.validated_data.get("severity"),
             assignee=request.validated_data.get("assignee"),
+            assignee_provided="assignee" in request.validated_data,
         )
 
         try:

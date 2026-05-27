@@ -120,6 +120,7 @@ from model_hub.utils.SQL_queries import SQLQueryHandler
 from model_hub.views.utils.evals import run_eval_func, run_eval_func_task
 from tfc.settings.settings import BASE_URL
 from tfc.telemetry import wrap_for_thread
+from tfc.middleware.workspace_context import get_current_workspace
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.functions import calculate_eval_average
@@ -137,11 +138,12 @@ except ImportError:
 
 logger = structlog.get_logger(__name__)
 
+from tfc.constants.api_calls import APICallStatusChoices
+
 try:
-    from ee.usage.models.usage import APICallLog, APICallStatusChoices
+    from ee.usage.models.usage import APICallLog
 except ImportError:
     APICallLog = None
-    APICallStatusChoices = None
 
 
 def apply_filters(row_data, filters):
@@ -430,6 +432,8 @@ class GetAPICallLogDetailsView(APIView):
     )
     def get(self, request, *args, **kwargs):
         try:
+            if APICallLog is None:
+                return self._gm.success_response([])
             query = request.validated_query_data
             eval_template_id = str(query["eval_template_id"])
             page_size = query["page_size"]
@@ -562,6 +566,8 @@ class GetAPICallLogView(APIView):
         try:
             log_id = request.query_params.get("log_id", None)
             try:
+                if APICallLog is None:
+                    return self._gm.success_response([])
                 log_row = APICallLog.objects.get(
                     log_id=log_id,
                     organization=getattr(request, "organization", None)
@@ -723,6 +729,8 @@ class GetAPICallLogView(APIView):
 
     def delete(self, request, *args, **kwargs):
         try:
+            if APICallLog is None:
+                return self._gm.success_response([])
             log_ids = request.data.get("log_ids", [])
             if not log_ids:
                 return self._gm.bad_request(get_error_message("LOG_ID_REQUIRED"))
@@ -1073,6 +1081,8 @@ class EvalMetricView(APIView):
     )
     def get(self, request, *args, **kwargs):
         try:
+            if APICallLog is None:
+                return self._gm.success_response([])
             query = request.validated_query_data
             eval_template_id = str(query["eval_template_id"])
             filters = query["filters"]
@@ -1099,6 +1109,8 @@ class EvalMetricView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
+            if APICallLog is None:
+                return self._gm.success_response([])
             body = request.validated_data
             eval_template_id = str(body["eval_template_id"])
             filters = body["filters"]
@@ -1136,15 +1148,18 @@ class GetEvalTemplateNameView(APIView):
             organization = (
                 getattr(request, "organization", None) or request.user.organization
             )
-            logs = APICallLog.objects.filter(
-                organization=organization,
-                deleted=False,
-            )
-            log_ids = [
-                log.source_id
-                for log in logs
-                if log.source_id is not None and log.source_id != ""
-            ]
+            if APICallLog is None:
+                log_ids = []
+            else:
+                logs = APICallLog.objects.filter(
+                    organization=organization,
+                    deleted=False,
+                )
+                log_ids = [
+                    log.source_id
+                    for log in logs
+                    if log.source_id is not None and log.source_id != ""
+                ]
             eval_ids = EvalTemplate.no_workspace_objects.filter(
                 organization=organization,
                 owner=OwnerChoices.USER.value,
@@ -1319,6 +1334,8 @@ class GetEvalTemplates(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
+            if APICallLog is None:
+                return self._gm.success_response([])
             request_data = request.validated_data
             page_size = request_data.get("page_size", 10)
             current_page = request_data.get("current_page_index", 0)
@@ -1394,7 +1411,10 @@ class GetEvalTemplates(APIView):
                 total_rows = row[4]
 
             # Fetch logs ONLY for paginated templates (not all templates)
-            logs = APICallLog.objects.filter(
+            if APICallLog is None:
+                logs = []
+            else:
+                logs = APICallLog.objects.filter(
                 organization=getattr(request, "organization", None)
                 or request.user.organization,
                 deleted=False,
@@ -1529,6 +1549,14 @@ class EvalTemplateListView(APIView):
             )
             if eval_type_filter:
                 qs = qs.filter(eval_type__in=eval_type_filter)
+
+            eval_type_not_filter = (
+                filters.get("eval_type_not")
+                if isinstance(filters, dict)
+                else getattr(filters, "eval_type_not", None)
+            )
+            if eval_type_not_filter:
+                qs = qs.exclude(eval_type__in=eval_type_not_filter)
 
             total = qs.count()
             page = req.get("page", 0)
@@ -2035,11 +2063,15 @@ class EvalTemplateCreateV2View(APIView):
                     "language": req.code_language or "python",
                     "required_keys": [],
                     "custom_eval": True,
+                    # Keep cross-type restore from leaking stale FE state.
+                    "few_shot_examples": [],
                 }
                 criteria = req.code or ""
                 choices_list = (
                     ["Passed", "Failed"] if req.output_type == "pass_fail" else []
                 )
+                if choices_list:
+                    config["choices"] = choices_list
 
             elif req.eval_type == "agent":
                 # Merge auto-detected context flags with any explicit
@@ -2070,9 +2102,13 @@ class EvalTemplateCreateV2View(APIView):
                     "data_injection": _merged_data_injection,
                     "summary": req.summary or {"type": "concise"},
                     "instructions": req.instructions,
+                    # Keep cross-type restore from leaking stale FE state.
+                    "few_shot_examples": [],
                 }
-                if choices_map:
+                # FE form-load reads labels from config_snapshot.
+                if choices_list:
                     config["choices"] = choices_list
+                if choices_map:
                     config["choices_map"] = choices_map
                     config["multi_choice"] = False
                 criteria = req.instructions
@@ -2098,17 +2134,22 @@ class EvalTemplateCreateV2View(APIView):
                 # Store full message chain if provided
                 if req.messages and len(req.messages) > 1:
                     config["messages"] = req.messages
-                # Store few-shot examples
-                if req.few_shot_examples:
-                    config["few_shot_examples"] = req.few_shot_examples
-                if choices_map:
+                # Always set the key — missing key leaks prior version's FE state.
+                config["few_shot_examples"] = req.few_shot_examples or []
+                if choices_list:
                     config["choices"] = choices_list
+                if choices_map:
                     config["choices_map"] = choices_map
                     config["multi_choice"] = False
                 criteria = req.instructions
 
             # Store template_format in config
             config["template_format"] = template_format
+
+            # Mirror into config — FE form-load reads from config_snapshot.
+            config["pass_threshold"] = req.pass_threshold
+            config["choice_scores"] = req.choice_scores
+            config["error_localizer_enabled"] = bool(req.error_localizer_enabled)
 
             # Build eval_tags — category tags only (not type)
             eval_tags = list(req.tags) if req.tags else []
@@ -2135,27 +2176,23 @@ class EvalTemplateCreateV2View(APIView):
                 error_localizer_enabled=req.error_localizer_enabled,
             )
 
-            # 8. Create initial version (V1)
-            from model_hub.models.evals_metric import EvalTemplateVersion
+            # Drafts defer V1 until first publish.
+            if not is_draft:
+                from model_hub.models.evals_metric import EvalTemplateVersion
 
-            try:
-                # Column snapshot fields default to capturing the template's
-                # current value (output_type_normalized, pass_threshold,
-                # choice_scores, error_localizer_enabled, eval_tags) — see
-                # EvalTemplateVersionManager.create_version. We don't pass
-                # them explicitly here.
-                EvalTemplateVersion.objects.create_version(
-                    eval_template=eval_template,
-                    prompt_messages=[],
-                    config_snapshot=config,
-                    criteria=criteria,
-                    model=req.model,
-                    user=request.user,
-                    organization=organization,
-                    workspace=workspace,
-                )
-            except Exception as ver_err:
-                logger.warning(f"Failed to create V1 for eval: {ver_err}")
+                try:
+                    EvalTemplateVersion.objects.create_version(
+                        eval_template=eval_template,
+                        prompt_messages=config.get("messages") or [],
+                        config_snapshot=config,
+                        criteria=criteria,
+                        model=req.model,
+                        user=request.user,
+                        organization=organization,
+                        workspace=workspace,
+                    )
+                except Exception as ver_err:
+                    logger.warning(f"Failed to create V1 for eval: {ver_err}")
 
             # 9. Return response
             response = EvalCreateResponse(
@@ -2222,10 +2259,9 @@ class EvalTemplateDetailView(APIView):
                 eval_template=template
             ).count()
             default_version = EvalTemplateVersion.objects.get_default(template)
+            # Drafts have no version row; show "V1" placeholder.
             current_version_num = (
-                default_version.version_number
-                if default_version
-                else (1 if version_count > 0 else 0)
+                default_version.version_number if default_version else 1
             )
 
             # Detail should reflect current template state.
@@ -2459,6 +2495,9 @@ class EvalTemplateUpdateView(APIView):
 
             if req.model is not None:
                 template.model = req.model
+                if template.config is None:
+                    template.config = {}
+                template.config["model"] = req.model
 
             if req.output_type is not None:
                 template.output_type_normalized = req.output_type
@@ -2470,12 +2509,22 @@ class EvalTemplateUpdateView(APIView):
                 if template.config is None:
                     template.config = {}
                 template.config["output"] = output_map.get(req.output_type, "Pass/Fail")
+                # Only pass_fail owns choices here; other types manage their
+                # own labels via choice_scores below.
+                if req.output_type == "pass_fail":
+                    template.config["choices"] = ["Passed", "Failed"]
+                    template.choices = ["Passed", "Failed"]
+                    template.config.pop("choices_map", None)
+                    template.config.pop("multi_choice", None)
 
             if req.pass_threshold is not None:
                 errors = validate_pass_threshold(req.pass_threshold)
                 if errors:
                     return self._gm.bad_request("; ".join(errors))
                 template.pass_threshold = req.pass_threshold
+                if template.config is None:
+                    template.config = {}
+                template.config["pass_threshold"] = req.pass_threshold
 
             if "choice_scores" in request.validated_data:
                 if req.choice_scores:
@@ -2491,13 +2540,14 @@ class EvalTemplateUpdateView(APIView):
                         k: "pass" if v >= 0.7 else ("neutral" if v >= 0.3 else "fail")
                         for k, v in req.choice_scores.items()
                     }
+                    template.config["choice_scores"] = req.choice_scores
                 else:
-                    # Clear choices
+                    # Clear scores only; choices are owned elsewhere.
+                    # FE sends choice_scores=null on every pass_fail keystroke.
                     template.choice_scores = None
-                    template.choices = []
                     if template.config:
-                        template.config.pop("choices", None)
                         template.config.pop("choices_map", None)
+                        template.config.pop("choice_scores", None)
 
             if req.multi_choice is not None:
                 template.multi_choice = req.multi_choice
@@ -2584,6 +2634,11 @@ class EvalTemplateUpdateView(APIView):
             # Error Localization (Phase 19)
             if req.error_localizer_enabled is not None:
                 template.error_localizer_enabled = req.error_localizer_enabled
+                if template.config is None:
+                    template.config = {}
+                template.config["error_localizer_enabled"] = bool(
+                    req.error_localizer_enabled
+                )
 
             # Store template_format in config
             if template.config is None:
@@ -2595,6 +2650,29 @@ class EvalTemplateUpdateView(APIView):
                 template.visible_ui = True
 
             template.save()
+
+            # Lazy V1 on first publish (idempotent).
+            if req.publish:
+                from model_hub.models.evals_metric import EvalTemplateVersion
+
+                already_has_version = EvalTemplateVersion.objects.filter(
+                    eval_template=template
+                ).exists()
+                if not already_has_version:
+                    try:
+                        cfg = template.config or {}
+                        EvalTemplateVersion.objects.create_version(
+                            eval_template=template,
+                            prompt_messages=cfg.get("messages") or [],
+                            config_snapshot=cfg,
+                            criteria=template.criteria or "",
+                            model=template.model or "",
+                            user=request.user,
+                            organization=template.organization,
+                            workspace=getattr(template, "workspace", None),
+                        )
+                    except Exception as ver_err:
+                        logger.warning(f"Failed to create V1 on publish: {ver_err}")
 
             response = EvalUpdateResponse(
                 id=str(template.id),
@@ -2664,6 +2742,7 @@ class EvalTemplateVersionListView(APIView):
                     created_by_name = (
                         getattr(v.created_by, "name", "") or v.created_by.email
                     )
+                cs = v.config_snapshot or {}
                 items.append(
                     EvalVersionItem(
                         id=str(v.id),
@@ -2671,9 +2750,22 @@ class EvalTemplateVersionListView(APIView):
                         is_default=v.is_default,
                         criteria=v.criteria or "",
                         model=v.model or "",
-                        config_snapshot=v.config_snapshot or {},
+                        config_snapshot=cs,
                         created_by_name=created_by_name,
                         created_at=v.created_at.isoformat() if v.created_at else "",
+                        # Column-level fields the FE reads directly.
+                        prompt_messages=v.prompt_messages or [],
+                        output_type_normalized=v.output_type_normalized,
+                        pass_threshold=v.pass_threshold,
+                        choice_scores=v.choice_scores,
+                        error_localizer_enabled=bool(v.error_localizer_enabled),
+                        eval_tags=list(v.eval_tags or []),
+                        # Derived; tolerate camelCase from older FE round-trips.
+                        choices=cs.get("choices") or [],
+                        choices_map=cs.get("choices_map")
+                        or cs.get("choicesMap")
+                        or {},
+                        multi_choice=bool(cs.get("multi_choice", False)),
                     )
                 )
 
@@ -2735,11 +2827,12 @@ class EvalTemplateVersionCreateView(APIView):
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Eval template not found or not editable.")
 
-            # Create new version from current template state (or overrides)
+            # Use live template.config; FE-supplied snapshot is incomplete.
+            effective_config = template.config or {}
             version = EvalTemplateVersion.objects.create_version(
                 eval_template=template,
-                prompt_messages=[],
-                config_snapshot=req.config_snapshot or template.config or {},
+                prompt_messages=effective_config.get("messages") or [],
+                config_snapshot=effective_config,
                 criteria=req.criteria or template.criteria or "",
                 model=req.model or template.model or "",
                 user=request.user,
@@ -2813,6 +2906,19 @@ def _apply_version_snapshot_to_template(template, version):
     if version.model:
         template.model = version.model
         fields_to_update.append("model")
+
+    # Realign eval_type column with restored config so detail view (column)
+    # and runtime (config) don't disagree across cross-type restores.
+    _EVAL_TYPE_ID_TO_COL = {
+        "AgentEvaluator": "agent",
+        "CustomPromptEvaluator": "llm",
+        "CustomCodeEval": "code",
+    }
+    restored_eval_type_id = (template.config or {}).get("eval_type_id")
+    restored_eval_type = _EVAL_TYPE_ID_TO_COL.get(restored_eval_type_id)
+    if restored_eval_type and template.eval_type != restored_eval_type:
+        template.eval_type = restored_eval_type
+        fields_to_update.append("eval_type")
 
     for snap in _VERSION_SNAPSHOT_FIELDS:
         value = getattr(version, snap.name)
@@ -2940,45 +3046,45 @@ class RestoreVersionView(APIView):
             except EvalTemplateVersion.DoesNotExist:
                 return self._gm.not_found("Version not found.")
 
-            # Create a new version that mirrors the source. We propagate the
-            # column-level snapshot fields explicitly so the new version
-            # captures the SOURCE version's state, not the live template's
-            # state at restore time. Without this the manager's auto-capture
-            # would read the template — which still has whatever config was
-            # active before the restore — producing a snapshot that doesn't
-            # match the restored content.
-            new_version = EvalTemplateVersion.objects.create_version(
-                eval_template=template,
-                prompt_messages=source_version.prompt_messages or [],
-                config_snapshot=source_version.config_snapshot or {},
-                criteria=source_version.criteria or "",
-                model=source_version.model or "",
-                user=request.user,
-                organization=organization,
-                workspace=getattr(template, "workspace", None),
-                output_type_normalized=source_version.output_type_normalized,
-                pass_threshold=source_version.pass_threshold,
-                choice_scores=source_version.choice_scores,
-                error_localizer_enabled=source_version.error_localizer_enabled,
-                eval_tags=(
-                    list(source_version.eval_tags)
-                    if source_version.eval_tags is not None
-                    else None
-                ),
-            )
+            # Mirror source, align live row, promote mirror to default — atomic.
+            with transaction.atomic():
+                new_version = EvalTemplateVersion.objects.create_version(
+                    eval_template=template,
+                    prompt_messages=source_version.prompt_messages or [],
+                    config_snapshot=source_version.config_snapshot or {},
+                    criteria=source_version.criteria or "",
+                    model=source_version.model or "",
+                    user=request.user,
+                    organization=organization,
+                    workspace=getattr(template, "workspace", None),
+                    output_type_normalized=source_version.output_type_normalized,
+                    pass_threshold=source_version.pass_threshold,
+                    choice_scores=source_version.choice_scores,
+                    error_localizer_enabled=source_version.error_localizer_enabled,
+                    eval_tags=(
+                        list(source_version.eval_tags)
+                        if source_version.eval_tags is not None
+                        else None
+                    ),
+                )
 
-            # Also update the template's live state to match the restored
-            # version (column snapshot + config + criteria + model).
-            update_fields = _apply_version_snapshot_to_template(
-                template, source_version
-            )
-            template.save(update_fields=update_fields)
+                EvalTemplateVersion.objects.filter(
+                    eval_template=template, is_default=True
+                ).exclude(id=new_version.id).update(is_default=False)
+                if not new_version.is_default:
+                    new_version.is_default = True
+                    new_version.save(update_fields=["is_default"])
+
+                update_fields = _apply_version_snapshot_to_template(
+                    template, source_version
+                )
+                template.save(update_fields=update_fields)
 
             return self._gm.success_response(
                 {
                     "id": str(new_version.id),
                     "version_number": new_version.version_number,
-                    "is_default": new_version.is_default,
+                    "is_default": True,
                     "restored_from": source_version.version_number,
                 }
             )
@@ -3075,21 +3181,62 @@ def _request_organization(request):
     return getattr(request, "organization", None) or request.user.organization
 
 
+def _request_workspace_filter(request, field_name="workspace"):
+    workspace = getattr(request, "workspace", None) or get_current_workspace()
+    if not workspace:
+        return Q()
+
+    if getattr(workspace, "is_default", False):
+        return (
+            Q(**{field_name: workspace})
+            | Q(
+                **{
+                    f"{field_name}__is_default": True,
+                    f"{field_name}__organization_id": workspace.organization_id,
+                }
+            )
+            | Q(**{f"{field_name}__isnull": True})
+        )
+
+    return Q(**{field_name: workspace})
+
+
+def _get_accessible_eval_template_for_request(
+    template_id, request, template_type=None
+):
+    organization = _request_organization(request)
+    queryset = EvalTemplate.no_workspace_objects.filter(id=template_id, deleted=False)
+    if template_type:
+        queryset = queryset.filter(template_type=template_type)
+
+    return queryset.filter(
+        Q(owner=OwnerChoices.SYSTEM.value)
+        | (
+            Q(owner=OwnerChoices.USER.value, organization=organization)
+            & _request_workspace_filter(request)
+        )
+    ).get()
+
+
 def _get_accessible_ground_truth(ground_truth_id, request):
     from model_hub.models.evals_metric import EvalGroundTruth
 
     organization = _request_organization(request)
     return (
-        EvalGroundTruth.objects.select_related("eval_template")
+        EvalGroundTruth.no_workspace_objects.select_related("eval_template")
         .filter(id=ground_truth_id, deleted=False)
         .filter(
             Q(eval_template__owner=OwnerChoices.SYSTEM.value)
-            | Q(
-                eval_template__owner=OwnerChoices.USER.value,
-                eval_template__organization=organization,
+            | (
+                Q(
+                    eval_template__owner=OwnerChoices.USER.value,
+                    eval_template__organization=organization,
+                )
+                & _request_workspace_filter(request, "eval_template__workspace")
             )
         )
         .filter(Q(organization__isnull=True) | Q(organization=organization))
+        .filter(_request_workspace_filter(request))
         .get()
     )
 
@@ -3286,16 +3433,19 @@ class CompositeEvalCreateView(APIView):
             child_items = []
             child_map = {str(c.id): c for c in children}
             weights = req.child_weights or {}
+            child_configs = req.child_configs or {}
             for i, child_id in enumerate(req.child_template_ids):
                 child = child_map[child_id]
                 weight = weights.get(child_id, 1.0)
                 pinned_version = pinned_versions.get(child_id)
+                child_config = child_configs.get(child_id) or {}
                 CompositeEvalChild.objects.create(
                     parent=parent,
                     child=child,
                     order=i,
                     weight=weight,
                     pinned_version=pinned_version,
+                    config=child_config,
                 )
                 child_items.append(
                     CompositeChildItem(
@@ -3310,6 +3460,7 @@ class CompositeEvalCreateView(APIView):
                         pinned_version_number=(
                             pinned_version.version_number if pinned_version else None
                         ),
+                        config=child_config,
                     )
                 )
 
@@ -3405,6 +3556,7 @@ class CompositeEvalDetailView(APIView):
                             else None
                         ),
                         weight=link.weight,
+                        config=link.config or {},
                         required_keys=child_required,
                     )
                 )
@@ -3628,6 +3780,7 @@ class CompositeEvalDetailView(APIView):
 
                 child_map = {str(c.id): c for c in child_qs}
                 weights = req.child_weights or {}
+                child_configs = req.child_configs or {}
                 for i, child_id in enumerate(req.child_template_ids):
                     child = child_map[child_id]
                     CompositeEvalChild.objects.create(
@@ -3636,8 +3789,13 @@ class CompositeEvalDetailView(APIView):
                         order=i,
                         weight=weights.get(child_id, 1.0),
                         pinned_version=pinned_versions.get(child_id),
+                        config=child_configs.get(child_id) or {},
                     )
-            elif req.child_weights is not None or req.child_pinned_versions is not None:
+            elif (
+                req.child_weights is not None
+                or req.child_pinned_versions is not None
+                or req.child_configs is not None
+            ):
                 existing_links = list(
                     CompositeEvalChild.objects.filter(parent=parent, deleted=False)
                 )
@@ -3658,6 +3816,9 @@ class CompositeEvalDetailView(APIView):
                     if pinned_versions is not None and cid in req.child_pinned_versions:
                         link.pinned_version = pinned_versions.get(cid)
                         update_fields.append("pinned_version")
+                    if req.child_configs is not None and cid in req.child_configs:
+                        link.config = req.child_configs[cid] or {}
+                        update_fields.append("config")
                     if update_fields:
                         link.save(update_fields=update_fields)
 
@@ -3683,6 +3844,7 @@ class CompositeEvalDetailView(APIView):
                         "child_name": link.child.name,
                         "order": link.order,
                         "weight": link.weight,
+                        "config": link.config or {},
                         "pinned_version_id": (
                             str(link.pinned_version_id)
                             if link.pinned_version_id
@@ -3717,6 +3879,8 @@ class CompositeEvalDetailView(APIView):
                         else None
                     ),
                     weight=link.weight,
+                    config=link.config or {},
+                    required_keys=list((link.child.config or {}).get("required_keys") or []),
                 )
                 for link in links
             ]
@@ -4054,16 +4218,18 @@ class CompositeEvalAdhocExecuteView(APIView):
             )
 
             weights = req.child_weights or {}
+            child_configs = req.child_configs or {}
             child_links: list[CompositeEvalChild] = []
             for i, child_id in enumerate(req.child_template_ids):
                 child = children_by_id[child_id]
                 # Unsaved link object — execute_composite_children_sync only
-                # reads .child, .child_id, .order, .weight, .pinned_version.
+                # reads .child, .child_id, .order, .weight, .pinned_version, .config.
                 link = CompositeEvalChild(
                     parent=parent,
                     child=child,
                     order=i,
                     weight=float(weights.get(child_id, 1.0)),
+                    config=child_configs.get(child_id) or {},
                 )
                 child_links.append(link)
 
@@ -4132,13 +4298,21 @@ class GroundTruthListView(APIView):
         try:
             organization = _request_organization(request)
             try:
-                template = _get_accessible_eval_template(template_id, organization)
+                template = _get_accessible_eval_template_for_request(
+                    template_id, request
+                )
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Eval template not found.")
 
-            gts = EvalGroundTruth.objects.filter(
-                eval_template=template, deleted=False
-            ).order_by("-created_at")
+            gts = (
+                EvalGroundTruth.no_workspace_objects.filter(
+                    _request_workspace_filter(request),
+                    eval_template=template,
+                    deleted=False,
+                )
+                .filter(Q(organization__isnull=True) | Q(organization=organization))
+                .order_by("-created_at")
+            )
 
             items = [
                 GroundTruthItem(
@@ -4200,7 +4374,9 @@ class GroundTruthUploadView(APIView):
             organization = _request_organization(request)
 
             try:
-                template = _get_accessible_eval_template(template_id, organization)
+                template = _get_accessible_eval_template_for_request(
+                    template_id, request
+                )
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Eval template not found.")
 
@@ -4536,7 +4712,9 @@ class GroundTruthConfigView(APIView):
         try:
             organization = _request_organization(request)
             try:
-                template = _get_accessible_eval_template(template_id, organization)
+                template = _get_accessible_eval_template_for_request(
+                    template_id, request
+                )
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Eval template not found.")
 
@@ -4587,7 +4765,9 @@ class GroundTruthConfigView(APIView):
 
             try:
                 organization = _request_organization(request)
-                template = _get_accessible_eval_template(template_id, organization)
+                template = _get_accessible_eval_template_for_request(
+                    template_id, request
+                )
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Eval template not found.")
 
@@ -4595,9 +4775,15 @@ class GroundTruthConfigView(APIView):
             if req.ground_truth_id:
                 from model_hub.models.evals_metric import EvalGroundTruth
 
-                if not EvalGroundTruth.objects.filter(
-                    id=req.ground_truth_id, eval_template=template, deleted=False
-                ).exists():
+                try:
+                    ground_truth = _get_accessible_ground_truth(
+                        req.ground_truth_id, request
+                    )
+                except EvalGroundTruth.DoesNotExist:
+                    return self._gm.bad_request(
+                        "Ground truth dataset not found or does not belong to this eval template."
+                    )
+                if ground_truth.eval_template_id != template.id:
                     return self._gm.bad_request(
                         "Ground truth dataset not found or does not belong to this eval template."
                     )
@@ -4732,16 +4918,19 @@ class GroundTruthTriggerEmbeddingView(APIView):
             from tfc.temporal.ground_truth.client import trigger_embedding_generation
 
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # We're inside an async context, schedule the coroutine
-                    asyncio.ensure_future(trigger_embedding_generation(str(gt.id)))
-                else:
-                    loop.run_until_complete(trigger_embedding_generation(str(gt.id)))
+                running_loop = asyncio.get_running_loop()
             except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(trigger_embedding_generation(str(gt.id)))
+                workflow_run_id = asyncio.run(trigger_embedding_generation(str(gt.id)))
+            else:
+                running_loop.create_task(trigger_embedding_generation(str(gt.id)))
+                workflow_run_id = "scheduled"
+
+            if workflow_run_id is None:
+                gt.embedding_status = "failed"
+                gt.save(update_fields=["embedding_status", "updated_at"])
+                return self._gm.bad_request(
+                    "Failed to trigger embedding generation."
+                )
 
             return self._gm.success_response(
                 {
@@ -4785,6 +4974,8 @@ class EvalUsageStatsView(APIView):
     )
     def get(self, request, template_id, *args, **kwargs):
         try:
+            if APICallLog is None:
+                return self._gm.success_response([])
             try:
                 template = EvalTemplate.no_workspace_objects.get(
                     id=template_id, deleted=False
@@ -5081,6 +5272,15 @@ class EvalUsageStatsView(APIView):
                     elif agg_pass is False:
                         result_label = "Failed"
 
+                # Surface partial-input warnings stored on output_data.
+                # Set by every eval execution path (dataset/playground/
+                # tracing) when a custom eval ran with some inputs empty.
+                warnings = (
+                    output_data.get("warnings")
+                    if isinstance(output_data, dict)
+                    else None
+                )
+
                 log_item = {
                     "id": str(log.log_id),
                     "input": input_str[:200],
@@ -5092,9 +5292,11 @@ class EvalUsageStatsView(APIView):
                     "created_at": (
                         log.created_at.isoformat() if log.created_at else ""
                     ),
+                    "warnings": warnings or [],
                     "detail": {
                         "input_variables": input_vars or config.get("input", {}),
                         "output": output_data,
+                        "warnings": warnings or [],
                         "mappings": mappings,
                         "model": (
                             config.get("model") if isinstance(config, dict) else None
@@ -5177,6 +5379,8 @@ class EvalFeedbackListView(APIView):
             )
 
             try:
+                if APICallLog is None:
+                    return self._gm.success_response([])
                 _get_accessible_eval_template(template_id, organization)
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Eval template not found.")
@@ -6173,6 +6377,8 @@ class EvalPlayGroundFeedbackAPIView(APIView):
             explanation = validated_data.get("explanation", None)
 
             try:
+                if APICallLog is None:
+                    return self._gm.success_response([])
                 log = APICallLog.objects.get(
                     log_id=log_id,
                     organization=getattr(request, "organization", None)
@@ -6472,9 +6678,10 @@ class DeleteEvalTemplateView(APIView):
                 ExternalEvalConfig.objects.filter(eval_template=eval_template).update(
                     deleted=True, deleted_at=timezone.now()
                 )
-                APICallLog.objects.filter(source_id=eval_template_id).update(
-                    deleted=True, deleted_at=timezone.now()
-                )
+                if APICallLog is not None:
+                    APICallLog.objects.filter(source_id=eval_template_id).update(
+                        deleted=True, deleted_at=timezone.now()
+                    )
                 EvalLogger.objects.filter(
                     custom_eval_config__eval_template=eval_template
                 ).update(deleted=True, deleted_at=timezone.now())

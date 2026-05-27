@@ -1833,7 +1833,7 @@ class ClickHouseFilterBuilder:
             "trace_id IN ("
             "SELECT DISTINCT toString(el.trace_id) FROM tracer_eval_logger AS el FINAL "
             f"INNER JOIN {self.table} AS sp ON sp.trace_id = toString(el.trace_id) "
-            "WHERE el._peerdb_is_deleted = 0 AND el.trace_id IS NOT NULL "
+            "WHERE el.is_deleted = 0 AND el.trace_id IS NOT NULL "
             "AND sp.is_deleted = 0 "
             f"AND {self._project_scope_predicate('sp')})"
         )

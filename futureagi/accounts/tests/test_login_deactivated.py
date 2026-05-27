@@ -24,10 +24,9 @@ class TestDeactivatedUserLogin:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         data = response.json()
-        # build_error_envelope flattens the dict: "error" and "message" are
-        # top-level keys, and "result" is the resolved message string.
-        assert "deactivated" in data["error"].lower()
-        assert "deactivated" in data["message"].lower()
+        assert data["result"]["error"] == "Account deactivated"
+        assert "deactivated" in data["result"]["message"].lower()
+        assert data["result"]["error_code"] == "LOGIN_ACCOUNT_DEACTIVATED"
 
     def test_deactivated_user_does_not_increment_failed_attempts(
         self, api_client, user
@@ -76,7 +75,8 @@ class TestActiveUserLogin:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         data = response.json()
-        assert data["error"] == "Invalid credentials"
+        assert data["result"]["error"] == "Invalid credentials"
+        assert data["result"]["error_code"] == "LOGIN_INVALID_CREDENTIALS"
 
     def test_nonexistent_email(self, api_client, db):
         """Non-existent email gets 'Invalid credentials'."""
@@ -87,7 +87,8 @@ class TestActiveUserLogin:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         data = response.json()
-        assert data["error"] == "Invalid credentials"
+        assert data["result"]["error"] == "Invalid credentials"
+        assert data["result"]["error_code"] == "LOGIN_INVALID_CREDENTIALS"
 
 
 @pytest.mark.integration
@@ -110,10 +111,6 @@ class TestCatchAllHandler:
             )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         data = response.json()
-        # build_error_envelope extracts the "message" key from the dict and
-        # sets it as top-level "error". The catch-all passes {"error": "Login failed",
-        # "message": "An unexpected error occurred...", "remaining_attempts": N}.
-        # error_message() finds "message" first, so "error" == that message.
-        # The original "error" value lives in data["details"]["error"][0].
-        assert "Login failed" in data["details"]["error"][0]
-        assert "remaining_attempts" in data["details"]
+        assert data["result"]["error"] == "Login failed"
+        assert data["result"]["error_code"] == "LOGIN_UNEXPECTED_ERROR"
+        assert "remaining_attempts" in data["result"]

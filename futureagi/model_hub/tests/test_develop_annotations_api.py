@@ -10,7 +10,7 @@ Tests cover:
 
 import uuid
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from rest_framework import status
@@ -24,6 +24,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import Organization, User
 from accounts.models.workspace import Workspace
+from model_hub.models import AIModel, AnnotationTask
 from model_hub.models.choices import (
     AnnotationTypeChoices,
     DatasetSourceChoices,
@@ -116,6 +117,23 @@ def auth_client(user, workspace):
     client.force_authenticate(user=user)
     set_workspace_context(workspace=workspace, organization=user.organization)
     return client
+
+
+def _create_annotation_task(organization, workspace, user, name="Task"):
+    ai_model = AIModel.objects.create(
+        user_model_id=f"annotation-task-model-{uuid.uuid4()}",
+        model_type=AIModel.ModelTypes.GENERATIVE_LLM,
+        organization=organization,
+        workspace=workspace,
+    )
+    task = AnnotationTask.objects.create(
+        task_name=name,
+        ai_model=ai_model,
+        organization=organization,
+        workspace=workspace,
+    )
+    task.assigned_users.add(user)
+    return task
 
 
 @pytest.fixture
@@ -642,6 +660,78 @@ class TestAnnotationsViewSetActions:
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_annotation_tasks_list_and_detail_return_seeded_task(
+        self, api_client, organization, workspace, user
+    ):
+        """AnnotationTask list/detail expose the read-only legacy task contract."""
+        task = _create_annotation_task(
+            organization=organization,
+            workspace=workspace,
+            user=user,
+            name="Legacy annotation task contract",
+        )
+        api_client.force_authenticate(user=user)
+        api_client.set_workspace(workspace)
+
+        response = api_client.get(
+            "/model-hub/annotation-tasks/",
+            {
+                "page": 1,
+                "limit": 10,
+                "predictive_journey": str(task.ai_model_id),
+            },
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        results = response.json()["results"]
+        assert [row["id"] for row in results] == [str(task.id)]
+        assert results[0]["task_name"] == task.task_name
+        assert results[0]["ai_model"]["id"] == str(task.ai_model_id)
+        assert [assigned["id"] for assigned in results[0]["assigned_users"]] == [
+            str(user.id)
+        ]
+
+        detail = api_client.get(f"/model-hub/annotation-tasks/{task.id}/")
+
+        assert detail.status_code == status.HTTP_200_OK
+        detail_payload = detail.json()
+        assert detail_payload["id"] == str(task.id)
+        assert detail_payload["task_name"] == task.task_name
+        assert detail_payload["ai_model"]["id"] == str(task.ai_model_id)
+
+    def test_annotation_tasks_reject_same_org_other_workspace_task(
+        self, api_client, organization, workspace, user
+    ):
+        """AnnotationTask read routes must stay scoped to request.workspace."""
+        other_workspace = Workspace.objects.create(
+            name="Other annotation task workspace",
+            organization=organization,
+            is_default=False,
+            created_by=user,
+        )
+        task = _create_annotation_task(
+            organization=organization,
+            workspace=other_workspace,
+            user=user,
+            name="Other workspace annotation task",
+        )
+        api_client.force_authenticate(user=user)
+        api_client.set_workspace(workspace)
+
+        list_response = api_client.get(
+            "/model-hub/annotation-tasks/",
+            {
+                "page": 1,
+                "limit": 10,
+                "predictive_journey": str(task.ai_model_id),
+            },
+        )
+        detail_response = api_client.get(f"/model-hub/annotation-tasks/{task.id}/")
+
+        assert list_response.status_code == status.HTTP_200_OK
+        assert list_response.json()["results"] == []
+        assert detail_response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_bulk_destroy_rejects_legacy_annotation_ids_alias(
         self, auth_client, annotation

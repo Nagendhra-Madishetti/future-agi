@@ -17,7 +17,9 @@ import uuid
 import pytest
 from rest_framework import status
 
+from agentcc.services.credential_manager import mask_key
 from simulate.models import AgentDefinition, AgentVersion
+from simulate.models.agent_definition import ProviderCredentials
 
 # ============================================================================
 # Fixtures
@@ -138,6 +140,68 @@ class TestCreateAgentVersion:
         assert data["message"] == "Agent version created successfully"
         assert "version" in data
         assert data["version"]["version_number"] == 2
+
+    def test_create_archives_previous_active_version(
+        self, auth_client, agent_definition, agent_version
+    ):
+        response = auth_client.post(
+            _url(agent_definition.id, "create/"),
+            {
+                "commit_message": "Updated prompts",
+                "description": "Only one version should stay active",
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        agent_version.refresh_from_db()
+        new_version_id = response.json()["version"]["id"]
+        new_version = AgentVersion.objects.get(id=new_version_id)
+        assert new_version.status == AgentVersion.StatusChoices.ACTIVE
+        assert agent_version.status == AgentVersion.StatusChoices.ARCHIVED
+        assert (
+            AgentVersion.objects.filter(
+                agent_definition=agent_definition,
+                status=AgentVersion.StatusChoices.ACTIVE,
+            ).count()
+            == 1
+        )
+
+    def test_create_with_masked_api_key_preserves_existing_secret(
+        self, auth_client, agent_definition, agent_version
+    ):
+        raw_api_key = "sk-version-preserve-secret-123456"
+        agent_definition.provider = "vapi"
+        agent_definition.api_key = raw_api_key
+        agent_definition.assistant_id = "asst_version_masked"
+        agent_definition.authentication_method = "api_key"
+        agent_definition.save()
+        ProviderCredentials.objects.create(
+            agent_definition=agent_definition,
+            provider_type=ProviderCredentials.ProviderType.VAPI,
+            api_key=raw_api_key,
+            assistant_id="asst_version_masked",
+        )
+
+        response = auth_client.post(
+            _url(agent_definition.id, "create/"),
+            {
+                "commit_message": "Masked key roundtrip",
+                "api_key": mask_key(raw_api_key),
+                "description": "Update without rotating credentials",
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        agent_definition.refresh_from_db()
+        assert agent_definition.api_key == raw_api_key
+        assert agent_definition.credentials.get_api_key() == raw_api_key
+        serialized = response.json()
+        assert raw_api_key not in str(serialized)
+        assert serialized["version"]["configuration_snapshot"]["api_key"] == mask_key(
+            raw_api_key
+        )
 
     def test_creates_snapshot(self, auth_client, agent_definition, agent_version):
         response = auth_client.post(

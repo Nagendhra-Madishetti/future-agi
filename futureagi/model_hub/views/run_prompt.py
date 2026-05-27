@@ -16,7 +16,6 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import close_old_connections
 from django.db.models import Q
 from django.http import Http404
-from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from jinja2.sandbox import SandboxedEnvironment
 from rest_framework import viewsets
@@ -101,16 +100,61 @@ from tfc.utils.storage import (
     convert_image_from_url_to_base64,
     detect_audio_format,
 )
-
-try:
-    from ee.usage.models.usage import APICallStatusChoices, APICallTypeChoices
-except ImportError:
-    APICallStatusChoices = None
-    APICallTypeChoices = None
+from tfc.constants.api_calls import APICallStatusChoices, APICallTypeChoices
 try:
     from ee.usage.utils.usage_entries import log_and_deduct_cost_for_api_request
 except ImportError:
     log_and_deduct_cost_for_api_request = None
+
+
+def _request_organization(request):
+    return getattr(request, "organization", None) or request.user.organization
+
+
+def _request_workspace_filter(request, field_name="workspace"):
+    workspace = getattr(request, "workspace", None)
+    if not workspace:
+        return Q()
+
+    if getattr(workspace, "is_default", False):
+        return (
+            Q(**{field_name: workspace})
+            | Q(
+                **{
+                    f"{field_name}__is_default": True,
+                    f"{field_name}__organization_id": workspace.organization_id,
+                }
+            )
+            | Q(**{f"{field_name}__isnull": True})
+        )
+
+    return Q(**{field_name: workspace})
+
+
+def _request_dataset_queryset(request):
+    return Dataset.objects.filter(
+        _request_workspace_filter(request),
+        organization=_request_organization(request),
+        deleted=False,
+    )
+
+
+def _request_column_queryset(request):
+    return Column.objects.filter(
+        _request_workspace_filter(request, field_name="dataset__workspace"),
+        dataset__organization=_request_organization(request),
+        deleted=False,
+        dataset__deleted=False,
+    )
+
+
+def _request_run_prompter_queryset(request):
+    return RunPrompter.objects.filter(
+        _request_workspace_filter(request),
+        organization=_request_organization(request),
+        deleted=False,
+    )
+
 
 PROVIDERS_WITH_JSON = ["vertex_ai", "azure", "bedrock", "sagemaker"]
 
@@ -1145,56 +1189,56 @@ class RunPrompts:
                     run_prompt_id=str(self.run_prompt_id),
                     row_id=row_id,
                 )
-                try:
-                    api_call_config = {"reference_id": str(self.run_prompt_id)}
-                    api_call_log_row = log_and_deduct_cost_for_api_request(
-                        self.run_prompt_model.organization,
-                        APICallTypeChoices.DATASET_RUN_PROMPT.value,
-                        config=api_call_config,
-                        workspace=row.dataset.workspace,
-                    )
-                    logger.info(
-                        "RunPrompts_process_row_api_call_logged",
-                        run_prompt_id=str(self.run_prompt_id),
-                        row_id=row_id,
-                        api_call_log_row_id=(
-                            str(api_call_log_row.id) if api_call_log_row else None
-                        ),
-                    )
-                except Exception as api_err:
-                    logger.error(
-                        "RunPrompts_process_row_api_call_validation_error",
-                        run_prompt_id=str(self.run_prompt_id),
-                        row_id=row_id,
-                        error=str(api_err),
-                    )
-                    raise ValueError("Error in API call validation")  # noqa: B904
-                if not api_call_log_row:
-                    logger.error(
-                        "RunPrompts_process_row_api_call_log_row_none",
-                        run_prompt_id=str(self.run_prompt_id),
-                        row_id=row_id,
-                    )
-                    raise ValueError("Error in API call validation")
-                elif api_call_log_row.status != APICallStatusChoices.PROCESSING.value:
-                    error_message = get_error_for_api_status(api_call_log_row.status)
-                    logger.error(
-                        "RunPrompts_process_row_api_call_status_invalid",
-                        run_prompt_id=str(self.run_prompt_id),
-                        row_id=row_id,
-                        status=api_call_log_row.status,
-                        error_message=error_message,
-                    )
-                    raise ValueError(error_message)
-                elif api_call_log_row.status == APICallStatusChoices.PROCESSING.value:
-                    # by default set the status to success since we are not deducting cost
-                    api_call_log_row.status = APICallStatusChoices.SUCCESS.value
-                    api_call_log_row.save()
-                    logger.info(
-                        "RunPrompts_process_row_api_call_status_set_success",
-                        run_prompt_id=str(self.run_prompt_id),
-                        row_id=row_id,
-                    )
+                if log_and_deduct_cost_for_api_request is not None:
+                    try:
+                        api_call_config = {"reference_id": str(self.run_prompt_id)}
+                        api_call_log_row = log_and_deduct_cost_for_api_request(
+                            self.run_prompt_model.organization,
+                            APICallTypeChoices.DATASET_RUN_PROMPT.value,
+                            config=api_call_config,
+                            workspace=row.dataset.workspace,
+                        )
+                        logger.info(
+                            "RunPrompts_process_row_api_call_logged",
+                            run_prompt_id=str(self.run_prompt_id),
+                            row_id=row_id,
+                            api_call_log_row_id=(
+                                str(api_call_log_row.id) if api_call_log_row else None
+                            ),
+                        )
+                    except Exception as api_err:
+                        logger.error(
+                            "RunPrompts_process_row_api_call_validation_error",
+                            run_prompt_id=str(self.run_prompt_id),
+                            row_id=row_id,
+                            error=str(api_err),
+                        )
+                        raise ValueError("Error in API call validation")  # noqa: B904
+                    if not api_call_log_row:
+                        logger.error(
+                            "RunPrompts_process_row_api_call_log_row_none",
+                            run_prompt_id=str(self.run_prompt_id),
+                            row_id=row_id,
+                        )
+                        raise ValueError("Error in API call validation")
+                    elif api_call_log_row.status != APICallStatusChoices.PROCESSING.value:
+                        error_message = get_error_for_api_status(api_call_log_row.status)
+                        logger.error(
+                            "RunPrompts_process_row_api_call_status_invalid",
+                            run_prompt_id=str(self.run_prompt_id),
+                            row_id=row_id,
+                            status=api_call_log_row.status,
+                            error_message=error_message,
+                        )
+                        raise ValueError(error_message)
+                    elif api_call_log_row.status == APICallStatusChoices.PROCESSING.value:
+                        api_call_log_row.status = APICallStatusChoices.SUCCESS.value
+                        api_call_log_row.save()
+                        logger.info(
+                            "RunPrompts_process_row_api_call_status_set_success",
+                            run_prompt_id=str(self.run_prompt_id),
+                            row_id=row_id,
+                        )
 
                 # Dual-write: emit usage event for new billing system
                 try:
@@ -1207,7 +1251,10 @@ class RunPrompts:
                     except ImportError:
                         emit = None
 
-                    emit(
+                    if emit is not None and UsageEvent is not None:
+
+
+                        emit(
                         UsageEvent(
                             org_id=str(self.run_prompt_model.organization.id),
                             event_type=APICallTypeChoices.DATASET_RUN_PROMPT.value,
@@ -1798,19 +1845,17 @@ class EditRunPromptColumnView(APIView):
             name = validated_data["name"]
             run_prompt_config = config.get("run_prompt_config", {})
 
-            # Validate dataset and column exist
-            dataset = get_object_or_404(Dataset, id=dataset_id)
-
-            # Enforce organization isolation
-            if (
-                dataset.organization_id
-                != (
-                    getattr(request, "organization", None) or request.user.organization
-                ).id
-            ):
+            dataset = _request_dataset_queryset(request).filter(id=dataset_id).first()
+            if not dataset:
                 return self._gm.not_found("Dataset not found")
 
-            column = get_object_or_404(Column, id=column_id, dataset=dataset)
+            column = (
+                _request_column_queryset(request)
+                .filter(id=column_id, dataset=dataset)
+                .first()
+            )
+            if not column:
+                return self._gm.not_found("Column or dataset not found")
 
             # Verify column is a run prompt column
             if column.source != SourceChoices.RUN_PROMPT.value:
@@ -1819,9 +1864,16 @@ class EditRunPromptColumnView(APIView):
             # Lock the RunPrompter row to prevent race conditions
             # Use of=('self',) to avoid issues with nullable foreign keys causing outer joins
             with transaction.atomic():
-                run_prompter = RunPrompter.objects.select_for_update(of=("self",)).get(
-                    id=column.source_id
+                run_prompter = (
+                    _request_run_prompter_queryset(request)
+                    .select_for_update(of=("self",))
+                    .filter(id=column.source_id, dataset=dataset)
+                    .first()
                 )
+                if not run_prompter:
+                    return self._gm.not_found(
+                        "Column or run prompt configuration not found"
+                    )
 
                 # Check if currently running - warn but allow edit
                 was_running = run_prompter.status == StatusType.RUNNING.value
@@ -1956,15 +2008,8 @@ class RetrieveRunPromptColumnConfigView(APIView):
         try:
             # Get the column and verify it's a run prompt column
             column_id = request.query_params.get("column_id")
-            column = get_object_or_404(Column, id=column_id)
-
-            # Enforce organization isolation through the column's dataset
-            if (
-                column.dataset.organization_id
-                != (
-                    getattr(request, "organization", None) or request.user.organization
-                ).id
-            ):
+            column = _request_column_queryset(request).filter(id=column_id).first()
+            if not column:
                 return self._gm.not_found(
                     "Column or run prompt configuration not found"
                 )
@@ -1973,7 +2018,15 @@ class RetrieveRunPromptColumnConfigView(APIView):
                 return self._gm.bad_request(get_error_message("COLUMN_IS_IN_VALID"))
 
             # Get associated RunPrompter instance
-            run_prompter = get_object_or_404(RunPrompter, id=column.source_id)
+            run_prompter = (
+                _request_run_prompter_queryset(request)
+                .filter(id=column.source_id, dataset=column.dataset)
+                .first()
+            )
+            if not run_prompter:
+                return self._gm.not_found(
+                    "Column or run prompt configuration not found"
+                )
 
             # Get tools configuration
             tools = []

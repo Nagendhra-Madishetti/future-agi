@@ -82,16 +82,14 @@ from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.pagination import ExtendedPageNumberPagination
 from tfc.utils.parse_errors import parse_serialized_errors
 
+from tfc.constants.api_calls import APICallStatusChoices, APICallTypeChoices
+
 try:
     from ee.usage.models.usage import (
-        APICallStatusChoices,
-        APICallTypeChoices,
         OrganizationSubscription,
         SubscriptionTierChoices,
     )
 except ImportError:
-    APICallStatusChoices = None
-    APICallTypeChoices = None
     OrganizationSubscription = None
     SubscriptionTierChoices = None
 try:
@@ -1742,6 +1740,7 @@ class ManageTeamView(APIView):
             except Workspace.DoesNotExist:
                 return self._gm.bad_request("Invalid workspace ID")
 
+        member_id = kwargs.get("member_id")
         search_query = request.query_params.get("search_query", "")
         is_active = request.query_params.get("is_active", "true")
         if is_active == "false":
@@ -1769,9 +1768,13 @@ class ManageTeamView(APIView):
             team_members_qs = team_members_qs.filter(
                 Q(name__icontains=search_query) | Q(email__icontains=search_query)
             )
+        if member_id:
+            team_members_qs = team_members_qs.filter(id=member_id)
         team_members_qs = team_members_qs.distinct()
 
         total_count = team_members_qs.count()
+        if member_id and total_count == 0:
+            return self._gm.not_found("Member not found in organization")
 
         # Apply pagination
         start_idx = (page - 1) * page_size
@@ -1901,6 +1904,11 @@ class ManageTeamView(APIView):
             if not organization:
                 return self._gm.bad_request(
                     get_error_message("USER_ORGANIZATION_CONNECTION_ERROR")
+                )
+
+            if kwargs.get("member_id"):
+                return self._gm.bad_request(
+                    "Member-specific team create is not supported. Use /accounts/team/users/."
                 )
 
             # Handle organization name update

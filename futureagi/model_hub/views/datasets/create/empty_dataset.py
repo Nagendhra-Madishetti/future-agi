@@ -5,22 +5,20 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-logger = structlog.get_logger(__name__)
 from analytics.utils import (
     MixpanelEvents,
     MixpanelTypes,
     get_mixpanel_properties,
     track_mixpanel_event,
 )
-from model_hub.models.develop_dataset import Dataset
 from model_hub.serializers.contracts import (
-    CreateEmptyDatasetRequestSerializer,
     MODEL_HUB_ERROR_RESPONSES,
+    CreateEmptyDatasetRequestSerializer,
 )
+from model_hub.serializers.develop_dataset import DatasetSerializer
 from model_hub.serializers.develop_dataset_contracts import (
     DatasetCreateStartedResponseSerializer,
 )
-from model_hub.serializers.develop_dataset import DatasetSerializer
 from model_hub.validators.dataset_validators import (
     validate_dataset_name_unique,
 )
@@ -28,15 +26,13 @@ from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.parse_errors import parse_serialized_errors
-try:
-    from ee.usage.models.usage import APICallStatusChoices, APICallTypeChoices
-except ImportError:
-    APICallStatusChoices = None
-    APICallTypeChoices = None
+from tfc.constants.api_calls import APICallStatusChoices, APICallTypeChoices
 try:
     from ee.usage.utils.usage_entries import log_and_deduct_cost_for_resource_request
 except ImportError:
     log_and_deduct_cost_for_resource_request = None
+
+logger = structlog.get_logger(__name__)
 
 
 class CreateEmptyDatasetView(APIView):
@@ -55,23 +51,6 @@ class CreateEmptyDatasetView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             data = request.validated_data
-            call_log_row_entry = log_and_deduct_cost_for_resource_request(
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-                api_call_type=APICallTypeChoices.DATASET_ADD.value,
-                workspace=request.workspace,
-            )
-            if (
-                call_log_row_entry is None
-                or call_log_row_entry.status
-                == APICallStatusChoices.RESOURCE_LIMIT.value
-            ):
-                return self._gm.too_many_requests(
-                    get_error_message("DATASET_CREATE_LIMIT_REACHED")
-                )
-            call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
-            call_log_row_entry.save()
-
             dataset_name = data.get("new_dataset_name")
             model_type = data.get("model_type")
             organization = (
@@ -83,6 +62,23 @@ class CreateEmptyDatasetView(APIView):
                 validate_dataset_name_unique(dataset_name, organization)
             except Exception as validation_err:
                 return self._gm.bad_request(str(validation_err.detail[0]))
+
+            if log_and_deduct_cost_for_resource_request is not None:
+                call_log_row_entry = log_and_deduct_cost_for_resource_request(
+                    organization=organization,
+                    api_call_type=APICallTypeChoices.DATASET_ADD.value,
+                    workspace=request.workspace,
+                )
+                if (
+                    call_log_row_entry is None
+                    or call_log_row_entry.status
+                    == APICallStatusChoices.RESOURCE_LIMIT.value
+                ):
+                    return self._gm.too_many_requests(
+                        get_error_message("DATASET_CREATE_LIMIT_REACHED")
+                    )
+                call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
+                call_log_row_entry.save()
 
             dataset_id = uuid.uuid4()
 
@@ -98,10 +94,11 @@ class CreateEmptyDatasetView(APIView):
 
             if dataset_serializer.is_valid():
                 dataset = dataset_serializer.save(
+                    workspace=getattr(request, "workspace", None),
                     dataset_config={
                         "eval_recommendations": ["Deterministic Evals"],
                         "is_sdk": is_sdk,
-                    }
+                    },
                 )
 
                 if request.headers.get("X-Api-Key") is not None:

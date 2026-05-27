@@ -65,9 +65,11 @@ x-backend-env: &backend-env
   # with ${VAR:?error} guards so prod refuses to boot on the dev values.
   SECRET_KEY: ${SECRET_KEY:-local-dev-only-not-for-production-replace-me}
   ENV_TYPE: ${ENV_TYPE:-development}
+  EE_LICENSE_KEY: ${EE_LICENSE_KEY:-test-license-key}
   DJANGO_SETTINGS_MODULE: tfc.settings.settings
   FAST_STARTUP: ${FAST_STARTUP:-false}
   OTEL_ENABLED: ${OTEL_ENABLED:-false}
+  INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
 
   # LLM gateway + code sandbox + embedding service
   AGENTCC_INTERNAL_URL: http://agentcc-gateway:8080

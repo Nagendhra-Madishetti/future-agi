@@ -11,15 +11,17 @@ from django.utils import timezone
 from rest_framework import status
 
 from accounts.models.organization import Organization
+from accounts.models.user import User
 from accounts.models.workspace import Workspace
 from model_hub.models.ai_model import AIModel
 from tracer.models.project import Project
-from tracer.models.trace import Trace
+from tracer.models.trace import Trace, TraceErrorAnalysisStatus
 from tracer.models.trace_error_analysis import (
     ClusterSource,
     ErrorClusterTraces,
     FeedIssueStatus,
     Priority,
+    TraceErrorAnalysis,
     TraceErrorGroup,
 )
 from tracer.models.trace_error_analysis_task import (
@@ -176,17 +178,13 @@ class TestErrorClusterDetailAPI:
     def test_get_cluster_detail_unauthenticated(self, api_client):
         """Unauthenticated requests should be rejected."""
         fake_cluster_id = "cluster_123"
-        response = api_client.get(
-            f"/tracer/feed/issues/{fake_cluster_id}/"
-        )
+        response = api_client.get(f"/tracer/feed/issues/{fake_cluster_id}/")
         assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
 
     def test_get_cluster_detail_not_found(self, auth_client):
         """Get cluster detail for non-existent cluster."""
         fake_cluster_id = "nonexistent_cluster"
-        response = auth_client.get(
-            f"/tracer/feed/issues/{fake_cluster_id}/"
-        )
+        response = auth_client.get(f"/tracer/feed/issues/{fake_cluster_id}/")
         assert response.status_code in [
             status.HTTP_200_OK,  # May return empty
             status.HTTP_400_BAD_REQUEST,
@@ -239,6 +237,104 @@ class TestErrorClusterDetailAPI:
         for path in paths:
             response = auth_client.get(path)
             assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_patch_cluster_updates_and_clears_assignee(
+        self, auth_client, project, user
+    ):
+        """PATCH should persist status/severity and treat assignee=null as clear."""
+        cluster = make_feed_group(project, "PATCH-FEED", priority=Priority.MEDIUM)
+
+        response = auth_client.patch(
+            f"/tracer/feed/issues/{cluster.cluster_id}/",
+            {
+                "status": FeedIssueStatus.ACKNOWLEDGED,
+                "severity": "low",
+                "assignee": user.email,
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        result = get_result(response)
+        assert result["row"]["status"] == FeedIssueStatus.ACKNOWLEDGED
+        assert result["row"]["severity"] == "low"
+        assert user.email in result["row"]["assignees"]
+        cluster.refresh_from_db()
+        assert cluster.status == FeedIssueStatus.ACKNOWLEDGED
+        assert cluster.priority == Priority.LOW
+        assert cluster.assignee_id == user.id
+
+        response = auth_client.patch(
+            f"/tracer/feed/issues/{cluster.cluster_id}/",
+            {"assignee": None},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        cluster.refresh_from_db()
+        assert cluster.assignee_id is None
+
+    def test_patch_cluster_rejects_other_org_assignee(self, auth_client, project):
+        """Assignee emails must belong to the cluster organization."""
+        cluster = make_feed_group(project, "PATCH-FOREIGN", priority=Priority.MEDIUM)
+        other_org = Organization.objects.create(name="Other Assignee Org")
+        other_user = User.objects.create_user(
+            email=f"other-assignee-{uuid.uuid4()}@example.com",
+            password="test",
+            name="Other Assignee",
+            organization=other_org,
+        )
+
+        response = auth_client.patch(
+            f"/tracer/feed/issues/{cluster.cluster_id}/",
+            {"assignee": other_user.email},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        cluster.refresh_from_db()
+        assert cluster.assignee_id is None
+
+    def test_deep_analysis_cached_dispatch_does_not_start_task(
+        self, auth_client, project, mocker
+    ):
+        """Cached analysis POST should return done without queueing a new task."""
+        cluster = make_feed_group(project, "DEEP-CACHED", priority=Priority.HIGH)
+        trace = Trace.objects.create(project=project, name="Cached analysis trace")
+        ErrorClusterTraces.objects.create(cluster=cluster, trace=trace)
+        TraceErrorAnalysis.objects.create(trace=trace, project=project)
+        trace.error_analysis_status = TraceErrorAnalysisStatus.COMPLETED
+        trace.save(update_fields=["error_analysis_status"])
+        delay = mocker.patch("tracer.tasks.run_deep_analysis_on_demand.delay")
+
+        response = auth_client.post(
+            f"/tracer/feed/issues/{cluster.cluster_id}/deep-analysis/",
+            {"trace_id": str(trace.id), "force": False},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        result = get_result(response)
+        assert result["status"] == "done"
+        assert result["trace_id"] == str(trace.id)
+        delay.assert_not_called()
+
+    def test_create_linear_issue_without_connection_does_not_mutate_cluster(
+        self, auth_client, project
+    ):
+        """Without Linear integration, create-linear-issue must fail closed."""
+        cluster = make_feed_group(project, "LINEAR-NONE", priority=Priority.MEDIUM)
+
+        response = auth_client.post(
+            f"/tracer/feed/issues/{cluster.cluster_id}/create-linear-issue/",
+            {"team_id": "team-local-test"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        cluster.refresh_from_db()
+        assert not cluster.external_issue_url
+        assert not cluster.external_issue_id
 
 
 @pytest.mark.integration

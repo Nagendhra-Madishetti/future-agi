@@ -73,6 +73,7 @@ class ProviderCredentialsInput:
     livekit_agent_name: str | None = None
     livekit_config_json: dict[str, Any] | None = None
     livekit_max_concurrency: int | None = None
+    provider_was_provided: bool = False
 
 
 def _extract_credentials_input(
@@ -98,6 +99,7 @@ def _extract_credentials_input(
         livekit_agent_name=validated_data.pop("livekit_agent_name", None),
         livekit_config_json=validated_data.pop("livekit_config_json", None),
         livekit_max_concurrency=validated_data.pop("livekit_max_concurrency", None),
+        provider_was_provided="provider" in validated_data,
     )
 
 
@@ -181,6 +183,15 @@ class AgentDefinitionSerializer(serializers.ModelSerializer):
             "workspace",
             "observability_provider",
         ]
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            unknown_fields = sorted(set(data) - set(self.fields))
+            if unknown_fields:
+                raise serializers.ValidationError(
+                    {field: ["Unknown field."] for field in unknown_fields}
+                )
+        return super().to_internal_value(data)
 
     def to_representation(self, instance):
         """Read credentials from ProviderCredentials, fall back to AgentDefinition.
@@ -499,6 +510,22 @@ class AgentDefinitionSerializer(serializers.ModelSerializer):
         """
         from simulate.models.agent_definition import ProviderCredentials
 
+        credential_field_was_provided = data.provider_was_provided or any(
+            value is not None
+            for value in [
+                data.api_key,
+                data.assistant_id,
+                data.livekit_url,
+                data.livekit_api_key,
+                data.livekit_api_secret,
+                data.livekit_agent_name,
+                data.livekit_config_json,
+                data.livekit_max_concurrency,
+            ]
+        )
+        if not credential_field_was_provided:
+            return
+
         provider = (data.provider or "").strip()
 
         if provider in ("livekit", "livekit_bridge"):
@@ -529,10 +556,12 @@ class AgentDefinitionSerializer(serializers.ModelSerializer):
             config_json = None
             max_concurrency = None
 
-        creds, _ = ProviderCredentials.objects.get_or_create(
-            agent_definition=instance,
-            defaults={"provider_type": provider_type},
-        )
+        creds = ProviderCredentials.objects.filter(agent_definition=instance).first()
+        if creds is None:
+            creds = ProviderCredentials(
+                agent_definition=instance,
+                provider_type=provider_type,
+            )
         # When the agent's provider changes (e.g. vapi → livekit), wipe
         # stale per-provider fields on the existing creds row so old
         # values don't leak through. When the provider is unchanged,

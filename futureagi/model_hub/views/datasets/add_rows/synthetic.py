@@ -2,8 +2,7 @@ import traceback
 import uuid
 
 import structlog
-from django.db.models import Max
-from django.shortcuts import get_object_or_404
+from django.db.models import Max, Q
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -12,16 +11,48 @@ from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
 from model_hub.serializers.contracts import (
     MODEL_HUB_ERROR_RESPONSES,
 )
+from model_hub.serializers.develop_dataset import SyntheticDataSerializer
 from model_hub.serializers.develop_dataset_contracts import (
     DevelopDatasetMessageResponseSerializer,
 )
-from model_hub.serializers.develop_dataset import SyntheticDataSerializer
 from model_hub.tasks.develop_dataset import generate_new_columns, generate_new_rows
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
+
+
+def _request_organization(request):
+    return getattr(request, "organization", None) or request.user.organization
+
+
+def _request_workspace_filter(request, field_name="workspace"):
+    workspace = getattr(request, "workspace", None)
+    if not workspace:
+        return Q()
+
+    if getattr(workspace, "is_default", False):
+        return (
+            Q(**{field_name: workspace})
+            | Q(
+                **{
+                    f"{field_name}__is_default": True,
+                    f"{field_name}__organization_id": workspace.organization_id,
+                }
+            )
+            | Q(**{f"{field_name}__isnull": True})
+        )
+
+    return Q(**{field_name: workspace})
+
+
+def _request_dataset_queryset(request):
+    return Dataset.objects.filter(
+        _request_workspace_filter(request),
+        organization=_request_organization(request),
+        deleted=False,
+    )
 
 
 class AddSyntheticData(APIView):
@@ -40,7 +71,9 @@ class AddSyntheticData(APIView):
     def post(self, request, dataset_id, *args, **kwargs):
         try:
             validated_data = request.validated_data
-            dataset = get_object_or_404(Dataset, id=dataset_id)
+            dataset = _request_dataset_queryset(request).filter(id=dataset_id).first()
+            if not dataset:
+                return self._gm.not_found(get_error_message("DATASET_NOT_FOUND"))
 
             if validated_data["num_rows"] < 10:
                 return self._gm.bad_request(get_error_message("10_ROWS_REQUIRED"))

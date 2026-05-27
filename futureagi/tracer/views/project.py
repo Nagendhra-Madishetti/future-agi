@@ -15,10 +15,12 @@ logger = structlog.get_logger(__name__)
 from analytics.utils import mixpanel_slack_notfy, track_mixpanel_event
 from tfc.middleware.db_health_check import db_connection_required
 from tfc.middleware.query_timeout import monitor_query_performance
+from tfc.routers import uses_db
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
+from tracer.db_routing import DATABASE_FOR_PROJECT_LIST
 from tracer.models.eval_task import EvalTask
 from tracer.models.monitor import UserAlertMonitor, UserAlertMonitorLog
 from tracer.models.observation_span import ObservationSpan
@@ -28,6 +30,11 @@ from tracer.models.trace import Trace
 from tracer.models.trace_scan import TraceScanConfig
 from tracer.models.trace_session import TraceSession
 from tracer.queries.error_analysis import TraceErrorAnalysisDB
+from tracer.queries.end_users import (
+    build_user_graph_pg,
+    build_user_metrics_pg,
+    build_users_aggregate_graph_pg,
+)
 from tracer.serializers.project import (
     ProjectDetailResponseSerializer,
     ProjectGraphDataQuerySerializer,
@@ -244,6 +251,8 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             instance = self.get_object()
             serializer = self.get_serializer(instance)
             data = serializer.data
+            if instance.trace_type == "experiment" and not data.get("config"):
+                data["config"] = get_default_project_version_config()
 
             try:
                 scan_config = TraceScanConfig.objects.get(project=instance)
@@ -412,17 +421,27 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
     @action(detail=False, methods=["get"])
     @db_connection_required
     @monitor_query_performance
+    @uses_db(DATABASE_FOR_PROJECT_LIST, feature_key="feature:project_list")
     def list_projects(self, request, *args, **kwargs):
         """
         List projects filtered by organization ID.
 
         Volume counts come from ClickHouse (fast) instead of a PG
         JOIN on observation_spans (was 12+ seconds).
+
+        Routing: this is the single highest-impact PG list endpoint by
+        weekly time (see Sentry data, ~4,032s/wk PG time, p95 ~1s, 28k
+        calls/wk). Both PG queries below (the Project list and the
+        ProjectVersion count aggregate) route to DATABASE_FOR_PROJECT_LIST
+        so they land on the same alias.
         """
         try:
-            # Get base queryset — lightweight PG query, no annotation JOINs
-            queryset = self.get_queryset().only(
-                "id", "name", "created_at", "updated_at", "tags"
+            # Get base queryset — lightweight PG query, no annotation JOINs.
+            # Routes to replica when "feature:project_list" is opted in.
+            queryset = (
+                self.get_queryset()
+                .using(DATABASE_FOR_PROJECT_LIST)
+                .only("id", "name", "created_at", "updated_at", "tags")
             )
 
             # Tag filtering
@@ -565,9 +584,8 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                     from tracer.models.project_version import ProjectVersion
 
                     counts = (
-                        ProjectVersion.objects.filter(
-                            project_id__in=project_ids, deleted=False
-                        )
+                        ProjectVersion.objects.db_manager(DATABASE_FOR_PROJECT_LIST)
+                        .filter(project_id__in=project_ids, deleted=False)
                         .values("project_id")
                         .annotate(count=Count("id"))
                     )
@@ -900,6 +918,7 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                     filters=filters,
                     interval=interval,
                 )
+                _org = get_request_organization(request) or request.user.organization
                 start_date, end_date = builder.parse_time_range(filters)
                 bucket_fn = builder.time_bucket_expr(interval)
                 fb = ClickHouseFilterBuilder(
@@ -909,7 +928,6 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                 )
                 extra_where, extra_params = fb.translate(filters)
                 extra_clause = f"AND {extra_where}" if extra_where else ""
-                _org = get_request_organization(request) or request.user.organization
                 workspace_clause = ""
                 params = {
                     "project_id": project_id,

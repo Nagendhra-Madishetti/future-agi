@@ -1,10 +1,11 @@
 import structlog
+from django.http import Http404
 from django.utils import timezone
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
+from tfc.routers import uses_db
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import (
     ApiErrorResponseSerializer,
@@ -12,6 +13,7 @@ from tfc.utils.api_serializers import (
 )
 from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.general_methods import GeneralMethods
+from tracer.db_routing import DATABASE_FOR_DASHBOARD_LIST
 from tracer.models.custom_eval_config import CustomEvalConfig
 from tracer.models.dashboard import Dashboard, DashboardWidget
 from tracer.models.project import Project
@@ -20,8 +22,8 @@ from tracer.serializers.dashboard import (
     DashboardDetailSerializer,
     DashboardFilterValuesQuerySerializer,
     DashboardMetricsCatalogResponseSerializer,
-    DashboardQueryApiResponseSerializer,
     DashboardPreviewQuerySerializer,
+    DashboardQueryApiResponseSerializer,
     DashboardQuerySerializer,
     DashboardSerializer,
     DashboardWidgetSerializer,
@@ -32,7 +34,6 @@ from tracer.services.clickhouse.client import (
 )
 from tracer.services.clickhouse.query_builders.dashboard import (
     METRIC_UNITS,
-    SYSTEM_METRICS,
     DashboardQueryBuilder,
 )
 from tracer.services.clickhouse.query_builders.dataset_dashboard import (
@@ -41,10 +42,9 @@ from tracer.services.clickhouse.query_builders.dataset_dashboard import (
     DatasetQueryBuilder,
 )
 from tracer.services.clickhouse.query_builders.simulation_dashboard import (
+    _STRING_DIMENSION_METRICS,
     SIMULATION_FILTER_COLUMNS,
     SIMULATION_METRIC_UNITS,
-    SIMULATION_SYSTEM_METRICS,
-    _STRING_DIMENSION_METRICS,
     SimulationQueryBuilder,
 )
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
@@ -358,7 +358,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
         def _fetch_rows(sql, params):
             rows, column_types, _ = ch_client.execute_read(sql, params)
             col_names = [ct[0] for ct in column_types]
-            return [dict(zip(col_names, row)) for row in rows]
+            return [dict(zip(col_names, row, strict=True)) for row in rows]
 
         return self._run_simulation_queries(simulation_config, _fetch_rows)
 
@@ -380,9 +380,16 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
             normalized.append(metric_copy)
         return normalized
 
+    @uses_db(DATABASE_FOR_DASHBOARD_LIST, feature_key="feature:dashboard_list")
     def list(self, request, *args, **kwargs):
         try:
-            queryset = self.get_queryset()
+            # Route the main list read to replica when "feature:dashboard_list"
+            # is opted in. Note: DashboardSerializer.get_widget_count() does
+            # an `obj.widgets.filter().count()` per row that goes through the
+            # router for DashboardWidget (and likely lands on `default`).
+            # That's a pre-existing N+1 we are NOT fixing here — pure-routing
+            # change only. Fixing the serializer is a separate refactor.
+            queryset = self.get_queryset().using(DATABASE_FOR_DASHBOARD_LIST)
             serializer = DashboardSerializer(
                 queryset, many=True, context={"request": request}
             )
@@ -510,7 +517,6 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
         try:
             analytics = AnalyticsQueryService()
             all_metric_results = []
-            all_metric_infos = []
             project_name_map = {}
 
             # --- Trace metrics via DashboardQueryBuilder ---
@@ -1014,12 +1020,12 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                 pid.strip() for pid in req_project_ids_str.split(",") if pid.strip()
             ]
 
-            workspace_project_ids = set(
+            workspace_project_ids = {
                 str(pid)
                 for pid in Project.objects.filter(workspace=workspace).values_list(
                     "id", flat=True
                 )
-            )
+            }
             if req_project_ids:
                 project_ids = [
                     pid for pid in req_project_ids if pid in workspace_project_ids
@@ -2044,12 +2050,12 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
 
         # Traces source (default)
         # Validate project_ids belong to this workspace
-        workspace_project_ids = set(
+        workspace_project_ids = {
             str(pid)
             for pid in Project.objects.filter(
                 workspace=request.workspace,
             ).values_list("id", flat=True)
-        )
+        }
         if project_ids:
             project_ids = [pid for pid in project_ids if pid in workspace_project_ids]
         else:
@@ -2146,7 +2152,10 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                         result = analytics.execute_ch_query(
                             sql, {"project_ids": project_ids}, timeout_ms=5000
                         )
-                        values = [{"value": row["val"], "label": row["val"]} for row in result.data]
+                        values = [
+                            {"value": row["val"], "label": row["val"]}
+                            for row in result.data
+                        ]
                     except Exception as e:
                         logger.warning(
                             "filter_values_ch_query_failed",
@@ -2611,6 +2620,7 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
         return DashboardWidget.objects.filter(
             dashboard_id=dashboard_id,
             dashboard__workspace=self.request.workspace,
+            dashboard__deleted=False,
         )
 
     def _get_trace_query_timeout_ms(self, trace_config):
@@ -2676,6 +2686,8 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
 
             response_serializer = DashboardWidgetSerializer(widget)
             return self._gm.success_response(response_serializer.data)
+        except Http404:
+            return self._gm.not_found("Widget not found.")
         except Exception as e:
             logger.error(f"Failed to update widget: {e}", exc_info=True)
             return self._gm.bad_request("Failed to update widget.")
@@ -2692,6 +2704,8 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
             dashboard.updated_by = request.user
             dashboard.save(update_fields=["updated_by", "updated_at"])
             return self._gm.success_response("Widget deleted successfully.")
+        except Http404:
+            return self._gm.not_found("Widget not found.")
         except Exception as e:
             logger.error(f"Failed to delete widget: {e}", exc_info=True)
             return self._gm.bad_request("Failed to delete widget.")
@@ -2772,9 +2786,7 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
         """
         serializer = DashboardQuerySerializer(data=query_config)
         if not serializer.is_valid():
-            return self._gm.bad_request(
-                f"Invalid query config: {serializer.errors}"
-            )
+            return self._gm.bad_request(f"Invalid query config: {serializer.errors}")
         query_config = _normalize_dashboard_query_filters(serializer.validated_data)
 
         query_config["metrics"] = self._normalize_metric_sources(
@@ -2829,7 +2841,7 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
                     sql, params, timeout_ms=query_timeout
                 )
                 col_names = [ct[0] for ct in column_types]
-                row_dicts = [dict(zip(col_names, row)) for row in rows]
+                row_dicts = [dict(zip(col_names, row, strict=True)) for row in rows]
                 metric_results.append((metric_info, row_dicts))
 
         if dataset_metrics:
@@ -2840,7 +2852,7 @@ class DashboardWidgetViewSet(BaseModelViewSetMixin, ModelViewSet):
                 metric_info["source"] = "datasets"
                 rows, column_types, _ = ch_client.execute_read(sql, params)
                 col_names = [ct[0] for ct in column_types]
-                row_dicts = [dict(zip(col_names, row)) for row in rows]
+                row_dicts = [dict(zip(col_names, row, strict=True)) for row in rows]
                 metric_results.append((metric_info, row_dicts))
 
         if simulation_metrics:

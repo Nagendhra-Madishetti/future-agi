@@ -7,6 +7,7 @@ import {
   apiPath,
   asArray,
   assert,
+  currentUserEmail,
   currentUserId,
   isUuid,
   requireMutations,
@@ -33,7 +34,8 @@ const execFileAsync = promisify(execFile);
 export const observeFilterJourneys = [
   {
     id: "OBS-API-001",
-    title: "Observe property inventory keeps raw attribute names and system metrics",
+    title:
+      "Observe property inventory keeps raw attribute names and system metrics",
     tags: ["observe", "filters", "safe", "smoke"],
     async run({ client, evidence }) {
       const project = await resolveObserveProject(client, evidence);
@@ -46,7 +48,9 @@ export const observeFilterJourneys = [
         "System metric inventory must include latency.",
       );
 
-      const graphProperties = await client.get(apiPath("/tracer/trace/get_properties/"));
+      const graphProperties = await client.get(
+        apiPath("/tracer/trace/get_properties/"),
+      );
       assert(
         asArray(graphProperties).includes("Average"),
         "Trace graph properties must include Average.",
@@ -78,7 +82,8 @@ export const observeFilterJourneys = [
   },
   {
     id: "OBS-API-002",
-    title: "Observe trace, span, session, user, voice list filters accept latency filter",
+    title:
+      "Observe trace, span, session, user, voice list filters accept latency filter",
     tags: ["observe", "filters", "safe", "latency"],
     async run({ client, evidence }) {
       const project = await resolveObserveProject(client, evidence);
@@ -102,7 +107,11 @@ export const observeFilterJourneys = [
         {
           name: "users",
           path: apiPath("/tracer/users/"),
-          query: { project_id: project.id, current_page_index: 0, page_size: 5 },
+          query: {
+            project_id: project.id,
+            current_page_index: 0,
+            page_size: 5,
+          },
         },
         {
           name: "voice",
@@ -158,7 +167,11 @@ export const observeFilterJourneys = [
         graphBody,
       );
 
-      for (const [name, payload] of Object.entries({ traces, spans, sessions })) {
+      for (const [name, payload] of Object.entries({
+        traces,
+        spans,
+        sessions,
+      })) {
         assert(
           Array.isArray(payload?.data),
           `${name} graph response must include data array.`,
@@ -175,7 +188,8 @@ export const observeFilterJourneys = [
   },
   {
     id: "OBS-API-004",
-    title: "Observe saved view create, update, duplicate, reorder, and delete lifecycle",
+    title:
+      "Observe saved view create, update, duplicate, reorder, and delete lifecycle",
     tags: ["observe", "saved-views", "mutating", "data-roundtrip"],
     async run({ client, cleanup, runId, evidence }) {
       requireMutations();
@@ -196,17 +210,23 @@ export const observeFilterJourneys = [
       });
       assert(created?.id, "Saved view create did not return id.");
       cleanup.defer("delete saved view", () =>
-        client.delete(apiPath("/tracer/saved-views/{id}/", { id: created.id }), {
-          query: { project_id: project.id },
-          okStatuses: [200, 404],
-        }),
+        client.delete(
+          apiPath("/tracer/saved-views/{id}/", { id: created.id }),
+          {
+            query: { project_id: project.id },
+            okStatuses: [200, 404],
+          },
+        ),
       );
 
       const detail = await client.get(
         apiPath("/tracer/saved-views/{id}/", { id: created.id }),
         { query: { project_id: project.id } },
       );
-      assert(detail?.name === viewName, "Saved view detail returned wrong name.");
+      assert(
+        detail?.name === viewName,
+        "Saved view detail returned wrong name.",
+      );
       assert(
         detail?.config?.filters?.[0]?.filter_config?.filter_op ===
           "greater_than_or_equal",
@@ -226,7 +246,10 @@ export const observeFilterJourneys = [
         },
         { query: { project_id: project.id } },
       );
-      assert(updated?.name === renamedView, "Saved view update did not persist name.");
+      assert(
+        updated?.name === renamedView,
+        "Saved view update did not persist name.",
+      );
       assert(
         updated?.config?.display?.viewMode === "graph",
         "Saved view update did not persist display config.",
@@ -239,10 +262,13 @@ export const observeFilterJourneys = [
       );
       assert(duplicated?.id, "Saved view duplicate did not return id.");
       cleanup.defer("delete duplicated saved view", () =>
-        client.delete(apiPath("/tracer/saved-views/{id}/", { id: duplicated.id }), {
-          query: { project_id: project.id },
-          okStatuses: [200, 404],
-        }),
+        client.delete(
+          apiPath("/tracer/saved-views/{id}/", { id: duplicated.id }),
+          {
+            query: { project_id: project.id },
+            okStatuses: [200, 404],
+          },
+        ),
       );
 
       await client.post(apiPath("/tracer/saved-views/reorder/"), {
@@ -259,9 +285,14 @@ export const observeFilterJourneys = [
       });
       const customViews = asArray(listed.custom_views);
       const listedCreated = customViews.find((view) => view.id === created.id);
-      const listedDuplicate = customViews.find((view) => view.id === duplicated.id);
+      const listedDuplicate = customViews.find(
+        (view) => view.id === duplicated.id,
+      );
       assert(listedCreated, "Saved view list did not include created view.");
-      assert(listedDuplicate, "Saved view list did not include duplicated view.");
+      assert(
+        listedDuplicate,
+        "Saved view list did not include duplicated view.",
+      );
       assert(
         listedCreated.position <= listedDuplicate.position,
         "Saved view reorder did not preserve requested ordering.",
@@ -285,9 +316,12 @@ export const observeFilterJourneys = [
       const originalProjectTags = normalizeTags(project.tags);
 
       cleanup.defer("restore observe project tags", () =>
-        client.patch(apiPath("/tracer/project/{id}/tags/", { id: project.id }), {
-          tags: originalProjectTags,
-        }),
+        client.patch(
+          apiPath("/tracer/project/{id}/tags/", { id: project.id }),
+          {
+            tags: originalProjectTags,
+          },
+        ),
       );
       const projectTags = uniqueTags([...originalProjectTags, tag]);
       const updatedProject = await client.patch(
@@ -312,9 +346,12 @@ export const observeFilterJourneys = [
       }
       const originalTraceTags = normalizeTags(trace.tags);
       cleanup.defer("restore observe trace tags", () =>
-        client.patch(apiPath("/tracer/trace/{id}/tags/", { id: trace.trace_id }), {
-          tags: originalTraceTags,
-        }),
+        client.patch(
+          apiPath("/tracer/trace/{id}/tags/", { id: trace.trace_id }),
+          {
+            tags: originalTraceTags,
+          },
+        ),
       );
 
       const traceTags = uniqueTags([...originalTraceTags, tag]);
@@ -354,7 +391,8 @@ export const observeFilterJourneys = [
   },
   {
     id: "OBS-API-006",
-    title: "Observe session list, values, graph, and annotation queue add round-trip",
+    title:
+      "Observe session list, values, graph, and annotation queue add round-trip",
     tags: ["observe", "sessions", "annotation", "mutating", "data-roundtrip"],
     async run({ client, cleanup, evidence }) {
       requireMutations();
@@ -370,10 +408,16 @@ export const observeFilterJourneys = [
       );
       const baseRows = asArray(baseList);
       if (!baseRows.length) {
-        skip("No observe session rows are available for session queue coverage.");
+        skip(
+          "No observe session rows are available for session queue coverage.",
+        );
       }
 
-      const session = await findSessionNotAlreadyQueued(client, queue.id, baseRows);
+      const session = await findSessionNotAlreadyQueued(
+        client,
+        queue.id,
+        baseRows,
+      );
       if (!session?.session_id) {
         skip(
           "Every sampled observe session is already present in the selected queue.",
@@ -435,7 +479,10 @@ export const observeFilterJourneys = [
         },
       );
       const graphPoints = asArray(graph?.data);
-      assert(Array.isArray(graphPoints), "Session graph response missing data array.");
+      assert(
+        Array.isArray(graphPoints),
+        "Session graph response missing data array.",
+      );
       assert(
         graphPoints.some((point) => Number(point.value || 0) > 0),
         "Session graph did not include a non-zero point for the selected session.",
@@ -455,7 +502,10 @@ export const observeFilterJourneys = [
           ],
         },
       );
-      assert(added?.added === 1, "Adding the observe session to the queue failed.");
+      assert(
+        added?.added === 1,
+        "Adding the observe session to the queue failed.",
+      );
 
       const queueEntry = await findQueueEntryForSource(
         client,
@@ -536,7 +586,10 @@ export const observeFilterJourneys = [
         baseFilters,
       );
       assert(user?.user_id, "Observe user row did not include user_id.");
-      assert(user?.end_user_id, "Observe user row did not include end_user_id.");
+      assert(
+        user?.end_user_id,
+        "Observe user row did not include end_user_id.",
+      );
 
       const userFilter = canonicalTextFilter("user_id", "equals", user.user_id);
       const scopedFilters = [...baseFilters, ...userFilter];
@@ -598,7 +651,10 @@ export const observeFilterJourneys = [
         },
       );
       const graphPoints = asArray(graph?.data);
-      assert(Array.isArray(graphPoints), "User graph response missing data array.");
+      assert(
+        Array.isArray(graphPoints),
+        "User graph response missing data array.",
+      );
       assert(
         graphPoints.some((point) => Number(point.value || 0) > 0),
         "User graph did not include a non-zero point for the selected user.",
@@ -631,10 +687,17 @@ export const observeFilterJourneys = [
           },
         },
       );
-      for (const key of ["session", "trace", "cost", "input_tokens", "output_tokens"]) {
+      for (const key of [
+        "session",
+        "trace",
+        "cost",
+        "input_tokens",
+        "output_tokens",
+      ]) {
+        const series = userDetailGraph?.[key];
         assert(
-          Array.isArray(userDetailGraph?.[key]?.data),
-          `User detail graph response omitted ${key}.data.`,
+          Array.isArray(series) || Array.isArray(series?.data),
+          `User detail graph response omitted ${key} series.`,
         );
       }
 
@@ -668,7 +731,10 @@ export const observeFilterJourneys = [
         ),
       );
       const sessionRows = asArray(relatedSessions);
-      assert(sessionRows.length > 0, "User-scoped session list returned no rows.");
+      assert(
+        sessionRows.length > 0,
+        "User-scoped session list returned no rows.",
+      );
       assert(
         sessionRows.some((row) => rowContainsValue(row, user.user_id)),
         "User-scoped session list did not include the selected user.",
@@ -709,7 +775,8 @@ export const observeFilterJourneys = [
   },
   {
     id: "OBS-API-008",
-    title: "Observe voice call list, detail, direct annotation, and default queue item",
+    title:
+      "Observe voice call list, detail, direct annotation, and default queue item",
     tags: ["observe", "voice", "annotation", "mutating", "data-roundtrip"],
     async run({ client, cleanup, runId, evidence }) {
       requireMutations();
@@ -729,11 +796,15 @@ export const observeFilterJourneys = [
 
       const traceFilter = canonicalTextFilter("trace_id", "equals", traceId);
       const filteredList = await client.get(
-        queryWithFilters(apiPath("/tracer/trace/list_voice_calls/"), traceFilter, {
-          project_id: project.id,
-          page: 1,
-          page_size: 5,
-        }),
+        queryWithFilters(
+          apiPath("/tracer/trace/list_voice_calls/"),
+          traceFilter,
+          {
+            project_id: project.id,
+            page: 1,
+            page_size: 5,
+          },
+        ),
       );
       const filteredRows = asArray(filteredList);
       assert(
@@ -768,10 +839,16 @@ export const observeFilterJourneys = [
         asArray(created?.errors).length === 0,
         `Direct voice annotation returned errors: ${JSON.stringify(created.errors)}`,
       );
-      assert(createdScores.length === 1, "Direct voice annotation did not save one score.");
+      assert(
+        createdScores.length === 1,
+        "Direct voice annotation did not save one score.",
+      );
       const createdScore = createdScores[0];
       const queueItemId = createdScore.queue_item;
-      assert(queueItemId, "Direct voice annotation did not create a queue item.");
+      assert(
+        queueItemId,
+        "Direct voice annotation did not create a queue item.",
+      );
       assert(
         createdScore.source_type === "trace",
         "Direct voice annotation did not save as trace source_type.",
@@ -789,46 +866,55 @@ export const observeFilterJourneys = [
         "Direct voice annotation label note did not persist.",
       );
 
-      cleanup.defer("delete observe voice direct annotation artifacts", async () => {
-        await client.post(
-          apiPath("/model-hub/scores/bulk/"),
-          {
-            source_type: "trace",
-            source_id: traceId,
-            queue_item_id: queueItemId,
-            scores: [
+      cleanup.defer(
+        "delete observe voice direct annotation artifacts",
+        async () => {
+          await client.post(
+            apiPath("/model-hub/scores/bulk/"),
+            {
+              source_type: "trace",
+              source_id: traceId,
+              queue_item_id: queueItemId,
+              scores: [
+                {
+                  label_id: label.id,
+                  value: scoreValue,
+                  notes: "",
+                },
+              ],
+              notes: "",
+              span_notes: "",
+              span_notes_source_id: rootSpanId,
+            },
+            { okStatuses: [200, 400, 404] },
+          );
+          for (const score of createdScores) {
+            if (!score?.id) continue;
+            await client.delete(
+              apiPath("/model-hub/scores/{id}/", { id: score.id }),
               {
-                label_id: label.id,
-                value: scoreValue,
-                notes: "",
+                okStatuses: [200, 204, 404],
               },
-            ],
-            notes: "",
-            span_notes: "",
-            span_notes_source_id: rootSpanId,
-          },
-          { okStatuses: [200, 400, 404] },
-        );
-        for (const score of createdScores) {
-          if (!score?.id) continue;
-          await client.delete(apiPath("/model-hub/scores/{id}/", { id: score.id }), {
-            okStatuses: [200, 204, 404],
-          });
-        }
-        await client.delete(
-          queuePath(
-            "/model-hub/annotation-queues/{queue_id}/items/{id}/",
-            queue.id,
-            { id: queueItemId },
-          ),
-          { okStatuses: [200, 204, 404] },
-        );
-      });
+            );
+          }
+          await client.delete(
+            queuePath(
+              "/model-hub/annotation-queues/{queue_id}/items/{id}/",
+              queue.id,
+              { id: queueItemId },
+            ),
+            { okStatuses: [200, 204, 404] },
+          );
+        },
+      );
 
       const queueEntry = (
         await getVoiceQueueEntriesForSource(client, traceId, rootSpanId)
       ).find((entry) => entry?.queue?.id === queue.id);
-      assert(queueEntry?.item?.id === queueItemId, "Default queue item did not reload.");
+      assert(
+        queueEntry?.item?.id === queueItemId,
+        "Default queue item did not reload.",
+      );
       assert(
         queueEntry.item.source_type === "trace",
         "Default queue item did not preserve trace source_type.",
@@ -890,7 +976,8 @@ export const observeFilterJourneys = [
   },
   {
     id: "OBS-API-009",
-    title: "Observe filter property inventory and value lookup across row types",
+    title:
+      "Observe filter property inventory and value lookup across row types",
     tags: ["observe", "filters", "safe", "metadata", "values"],
     async run({ client, evidence }) {
       const coverage = await resolveObserveFilterCoverage(client, evidence);
@@ -908,7 +995,10 @@ export const observeFilterJourneys = [
       } = coverage;
 
       const metricNames = new Set(metrics.map((metric) => metric?.name));
-      assert(metricNames.has("latency"), "Metrics catalog must include latency.");
+      assert(
+        metricNames.has("latency"),
+        "Metrics catalog must include latency.",
+      );
       assert(metricNames.has("status"), "Metrics catalog must include status.");
       assert(
         customAttribute?.name,
@@ -918,7 +1008,10 @@ export const observeFilterJourneys = [
         annotationMetric?.name,
         "Metrics catalog did not expose an annotation metric.",
       );
-      assert(evalMetric?.name, "Metrics catalog did not expose an eval metric.");
+      assert(
+        evalMetric?.name,
+        "Metrics catalog did not expose an eval metric.",
+      );
 
       const spanFields = asArray(
         await client.get(
@@ -956,7 +1049,10 @@ export const observeFilterJourneys = [
         "Span attribute inventory did not include the selected custom attribute.",
       );
       assertNoStringifiedPaths(spanAttributes, "span attribute inventory");
-      assertNoNormalizedDuplicateKeys(spanAttributes, "span attribute inventory");
+      assertNoNormalizedDuplicateKeys(
+        spanAttributes,
+        "span attribute inventory",
+      );
 
       const evalAttributeCounts = {};
       for (const rowType of ["spans", "traces", "sessions", "voiceCalls"]) {
@@ -982,14 +1078,20 @@ export const observeFilterJourneys = [
           );
         }
         if (rowType === "traces") {
-          assert(paths.includes("input"), "Trace eval attributes missing input.");
+          assert(
+            paths.includes("input"),
+            "Trace eval attributes missing input.",
+          );
           assert(
             paths.some((path) => path.endsWith(`.${customAttribute.name}`)),
             "Trace eval attributes did not include indexed span custom attributes.",
           );
         }
         if (rowType === "sessions") {
-          assert(paths.includes("name"), "Session eval attributes missing name.");
+          assert(
+            paths.includes("name"),
+            "Session eval attributes missing name.",
+          );
           assert(
             paths.some((path) => path.includes(".spans.")),
             "Session eval attributes did not include nested trace/span paths.",
@@ -1026,7 +1128,8 @@ export const observeFilterJourneys = [
         "Custom attribute filter values were empty.",
       );
       assert(
-        annotationValues.length > 0 || asArray(annotationMetric.choices).length > 0,
+        annotationValues.length > 0 ||
+          asArray(annotationMetric.choices).length > 0,
         "Annotation filter values/choices were empty.",
       );
       assert(
@@ -1035,7 +1138,10 @@ export const observeFilterJourneys = [
       );
       assert(userValues.length > 0, "Session user_id value lookup was empty.");
 
-      const voiceCoverage = await resolveObserveVoiceFilterSample(client, evidence);
+      const voiceCoverage = await resolveObserveVoiceFilterSample(
+        client,
+        evidence,
+      );
       const voiceTurnFilter = canonicalNumberFilter(
         "turn_count",
         "greater_than_or_equal",
@@ -1063,7 +1169,10 @@ export const observeFilterJourneys = [
         "Voice turn_count filter returned no rows.",
       );
 
-      const reasonPrefix = String(voiceCoverage.call.ended_reason || "").slice(0, 8);
+      const reasonPrefix = String(voiceCoverage.call.ended_reason || "").slice(
+        0,
+        8,
+      );
       if (reasonPrefix) {
         const voiceReasonRows = asArray(
           await client.get(
@@ -1120,8 +1229,13 @@ export const observeFilterJourneys = [
     tags: ["observe", "annotations", "feedback", "mutating", "data-roundtrip"],
     async run({ client, cleanup, runId, evidence }) {
       requireMutations();
-      const { project, span, evalConfigId, evaluationDetail, queue: existingQueue } =
-        await resolveObserveSpanWithEvalForFeedback(client, evidence);
+      const {
+        project,
+        span,
+        evalConfigId,
+        evaluationDetail,
+        queue: existingQueue,
+      } = await resolveObserveSpanWithEvalForFeedback(client, evidence);
       const spanId = span.span_id || span.id;
 
       let queue = existingQueue;
@@ -1142,39 +1256,55 @@ export const observeFilterJourneys = [
         }
         queue = defaultQueuePayload?.queue || defaultQueuePayload;
       }
-      assert(queue?.id, "Default annotation queue response did not include queue id.");
+      assert(
+        queue?.id,
+        "Default annotation queue response did not include queue id.",
+      );
 
-      const queueEntriesBefore = await getObservationSpanQueueEntries(client, spanId);
+      const queueEntriesBefore = await getObservationSpanQueueEntries(
+        client,
+        spanId,
+      );
       const defaultEntryBefore = queueEntriesBefore.find(
         (entry) => String(entry?.queue?.id) === String(queue.id),
       );
       const preexistingQueueItemId = defaultEntryBefore?.item?.id || null;
 
       const labelName = `OBS-007 legacy drawer ${runId}`;
-      const label = await client.post(apiPath("/model-hub/annotations-labels/"), {
-        name: labelName,
-        type: "text",
-        description: "Temporary label for observe drawer API journey.",
-        settings: {
-          placeholder: "Observe drawer journey",
-          min_length: 0,
-          max_length: 500,
+      const label = await client.post(
+        apiPath("/model-hub/annotations-labels/"),
+        {
+          name: labelName,
+          type: "text",
+          description: "Temporary label for observe drawer API journey.",
+          settings: {
+            placeholder: "Observe drawer journey",
+            min_length: 0,
+            max_length: 500,
+          },
+          allow_notes: true,
         },
-        allow_notes: true,
-      });
+      );
       const createdLabel = label?.id
         ? label
         : await findAnnotationLabelByName(client, labelName);
       const labelId = createdLabel?.id;
-      assert(labelId, "Temporary observe annotation label create did not return id.");
+      assert(
+        labelId,
+        "Temporary observe annotation label create did not return id.",
+      );
       cleanup.defer("delete OBS-007 temporary label", () =>
         ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/annotations-labels/{id}/", { id: labelId })),
+          client.delete(
+            apiPath("/model-hub/annotations-labels/{id}/", { id: labelId }),
+          ),
         ),
       );
 
       const addedLabel = await client.post(
-        apiPath("/model-hub/annotation-queues/{id}/add-label/", { id: queue.id }),
+        apiPath("/model-hub/annotation-queues/{id}/add-label/", {
+          id: queue.id,
+        }),
         { label_id: labelId, required: false },
       );
       assert(
@@ -1211,7 +1341,9 @@ export const observeFilterJourneys = [
         )}`,
       );
       assert(
-        asArray(annotationResult?.success_labels).map(String).includes(String(labelId)),
+        asArray(annotationResult?.success_labels)
+          .map(String)
+          .includes(String(labelId)),
         "Legacy add_annotations did not report the temporary label as saved.",
       );
 
@@ -1225,12 +1357,18 @@ export const observeFilterJourneys = [
           String(scoreLabelId(score)) === String(labelId) &&
           valuesEqual(score.value, expectedScoreValue),
       );
-      assert(createdScore?.id, "Scores for-source did not include legacy annotation.");
+      assert(
+        createdScore?.id,
+        "Scores for-source did not include legacy annotation.",
+      );
       const queueItemId =
         createdScore.queue_item?.id ||
         createdScore.queue_item ||
         createdScore.queue_item_id;
-      assert(queueItemId, "Legacy annotation score did not attach to a queue item.");
+      assert(
+        queueItemId,
+        "Legacy annotation score did not attach to a queue item.",
+      );
 
       if (!preexistingQueueItemId) {
         cleanup.defer("delete OBS-007 temporary default queue item", () =>
@@ -1246,30 +1384,41 @@ export const observeFilterJourneys = [
           ),
         );
       }
-      cleanup.defer("delete OBS-007 legacy annotation score and note", async () => {
-        await client.post(
-          apiPath("/model-hub/scores/bulk/"),
-          {
-            source_type: "observation_span",
-            source_id: spanId,
-            queue_item_id: queueItemId,
-            scores: [{ label_id: labelId, value: expectedScoreValue, notes: "" }],
-            span_notes: "",
-            span_notes_source_id: spanId,
-          },
-          { okStatuses: [200, 400, 404] },
-        );
-        await ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/scores/{id}/", { id: createdScore.id }), {
-            okStatuses: [200, 204, 404],
-          }),
-        );
-      });
-
-      const queueEntry = (await getObservationSpanQueueEntries(client, spanId)).find(
-        (entry) => String(entry?.queue?.id) === String(queue.id),
+      cleanup.defer(
+        "delete OBS-007 legacy annotation score and note",
+        async () => {
+          await client.post(
+            apiPath("/model-hub/scores/bulk/"),
+            {
+              source_type: "observation_span",
+              source_id: spanId,
+              queue_item_id: queueItemId,
+              scores: [
+                { label_id: labelId, value: expectedScoreValue, notes: "" },
+              ],
+              span_notes: "",
+              span_notes_source_id: spanId,
+            },
+            { okStatuses: [200, 400, 404] },
+          );
+          await ignoreNotFound(() =>
+            client.delete(
+              apiPath("/model-hub/scores/{id}/", { id: createdScore.id }),
+              {
+                okStatuses: [200, 204, 404],
+              },
+            ),
+          );
+        },
       );
-      assert(queueEntry?.item?.id, "Default queue entry did not reload for span.");
+
+      const queueEntry = (
+        await getObservationSpanQueueEntries(client, spanId)
+      ).find((entry) => String(entry?.queue?.id) === String(queue.id));
+      assert(
+        queueEntry?.item?.id,
+        "Default queue entry did not reload for span.",
+      );
       assert(
         valuesEqual(queueEntry.existing_scores?.[labelId], expectedScoreValue),
         "Default queue entry did not prefill the legacy annotation value.",
@@ -1280,7 +1429,9 @@ export const observeFilterJourneys = [
       );
       assert(
         queueEntry.existing_notes === spanNote ||
-          asArray(queueEntry.span_notes).some((note) => note.notes === spanNote),
+          asArray(queueEntry.span_notes).some(
+            (note) => note.notes === spanNote,
+          ),
         "Default queue entry did not expose the legacy span note.",
       );
 
@@ -1305,9 +1456,12 @@ export const observeFilterJourneys = [
       assert(feedbackId, "submit_feedback did not return feedback_id.");
       cleanup.defer("delete OBS-007 temporary feedback", () =>
         ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/feedback/{id}/", { id: feedbackId }), {
-            okStatuses: [200, 204, 404],
-          }),
+          client.delete(
+            apiPath("/model-hub/feedback/{id}/", { id: feedbackId }),
+            {
+              okStatuses: [200, 204, 404],
+            },
+          ),
         ),
       );
 
@@ -1340,9 +1494,12 @@ export const observeFilterJourneys = [
         "Feedback detail did not preserve the drawer feedback fields.",
       );
 
-      await client.delete(apiPath("/model-hub/feedback/{id}/", { id: feedbackId }), {
-        okStatuses: [200, 204],
-      });
+      await client.delete(
+        apiPath("/model-hub/feedback/{id}/", { id: feedbackId }),
+        {
+          okStatuses: [200, 204],
+        },
+      );
       await ignoreNotFound(() =>
         client.get(apiPath("/model-hub/feedback/{id}/", { id: feedbackId }), {
           okStatuses: [404],
@@ -1365,11 +1522,18 @@ export const observeFilterJourneys = [
   },
   {
     id: "OBS-API-011",
-    title: "Observe project list, search, tag filter, detail, and SDK code readback",
+    title:
+      "Observe project list, search, tag filter, detail, and SDK code readback",
     tags: ["observe", "projects", "safe", "data-integrity"],
     async run({ client, organizationId, workspaceId, evidence }) {
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
 
       const list = await client.get(apiPath("/tracer/project/list_projects/"), {
         query: {
@@ -1389,7 +1553,8 @@ export const observeFilterJourneys = [
         workspaceId,
       });
       assert(
-        Number(list.metadata.total_rows) === Number(audit.visible_observe_project_count),
+        Number(list.metadata.total_rows) ===
+          Number(audit.visible_observe_project_count),
         "Observe project list total_rows did not match workspace-scoped DB audit.",
       );
 
@@ -1399,13 +1564,19 @@ export const observeFilterJourneys = [
         const detail = await client.get(
           apiPath("/tracer/project/{id}/", { id: project.id }),
         );
-        if (detail?.trace_type === "observe" && detail?.workspace === workspaceId) {
+        if (
+          detail?.trace_type === "observe" &&
+          detail?.workspace === workspaceId
+        ) {
           selectedProject = project;
           selectedDetail = detail;
           break;
         }
       }
-      assert(selectedProject, "Observe list did not include a current-workspace project on the first page.");
+      assert(
+        selectedProject,
+        "Observe list did not include a current-workspace project on the first page.",
+      );
       assertObserveProjectDetail(selectedDetail, {
         projectId: selectedProject.id,
         organizationId,
@@ -1413,56 +1584,70 @@ export const observeFilterJourneys = [
       });
 
       const searchTerm = String(selectedProject.name || "").slice(0, 8);
-      const search = await client.get(apiPath("/tracer/project/list_projects/"), {
-        query: {
-          project_type: "observe",
-          name: searchTerm,
-          page_number: 0,
-          page_size: 25,
+      const search = await client.get(
+        apiPath("/tracer/project/list_projects/"),
+        {
+          query: {
+            project_type: "observe",
+            name: searchTerm,
+            page_number: 0,
+            page_size: 25,
+          },
         },
-      });
+      );
       assert(
         asArray(search).some((project) => project.id === selectedProject.id),
         "Observe project search did not return the selected project.",
       );
 
-      const nameAsc = await client.get(apiPath("/tracer/project/list_projects/"), {
-        query: {
-          project_type: "observe",
-          page_number: 0,
-          page_size: 25,
-          sort_by: "name",
-          sort_direction: "asc",
+      const nameAsc = await client.get(
+        apiPath("/tracer/project/list_projects/"),
+        {
+          query: {
+            project_type: "observe",
+            page_number: 0,
+            page_size: 25,
+            sort_by: "name",
+            sort_direction: "asc",
+          },
         },
-      });
+      );
       assertSortedObserveProjectNames(asArray(nameAsc), "asc");
 
-      const issuesSort = await client.get(apiPath("/tracer/project/list_projects/"), {
-        query: {
-          project_type: "observe",
-          page_number: 0,
-          page_size: 10,
-          sort_by: "issues",
-          sort_direction: "desc",
+      const issuesSort = await client.get(
+        apiPath("/tracer/project/list_projects/"),
+        {
+          query: {
+            project_type: "observe",
+            page_number: 0,
+            page_size: 10,
+            sort_by: "issues",
+            sort_direction: "desc",
+          },
         },
-      });
+      );
       assert(
         asArray(issuesSort).length > 0,
         "Observe project list returned no rows when sorting by synthetic issues.",
       );
 
       let tagFilterCount = 0;
-      const tagProject = projects.find((project) => asArray(project.tags).length > 0);
+      const tagProject = projects.find(
+        (project) => asArray(project.tags).length > 0,
+      );
       if (tagProject) {
         const tag = tagProject.tags[0];
-        const tagFilter = await client.get(apiPath("/tracer/project/list_projects/"), {
-          query: {
-            project_type: "observe",
-            tags: tag,
-            page_number: 0,
-            page_size: 25,
+        const tagFilter = await client.get(
+          apiPath("/tracer/project/list_projects/"),
+          {
+            query: {
+              project_type: "observe",
+              tags: tag,
+              page_number: 0,
+              page_size: 25,
+            },
           },
-        });
+        );
         const tagRows = asArray(tagFilter);
         assert(
           tagRows.some((project) => project.id === tagProject.id),
@@ -1475,9 +1660,12 @@ export const observeFilterJourneys = [
         tagFilterCount = tagRows.length;
       }
 
-      const sdkCode = await client.get(apiPath("/tracer/project/project_sdk_code/"), {
-        query: { project_type: "observe" },
-      });
+      const sdkCode = await client.get(
+        apiPath("/tracer/project/project_sdk_code/"),
+        {
+          query: { project_type: "observe" },
+        },
+      );
       assertObserveSdkCodeUsesPlaceholders(sdkCode);
 
       evidence.push({
@@ -1486,8 +1674,10 @@ export const observeFilterJourneys = [
         project_count: list.metadata.total_rows,
         page_rows: projects.length,
         db_workspace_project_count: audit.workspace_observe_project_count,
-        db_null_workspace_project_count: audit.null_workspace_observe_project_count,
-        db_other_workspace_project_count: audit.other_workspace_observe_project_count,
+        db_null_workspace_project_count:
+          audit.null_workspace_observe_project_count,
+        db_other_workspace_project_count:
+          audit.other_workspace_observe_project_count,
         search_count: asArray(search).length,
         tag_filter_count: tagFilterCount,
         issues_sort_rows: asArray(issuesSort).length,
@@ -1497,16 +1687,31 @@ export const observeFilterJourneys = [
   },
   {
     id: "OBS-API-012",
-    title: "Dashboard and widget lifecycle, query guards, metrics, and chart graph",
+    title:
+      "Dashboard and widget lifecycle, query guards, metrics, and chart graph",
     tags: ["observe", "dashboards", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
       const project = await resolveObserveProject(client, evidence);
       const dashboardName = `api journey dashboard ${runId}`;
       const dashboardNameUpdated = `${dashboardName} updated`;
-      const dashboardDescription = "Temporary dashboard created by API journey.";
+      const dashboardDescription =
+        "Temporary dashboard created by API journey.";
       const queryConfig = dashboardQueryConfig(project.id);
       let dashboardId = null;
       let dashboardDeleted = false;
@@ -1515,9 +1720,12 @@ export const observeFilterJourneys = [
       let emptyWidgetId = null;
       let emptyWidgetDeleted = false;
 
-      const metricsCatalog = await client.get(apiPath("/tracer/dashboard/metrics/"), {
-        query: { project_ids: project.id },
-      });
+      const metricsCatalog = await client.get(
+        apiPath("/tracer/dashboard/metrics/"),
+        {
+          query: { project_ids: project.id },
+        },
+      );
       const metrics = asArray(metricsCatalog?.metrics);
       assert(
         metrics.some((metric) => metric.name === "latency"),
@@ -1555,7 +1763,9 @@ export const observeFilterJourneys = [
       cleanup.defer("delete OBS-API-012 dashboard", () => {
         if (dashboardDeleted || !dashboardId) return null;
         return ignoreNotFound(() =>
-          client.delete(apiPath("/tracer/dashboard/{id}/", { id: dashboardId })),
+          client.delete(
+            apiPath("/tracer/dashboard/{id}/", { id: dashboardId }),
+          ),
         );
       });
       assertDashboardPayload(created, {
@@ -1582,7 +1792,10 @@ export const observeFilterJourneys = [
         description: dashboardDescription,
         workspaceId,
       });
-      assert(asArray(detail.widgets).length === 0, "Created dashboard detail should have no widgets.");
+      assert(
+        asArray(detail.widgets).length === 0,
+        "Created dashboard detail should have no widgets.",
+      );
 
       const patched = await client.patch(
         apiPath("/tracer/dashboard/{id}/", { id: dashboardId }),
@@ -1715,7 +1928,10 @@ export const observeFilterJourneys = [
         }),
       );
       duplicateWidgetId = duplicate?.id;
-      assert(isUuid(duplicateWidgetId), "Widget duplicate did not return a UUID id.");
+      assert(
+        isUuid(duplicateWidgetId),
+        "Widget duplicate did not return a UUID id.",
+      );
       assert(
         duplicate.name === "Latency widget patched (Copy)",
         "Widget duplicate did not use the expected copy name.",
@@ -1772,17 +1988,21 @@ export const observeFilterJourneys = [
         "Dashboard query with an inaccessible project",
       );
 
-      const chartGraph = await client.get(apiPath("/tracer/charts/fetch_graph/"), {
-        query: {
-          project_id: project.id,
-          interval: "day",
-          property: "average",
-          filters: [],
-          req_data_config: { id: "latency", type: "SYSTEM_METRIC" },
+      const chartGraph = await client.get(
+        apiPath("/tracer/charts/fetch_graph/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "day",
+            property: "average",
+            filters: [],
+            req_data_config: { id: "latency", type: "SYSTEM_METRIC" },
+          },
         },
-      });
+      );
       assert(
-        chartGraph?.metric_name === "latency" || Array.isArray(chartGraph?.data),
+        chartGraph?.metric_name === "latency" ||
+          Array.isArray(chartGraph?.data),
         "Charts fetch_graph did not return the single system metric shape.",
       );
       await expectApiJourneyHttpStatus(
@@ -1815,7 +2035,9 @@ export const observeFilterJourneys = [
         expectedActiveWidgetCount: 2,
       });
 
-      await client.delete(apiPath("/tracer/dashboard/{id}/", { id: dashboardId }));
+      await client.delete(
+        apiPath("/tracer/dashboard/{id}/", { id: dashboardId }),
+      );
       dashboardDeleted = true;
 
       const deletedAudit = await loadDashboardDbAudit({
@@ -1849,22 +2071,354 @@ export const observeFilterJourneys = [
     },
   },
   {
+    id: "OBS-API-020",
+    title: "Observe charts dashboard system metrics and date range filters",
+    tags: ["observe", "charts", "safe", "read-only"],
+    async run({ client, evidence }) {
+      const project = await resolveObserveProject(client, evidence);
+
+      const systemMetrics = asArray(
+        await client.get(apiPath("/tracer/project/fetch_system_metrics/")),
+      );
+      for (const metric of ["latency", "tokens", "cost"]) {
+        assert(
+          systemMetrics.includes(metric),
+          `System metric inventory omitted ${metric}.`,
+        );
+      }
+
+      const thirtyDayFilter = observeChartsDateFilter(30);
+      const sevenDayFilter = observeChartsDateFilter(7);
+      const thirtyDayGraph = await client.get(
+        apiPath("/tracer/project/get_graph_data/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "day",
+            filters: JSON.stringify([thirtyDayFilter]),
+          },
+        },
+      );
+      const sevenDayGraph = await client.get(
+        apiPath("/tracer/project/get_graph_data/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "day",
+            filters: JSON.stringify([sevenDayFilter]),
+          },
+        },
+      );
+      const sevenDayHourlyGraph = await client.get(
+        apiPath("/tracer/project/get_graph_data/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "hour",
+            filters: JSON.stringify([sevenDayFilter]),
+          },
+        },
+      );
+
+      const thirtyDaySummary = assertObserveChartsGraph(thirtyDayGraph, "30D");
+      const sevenDaySummary = assertObserveChartsGraph(sevenDayGraph, "7D");
+      const sevenDayHourlySummary = assertObserveChartsGraph(
+        sevenDayHourlyGraph,
+        "7D hourly",
+      );
+      assert(
+        sevenDaySummary.traffic_points <= thirtyDaySummary.traffic_points,
+        "7D chart range returned more daily traffic buckets than 30D.",
+      );
+      assert(
+        sevenDayHourlySummary.traffic_points >= sevenDaySummary.traffic_points,
+        "Hourly chart range returned fewer buckets than daily range.",
+      );
+
+      const latencyFetchGraph = await client.get(
+        apiPath("/tracer/charts/fetch_graph/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "day",
+            property: "average",
+            filters: [],
+            req_data_config: { id: "latency", type: "SYSTEM_METRIC" },
+          },
+        },
+      );
+      assert(
+        latencyFetchGraph?.metric_name === "latency" ||
+          Array.isArray(latencyFetchGraph?.data),
+        "Charts fetch_graph latency payload did not return the expected shape.",
+      );
+
+      const evalNames = asArray(
+        await client.get(apiPath("/tracer/trace/get_eval_names/"), {
+          query: { project_id: project.id },
+        }),
+      );
+
+      evidence.push({
+        project_id: project.id,
+        project_name: project.name || null,
+        system_metric_count: systemMetrics.length,
+        thirty_day_points: thirtyDaySummary,
+        seven_day_points: sevenDaySummary,
+        seven_day_hourly_points: sevenDayHourlySummary,
+        fetch_graph_metric_name: latencyFetchGraph?.metric_name || "latency",
+        evaluation_metric_count: evalNames.length,
+      });
+    },
+  },
+  {
+    id: "OBS-API-019",
+    title:
+      "Dashboard widget full PUT route persists replacement and scope guards",
+    tags: [
+      "observe",
+      "dashboards",
+      "widgets",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
+      const project = await resolveObserveProject(client, evidence);
+      const dashboardName = `api journey widget put ${runId}`;
+      const queryConfig = dashboardQueryConfig(project.id);
+      let dashboardId = null;
+      let guardDashboardId = null;
+      let dashboardDeleted = false;
+      let guardDashboardDeleted = false;
+      let widgetId = null;
+
+      const dashboard = await client.post(apiPath("/tracer/dashboard/"), {
+        name: dashboardName,
+        description: "Temporary dashboard for widget PUT coverage.",
+      });
+      dashboardId = dashboard?.id;
+      assert(isUuid(dashboardId), "Dashboard create did not return a UUID id.");
+      cleanup.defer("delete OBS-API-019 dashboard", () => {
+        if (dashboardDeleted || !dashboardId) return null;
+        return ignoreNotFound(() =>
+          client.delete(
+            apiPath("/tracer/dashboard/{id}/", { id: dashboardId }),
+          ),
+        );
+      });
+
+      const guardDashboard = await client.post(apiPath("/tracer/dashboard/"), {
+        name: `${dashboardName} guard`,
+        description: "Temporary dashboard for wrong-parent PUT guard.",
+      });
+      guardDashboardId = guardDashboard?.id;
+      assert(
+        isUuid(guardDashboardId),
+        "Guard dashboard create did not return a UUID id.",
+      );
+      cleanup.defer("delete OBS-API-019 guard dashboard", () => {
+        if (guardDashboardDeleted || !guardDashboardId) return null;
+        return ignoreNotFound(() =>
+          client.delete(
+            apiPath("/tracer/dashboard/{id}/", { id: guardDashboardId }),
+          ),
+        );
+      });
+
+      const widget = await client.post(
+        apiPath("/tracer/dashboard/{dashboard_pk}/widgets/", {
+          dashboard_pk: dashboardId,
+        }),
+        {
+          name: "PUT coverage widget",
+          description: "Initial widget state",
+          position: 0,
+          width: 6,
+          height: 4,
+          query_config: queryConfig,
+          chart_config: { chart_type: "line" },
+        },
+      );
+      widgetId = widget?.id;
+      assertWidgetPayload(widget, {
+        widgetId,
+        name: "PUT coverage widget",
+        width: 6,
+        chartType: "line",
+      });
+
+      const putPayload = {
+        name: "PUT coverage widget updated",
+        description: "Full replacement through PUT",
+        position: 3,
+        width: 7,
+        height: 6,
+        query_config: queryConfig,
+        chart_config: { chart_type: "bar", show_legend: false },
+      };
+      const putWidget = await client.put(
+        apiPath("/tracer/dashboard/{dashboard_pk}/widgets/{id}/", {
+          dashboard_pk: dashboardId,
+          id: widgetId,
+        }),
+        putPayload,
+      );
+      assertWidgetPayload(putWidget, {
+        widgetId,
+        name: putPayload.name,
+        width: putPayload.width,
+        chartType: putPayload.chart_config.chart_type,
+      });
+      assert(
+        putWidget.description === putPayload.description &&
+          putWidget.position === putPayload.position &&
+          putWidget.height === putPayload.height,
+        "Widget PUT did not replace description, position, and height.",
+      );
+      assert(
+        asArray(putWidget.query_config?.metrics).length === 1 &&
+          putWidget.query_config.metrics[0].name === "latency",
+        "Widget PUT did not preserve the dashboard query metric config.",
+      );
+
+      const wrongDashboardError = await expectApiJourneyHttpStatus(
+        404,
+        () =>
+          client.put(
+            apiPath("/tracer/dashboard/{dashboard_pk}/widgets/{id}/", {
+              dashboard_pk: guardDashboardId,
+              id: widgetId,
+            }),
+            { ...putPayload, name: "Wrong dashboard mutation should fail" },
+          ),
+        "Dashboard widget PUT under wrong dashboard",
+      );
+      const afterGuard = await client.get(
+        apiPath("/tracer/dashboard/{dashboard_pk}/widgets/{id}/", {
+          dashboard_pk: dashboardId,
+          id: widgetId,
+        }),
+      );
+      assert(
+        afterGuard.name === putPayload.name,
+        "Wrong-dashboard widget PUT mutated the original widget.",
+      );
+
+      const dashboardDetail = await client.get(
+        apiPath("/tracer/dashboard/{id}/", { id: dashboardId }),
+      );
+      const detailWidget = asArray(dashboardDetail.widgets).find(
+        (row) => row.id === widgetId,
+      );
+      assert(
+        detailWidget?.name === putPayload.name &&
+          detailWidget?.width === putPayload.width &&
+          detailWidget?.chart_config?.chart_type ===
+            putPayload.chart_config.chart_type,
+        "Dashboard detail did not reload the PUT-updated widget.",
+      );
+
+      const activeAudit = await loadDashboardDbAudit({
+        organizationId,
+        workspaceId,
+        dashboardId,
+        widgetIds: [widgetId],
+      });
+      assertDashboardDbAudit(activeAudit, {
+        organizationId,
+        workspaceId,
+        dashboardId,
+        widgetIds: [widgetId],
+        expectedDashboardDeleted: false,
+        expectedActiveWidgetCount: 1,
+      });
+      const widgetAudit = asArray(activeAudit.widgets).find(
+        (row) => row.id === widgetId,
+      );
+      assert(
+        widgetAudit?.name === putPayload.name &&
+          widgetAudit?.position === putPayload.position &&
+          widgetAudit?.width === putPayload.width &&
+          widgetAudit?.height === putPayload.height &&
+          widgetAudit?.metric_count === 1 &&
+          widgetAudit?.chart_type === putPayload.chart_config.chart_type,
+        "Dashboard widget DB audit did not match the PUT-updated row.",
+      );
+
+      await client.delete(
+        apiPath("/tracer/dashboard/{id}/", { id: guardDashboardId }),
+      );
+      guardDashboardDeleted = true;
+      await client.delete(
+        apiPath("/tracer/dashboard/{id}/", { id: dashboardId }),
+      );
+      dashboardDeleted = true;
+
+      const deletedAudit = await loadDashboardDbAudit({
+        organizationId,
+        workspaceId,
+        dashboardId,
+        widgetIds: [widgetId],
+      });
+      assertDashboardDbAudit(deletedAudit, {
+        organizationId,
+        workspaceId,
+        dashboardId,
+        widgetIds: [widgetId],
+        expectedDashboardDeleted: true,
+        expectedActiveWidgetCount: 0,
+      });
+
+      evidence.push({
+        project_id: project.id,
+        dashboard_id: dashboardId,
+        guard_dashboard_id: guardDashboardId,
+        widget_id: widgetId,
+        widget_put_name: putPayload.name,
+        widget_put_width: putPayload.width,
+        wrong_dashboard_put_status: wrongDashboardError.status,
+        active_widget_count_after_delete: deletedAudit.active_widget_count,
+      });
+    },
+  },
+  {
     id: "OBS-API-017",
     title: "Charts fetch graph and generated CRUD route guards",
     tags: ["observe", "charts", "safe", "dead-code-audit"],
     async run({ client, evidence }) {
       const project = await resolveObserveProject(client, evidence);
-      const chartGraph = await client.get(apiPath("/tracer/charts/fetch_graph/"), {
-        query: {
-          project_id: project.id,
-          interval: "day",
-          property: "average",
-          req_data_config: { id: "latency", type: "SYSTEM_METRIC" },
-          filters: [],
+      const chartGraph = await client.get(
+        apiPath("/tracer/charts/fetch_graph/"),
+        {
+          query: {
+            project_id: project.id,
+            interval: "day",
+            property: "average",
+            req_data_config: { id: "latency", type: "SYSTEM_METRIC" },
+            filters: [],
+          },
         },
-      });
+      );
       assert(
-        chartGraph?.metric_name === "latency" || Array.isArray(chartGraph?.data),
+        chartGraph?.metric_name === "latency" ||
+          Array.isArray(chartGraph?.data),
         "Charts fetch_graph did not return the single system metric shape.",
       );
 
@@ -1878,15 +2432,29 @@ export const observeFilterJourneys = [
       const guardCalls = [
         ["GET", () => client.get(apiPath("/tracer/charts/"))],
         ["POST", () => client.post(apiPath("/tracer/charts/"), payload)],
-        ["GET detail", () => client.get(apiPath("/tracer/charts/{id}/", { id: chartId }))],
-        ["PUT", () => client.put(apiPath("/tracer/charts/{id}/", { id: chartId }), payload)],
+        [
+          "GET detail",
+          () => client.get(apiPath("/tracer/charts/{id}/", { id: chartId })),
+        ],
+        [
+          "PUT",
+          () =>
+            client.put(
+              apiPath("/tracer/charts/{id}/", { id: chartId }),
+              payload,
+            ),
+        ],
         [
           "PATCH",
-          () => client.patch(apiPath("/tracer/charts/{id}/", { id: chartId }), {
-            property: "p95",
-          }),
+          () =>
+            client.patch(apiPath("/tracer/charts/{id}/", { id: chartId }), {
+              property: "p95",
+            }),
         ],
-        ["DELETE", () => client.delete(apiPath("/tracer/charts/{id}/", { id: chartId }))],
+        [
+          "DELETE",
+          () => client.delete(apiPath("/tracer/charts/{id}/", { id: chartId })),
+        ],
       ];
       const guardedMethods = [];
       for (const [method, fn] of guardCalls) {
@@ -1911,7 +2479,8 @@ export const observeFilterJourneys = [
   },
   {
     id: "OBS-API-018",
-    title: "Observe trace annotation bulk write, values readback, update, and CRUD guards",
+    title:
+      "Observe trace annotation bulk write, values readback, update, and CRUD guards",
     tags: ["observe", "annotations", "mutating", "data-roundtrip", "db-audit"],
     async run({
       client,
@@ -1923,35 +2492,64 @@ export const observeFilterJourneys = [
       evidence,
     }) {
       requireMutations();
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
       const userId = currentUserId(user);
-      assert(isUuid(userId), "Authenticated user id did not resolve for trace annotation audit.");
+      assert(
+        isUuid(userId),
+        "Authenticated user id did not resolve for trace annotation audit.",
+      );
 
-      const { project, span, detail } =
-        await resolveObserveSpanForLifecycle(client, cleanup, runId, evidence);
+      const { project, span, detail } = await resolveObserveSpanForLifecycle(
+        client,
+        cleanup,
+        runId,
+        evidence,
+      );
       const suffix = journeySafeId(runId);
       const spanId = span.span_id || span.id;
       const traceId = span.trace_id || detail.trace;
-      assert(String(spanId || "").trim(), "Trace annotation span seed did not include span id.");
-      assert(isUuid(traceId), "Trace annotation span seed did not include trace id.");
+      assert(
+        String(spanId || "").trim(),
+        "Trace annotation span seed did not include span id.",
+      );
+      assert(
+        isUuid(traceId),
+        "Trace annotation span seed did not include trace id.",
+      );
 
       const labelName = `OBS-API-018 trace quality ${suffix}`;
-      const createdLabel = await client.post(apiPath("/model-hub/annotations-labels/"), {
-        name: labelName,
-        type: "star",
-        description: "Temporary trace annotation label for API journey coverage.",
-        project: project.id,
-        settings: { no_of_stars: 5 },
-        allow_notes: true,
-      });
-      const label =
-        createdLabel?.id ? createdLabel : await findAnnotationLabelByName(client, labelName);
+      const createdLabel = await client.post(
+        apiPath("/model-hub/annotations-labels/"),
+        {
+          name: labelName,
+          type: "star",
+          description:
+            "Temporary trace annotation label for API journey coverage.",
+          project: project.id,
+          settings: { no_of_stars: 5 },
+          allow_notes: true,
+        },
+      );
+      const label = createdLabel?.id
+        ? createdLabel
+        : await findAnnotationLabelByName(client, labelName);
       const labelId = label?.id;
-      assert(isUuid(labelId), "Trace annotation label create did not yield an id.");
+      assert(
+        isUuid(labelId),
+        "Trace annotation label create did not yield an id.",
+      );
       cleanup.defer("delete OBS-API-018 temporary label", () =>
         ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/annotations-labels/{id}/", { id: labelId })),
+          client.delete(
+            apiPath("/model-hub/annotations-labels/{id}/", { id: labelId }),
+          ),
         ),
       );
 
@@ -1961,20 +2559,33 @@ export const observeFilterJourneys = [
         ["POST", () => client.post(apiPath("/tracer/trace-annotation/"), {})],
         [
           "GET detail",
-          () => client.get(apiPath("/tracer/trace-annotation/{id}/", { id: routeId })),
+          () =>
+            client.get(
+              apiPath("/tracer/trace-annotation/{id}/", { id: routeId }),
+            ),
         ],
         [
           "PUT",
-          () => client.put(apiPath("/tracer/trace-annotation/{id}/", { id: routeId }), {}),
+          () =>
+            client.put(
+              apiPath("/tracer/trace-annotation/{id}/", { id: routeId }),
+              {},
+            ),
         ],
         [
           "PATCH",
           () =>
-            client.patch(apiPath("/tracer/trace-annotation/{id}/", { id: routeId }), {}),
+            client.patch(
+              apiPath("/tracer/trace-annotation/{id}/", { id: routeId }),
+              {},
+            ),
         ],
         [
           "DELETE",
-          () => client.delete(apiPath("/tracer/trace-annotation/{id}/", { id: routeId })),
+          () =>
+            client.delete(
+              apiPath("/tracer/trace-annotation/{id}/", { id: routeId }),
+            ),
         ],
       ];
       const guardedMethods = [];
@@ -1994,15 +2605,18 @@ export const observeFilterJourneys = [
       }
 
       const noteText = `OBS-API-018 trace note ${suffix}`;
-      const createResult = await client.post(apiPath("/tracer/bulk-annotation/"), {
-        records: [
-          {
-            observation_span_id: spanId,
-            annotations: [{ annotation_label_id: labelId, value_float: 4 }],
-            notes: [{ text: noteText }],
-          },
-        ],
-      });
+      const createResult = await client.post(
+        apiPath("/tracer/bulk-annotation/"),
+        {
+          records: [
+            {
+              observation_span_id: spanId,
+              annotations: [{ annotation_label_id: labelId, value_float: 4 }],
+              notes: [{ text: noteText }],
+            },
+          ],
+        },
+      );
       assert(
         createResult?.annotations_created === 1 &&
           createResult?.notes_created === 1 &&
@@ -2024,7 +2638,10 @@ export const observeFilterJourneys = [
       const createdAnnotation = asArray(spanValues?.annotations).find(
         (annotation) => annotation.annotation_label_id === labelId,
       );
-      assert(createdAnnotation?.id, "Trace annotation values did not include created score.");
+      assert(
+        createdAnnotation?.id,
+        "Trace annotation values did not include created score.",
+      );
       assert(
         Number(createdAnnotation.annotation_value) === 4,
         "Trace annotation values did not return the created star rating.",
@@ -2063,14 +2680,17 @@ export const observeFilterJourneys = [
         "Trace-level annotation values did not include the root span annotation.",
       );
 
-      const updateResult = await client.post(apiPath("/tracer/bulk-annotation/"), {
-        records: [
-          {
-            observation_span_id: spanId,
-            annotations: [{ annotation_label_id: labelId, value_float: 5 }],
-          },
-        ],
-      });
+      const updateResult = await client.post(
+        apiPath("/tracer/bulk-annotation/"),
+        {
+          records: [
+            {
+              observation_span_id: spanId,
+              annotations: [{ annotation_label_id: labelId, value_float: 5 }],
+            },
+          ],
+        },
+      );
       assert(
         updateResult?.annotations_created === 0 &&
           updateResult?.annotations_updated === 1 &&
@@ -2108,16 +2728,24 @@ export const observeFilterJourneys = [
         userId,
         noteText,
       });
-      assert(Number(audit.active_score_count) === 1, "Trace annotation audit found wrong score count.");
+      assert(
+        Number(audit.active_score_count) === 1,
+        "Trace annotation audit found wrong score count.",
+      );
       assert(
         asArray(audit.score_workspace_ids).every((id) => id === workspaceId),
         "Trace annotation score did not retain the active workspace id.",
       );
       assert(
-        asArray(audit.score_values).some((value) => Number(value?.rating) === 5),
+        asArray(audit.score_values).some(
+          (value) => Number(value?.rating) === 5,
+        ),
         "Trace annotation DB audit did not see the updated score value.",
       );
-      assert(Number(audit.active_note_count) === 1, "Trace annotation audit found wrong note count.");
+      assert(
+        Number(audit.active_note_count) === 1,
+        "Trace annotation audit found wrong note count.",
+      );
       assert(
         Number(audit.legacy_trace_annotation_count) === 0,
         "Bulk trace annotation should not create legacy trace_annotation rows.",
@@ -2130,7 +2758,9 @@ export const observeFilterJourneys = [
         label_id: labelId,
         score_id: createdAnnotation.id,
         guarded_methods: guardedMethods,
-        annotation_value_after_update: Number(updatedAnnotation.annotation_value),
+        annotation_value_after_update: Number(
+          updatedAnnotation.annotation_value,
+        ),
         active_score_count: audit.active_score_count,
         active_note_count: audit.active_note_count,
         legacy_trace_annotation_count: audit.legacy_trace_annotation_count,
@@ -2141,18 +2771,37 @@ export const observeFilterJourneys = [
     id: "OBS-API-013",
     title: "Observe span list, detail, loading, export, index, root, and tags",
     tags: ["observe", "spans", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
 
       const { project, span, detail, observeList } =
         await resolveObserveSpanForLifecycle(client, cleanup, runId, evidence);
       const spanId = span.span_id || span.id;
       const traceId = span.trace_id || detail.trace;
       const projectVersionId = detail.project_version;
-      assert(String(spanId || "").trim(), "Selected observe span did not include span_id.");
-      assert(isUuid(traceId), "Selected observe span did not include a UUID trace_id.");
+      assert(
+        String(spanId || "").trim(),
+        "Selected observe span did not include span_id.",
+      );
+      assert(
+        isUuid(traceId),
+        "Selected observe span did not include a UUID trace_id.",
+      );
       assert(
         isUuid(projectVersionId),
         "Selected observe span did not include a project_version id required by loading/base span APIs.",
@@ -2208,7 +2857,9 @@ export const observeFilterJourneys = [
 
       const observeIndex = await client.get(
         queryWithFilters(
-          apiPath("/tracer/observation-span/get_trace_id_by_index_spans_as_observe/"),
+          apiPath(
+            "/tracer/observation-span/get_trace_id_by_index_spans_as_observe/",
+          ),
           EMPTY_FILTERS,
           {
             project_id: project.id,
@@ -2219,11 +2870,15 @@ export const observeFilterJourneys = [
       assertSpanIndexPayload(observeIndex, "Observe span index");
 
       const baseSpanList = await client.get(
-        queryWithFilters(apiPath("/tracer/observation-span/list_spans/"), EMPTY_FILTERS, {
-          project_version_id: projectVersionId,
-          page_number: 0,
-          page_size: 5,
-        }),
+        queryWithFilters(
+          apiPath("/tracer/observation-span/list_spans/"),
+          EMPTY_FILTERS,
+          {
+            project_version_id: projectVersionId,
+            page_number: 0,
+            page_size: 5,
+          },
+        ),
       );
       assert(
         asArray(baseSpanList).some((row) => row.span_id === spanId),
@@ -2232,7 +2887,9 @@ export const observeFilterJourneys = [
 
       const baseIndex = await client.get(
         queryWithFilters(
-          apiPath("/tracer/observation-span/get_trace_id_by_index_spans_as_base/"),
+          apiPath(
+            "/tracer/observation-span/get_trace_id_by_index_spans_as_base/",
+          ),
           EMPTY_FILTERS,
           {
             project_version_id: projectVersionId,
@@ -2251,7 +2908,9 @@ export const observeFilterJourneys = [
         ),
       );
       assert(
-        typeof csv === "string" && csv.includes("span_id") && csv.includes("trace_id"),
+        typeof csv === "string" &&
+          csv.includes("span_id") &&
+          csv.includes("trace_id"),
         "Span export did not return CSV headers for span_id and trace_id.",
       );
 
@@ -2276,7 +2935,9 @@ export const observeFilterJourneys = [
       );
 
       const updatedDetail = observationSpanPayload(
-        await client.get(apiPath("/tracer/observation-span/{id}/", { id: spanId })),
+        await client.get(
+          apiPath("/tracer/observation-span/{id}/", { id: spanId }),
+        ),
       );
       assert(
         normalizeTags(updatedDetail.tags).includes(temporaryTag),
@@ -2328,19 +2989,42 @@ export const observeFilterJourneys = [
     id: "OBS-API-014",
     title: "Observe span raw list, update, bulk, OTEL, and label delete",
     tags: ["observe", "spans", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
 
-      const { project, span, detail } =
-        await resolveObserveSpanForLifecycle(client, cleanup, runId, evidence);
+      const { project, span, detail } = await resolveObserveSpanForLifecycle(
+        client,
+        cleanup,
+        runId,
+        evidence,
+      );
       const suffix = journeySafeId(runId);
       const spanId = span.span_id || span.id;
       const traceId = span.trace_id || detail.trace;
       const projectVersionId = detail.project_version;
-      assert(String(spanId || "").trim(), "Selected observe span did not include span_id.");
-      assert(isUuid(traceId), "Selected observe span did not include a UUID trace_id.");
+      assert(
+        String(spanId || "").trim(),
+        "Selected observe span did not include span_id.",
+      );
+      assert(
+        isUuid(traceId),
+        "Selected observe span did not include a UUID trace_id.",
+      );
       assert(
         isUuid(projectVersionId),
         "Selected observe span did not include a project_version id required by write APIs.",
@@ -2368,12 +3052,20 @@ export const observeFilterJourneys = [
           metadata: { source: "api-journey", run_id: runId, patched: true },
         },
       );
-      assert(patched?.name === patchedName, "Observation span PATCH did not echo updated name.");
+      assert(
+        patched?.name === patchedName,
+        "Observation span PATCH did not echo updated name.",
+      );
 
       const patchDetail = observationSpanPayload(
-        await client.get(apiPath("/tracer/observation-span/{id}/", { id: spanId })),
+        await client.get(
+          apiPath("/tracer/observation-span/{id}/", { id: spanId }),
+        ),
       );
-      assert(patchDetail.name === patchedName, "Observation span PATCH did not persist name.");
+      assert(
+        patchDetail.name === patchedName,
+        "Observation span PATCH did not persist name.",
+      );
       assert(
         patchDetail.metadata?.patched === true,
         "Observation span PATCH did not persist metadata.",
@@ -2393,10 +3085,15 @@ export const observeFilterJourneys = [
         apiPath("/tracer/observation-span/{id}/", { id: spanId }),
         putPayload,
       );
-      assert(put?.name === putName, "Observation span PUT did not echo replacement name.");
+      assert(
+        put?.name === putName,
+        "Observation span PUT did not echo replacement name.",
+      );
 
       const putDetail = observationSpanPayload(
-        await client.get(apiPath("/tracer/observation-span/{id}/", { id: spanId })),
+        await client.get(
+          apiPath("/tracer/observation-span/{id}/", { id: spanId }),
+        ),
       );
       assertObservationSpanDetail(putDetail, {
         spanId,
@@ -2404,7 +3101,10 @@ export const observeFilterJourneys = [
         projectId: project.id,
         projectVersionId,
       });
-      assert(putDetail.name === putName, "Observation span PUT did not persist name.");
+      assert(
+        putDetail.name === putName,
+        "Observation span PUT did not persist name.",
+      );
       assert(
         putDetail.metadata?.put === true,
         "Observation span PUT did not persist replacement metadata.",
@@ -2413,46 +3113,62 @@ export const observeFilterJourneys = [
       const explicitBulkSpanId = `api_journey_bulk_span_${suffix}`;
       const bulkStart = new Date(Date.now() - 1500).toISOString();
       const bulkEnd = new Date().toISOString();
-      const bulk = await client.post(apiPath("/tracer/observation-span/bulk_create/"), {
-        observation_spans: [
-          observationSpanWritePayload({
-            id: explicitBulkSpanId,
-            projectId: project.id,
-            projectVersionId,
-            traceId,
-            name: `api journey explicit bulk span ${suffix}`,
-            runId,
-            startTime: bulkStart,
-            endTime: bulkEnd,
-            metadata: { source: "api-journey", run_id: runId, bulk: "explicit" },
-          }),
-          observationSpanWritePayload({
-            projectId: project.id,
-            projectVersionId,
-            traceId,
-            name: `api journey generated bulk span ${suffix}`,
-            runId,
-            startTime: bulkStart,
-            endTime: bulkEnd,
-            metadata: { source: "api-journey", run_id: runId, bulk: "generated" },
-          }),
-        ],
-      });
+      const bulk = await client.post(
+        apiPath("/tracer/observation-span/bulk_create/"),
+        {
+          observation_spans: [
+            observationSpanWritePayload({
+              id: explicitBulkSpanId,
+              projectId: project.id,
+              projectVersionId,
+              traceId,
+              name: `api journey explicit bulk span ${suffix}`,
+              runId,
+              startTime: bulkStart,
+              endTime: bulkEnd,
+              metadata: {
+                source: "api-journey",
+                run_id: runId,
+                bulk: "explicit",
+              },
+            }),
+            observationSpanWritePayload({
+              projectId: project.id,
+              projectVersionId,
+              traceId,
+              name: `api journey generated bulk span ${suffix}`,
+              runId,
+              startTime: bulkStart,
+              endTime: bulkEnd,
+              metadata: {
+                source: "api-journey",
+                run_id: runId,
+                bulk: "generated",
+              },
+            }),
+          ],
+        },
+      );
       const bulkIds = asArray(bulk?.["Observation Span IDs"]);
       assert(
         bulkIds.includes(explicitBulkSpanId),
         "Observation span bulk_create did not return the explicit span id.",
       );
-      const generatedBulkSpanId = bulkIds.find((id) => id && id !== explicitBulkSpanId);
+      const generatedBulkSpanId = bulkIds.find(
+        (id) => id && id !== explicitBulkSpanId,
+      );
       assert(
         String(generatedBulkSpanId || "").trim(),
         "Observation span bulk_create did not generate an id for the id-less span.",
       );
       for (const bulkSpanId of [explicitBulkSpanId, generatedBulkSpanId]) {
         cleanup.defer(`delete OBS-API-014 bulk span ${bulkSpanId}`, () =>
-          client.delete(apiPath("/tracer/observation-span/{id}/", { id: bulkSpanId }), {
-            okStatuses: [200, 204, 400, 404],
-          }),
+          client.delete(
+            apiPath("/tracer/observation-span/{id}/", { id: bulkSpanId }),
+            {
+              okStatuses: [200, 204, 400, 404],
+            },
+          ),
         );
       }
 
@@ -2480,9 +3196,12 @@ export const observeFilterJourneys = [
         }),
       );
       cleanup.defer("delete OBS-API-014 OTEL span", () =>
-        client.delete(apiPath("/tracer/observation-span/{id}/", { id: otelSpanId }), {
-          okStatuses: [200, 204, 400, 404],
-        }),
+        client.delete(
+          apiPath("/tracer/observation-span/{id}/", { id: otelSpanId }),
+          {
+            okStatuses: [200, 204, 400, 404],
+          },
+        ),
       );
 
       const nowNs = Date.now() * 1_000_000;
@@ -2516,32 +3235,72 @@ export const observeFilterJourneys = [
         "Observation span create_otel_span did not return the requested span id.",
       );
       const otelDetail = observationSpanPayload(
-        await client.get(apiPath("/tracer/observation-span/{id}/", { id: otelSpanId })),
+        await client.get(
+          apiPath("/tracer/observation-span/{id}/", { id: otelSpanId }),
+        ),
       );
-      assert(otelDetail.id === otelSpanId, "OTEL span detail returned wrong id.");
-      assert(otelDetail.trace === otelTraceId, "OTEL span detail returned wrong trace id.");
-      assert(otelDetail.project === project.id, "OTEL span resolved to the wrong project.");
+      assert(
+        otelDetail.id === otelSpanId,
+        "OTEL span detail returned wrong id.",
+      );
+      assert(
+        otelDetail.trace === otelTraceId,
+        "OTEL span detail returned wrong trace id.",
+      );
+      const otelProjectId = otelDetail.project;
+      if (otelDetail.project !== project.id) {
+        const resolutionAudit = await loadOtelProjectResolutionAudit({
+          sourceProjectId: project.id,
+          resolvedProjectId: otelProjectId,
+          organizationId,
+          workspaceId,
+        });
+        assert(
+          resolutionAudit.same_name === true &&
+            resolutionAudit.source_workspace_id === null &&
+            resolutionAudit.resolved_workspace_id === workspaceId,
+          `OTEL span resolved to unexpected project. Audit: ${JSON.stringify(
+            resolutionAudit,
+          )}`,
+        );
+        evidence.push({
+          endpoint: "observe otel active-workspace project resolution",
+          source_project_id: project.id,
+          resolved_project_id: otelProjectId,
+          project_name: resolutionAudit.source_project_name,
+        });
+      }
 
       const labelName = `OBS-API-014 temporary label ${suffix}`;
-      const createdLabel = await client.post(apiPath("/model-hub/annotations-labels/"), {
-        name: labelName,
-        type: "text",
-        description: "Temporary label for observation-span delete label coverage.",
-        project: project.id,
-        settings: {
-          placeholder: "OBS-API-014",
-          min_length: 0,
-          max_length: 500,
+      const createdLabel = await client.post(
+        apiPath("/model-hub/annotations-labels/"),
+        {
+          name: labelName,
+          type: "text",
+          description:
+            "Temporary label for observation-span delete label coverage.",
+          project: project.id,
+          settings: {
+            placeholder: "OBS-API-014",
+            min_length: 0,
+            max_length: 500,
+          },
+          allow_notes: true,
         },
-        allow_notes: true,
-      });
-      const label =
-        createdLabel?.id ? createdLabel : await findAnnotationLabelByName(client, labelName);
+      );
+      const label = createdLabel?.id
+        ? createdLabel
+        : await findAnnotationLabelByName(client, labelName);
       const labelId = label?.id;
-      assert(isUuid(labelId), "Temporary annotation label create did not yield an id.");
+      assert(
+        isUuid(labelId),
+        "Temporary annotation label create did not yield an id.",
+      );
       cleanup.defer("delete OBS-API-014 temporary label", () =>
         ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/annotations-labels/{id}/", { id: labelId })),
+          client.delete(
+            apiPath("/model-hub/annotations-labels/{id}/", { id: labelId }),
+          ),
         ),
       );
 
@@ -2568,6 +3327,9 @@ export const observeFilterJourneys = [
         spanIds: [spanId, explicitBulkSpanId, generatedBulkSpanId, otelSpanId],
         updatedSpanId: spanId,
         updatedSpanName: putName,
+        expectedProjectIdsBySpanId: {
+          [otelSpanId]: otelProjectId,
+        },
         labelId,
       });
 
@@ -2591,10 +3353,23 @@ export const observeFilterJourneys = [
     title:
       "Observe trace raw CRUD, bulk, list, export, compare, navigation, agent graph, and delete cascade",
     tags: ["observe", "traces", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
 
       const suffix = journeySafeId(runId);
       const projectName = `api journey trace ${suffix}`;
@@ -2605,15 +3380,25 @@ export const observeFilterJourneys = [
         metadata: { source: "api-journey", run_id: runId },
       });
       const project = { id: createdProject.project_id, name: projectName };
-      assert(isUuid(project.id), "Trace lifecycle project create returned no id.");
+      assert(
+        isUuid(project.id),
+        "Trace lifecycle project create returned no id.",
+      );
 
-      const projectVersion = await client.post(apiPath("/tracer/project-version/"), {
-        project: project.id,
-        name: `api journey trace run ${suffix}`,
-        metadata: { source: "api-journey", run_id: runId },
-      });
-      const projectVersionId = projectVersion.project_version_id || projectVersion.id;
-      assert(isUuid(projectVersionId), "Trace lifecycle project-version create returned no id.");
+      const projectVersion = await client.post(
+        apiPath("/tracer/project-version/"),
+        {
+          project: project.id,
+          name: `api journey trace run ${suffix}`,
+          metadata: { source: "api-journey", run_id: runId },
+        },
+      );
+      const projectVersionId =
+        projectVersion.project_version_id || projectVersion.id;
+      assert(
+        isUuid(projectVersionId),
+        "Trace lifecycle project-version create returned no id.",
+      );
 
       const traceA = await client.post(
         apiPath("/tracer/trace/"),
@@ -2668,10 +3453,17 @@ export const observeFilterJourneys = [
             runId,
             startTime: spanStart,
             endTime: spanEnd,
-            metadata: { source: "api-journey", run_id: runId, trace_marker: marker },
+            metadata: {
+              source: "api-journey",
+              run_id: runId,
+              trace_marker: marker,
+            },
           }),
         );
-        assert(span?.id === spanId, `Trace lifecycle span ${marker} returned wrong id.`);
+        assert(
+          span?.id === spanId,
+          `Trace lifecycle span ${marker} returned wrong id.`,
+        );
       }
       const childSpan = await client.post(
         apiPath("/tracer/observation-span/"),
@@ -2686,10 +3478,17 @@ export const observeFilterJourneys = [
           runId,
           startTime: spanStart,
           endTime: spanEnd,
-          metadata: { source: "api-journey", run_id: runId, trace_marker: "alpha-child" },
+          metadata: {
+            source: "api-journey",
+            run_id: runId,
+            trace_marker: "alpha-child",
+          },
         }),
       );
-      assert(childSpan?.id === spanAChildId, "Trace lifecycle child span returned wrong id.");
+      assert(
+        childSpan?.id === spanAChildId,
+        "Trace lifecycle child span returned wrong id.",
+      );
 
       cleanup.defer("hard delete OBS-API-015 artifacts", () =>
         hardDeleteTraceLifecycleArtifacts({
@@ -2709,22 +3508,34 @@ export const observeFilterJourneys = [
       });
       const rawRows = asArray(rawList);
       assert(
-        rawRows.some((row) => row.id === traceAId) && rawRows.some((row) => row.id === traceBId),
+        rawRows.some((row) => row.id === traceAId) &&
+          rawRows.some((row) => row.id === traceBId),
         "Raw trace list did not include both disposable traces.",
       );
 
-      const detail = await client.get(apiPath("/tracer/trace/{id}/", { id: traceAId }));
-      assert(detail?.trace?.id === traceAId, "Trace detail returned wrong trace id.");
+      const detail = await client.get(
+        apiPath("/tracer/trace/{id}/", { id: traceAId }),
+      );
+      assert(
+        detail?.trace?.id === traceAId,
+        "Trace detail returned wrong trace id.",
+      );
       assert(
         asArray(detail?.observation_spans).length > 0,
         "Trace detail did not include the created observation span tree.",
       );
 
-      const patched = await client.patch(apiPath("/tracer/trace/{id}/", { id: traceAId }), {
-        name: `api journey trace alpha patched ${suffix}`,
-        metadata: { source: "api-journey", run_id: runId, patched: true },
-      });
-      assert(patched?.metadata?.patched === true, "Trace PATCH did not echo metadata update.");
+      const patched = await client.patch(
+        apiPath("/tracer/trace/{id}/", { id: traceAId }),
+        {
+          name: `api journey trace alpha patched ${suffix}`,
+          metadata: { source: "api-journey", run_id: runId, patched: true },
+        },
+      );
+      assert(
+        patched?.metadata?.patched === true,
+        "Trace PATCH did not echo metadata update.",
+      );
 
       const putPayload = traceWritePayload({
         projectId: project.id,
@@ -2734,13 +3545,22 @@ export const observeFilterJourneys = [
         marker: "alpha-put",
         metadata: { source: "api-journey", run_id: runId, put: true },
       });
-      const put = await client.put(apiPath("/tracer/trace/{id}/", { id: traceAId }), putPayload);
-      assert(put?.name === putPayload.name, "Trace PUT did not echo replacement name.");
+      const put = await client.put(
+        apiPath("/tracer/trace/{id}/", { id: traceAId }),
+        putPayload,
+      );
+      assert(
+        put?.name === putPayload.name,
+        "Trace PUT did not echo replacement name.",
+      );
 
       const tag = `api-journey-trace-${suffix}`;
-      const tagUpdate = await client.patch(apiPath("/tracer/trace/{id}/tags/", { id: traceAId }), {
-        tags: ["api-journey", tag],
-      });
+      const tagUpdate = await client.patch(
+        apiPath("/tracer/trace/{id}/tags/", { id: traceAId }),
+        {
+          tags: ["api-journey", tag],
+        },
+      );
       assert(
         asArray(tagUpdate?.tags).includes(tag),
         "Trace tag update did not return the temporary tag.",
@@ -2760,24 +3580,34 @@ export const observeFilterJourneys = [
         "Trace list_traces did not include both disposable traces.",
       );
 
-      const compare = await client.post(apiPath("/tracer/trace/compare_traces/"), {
-        project_version_ids: [projectVersionId],
-        index: 0,
-      });
+      const compare = await client.post(
+        apiPath("/tracer/trace/compare_traces/"),
+        {
+          project_version_ids: [projectVersionId],
+          index: 0,
+        },
+      );
       assert(
         Number(compare?.total_traces || 0) >= 1,
         "Trace compare_traces did not return disposable comparison rows.",
       );
       assert(
-        Object.prototype.hasOwnProperty.call(compare?.trace_comparison || {}, projectVersionId),
+        Object.prototype.hasOwnProperty.call(
+          compare?.trace_comparison || {},
+          projectVersionId,
+        ),
         "Trace compare_traces omitted the requested project version key.",
       );
 
       const baseIndex = await client.get(
-        queryWithFilters(apiPath("/tracer/trace/get_trace_id_by_index/"), EMPTY_FILTERS, {
-          project_version_id: projectVersionId,
-          trace_id: traceAId,
-        }),
+        queryWithFilters(
+          apiPath("/tracer/trace/get_trace_id_by_index/"),
+          EMPTY_FILTERS,
+          {
+            project_version_id: projectVersionId,
+            trace_id: traceAId,
+          },
+        ),
       );
       assertSpanIndexPayload(baseIndex, "Base trace index");
 
@@ -2793,14 +3623,23 @@ export const observeFilterJourneys = [
       );
       assertSpanIndexPayload(observeIndex, "Observe trace index");
 
-      const evalNames = await client.get(apiPath("/tracer/trace/get_eval_names/"), {
-        query: { project_id: project.id },
-      });
-      assert(Array.isArray(asArray(evalNames)), "Trace get_eval_names did not return a list.");
-
-      const graphProperties = await client.get(apiPath("/tracer/trace/get_properties/"));
+      const evalNames = await client.get(
+        apiPath("/tracer/trace/get_eval_names/"),
+        {
+          query: { project_id: project.id },
+        },
+      );
       assert(
-        asArray(graphProperties).includes("Average") && asArray(graphProperties).includes("P95"),
+        Array.isArray(asArray(evalNames)),
+        "Trace get_eval_names did not return a list.",
+      );
+
+      const graphProperties = await client.get(
+        apiPath("/tracer/trace/get_properties/"),
+      );
+      assert(
+        asArray(graphProperties).includes("Average") &&
+          asArray(graphProperties).includes("P95"),
         "Trace get_properties did not return the graph property catalog.",
       );
 
@@ -2834,7 +3673,9 @@ export const observeFilterJourneys = [
         ),
       );
       assert(
-        typeof csv === "string" && csv.includes("trace_id") && csv.includes(traceAId),
+        typeof csv === "string" &&
+          csv.includes("trace_id") &&
+          csv.includes(traceAId),
         "Trace export did not return CSV headers and the disposable trace id.",
       );
 
@@ -2874,7 +3715,10 @@ export const observeFilterJourneys = [
           throw error;
         }
       }
-      assert(deletedDetailRejected, "Trace detail still loaded after generic DELETE.");
+      assert(
+        deletedDetailRejected,
+        "Trace detail still loaded after generic DELETE.",
+      );
 
       const afterDeleteAudit = await loadTraceLifecycleDbAudit({
         organizationId,
@@ -2897,9 +3741,12 @@ export const observeFilterJourneys = [
       });
 
       await client.delete(apiPath("/tracer/trace/{id}/", { id: traceBId }));
-      await client.delete(apiPath("/tracer/project-version/{id}/", { id: projectVersionId }), {
-        okStatuses: [200, 204, 400, 404],
-      });
+      await client.delete(
+        apiPath("/tracer/project-version/{id}/", { id: projectVersionId }),
+        {
+          okStatuses: [200, 204, 400, 404],
+        },
+      );
       const cleanupAudit = await hardDeleteTraceLifecycleArtifacts({
         projectId: project.id,
         projectVersionId,
@@ -2932,12 +3779,26 @@ export const observeFilterJourneys = [
   },
   {
     id: "OBS-API-016",
-    title: "Observe trace-session raw CRUD, list, detail, export, eval logs, and delete cascade",
+    title:
+      "Observe trace-session raw CRUD, list, detail, export, eval logs, and delete cascade",
     tags: ["observe", "sessions", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
 
       const suffix = journeySafeId(runId);
       const projectName = `api journey session ${suffix}`;
@@ -2948,15 +3809,25 @@ export const observeFilterJourneys = [
         metadata: { source: "api-journey", run_id: runId },
       });
       const project = { id: createdProject.project_id, name: projectName };
-      assert(isUuid(project.id), "Trace-session lifecycle project create returned no id.");
+      assert(
+        isUuid(project.id),
+        "Trace-session lifecycle project create returned no id.",
+      );
 
-      const projectVersion = await client.post(apiPath("/tracer/project-version/"), {
-        project: project.id,
-        name: `api journey session run ${suffix}`,
-        metadata: { source: "api-journey", run_id: runId },
-      });
-      const projectVersionId = projectVersion.project_version_id || projectVersion.id;
-      assert(isUuid(projectVersionId), "Trace-session project-version create returned no id.");
+      const projectVersion = await client.post(
+        apiPath("/tracer/project-version/"),
+        {
+          project: project.id,
+          name: `api journey session run ${suffix}`,
+          metadata: { source: "api-journey", run_id: runId },
+        },
+      );
+      const projectVersionId =
+        projectVersion.project_version_id || projectVersion.id;
+      assert(
+        isUuid(projectVersionId),
+        "Trace-session project-version create returned no id.",
+      );
 
       const createdSession = await client.post(
         apiPath("/tracer/trace-session/"),
@@ -2997,10 +3868,17 @@ export const observeFilterJourneys = [
           runId,
           startTime: spanStart,
           endTime: spanEnd,
-          metadata: { source: "api-journey", run_id: runId, session_id: sessionId },
+          metadata: {
+            source: "api-journey",
+            run_id: runId,
+            session_id: sessionId,
+          },
         }),
       );
-      assert(span?.id === spanId, "Trace-session span create returned wrong id.");
+      assert(
+        span?.id === spanId,
+        "Trace-session span create returned wrong id.",
+      );
 
       const sessionEvalLog = await insertTraceSessionEvalLog({
         sessionId,
@@ -3029,7 +3907,9 @@ export const observeFilterJourneys = [
         "Raw trace-session list did not include the disposable session.",
       );
 
-      const detail = await client.get(apiPath("/tracer/trace-session/{id}/", { id: sessionId }));
+      const detail = await client.get(
+        apiPath("/tracer/trace-session/{id}/", { id: sessionId }),
+      );
       assert(
         detail?.session_metadata?.session_id === sessionId,
         "Trace-session detail returned wrong session id.",
@@ -3039,27 +3919,46 @@ export const observeFilterJourneys = [
         "Trace-session detail did not include the disposable trace.",
       );
 
-      const patched = await client.patch(apiPath("/tracer/trace-session/{id}/", { id: sessionId }), {
-        name: `api journey session patched ${suffix}`,
-        bookmarked: true,
-      });
-      assert(patched?.bookmarked === true, "Trace-session PATCH did not persist bookmark.");
+      const patched = await client.patch(
+        apiPath("/tracer/trace-session/{id}/", { id: sessionId }),
+        {
+          name: `api journey session patched ${suffix}`,
+          bookmarked: true,
+        },
+      );
+      assert(
+        patched?.bookmarked === true,
+        "Trace-session PATCH did not persist bookmark.",
+      );
 
       const putPayload = traceSessionWritePayload({
         projectId: project.id,
         name: `api journey session put ${suffix}`,
         bookmarked: false,
       });
-      const put = await client.put(apiPath("/tracer/trace-session/{id}/", { id: sessionId }), putPayload);
-      assert(put?.name === putPayload.name, "Trace-session PUT did not echo replacement name.");
-      assert(put?.bookmarked === false, "Trace-session PUT did not persist bookmark replacement.");
+      const put = await client.put(
+        apiPath("/tracer/trace-session/{id}/", { id: sessionId }),
+        putPayload,
+      );
+      assert(
+        put?.name === putPayload.name,
+        "Trace-session PUT did not echo replacement name.",
+      );
+      assert(
+        put?.bookmarked === false,
+        "Trace-session PUT did not persist bookmark replacement.",
+      );
 
       const listSessions = await client.get(
-        queryWithFilters(apiPath("/tracer/trace-session/list_sessions/"), EMPTY_FILTERS, {
-          project_id: project.id,
-          page_number: 0,
-          page_size: 10,
-        }),
+        queryWithFilters(
+          apiPath("/tracer/trace-session/list_sessions/"),
+          EMPTY_FILTERS,
+          {
+            project_id: project.id,
+            page_number: 0,
+            page_size: 10,
+          },
+        ),
       );
       const sessionRows = asArray(listSessions?.table);
       assert(
@@ -3075,16 +3974,26 @@ export const observeFilterJourneys = [
         ),
       );
       assert(
-        typeof csv === "string" && csv.includes("session_id") && csv.includes(sessionId),
+        typeof csv === "string" &&
+          csv.includes("session_id") &&
+          csv.includes(sessionId),
         "Trace-session export did not return CSV headers and the disposable session id.",
       );
 
-      const evalLogs = await client.get(apiPath("/tracer/trace-session/{id}/eval_logs/", { id: sessionId }), {
-        query: { page: 0, page_size: 5 },
-      });
-      assert(Number(evalLogs?.total || 0) >= 1, "Trace-session eval_logs returned no rows.");
+      const evalLogs = await client.get(
+        apiPath("/tracer/trace-session/{id}/eval_logs/", { id: sessionId }),
+        {
+          query: { page: 0, page_size: 5 },
+        },
+      );
       assert(
-        asArray(evalLogs?.items).some((item) => item.id === evalLogId && item.session_id === sessionId),
+        Number(evalLogs?.total || 0) >= 1,
+        "Trace-session eval_logs returned no rows.",
+      );
+      assert(
+        asArray(evalLogs?.items).some(
+          (item) => item.id === evalLogId && item.session_id === sessionId,
+        ),
         "Trace-session eval_logs did not include the seeded session eval.",
       );
 
@@ -3112,10 +4021,14 @@ export const observeFilterJourneys = [
         deletedEvalLogIds: [],
       });
 
-      await client.delete(apiPath("/tracer/trace-session/{id}/", { id: sessionId }));
+      await client.delete(
+        apiPath("/tracer/trace-session/{id}/", { id: sessionId }),
+      );
       let deletedDetailRejected = false;
       try {
-        await client.get(apiPath("/tracer/trace-session/{id}/", { id: sessionId }));
+        await client.get(
+          apiPath("/tracer/trace-session/{id}/", { id: sessionId }),
+        );
       } catch (error) {
         if (
           error instanceof ApiJourneyError &&
@@ -3128,7 +4041,10 @@ export const observeFilterJourneys = [
           throw error;
         }
       }
-      assert(deletedDetailRejected, "Trace-session detail still loaded after generic DELETE.");
+      assert(
+        deletedDetailRejected,
+        "Trace-session detail still loaded after generic DELETE.",
+      );
 
       const afterDeleteAudit = await loadTraceSessionLifecycleDbAudit({
         organizationId,
@@ -3154,9 +4070,12 @@ export const observeFilterJourneys = [
         deletedEvalLogIds: [evalLogId],
       });
 
-      await client.delete(apiPath("/tracer/project-version/{id}/", { id: projectVersionId }), {
-        okStatuses: [200, 204, 400, 404],
-      });
+      await client.delete(
+        apiPath("/tracer/project-version/{id}/", { id: projectVersionId }),
+        {
+          okStatuses: [200, 204, 400, 404],
+        },
+      );
       const cleanupAudit = await hardDeleteTraceSessionLifecycleArtifacts({
         projectId: project.id,
         projectVersionId,
@@ -3195,8 +4114,14 @@ export const observeFilterJourneys = [
     title: "Error Feed list filters, detail tabs, root cause, and access scope",
     tags: ["error-feed", "safe", "filters", "security"],
     async run({ client, organizationId, workspaceId, evidence }) {
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
 
       const list = await client.get(apiPath("/tracer/feed/issues/"), {
         query: {
@@ -3220,7 +4145,10 @@ export const observeFilterJourneys = [
 
       const row = rows[0];
       const clusterId = row.cluster_id;
-      assert(String(clusterId || "").trim(), "Error Feed row omitted cluster_id.");
+      assert(
+        String(clusterId || "").trim(),
+        "Error Feed row omitted cluster_id.",
+      );
 
       const filteredChecks = [
         {
@@ -3266,12 +4194,16 @@ export const observeFilterJourneys = [
         );
       }
 
-      const searchTerm = String(row.error?.name || clusterId).slice(0, 16).trim();
+      const searchTerm = String(row.error?.name || clusterId)
+        .slice(0, 16)
+        .trim();
       const searched = await client.get(apiPath("/tracer/feed/issues/"), {
         query: { search: searchTerm, limit: 25, offset: 0 },
       });
       assert(
-        asArray(searched).some((candidate) => candidate.cluster_id === clusterId),
+        asArray(searched).some(
+          (candidate) => candidate.cluster_id === clusterId,
+        ),
         "Error Feed search did not include selected cluster.",
       );
 
@@ -3309,7 +4241,8 @@ export const observeFilterJourneys = [
         { query: { limit: 10, offset: 0 } },
       );
       assert(
-        Number(traces?.aggregates?.total_traces ?? 0) >= asArray(traces?.traces).length,
+        Number(traces?.aggregates?.total_traces ?? 0) >=
+          asArray(traces?.traces).length,
         "Error Feed traces aggregate was smaller than returned trace rows.",
       );
 
@@ -3319,7 +4252,10 @@ export const observeFilterJourneys = [
         }),
         { query: { days: 30 } },
       );
-      assert(asArray(trends?.metrics).length > 0, "Error Feed trends omitted metrics.");
+      assert(
+        asArray(trends?.metrics).length > 0,
+        "Error Feed trends omitted metrics.",
+      );
       assert(
         Array.isArray(trends?.activity_heatmap),
         "Error Feed trends omitted activity heatmap.",
@@ -3353,7 +4289,9 @@ export const observeFilterJourneys = [
         );
 
         const legacyAnalysis = await client.get(
-          apiPath("/tracer/trace-error-analysis/{trace_id}/", { trace_id: traceId }),
+          apiPath("/tracer/trace-error-analysis/{trace_id}/", {
+            trace_id: traceId,
+          }),
         );
         assert(
           legacyAnalysis && typeof legacyAnalysis === "object",
@@ -3402,15 +4340,23 @@ export const observeFilterJourneys = [
     tags: ["error-feed", "tasks", "mutating"],
     async run({ client, cleanup, organizationId, workspaceId, evidence }) {
       requireMutations();
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
 
       const list = await client.get(apiPath("/tracer/feed/issues/"), {
         query: { limit: 5, offset: 0, sort_by: "last_seen", sort_dir: "desc" },
       });
       const row = asArray(list)[0];
       if (!row?.project_id) {
-        skip("No Error Feed project is available for trace-error-task coverage.");
+        skip(
+          "No Error Feed project is available for trace-error-task coverage.",
+        );
       }
       const projectId = row.project_id;
       const before = await loadTraceErrorTaskDbState({
@@ -3422,7 +4368,10 @@ export const observeFilterJourneys = [
         trace_task_project_id: projectId,
         trace_task_before: before,
       });
-      assert(before.project_visible === true, "Selected Error Feed project is not DB-visible.");
+      assert(
+        before.project_visible === true,
+        "Selected Error Feed project is not DB-visible.",
+      );
 
       cleanup.defer("restore trace error task config", () =>
         restoreTraceErrorTaskDbState({ projectId, before }),
@@ -3433,7 +4382,10 @@ export const observeFilterJourneys = [
           project_id: projectId,
         }),
       );
-      assert(initial?.project_id === projectId, "Trace error task GET project_id mismatch.");
+      assert(
+        initial?.project_id === projectId,
+        "Trace error task GET project_id mismatch.",
+      );
       assert(
         ["running", "waiting", "paused"].includes(initial.status),
         "Trace error task GET returned an invalid status.",
@@ -3450,7 +4402,10 @@ export const observeFilterJourneys = [
       } catch (error) {
         invalidRateStatus = error.status;
       }
-      assert(invalidRateStatus === 400, "Invalid trace error task sampling_rate was accepted.");
+      assert(
+        invalidRateStatus === 400,
+        "Invalid trace error task sampling_rate was accepted.",
+      );
 
       const currentRate = Number(initial.sampling_rate);
       const nextRate = currentRate === 0.23 ? 0.17 : 0.23;
@@ -3460,28 +4415,52 @@ export const observeFilterJourneys = [
         }),
         { sampling_rate: nextRate, status: "paused" },
       );
-      assert(updated?.project_id === projectId, "Trace error task POST project_id mismatch.");
-      assert(Number(updated?.new_rate) === nextRate, "Trace error task POST new_rate mismatch.");
-      assert(updated?.status === "paused", "Trace error task POST did not persist paused status.");
+      assert(
+        updated?.project_id === projectId,
+        "Trace error task POST project_id mismatch.",
+      );
+      assert(
+        Number(updated?.new_rate) === nextRate,
+        "Trace error task POST new_rate mismatch.",
+      );
+      assert(
+        updated?.status === "paused",
+        "Trace error task POST did not persist paused status.",
+      );
 
       const readback = await client.get(
         apiPath("/tracer/trace-error-task/{project_id}/", {
           project_id: projectId,
         }),
       );
-      assert(Number(readback?.sampling_rate) === nextRate, "Trace error task readback rate mismatch.");
-      assert(readback?.status === "paused", "Trace error task readback status mismatch.");
+      assert(
+        Number(readback?.sampling_rate) === nextRate,
+        "Trace error task readback rate mismatch.",
+      );
+      assert(
+        readback?.status === "paused",
+        "Trace error task readback status mismatch.",
+      );
 
       const after = await loadTraceErrorTaskDbState({
         organizationId,
         workspaceId,
         projectId,
       });
-      assert(after.task_exists === true, "Trace error task DB row was not persisted.");
-      assert(Number(after.sampling_rate) === nextRate, "Trace error task DB rate mismatch.");
+      assert(
+        after.task_exists === true,
+        "Trace error task DB row was not persisted.",
+      );
+      assert(
+        Number(after.sampling_rate) === nextRate,
+        "Trace error task DB rate mismatch.",
+      );
       assert(after.status === "paused", "Trace error task DB status mismatch.");
 
-      const cleanupAudit = await restoreTraceErrorTaskDbState({ projectId, before });
+      const cleanupAudit = await restoreTraceErrorTaskDbState({
+        projectId,
+        before,
+      });
       const expectedActiveTaskCount = before.task_exists ? 1 : 0;
       evidence.push({
         trace_task_cleanup_expected_active_count: expectedActiveTaskCount,
@@ -3508,12 +4487,223 @@ export const observeFilterJourneys = [
     },
   },
   {
+    id: "ERR-API-003",
+    title: "Error Feed issue mutation, cached deep analysis, and Linear guard",
+    tags: ["error-feed", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      user,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
+      const userInfo = await client.get(apiPath("/accounts/user-info/"));
+      const email = currentUserEmail(userInfo) || currentUserEmail(user);
+      assert(
+        email.includes("@"),
+        "Authenticated user-info did not include an email.",
+      );
+
+      const list = await client.get(apiPath("/tracer/feed/issues/"), {
+        query: { limit: 25, offset: 0, sort_by: "last_seen", sort_dir: "desc" },
+      });
+      const row =
+        asArray(list).find((item) => item?.trace_id) || asArray(list)[0];
+      if (!row?.cluster_id || !row?.project_id || !row?.trace_id) {
+        skip(
+          "No Error Feed row with a linked trace is available for mutation coverage.",
+        );
+      }
+      const clusterId = row.cluster_id;
+      const projectId = row.project_id;
+      const traceId = row.trace_id;
+
+      const before = await loadErrorFeedMutationDbAudit({
+        organizationId,
+        workspaceId,
+        clusterId,
+        traceId,
+      });
+      assert(
+        before.cluster_visible === true,
+        "Selected Error Feed cluster is not DB-visible.",
+      );
+      assert(
+        before.trace_visible === true,
+        "Selected Error Feed trace is not DB-visible.",
+      );
+
+      let restored = false;
+      cleanup.defer("restore ERR-API-003 feed issue", () => {
+        if (restored) return null;
+        return restoreErrorFeedMutationDbState({ before });
+      });
+
+      const nextStatus =
+        before.status === "acknowledged" ? "for_review" : "acknowledged";
+      const nextSeverity = before.priority === "low" ? "high" : "low";
+      const patched = await client.patch(
+        apiPath("/tracer/feed/issues/{cluster_id}/", { cluster_id: clusterId }),
+        {
+          status: nextStatus,
+          severity: nextSeverity,
+          assignee: email,
+        },
+      );
+      assert(
+        patched?.row?.status === nextStatus,
+        "Error Feed PATCH did not persist status.",
+      );
+      assert(
+        patched?.row?.severity === nextSeverity,
+        "Error Feed PATCH did not persist severity.",
+      );
+      assert(
+        asArray(patched?.row?.assignees).some(
+          (assignee) => String(assignee).toLowerCase() === email.toLowerCase(),
+        ),
+        "Error Feed PATCH did not assign the current user.",
+      );
+      const assignedAudit = await loadErrorFeedMutationDbAudit({
+        organizationId,
+        workspaceId,
+        clusterId,
+        traceId,
+      });
+      assert(
+        assignedAudit.status === nextStatus &&
+          assignedAudit.priority === nextSeverity &&
+          String(assignedAudit.assignee_email).toLowerCase() ===
+            email.toLowerCase(),
+        "Error Feed PATCH DB audit did not match assigned status/severity/user.",
+      );
+
+      await client.patch(
+        apiPath("/tracer/feed/issues/{cluster_id}/", { cluster_id: clusterId }),
+        { assignee: null },
+      );
+      const clearedAudit = await loadErrorFeedMutationDbAudit({
+        organizationId,
+        workspaceId,
+        clusterId,
+        traceId,
+      });
+      assert(
+        !clearedAudit.assignee_id,
+        "Error Feed PATCH assignee=null did not clear DB assignee.",
+      );
+
+      const analysisId = randomUUID();
+      let cacheCleaned = false;
+      await seedErrorFeedDeepAnalysisCache({
+        analysisId,
+        traceId,
+        projectId,
+      });
+      cleanup.defer("delete ERR-API-003 deep-analysis cache", () => {
+        if (cacheCleaned) return null;
+        return deleteErrorFeedDeepAnalysisCache({ analysisId, before });
+      });
+
+      const rootCause = await client.get(
+        apiPath("/tracer/feed/issues/{cluster_id}/root-cause/", {
+          cluster_id: clusterId,
+        }),
+        { query: { trace_id: traceId } },
+      );
+      assert(
+        rootCause?.status === "done",
+        "Seeded deep analysis cache did not read as done.",
+      );
+      const dispatch = await client.post(
+        apiPath("/tracer/feed/issues/{cluster_id}/deep-analysis/", {
+          cluster_id: clusterId,
+        }),
+        { trace_id: traceId, force: false },
+      );
+      assert(
+        dispatch?.status === "done" && dispatch?.trace_id === traceId,
+        "Cached deep-analysis POST did not return done without re-dispatch.",
+      );
+
+      const linearTeams = await client.get(
+        apiPath("/tracer/feed/integrations/linear/teams/"),
+      );
+      let linearCreateStatus = null;
+      if (linearTeams?.connected === false) {
+        const linearError = await expectApiJourneyHttpStatus(
+          400,
+          () =>
+            client.post(
+              apiPath("/tracer/feed/issues/{cluster_id}/create-linear-issue/", {
+                cluster_id: clusterId,
+              }),
+              { team_id: `api-journey-${journeySafeId(runId)}` },
+            ),
+          "Error Feed create Linear issue without integration",
+        );
+        linearCreateStatus = linearError.status;
+        const afterLinear = await loadErrorFeedMutationDbAudit({
+          organizationId,
+          workspaceId,
+          clusterId,
+          traceId,
+        });
+        assert(
+          !afterLinear.external_issue_url && !afterLinear.external_issue_id,
+          "Linear guard mutated external issue fields without an integration.",
+        );
+      }
+
+      const cacheCleanup = await deleteErrorFeedDeepAnalysisCache({
+        analysisId,
+        before,
+      });
+      cacheCleaned = true;
+      const restoreAudit = await restoreErrorFeedMutationDbState({ before });
+      restored = true;
+
+      evidence.push({
+        cluster_id: clusterId,
+        project_id: projectId,
+        trace_id: traceId,
+        patched_status: nextStatus,
+        patched_severity: nextSeverity,
+        assigned_user: email,
+        assignee_cleared: !clearedAudit.assignee_id,
+        deep_analysis_dispatch_status: dispatch.status,
+        linear_connected: Boolean(linearTeams?.connected),
+        linear_create_status: linearCreateStatus,
+        restored_status: restoreAudit.status,
+        restored_priority: restoreAudit.priority,
+        cache_cleanup_deleted: cacheCleanup.deleted_analysis_count,
+      });
+    },
+  },
+  {
     id: "TSK-API-001",
     title: "Observe task list, search, project scope, detail, logs, and usage",
     tags: ["observe", "tasks", "safe", "data-roundtrip"],
     async run({ client, organizationId, workspaceId, evidence }) {
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
 
       const list = await client.get(
         apiPath("/tracer/eval-task/list_eval_tasks_with_project_name/"),
@@ -3536,13 +4726,21 @@ export const observeFilterJourneys = [
         "Task list metadata total_rows was inconsistent.",
       );
 
-      const task = rows.find((row) => row?.id && row?.filters_applied?.project_id) || rows[0];
+      const task =
+        rows.find((row) => row?.id && row?.filters_applied?.project_id) ||
+        rows[0];
       const taskProjectId = task.project_id || task.filters_applied?.project_id;
       assert(isUuid(task.id), "Task list row omitted a valid id.");
       assert(isUuid(taskProjectId), "Task list row omitted project_id.");
       assert(String(task.name || "").trim(), "Task list row omitted name.");
-      assert(String(task.project_name || "").trim(), "Task list row omitted project_name.");
-      assert(asArray(task.evals_applied).length > 0, "Task list row omitted evals_applied.");
+      assert(
+        String(task.project_name || "").trim(),
+        "Task list row omitted project_name.",
+      );
+      assert(
+        asArray(task.evals_applied).length > 0,
+        "Task list row omitted evals_applied.",
+      );
 
       const audit = await loadEvalTaskDbAudit({
         organizationId,
@@ -3551,7 +4749,8 @@ export const observeFilterJourneys = [
       });
       assert(audit.task_visible === true, "Selected task was not DB-visible.");
       assert(
-        Number(audit.visible_task_with_evals_count) === Number(list.metadata.total_rows),
+        Number(audit.visible_task_with_evals_count) ===
+          Number(list.metadata.total_rows),
         "Task list total did not match visible workspace-scoped DB task count.",
       );
 
@@ -3581,23 +4780,35 @@ export const observeFilterJourneys = [
         },
       );
       assert(
-        asArray(projectScoped.table || projectScoped).some((row) => row.id === task.id),
+        asArray(projectScoped.table || projectScoped).some(
+          (row) => row.id === task.id,
+        ),
         "Project-scoped task list did not return the selected task.",
       );
 
-      const detail = await client.get(apiPath("/tracer/eval-task/get_eval_details/"), {
-        query: { eval_id: task.id },
-      });
+      const detail = await client.get(
+        apiPath("/tracer/eval-task/get_eval_details/"),
+        {
+          query: { eval_id: task.id },
+        },
+      );
       assert(detail?.id === task.id, "Task detail id mismatch.");
-      assert(detail?.project_id === taskProjectId, "Task detail project mismatch.");
       assert(
-        asArray(detail.evals_applied).length === Number(audit.selected_eval_count),
+        detail?.project_id === taskProjectId,
+        "Task detail project mismatch.",
+      );
+      assert(
+        asArray(detail.evals_applied).length ===
+          Number(audit.selected_eval_count),
         "Task detail eval count did not match DB.",
       );
 
-      const logs = await client.get(apiPath("/tracer/eval-task/get_eval_task_logs/"), {
-        query: { eval_task_id: task.id },
-      });
+      const logs = await client.get(
+        apiPath("/tracer/eval-task/get_eval_task_logs/"),
+        {
+          query: { eval_task_id: task.id },
+        },
+      );
       assert(
         Number(logs.errors_count) + Number(logs.success_count) ===
           Number(logs.total_count),
@@ -3616,13 +4827,19 @@ export const observeFilterJourneys = [
           period: "30d",
         },
       });
-      assert(usage?.eval_task_id === task.id, "Task usage eval_task_id mismatch.");
+      assert(
+        usage?.eval_task_id === task.id,
+        "Task usage eval_task_id mismatch.",
+      );
       assert(
         Number(usage?.stats?.total_runs) === Number(audit.selected_log_count),
         "Task usage total_runs did not match DB.",
       );
       assert(Array.isArray(usage.chart), "Task usage omitted chart array.");
-      assert(Array.isArray(usage?.logs?.results), "Task usage omitted log results.");
+      assert(
+        Array.isArray(usage?.logs?.results),
+        "Task usage omitted log results.",
+      );
 
       evidence.push({
         task_id: task.id,
@@ -3631,7 +4848,8 @@ export const observeFilterJourneys = [
         project_name: task.project_name,
         list_total: list.metadata.total_rows,
         db_org_task_with_evals_count: audit.org_task_with_evals_count,
-        db_workspace_task_with_evals_count: audit.workspace_task_with_evals_count,
+        db_workspace_task_with_evals_count:
+          audit.workspace_task_with_evals_count,
         db_null_workspace_task_with_evals_count:
           audit.null_workspace_task_with_evals_count,
         db_other_workspace_task_with_evals_count:
@@ -3646,12 +4864,26 @@ export const observeFilterJourneys = [
   },
   {
     id: "TSK-API-002",
-    title: "Observe task create, rename, update, pause, resume, and delete lifecycle",
+    title:
+      "Observe task create, rename, update, pause, resume, and delete lifecycle",
     tags: ["observe", "tasks", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
 
       const list = await client.get(
         apiPath("/tracer/eval-task/list_eval_tasks_with_project_name/"),
@@ -3670,14 +4902,19 @@ export const observeFilterJourneys = [
         skip("No Observe task exists to provide a project/eval config seed.");
       }
 
-      const seed = baseRows.find((row) => row?.id && row?.filters_applied?.project_id) || baseRows[0];
+      const seed =
+        baseRows.find((row) => row?.id && row?.filters_applied?.project_id) ||
+        baseRows[0];
       const seedProjectId = seed.project_id || seed.filters_applied?.project_id;
       assert(isUuid(seed.id), "Seed task row omitted id.");
       assert(isUuid(seedProjectId), "Seed task row omitted project_id.");
 
-      const seedDetail = await client.get(apiPath("/tracer/eval-task/get_eval_details/"), {
-        query: { eval_id: seed.id },
-      });
+      const seedDetail = await client.get(
+        apiPath("/tracer/eval-task/get_eval_details/"),
+        {
+          query: { eval_id: seed.id },
+        },
+      );
       const seedEval = asArray(seedDetail.evals_applied)[0];
       if (!seedEval?.id) {
         skip("Seed Observe task has no eval config id for create coverage.");
@@ -3722,13 +4959,24 @@ export const observeFilterJourneys = [
         deleteEvalTaskDbArtifacts({ taskId: createdTaskId }),
       );
 
-      const createdDetail = await client.get(apiPath("/tracer/eval-task/get_eval_details/"), {
-        query: { eval_id: createdTaskId },
-      });
-      assert(createdDetail.name === taskName, "Created task detail name mismatch.");
-      assert(createdDetail.project_id === seedProjectId, "Created task project mismatch.");
+      const createdDetail = await client.get(
+        apiPath("/tracer/eval-task/get_eval_details/"),
+        {
+          query: { eval_id: createdTaskId },
+        },
+      );
       assert(
-        asArray(createdDetail.evals_applied).some((evalItem) => evalItem.id === seedEval.id),
+        createdDetail.name === taskName,
+        "Created task detail name mismatch.",
+      );
+      assert(
+        createdDetail.project_id === seedProjectId,
+        "Created task project mismatch.",
+      );
+      assert(
+        asArray(createdDetail.evals_applied).some(
+          (evalItem) => evalItem.id === seedEval.id,
+        ),
         "Created task detail did not include the selected eval config.",
       );
 
@@ -3748,7 +4996,10 @@ export const observeFilterJourneys = [
         apiPath("/tracer/eval-task/{id}/", { id: createdTaskId }),
         { name: renamedName },
       );
-      assert(renamed?.name === renamedName, "Detail PATCH rename did not persist.");
+      assert(
+        renamed?.name === renamedName,
+        "Detail PATCH rename did not persist.",
+      );
 
       const updatedName = `${taskName} updated`;
       const updated = await client.patch(
@@ -3761,13 +5012,25 @@ export const observeFilterJourneys = [
           edit_type: "edit_rerun",
         },
       );
-      assert(updated?.task_id === createdTaskId, "Task update response id mismatch.");
+      assert(
+        updated?.task_id === createdTaskId,
+        "Task update response id mismatch.",
+      );
 
-      const updatedDetail = await client.get(apiPath("/tracer/eval-task/get_eval_details/"), {
-        query: { eval_id: createdTaskId },
-      });
-      assert(updatedDetail.name === updatedName, "Task update name did not persist.");
-      assert(Number(updatedDetail.sampling_rate) === 99, "Task update sampling rate did not persist.");
+      const updatedDetail = await client.get(
+        apiPath("/tracer/eval-task/get_eval_details/"),
+        {
+          query: { eval_id: createdTaskId },
+        },
+      );
+      assert(
+        updatedDetail.name === updatedName,
+        "Task update name did not persist.",
+      );
+      assert(
+        Number(updatedDetail.sampling_rate) === 99,
+        "Task update sampling rate did not persist.",
+      );
 
       await setEvalTaskStatus({ taskId: createdTaskId, status: "running" });
       const paused = await client.post(
@@ -3776,10 +5039,16 @@ export const observeFilterJourneys = [
         { query: { eval_task_id: createdTaskId } },
       );
       assert(paused?.message, "Running task pause did not return success.");
-      const pausedDetail = await client.get(apiPath("/tracer/eval-task/get_eval_details/"), {
-        query: { eval_id: createdTaskId },
-      });
-      assert(pausedDetail.status === "paused", "Pause did not persist paused status.");
+      const pausedDetail = await client.get(
+        apiPath("/tracer/eval-task/get_eval_details/"),
+        {
+          query: { eval_id: createdTaskId },
+        },
+      );
+      assert(
+        pausedDetail.status === "paused",
+        "Pause did not persist paused status.",
+      );
 
       const resumed = await client.post(
         apiPath("/tracer/eval-task/unpause_eval_task/"),
@@ -3787,19 +5056,33 @@ export const observeFilterJourneys = [
         { query: { eval_task_id: createdTaskId } },
       );
       assert(resumed?.message, "Paused task resume did not return success.");
-      const resumedDetail = await client.get(apiPath("/tracer/eval-task/get_eval_details/"), {
-        query: { eval_id: createdTaskId },
-      });
-      assert(resumedDetail.status === "pending", "Resume did not reset status to pending.");
+      const resumedDetail = await client.get(
+        apiPath("/tracer/eval-task/get_eval_details/"),
+        {
+          query: { eval_id: createdTaskId },
+        },
+      );
+      assert(
+        resumedDetail.status === "pending",
+        "Resume did not reset status to pending.",
+      );
 
       const deleted = await client.post(
         apiPath("/tracer/eval-task/mark_eval_tasks_deleted/"),
         { eval_task_ids: [createdTaskId] },
       );
       assert(deleted?.message, "Task delete did not return success.");
-      const cleanupAudit = await loadEvalTaskLifecycleAudit({ taskId: createdTaskId });
-      assert(cleanupAudit.task_deleted === true, "Deleted task DB flag was not set.");
-      assert(cleanupAudit.task_status === "deleted", "Deleted task status mismatch.");
+      const cleanupAudit = await loadEvalTaskLifecycleAudit({
+        taskId: createdTaskId,
+      });
+      assert(
+        cleanupAudit.task_deleted === true,
+        "Deleted task DB flag was not set.",
+      );
+      assert(
+        cleanupAudit.task_status === "deleted",
+        "Deleted task status mismatch.",
+      );
 
       evidence.push({
         seed_task_id: seed.id,
@@ -3815,12 +5098,169 @@ export const observeFilterJourneys = [
     },
   },
   {
+    id: "TSK-API-003",
+    title: "Observe task linked trace source stores direct id filters",
+    tags: ["observe", "tasks", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
+
+      const { seed, seedEval, projectId, trace, traceDetail } =
+        await resolveEvalTaskSeedWithTrace(client, evidence);
+      const traceId = trace.trace_id || trace.id;
+      assert(isUuid(traceId), "Linked-source trace row omitted trace_id.");
+
+      const taskName = `api journey linked trace task ${runId}`;
+      const created = await client.post(apiPath("/tracer/eval-task/"), {
+        project: projectId,
+        name: taskName,
+        run_type: "continuous",
+        sampling_rate: 100,
+        row_type: "traces",
+        filters: {
+          project_id: projectId,
+          trace_id: [traceId],
+        },
+        evals: [seedEval.id],
+      });
+      assert(isUuid(created?.id), "Linked-source task create returned no id.");
+      const createdTaskId = created.id;
+
+      cleanup.defer("hard cleanup TSK-API-003 linked task artifacts", () =>
+        deleteEvalTaskDbArtifacts({ taskId: createdTaskId }),
+      );
+
+      const taskDetail = await client.get(
+        apiPath("/tracer/eval-task/get_eval_details/"),
+        {
+          query: { eval_id: createdTaskId },
+        },
+      );
+      assert(
+        taskDetail?.id === createdTaskId,
+        "Linked task detail id mismatch.",
+      );
+      assert(
+        taskDetail?.project_id === projectId,
+        "Linked task project mismatch.",
+      );
+      assert(
+        asArray(taskDetail?.filters_applied?.trace_id).includes(traceId),
+        "Linked task detail did not preserve the trace_id filter.",
+      );
+      assert(
+        asArray(taskDetail.evals_applied).some(
+          (evalItem) => evalItem.id === seedEval.id,
+        ),
+        "Linked task detail did not include the selected eval config.",
+      );
+
+      const sourceDetail = await client.get(
+        apiPath("/tracer/trace/{id}/", { id: traceId }),
+      );
+      const detailTraceId =
+        sourceDetail?.trace_id || sourceDetail?.id || sourceDetail?.trace?.id;
+      assert(
+        detailTraceId === traceId,
+        "Linked source trace detail did not return the selected trace.",
+      );
+
+      const filteredTraces = await client.get(
+        queryWithFilters(
+          apiPath("/tracer/trace/list_traces_of_session/"),
+          canonicalTextFilter("trace_id", "equals", traceId),
+          {
+            project_id: projectId,
+            page_number: 0,
+            page_size: 5,
+          },
+        ),
+      );
+      assert(
+        asArray(filteredTraces).some((row) => row.trace_id === traceId),
+        "Trace list did not return the selected source under trace_id filter.",
+      );
+
+      const audit = await loadEvalTaskLinkedSourceAudit({
+        organizationId,
+        workspaceId,
+        taskId: createdTaskId,
+        projectId,
+        traceId,
+      });
+      assert(
+        audit.task_exists === true,
+        "Linked task row was not found in DB.",
+      );
+      assert(
+        audit.trace_id_filter_contains === true,
+        "Linked task DB filters did not contain the selected trace_id.",
+      );
+      assert(
+        audit.source_trace_exists === true,
+        "Linked source trace was not visible in DB for the selected project.",
+      );
+      assert(
+        Number(audit.matched_span_count) > 0,
+        "Linked source trace has no matching spans for trace-row evaluation.",
+      );
+
+      const deleted = await client.post(
+        apiPath("/tracer/eval-task/mark_eval_tasks_deleted/"),
+        { eval_task_ids: [createdTaskId] },
+      );
+      assert(deleted?.message, "Linked task delete did not return success.");
+      const cleanupAudit = await loadEvalTaskLifecycleAudit({
+        taskId: createdTaskId,
+      });
+      assert(
+        cleanupAudit.task_deleted === true,
+        "Linked task public delete flag was not set.",
+      );
+
+      evidence.push({
+        seed_task_id: seed.id,
+        seed_project_id: projectId,
+        seed_eval_config_id: seedEval.id,
+        created_task_id: createdTaskId,
+        source_trace_id: traceId,
+        source_trace_name: trace.name || traceDetail?.name || null,
+        source_url: `/dashboard/observe/${projectId}/trace/${traceId}`,
+        filters_applied: taskDetail.filters_applied,
+        matched_span_count: audit.matched_span_count,
+        source_reverse_task_column_count:
+          audit.source_reverse_task_column_count,
+        public_deleted: cleanupAudit.task_deleted,
+      });
+    },
+  },
+  {
     id: "ALT-API-001",
     title: "Observe alert list, detail, metric options, graph, and logs",
     tags: ["observe", "alerts", "safe", "data-roundtrip", "db-audit"],
     async run({ client, organizationId, workspaceId, evidence }) {
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
       const project = await resolveObserveProject(client, evidence);
 
       const metricOptions = asArray(
@@ -3833,26 +5273,35 @@ export const observeFilterJourneys = [
         "Alert metric options omitted count_of_errors.",
       );
 
-      const preview = await client.post(apiPath("/tracer/user-alerts/preview-graph/"), {
-        project: project.id,
-        metric_type: "count_of_errors",
-        threshold_operator: "greater_than",
-        threshold_type: "static",
-        critical_threshold_value: 999999,
-        warning_threshold_value: 999998,
-        alert_frequency: 60,
-        filters: {},
-      });
-      assert(Array.isArray(preview) || typeof preview === "object", "Alert preview graph returned an invalid payload.");
-
-      const list = await client.get(apiPath("/tracer/user-alerts/list_monitors/"), {
-        query: {
-          page_number: 0,
-          page_size: 10,
-          sort_by: "created_at",
-          sort_direction: "desc",
+      const preview = await client.post(
+        apiPath("/tracer/user-alerts/preview-graph/"),
+        {
+          project: project.id,
+          metric_type: "count_of_errors",
+          threshold_operator: "greater_than",
+          threshold_type: "static",
+          critical_threshold_value: 999999,
+          warning_threshold_value: 999998,
+          alert_frequency: 60,
+          filters: {},
         },
-      });
+      );
+      assert(
+        Array.isArray(preview) || typeof preview === "object",
+        "Alert preview graph returned an invalid payload.",
+      );
+
+      const list = await client.get(
+        apiPath("/tracer/user-alerts/list_monitors/"),
+        {
+          query: {
+            page_number: 0,
+            page_size: 10,
+            sort_by: "created_at",
+            sort_direction: "desc",
+          },
+        },
+      );
       const rows = asArray(list.table || list);
       assert(
         Number(list?.metadata?.total_rows ?? rows.length) >= rows.length,
@@ -3861,7 +5310,8 @@ export const observeFilterJourneys = [
 
       const audit = await loadAlertListDbAudit({ organizationId, workspaceId });
       assert(
-        Number(audit.visible_monitor_count) === Number(list.metadata.total_rows),
+        Number(audit.visible_monitor_count) ===
+          Number(list.metadata.total_rows),
         "Alert list total did not match visible workspace-scoped DB monitor count.",
       );
 
@@ -3890,9 +5340,14 @@ export const observeFilterJourneys = [
         { query: { page_number: 0, page_size: 5 } },
       );
       assert(detail?.id === alert.id, "Alert detail id mismatch.");
-      assert(detail?.workspace === workspaceId, "Alert detail workspace mismatch.");
       assert(
-        detail?.project === alert.project || detail?.project === project.id || isUuid(detail?.project),
+        detail?.workspace === workspaceId,
+        "Alert detail workspace mismatch.",
+      );
+      assert(
+        detail?.project === alert.project ||
+          detail?.project === project.id ||
+          isUuid(detail?.project),
         "Alert detail omitted project id.",
       );
       assert(detail?.logs?.metadata, "Alert detail omitted logs metadata.");
@@ -3900,7 +5355,10 @@ export const observeFilterJourneys = [
       const graph = await client.get(
         apiPath("/tracer/user-alerts/{id}/graph/", { id: alert.id }),
       );
-      assert(Array.isArray(graph) || typeof graph === "object", "Alert graph returned an invalid payload.");
+      assert(
+        Array.isArray(graph) || typeof graph === "object",
+        "Alert graph returned an invalid payload.",
+      );
 
       const logs = await client.get(
         apiPath("/tracer/user-alert-logs/{id}/list/", { id: alert.id }),
@@ -3922,12 +5380,26 @@ export const observeFilterJourneys = [
   },
   {
     id: "ALT-API-002",
-    title: "Observe alert create, update, mute, duplicate, resolve, and delete lifecycle",
+    title:
+      "Observe alert create, update, mute, duplicate, resolve, and delete lifecycle",
     tags: ["observe", "alerts", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
-      assert(isUuid(organizationId), "Authenticated context did not resolve an organization id.");
-      assert(isUuid(workspaceId), "Authenticated context did not resolve a workspace id.");
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
       const project = await resolveObserveProject(client, evidence);
 
       const alertName = `api journey alert ${runId}`;
@@ -3944,32 +5416,58 @@ export const observeFilterJourneys = [
       });
 
       const created = await findAlertByName(client, alertName);
-      assert(created?.id, "Alert create did not produce a searchable list row.");
+      assert(
+        created?.id,
+        "Alert create did not produce a searchable list row.",
+      );
       cleanup.defer("hard cleanup ALT-API-002 alert artifacts", () =>
         deleteAlertDbArtifacts({ alertIds: [created.id] }),
       );
 
-      const createdAudit = await loadAlertLifecycleAudit({ alertId: created.id });
-      assert(createdAudit.alert_exists === true, "Created alert DB row was not persisted.");
-      assert(createdAudit.workspace_id === workspaceId, "Created alert was not assigned to the request workspace.");
-      assert(createdAudit.project_id === project.id, "Created alert project mismatch.");
+      const createdAudit = await loadAlertLifecycleAudit({
+        alertId: created.id,
+      });
+      assert(
+        createdAudit.alert_exists === true,
+        "Created alert DB row was not persisted.",
+      );
+      assert(
+        createdAudit.workspace_id === workspaceId,
+        "Created alert was not assigned to the request workspace.",
+      );
+      assert(
+        createdAudit.project_id === project.id,
+        "Created alert project mismatch.",
+      );
 
       const createdDetail = await client.get(
         apiPath("/tracer/user-alerts/{id}/details/", { id: created.id }),
       );
-      assert(createdDetail.name === alertName, "Created alert detail name mismatch.");
-      assert(createdDetail.workspace === workspaceId, "Created alert detail workspace mismatch.");
+      assert(
+        createdDetail.name === alertName,
+        "Created alert detail name mismatch.",
+      );
+      assert(
+        createdDetail.workspace === workspaceId,
+        "Created alert detail workspace mismatch.",
+      );
 
       const renamedName = `${alertName} renamed`;
-      await client.patch(apiPath("/tracer/user-alerts/{id}/", { id: created.id }), {
-        name: renamedName,
-        critical_threshold_value: 999997,
-        warning_threshold_value: 999996,
-      });
+      await client.patch(
+        apiPath("/tracer/user-alerts/{id}/", { id: created.id }),
+        {
+          name: renamedName,
+          critical_threshold_value: 999997,
+          warning_threshold_value: 999996,
+        },
+      );
       const renamedDetail = await client.get(
         apiPath("/tracer/user-alerts/{id}/details/", { id: created.id }),
       );
-      assert(renamedDetail.name === renamedName, "Alert PATCH rename did not persist.");
+      assert(
+        renamedDetail.name === renamedName,
+        "Alert PATCH rename did not persist.",
+      );
       assert(
         Number(renamedDetail.critical_threshold_value) === 999997,
         "Alert PATCH critical threshold did not persist.",
@@ -3989,10 +5487,13 @@ export const observeFilterJourneys = [
       assert(mutedAudit.is_mute === false, "Alert unmute did not persist.");
 
       const copiedName = `${alertName} copy`;
-      const copied = await client.post(apiPath("/tracer/user-alerts/duplicate/"), {
-        id: created.id,
-        name: copiedName,
-      });
+      const copied = await client.post(
+        apiPath("/tracer/user-alerts/duplicate/"),
+        {
+          id: created.id,
+          name: copiedName,
+        },
+      );
       assert(isUuid(copied?.id), "Alert duplicate did not return a copied id.");
       cleanup.defer("hard cleanup ALT-API-002 copied alert artifacts", () =>
         deleteAlertDbArtifacts({ alertIds: [copied.id] }),
@@ -4000,8 +5501,14 @@ export const observeFilterJourneys = [
       const copiedDetail = await client.get(
         apiPath("/tracer/user-alerts/{id}/details/", { id: copied.id }),
       );
-      assert(copiedDetail.name === copiedName, "Copied alert detail name mismatch.");
-      assert(copiedDetail.workspace === workspaceId, "Copied alert workspace mismatch.");
+      assert(
+        copiedDetail.name === copiedName,
+        "Copied alert detail name mismatch.",
+      );
+      assert(
+        copiedDetail.workspace === workspaceId,
+        "Copied alert workspace mismatch.",
+      );
 
       const logId = randomUUID();
       await insertAlertLog({
@@ -4020,16 +5527,31 @@ export const observeFilterJourneys = [
       await client.post(apiPath("/tracer/user-alert-logs/resolve/"), {
         log_ids: [logId],
       });
-      const resolvedAudit = await loadAlertLifecycleAudit({ alertId: created.id });
-      assert(resolvedAudit.unresolved_log_count === 0, "Alert log resolve did not persist.");
+      const resolvedAudit = await loadAlertLifecycleAudit({
+        alertId: created.id,
+      });
+      assert(
+        resolvedAudit.unresolved_log_count === 0,
+        "Alert log resolve did not persist.",
+      );
 
       await client.delete(apiPath("/tracer/user-alerts/"), {
         body: { ids: [created.id, copied.id] },
       });
-      const deletedAudit = await loadAlertLifecycleAudit({ alertId: created.id });
-      const copiedDeletedAudit = await loadAlertLifecycleAudit({ alertId: copied.id });
-      assert(deletedAudit.alert_deleted === true, "Alert delete did not set deleted flag.");
-      assert(copiedDeletedAudit.alert_deleted === true, "Copied alert delete did not set deleted flag.");
+      const deletedAudit = await loadAlertLifecycleAudit({
+        alertId: created.id,
+      });
+      const copiedDeletedAudit = await loadAlertLifecycleAudit({
+        alertId: copied.id,
+      });
+      assert(
+        deletedAudit.alert_deleted === true,
+        "Alert delete did not set deleted flag.",
+      );
+      assert(
+        copiedDeletedAudit.alert_deleted === true,
+        "Copied alert delete did not set deleted flag.",
+      );
 
       evidence.push({
         project_id: project.id,
@@ -4044,6 +5566,144 @@ export const observeFilterJourneys = [
       });
     },
   },
+  {
+    id: "ALT-API-003",
+    title: "Observe alert safe notification trigger creates resolvable logs",
+    tags: ["observe", "alerts", "mutating", "notifications", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
+      const project = await resolveObserveProject(client, evidence);
+
+      const alertName = `api journey safe notify ${runId}`;
+      await client.post(apiPath("/tracer/user-alerts/"), {
+        project: project.id,
+        name: alertName,
+        metric_type: "count_of_errors",
+        threshold_operator: "greater_than",
+        threshold_type: "static",
+        critical_threshold_value: 0,
+        alert_frequency: 60,
+        filters: {},
+      });
+
+      const created = await findAlertByName(client, alertName);
+      assert(
+        created?.id,
+        "Safe notification alert create did not produce a searchable row.",
+      );
+      cleanup.defer("hard cleanup ALT-API-003 alert artifacts", () =>
+        deleteAlertDbArtifacts({ alertIds: [created.id] }),
+      );
+
+      const createdAudit = await loadAlertNotificationAudit({
+        alertId: created.id,
+      });
+      assert(
+        createdAudit.alert_exists === true,
+        "Safe notification alert DB row was not persisted.",
+      );
+      assert(
+        createdAudit.workspace_id === workspaceId,
+        "Safe notification alert was not assigned to the request workspace.",
+      );
+      assert(
+        Number(createdAudit.notification_email_count) === 0 &&
+          !createdAudit.slack_webhook_url,
+        "Safe notification alert must not have outbound email or Slack channels.",
+      );
+
+      const trigger = await triggerAlertThresholdInBackend({
+        alertId: created.id,
+        currentValue: 1,
+      });
+      assert(
+        trigger.after_count === trigger.before_count + 1,
+        "Safe notification trigger did not create exactly one alert log.",
+      );
+      assert(
+        trigger.latest_log?.type === "critical",
+        "Safe notification trigger did not create a critical log.",
+      );
+      assert(
+        String(trigger.latest_log?.message || "").includes(alertName),
+        "Safe notification log message did not include the alert name.",
+      );
+      assert(
+        trigger.latest_log?.time_window_start &&
+          trigger.latest_log?.time_window_end,
+        "Safe notification log omitted time window fields.",
+      );
+
+      const detail = await client.get(
+        apiPath("/tracer/user-alerts/{id}/details/", { id: created.id }),
+        { query: { page_number: 0, page_size: 5 } },
+      );
+      const detailLogs = asArray(detail.logs?.results);
+      assert(
+        detailLogs.some((log) => log.id === trigger.latest_log.id),
+        "Alert detail logs did not include the safe notification log.",
+      );
+
+      const logs = await client.get(
+        apiPath("/tracer/user-alert-logs/{id}/list/", { id: created.id }),
+      );
+      assert(
+        asArray(logs).some((log) => log.id === trigger.latest_log.id),
+        "Direct alert log list did not include the safe notification log.",
+      );
+
+      await client.post(apiPath("/tracer/user-alert-logs/resolve/"), {
+        log_ids: [trigger.latest_log.id],
+      });
+      const resolvedAudit = await loadAlertNotificationAudit({
+        alertId: created.id,
+        logId: trigger.latest_log.id,
+      });
+      assert(
+        resolvedAudit.log_resolved === true,
+        "Safe notification log resolve did not persist.",
+      );
+
+      await client.delete(apiPath("/tracer/user-alerts/"), {
+        body: { ids: [created.id] },
+      });
+      const deletedAudit = await loadAlertNotificationAudit({
+        alertId: created.id,
+        logId: trigger.latest_log.id,
+      });
+      assert(
+        deletedAudit.alert_deleted === true,
+        "Safe notification alert delete did not set deleted flag.",
+      );
+
+      evidence.push({
+        project_id: project.id,
+        alert_id: created.id,
+        alert_name: alertName,
+        log_id: trigger.latest_log.id,
+        trigger_current_value: trigger.current_value,
+        notification_email_count: createdAudit.notification_email_count,
+        slack_webhook_configured: Boolean(createdAudit.slack_webhook_url),
+        log_resolved: resolvedAudit.log_resolved,
+        final_public_deleted: deletedAudit.alert_deleted,
+      });
+    },
+  },
 ];
 
 function assertObserveProjectListPayload(payload, projects) {
@@ -4054,7 +5714,10 @@ function assertObserveProjectListPayload(payload, projects) {
   );
   for (const project of projects) {
     assert(isUuid(project?.id), "Observe project list row omitted a valid id.");
-    assert(String(project?.name || "").trim(), "Observe project list row omitted name.");
+    assert(
+      String(project?.name || "").trim(),
+      "Observe project list row omitted name.",
+    );
     assert(
       Number.isFinite(Number(project.last_30_days_vol)),
       `Observe project ${project.id} omitted numeric last_30_days_vol.`,
@@ -4075,17 +5738,38 @@ function assertObserveProjectListPayload(payload, projects) {
       Number.isFinite(Number(project.issues)),
       `Observe project ${project.id} omitted numeric issues.`,
     );
-    assert(Array.isArray(project.tags), `Observe project ${project.id} tags was not an array.`);
+    assert(
+      Array.isArray(project.tags),
+      `Observe project ${project.id} tags was not an array.`,
+    );
   }
 }
 
-function assertObserveProjectDetail(detail, { projectId, organizationId, workspaceId }) {
+function assertObserveProjectDetail(
+  detail,
+  { projectId, organizationId, workspaceId },
+) {
   assert(detail?.id === projectId, "Observe project detail id mismatch.");
-  assert(detail?.trace_type === "observe", "Observe project detail trace_type mismatch.");
-  assert(detail?.organization === organizationId, "Observe project detail organization mismatch.");
-  assert(detail?.workspace === workspaceId, "Observe project detail workspace mismatch.");
-  assert(String(detail?.name || "").trim(), "Observe project detail omitted name.");
-  assert(Array.isArray(detail?.tags), "Observe project detail tags was not an array.");
+  assert(
+    detail?.trace_type === "observe",
+    "Observe project detail trace_type mismatch.",
+  );
+  assert(
+    detail?.organization === organizationId,
+    "Observe project detail organization mismatch.",
+  );
+  assert(
+    detail?.workspace === workspaceId,
+    "Observe project detail workspace mismatch.",
+  );
+  assert(
+    String(detail?.name || "").trim(),
+    "Observe project detail omitted name.",
+  );
+  assert(
+    Array.isArray(detail?.tags),
+    "Observe project detail tags was not an array.",
+  );
 }
 
 function assertSortedObserveProjectNames(projects, direction) {
@@ -4105,7 +5789,10 @@ function assertSortedObserveProjectNames(projects, direction) {
 
 function assertObserveSdkCodeUsesPlaceholders(payload) {
   const text = JSON.stringify(payload || {});
-  assert(text.includes("YOUR_FI_API_KEY"), "Observe SDK code omitted FI API key placeholder.");
+  assert(
+    text.includes("YOUR_FI_API_KEY"),
+    "Observe SDK code omitted FI API key placeholder.",
+  );
   assert(
     text.includes("YOUR_FI_SECRET_KEY"),
     "Observe SDK code omitted FI secret key placeholder.",
@@ -4113,14 +5800,31 @@ function assertObserveSdkCodeUsesPlaceholders(payload) {
 }
 
 function assertErrorFeedListPayload(payload, rows) {
-  assert(Number.isFinite(Number(payload?.total)), "Error Feed list omitted numeric total.");
-  assert(Number(payload.total) >= rows.length, "Error Feed total was smaller than page size.");
+  assert(
+    Number.isFinite(Number(payload?.total)),
+    "Error Feed list omitted numeric total.",
+  );
+  assert(
+    Number(payload.total) >= rows.length,
+    "Error Feed total was smaller than page size.",
+  );
   for (const row of rows) {
-    assert(String(row?.cluster_id || "").trim(), "Error Feed row omitted cluster_id.");
-    assert(["scanner", "eval"].includes(row.source), "Error Feed row source was invalid.");
-    assert(String(row?.error?.name || "").trim(), "Error Feed row omitted error.name.");
     assert(
-      ["escalating", "for_review", "acknowledged", "resolved"].includes(row.status),
+      String(row?.cluster_id || "").trim(),
+      "Error Feed row omitted cluster_id.",
+    );
+    assert(
+      ["scanner", "eval"].includes(row.source),
+      "Error Feed row source was invalid.",
+    );
+    assert(
+      String(row?.error?.name || "").trim(),
+      "Error Feed row omitted error.name.",
+    );
+    assert(
+      ["escalating", "for_review", "acknowledged", "resolved"].includes(
+        row.status,
+      ),
       "Error Feed row status was invalid.",
     );
     assert(
@@ -4203,7 +5907,230 @@ FROM counts;
   return runPostgresJson(sql);
 }
 
-async function loadTraceErrorTaskDbState({ organizationId, workspaceId, projectId }) {
+async function loadErrorFeedMutationDbAudit({
+  organizationId,
+  workspaceId,
+  clusterId,
+  traceId,
+}) {
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for feed audit.",
+  );
+  assert(isUuid(workspaceId), "workspaceId must be a UUID for feed audit.");
+  assert(isUuid(traceId), "traceId must be a UUID for feed audit.");
+  const sql = `
+WITH requested AS (
+  SELECT
+    ${sqlUuid(organizationId)} AS organization_id,
+    ${sqlUuid(workspaceId)} AS workspace_id,
+    ${sqlString(clusterId)} AS cluster_id,
+    ${sqlUuid(traceId)} AS trace_id
+),
+cluster_row AS (
+  SELECT
+    groups.id,
+    groups.cluster_id,
+    groups.project_id,
+    groups.status,
+    groups.priority,
+    groups.assignee_id,
+    assignee.email AS assignee_email,
+    groups.external_issue_url,
+    groups.external_issue_id,
+    project.workspace_id,
+    project.organization_id,
+    groups.deleted
+  FROM tracer_trace_error_group groups
+  JOIN tracer_project project ON project.id = groups.project_id
+  LEFT JOIN accounts_user assignee ON assignee.id = groups.assignee_id
+  JOIN requested r ON groups.cluster_id = r.cluster_id
+  WHERE groups.deleted = false
+    AND project.deleted = false
+    AND project.organization_id = r.organization_id
+    AND project.workspace_id = r.workspace_id
+  ORDER BY groups.created_at DESC
+  LIMIT 1
+),
+trace_row AS (
+  SELECT
+    trace.id,
+    trace.project_id,
+    trace.error_analysis_status
+  FROM tracer_trace trace
+  JOIN requested r ON trace.id = r.trace_id
+  WHERE trace.deleted = false
+)
+SELECT json_build_object(
+  'cluster_visible', EXISTS (SELECT 1 FROM cluster_row),
+  'trace_visible', EXISTS (
+    SELECT 1
+    FROM trace_row trace
+    JOIN cluster_row cluster ON cluster.project_id = trace.project_id
+  ),
+  'cluster_id', (SELECT cluster_id FROM cluster_row),
+  'cluster_pk', (SELECT id::text FROM cluster_row),
+  'project_id', (SELECT project_id::text FROM cluster_row),
+  'workspace_id', (SELECT workspace_id::text FROM cluster_row),
+  'organization_id', (SELECT organization_id::text FROM cluster_row),
+  'status', (SELECT status FROM cluster_row),
+  'priority', (SELECT priority FROM cluster_row),
+  'assignee_id', (SELECT assignee_id::text FROM cluster_row),
+  'assignee_email', (SELECT assignee_email FROM cluster_row),
+  'external_issue_url', (SELECT external_issue_url FROM cluster_row),
+  'external_issue_id', (SELECT external_issue_id FROM cluster_row),
+  'trace_id', (SELECT id::text FROM trace_row),
+  'trace_error_analysis_status', (SELECT error_analysis_status FROM trace_row)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function restoreErrorFeedMutationDbState({ before }) {
+  assert(before?.cluster_id, "Feed restore requires original cluster_id.");
+  assert(
+    isUuid(before?.project_id),
+    "Feed restore requires original project_id.",
+  );
+  assert(isUuid(before?.trace_id), "Feed restore requires original trace_id.");
+  const sql = `
+WITH restored_cluster AS (
+  UPDATE tracer_trace_error_group
+  SET
+    status = ${sqlString(before.status || "escalating")},
+    priority = ${sqlString(before.priority || "medium")},
+    assignee_id = ${sqlUuidOrNull(before.assignee_id)},
+    external_issue_url = ${sqlStringOrNull(before.external_issue_url)},
+    external_issue_id = ${sqlStringOrNull(before.external_issue_id)},
+    updated_at = NOW()
+  WHERE cluster_id = ${sqlString(before.cluster_id)}
+    AND project_id = ${sqlUuid(before.project_id)}
+  RETURNING status, priority, assignee_id, external_issue_url, external_issue_id
+),
+restored_trace AS (
+  UPDATE tracer_trace
+  SET error_analysis_status = ${sqlString(before.trace_error_analysis_status || "pending")}
+  WHERE id = ${sqlUuid(before.trace_id)}
+  RETURNING error_analysis_status
+)
+SELECT json_build_object(
+  'status', (SELECT status FROM restored_cluster),
+  'priority', (SELECT priority FROM restored_cluster),
+  'assignee_id', (SELECT assignee_id::text FROM restored_cluster),
+  'external_issue_url', (SELECT external_issue_url FROM restored_cluster),
+  'external_issue_id', (SELECT external_issue_id FROM restored_cluster),
+  'trace_error_analysis_status', (SELECT error_analysis_status FROM restored_trace)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedErrorFeedDeepAnalysisCache({
+  analysisId,
+  traceId,
+  projectId,
+}) {
+  assert(
+    isUuid(analysisId),
+    "analysisId must be a UUID for feed analysis seed.",
+  );
+  assert(isUuid(traceId), "traceId must be a UUID for feed analysis seed.");
+  assert(isUuid(projectId), "projectId must be a UUID for feed analysis seed.");
+  const sql = `
+WITH updated_trace AS (
+  UPDATE tracer_trace
+  SET error_analysis_status = 'completed'
+  WHERE id = ${sqlUuid(traceId)}
+  RETURNING id, error_analysis_status
+),
+inserted AS (
+  INSERT INTO tracer_trace_error_analysis (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    trace_id,
+    project_id,
+    analysis_date,
+    agent_version,
+    memory_enhanced,
+    total_errors,
+    high_impact_errors,
+    medium_impact_errors,
+    low_impact_errors,
+    recommended_priority,
+    memory_context,
+    grouped_errors_count
+  )
+  VALUES (
+    ${sqlUuid(analysisId)},
+    NOW(),
+    NOW(),
+    false,
+    ${sqlUuid(traceId)},
+    ${sqlUuid(projectId)},
+    NOW(),
+    'api-journey',
+    false,
+    0,
+    0,
+    0,
+    0,
+    'LOW',
+    '{}'::jsonb,
+    0
+  )
+  RETURNING id
+)
+SELECT json_build_object(
+  'analysis_id', (SELECT id::text FROM inserted),
+  'trace_id', (SELECT id::text FROM updated_trace),
+  'trace_error_analysis_status', (SELECT error_analysis_status FROM updated_trace)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function deleteErrorFeedDeepAnalysisCache({ analysisId, before }) {
+  assert(
+    isUuid(analysisId),
+    "analysisId must be a UUID for feed analysis cleanup.",
+  );
+  assert(
+    isUuid(before?.trace_id),
+    "Feed analysis cleanup requires original trace id.",
+  );
+  const sql = `
+WITH deleted_details AS (
+  DELETE FROM tracer_trace_error_detail
+  WHERE analysis_id = ${sqlUuid(analysisId)}
+  RETURNING id
+),
+deleted_analysis AS (
+  DELETE FROM tracer_trace_error_analysis
+  WHERE id = ${sqlUuid(analysisId)}
+  RETURNING id
+),
+restored_trace AS (
+  UPDATE tracer_trace
+  SET error_analysis_status = ${sqlString(before.trace_error_analysis_status || "pending")}
+  WHERE id = ${sqlUuid(before.trace_id)}
+  RETURNING error_analysis_status
+)
+SELECT json_build_object(
+  'deleted_detail_count', (SELECT count(*) FROM deleted_details),
+  'deleted_analysis_count', (SELECT count(*) FROM deleted_analysis),
+  'trace_error_analysis_status', (SELECT error_analysis_status FROM restored_trace)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadTraceErrorTaskDbState({
+  organizationId,
+  workspaceId,
+  projectId,
+}) {
   const sql = `
 WITH requested AS (
   SELECT
@@ -4415,7 +6342,11 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
-async function loadForeignEvalConfigCandidate({ organizationId, workspaceId, projectId }) {
+async function loadForeignEvalConfigCandidate({
+  organizationId,
+  workspaceId,
+  projectId,
+}) {
   const sql = `
 WITH requested AS (
   SELECT
@@ -4470,6 +6401,80 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
+async function resolveEvalTaskSeedWithTrace(client, evidence) {
+  const list = await client.get(
+    apiPath("/tracer/eval-task/list_eval_tasks_with_project_name/"),
+    {
+      query: {
+        page_number: 0,
+        page_size: 25,
+        sort_params: JSON.stringify([
+          { column_id: "created_at", direction: "desc" },
+        ]),
+      },
+    },
+  );
+  const rows = asArray(list.table || list).filter(
+    (row) => row?.id && (row.project_id || row.filters_applied?.project_id),
+  );
+  if (!rows.length) {
+    skip("No Observe task exists to provide a project/eval config seed.");
+  }
+
+  for (const seed of rows) {
+    const projectId = seed.project_id || seed.filters_applied?.project_id;
+    if (!isUuid(projectId)) continue;
+    const seedDetail = await client.get(
+      apiPath("/tracer/eval-task/get_eval_details/"),
+      {
+        query: { eval_id: seed.id },
+      },
+    );
+    const seedEval = asArray(seedDetail.evals_applied)[0];
+    if (!seedEval?.id) continue;
+
+    const traceList = await client.get(
+      queryWithFilters(apiPath("/tracer/trace/list_traces_of_session/"), [], {
+        project_id: projectId,
+        page_number: 0,
+        page_size: 10,
+      }),
+    );
+    const traces = asArray(traceList).filter((row) => row?.trace_id || row?.id);
+    for (const trace of traces) {
+      const traceId = trace.trace_id || trace.id;
+      if (!isUuid(traceId)) continue;
+      try {
+        const traceDetail = await client.get(
+          apiPath("/tracer/trace/{id}/", { id: traceId }),
+        );
+        evidence.push({
+          endpoint: "eval task linked-source seed",
+          seed_task_id: seed.id,
+          seed_project_id: projectId,
+          seed_eval_config_id: seedEval.id,
+          trace_id: traceId,
+          trace_total_rows: traceList?.metadata?.total_rows ?? null,
+        });
+        return { seed, seedEval, projectId, trace, traceDetail };
+      } catch (error) {
+        if (
+          !(
+            error instanceof ApiJourneyError &&
+            [400, 404].includes(error.status)
+          )
+        ) {
+          throw error;
+        }
+      }
+    }
+  }
+
+  skip(
+    "No Observe task project with a readable trace exists for linked-source coverage.",
+  );
+}
+
 async function setEvalTaskStatus({ taskId, status }) {
   const sql = `
 WITH updated AS (
@@ -4485,7 +6490,10 @@ SELECT json_build_object(
 );
 `;
   const result = await runPostgresJson(sql);
-  assert(Number(result.updated_count) === 1, "Eval task status seed update failed.");
+  assert(
+    Number(result.updated_count) === 1,
+    "Eval task status seed update failed.",
+  );
   return result;
 }
 
@@ -4519,6 +6527,70 @@ SELECT json_build_object(
     SELECT count(*)
     FROM tracer_eval_logger log
     JOIN requested r ON log.eval_task_id = r.task_id::text
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadEvalTaskLinkedSourceAudit({
+  organizationId,
+  workspaceId,
+  taskId,
+  projectId,
+  traceId,
+}) {
+  const sql = `
+WITH requested AS (
+  SELECT
+    ${sqlUuid(organizationId)} AS organization_id,
+    ${sqlUuid(workspaceId)} AS workspace_id,
+    ${sqlUuid(taskId)} AS task_id,
+    ${sqlUuid(projectId)} AS project_id,
+    ${sqlUuid(traceId)} AS trace_id
+),
+task_row AS (
+  SELECT task.id, task.project_id, task.filters, task.deleted
+  FROM tracer_eval_task task
+  JOIN requested r ON task.id = r.task_id
+  WHERE task.project_id = r.project_id
+),
+source_trace AS (
+  SELECT trace.id, trace.project_id
+  FROM tracer_trace trace
+  JOIN requested r ON trace.id = r.trace_id
+  WHERE trace.project_id = r.project_id
+    AND trace.deleted = false
+)
+SELECT json_build_object(
+  'task_exists', EXISTS (SELECT 1 FROM task_row),
+  'task_deleted', COALESCE((SELECT deleted FROM task_row), false),
+  'task_project_id', (SELECT project_id FROM task_row),
+  'filters', (SELECT filters FROM task_row),
+  'trace_id_filter_contains', COALESCE((
+    SELECT (filters::jsonb -> 'trace_id') ? (SELECT trace_id::text FROM requested)
+    FROM task_row
+  ), false),
+  'eval_count', (
+    SELECT count(*)
+    FROM tracer_eval_task_evals task_evals
+    JOIN requested r ON task_evals.evaltask_id = r.task_id
+  ),
+  'source_trace_exists', EXISTS (SELECT 1 FROM source_trace),
+  'source_trace_project_id', (SELECT project_id FROM source_trace),
+  'matched_span_count', (
+    SELECT count(*)
+    FROM tracer_observation_span span
+    JOIN requested r ON span.project_id = r.project_id
+    WHERE span.trace_id = r.trace_id
+      AND span.deleted = false
+  ),
+  'source_reverse_task_column_count', (
+    SELECT count(*)
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'tracer_eval_task'
+      AND column_name IN ('source_type', 'source_id')
   )
 );
 `;
@@ -4637,9 +6709,18 @@ async function loadDashboardDbAudit({
   dashboardId,
   widgetIds,
 }) {
-  assert(isUuid(organizationId), "organizationId must be a UUID for dashboard audit.");
-  assert(isUuid(workspaceId), "workspaceId must be a UUID for dashboard audit.");
-  assert(isUuid(dashboardId), "dashboardId must be a UUID for dashboard audit.");
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for dashboard audit.",
+  );
+  assert(
+    isUuid(workspaceId),
+    "workspaceId must be a UUID for dashboard audit.",
+  );
+  assert(
+    isUuid(dashboardId),
+    "dashboardId must be a UUID for dashboard audit.",
+  );
   const sql = `
 WITH requested AS (
   SELECT
@@ -4718,7 +6799,10 @@ async function loadObservationSpanDbAudit({
   spanId,
   traceId,
 }) {
-  assert(isUuid(organizationId), "organizationId must be a UUID for span audit.");
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for span audit.",
+  );
   assert(isUuid(workspaceId), "workspaceId must be a UUID for span audit.");
   assert(isUuid(projectId), "projectId must be a UUID for span audit.");
   assert(isUuid(traceId), "traceId must be a UUID for span audit.");
@@ -4804,10 +6888,22 @@ async function loadObservationSpanMutationDbAudit({
   spanIds,
   labelId,
 }) {
-  assert(isUuid(organizationId), "organizationId must be a UUID for span mutation audit.");
-  assert(isUuid(workspaceId), "workspaceId must be a UUID for span mutation audit.");
-  assert(isUuid(projectId), "projectId must be a UUID for span mutation audit.");
-  assert(asArray(spanIds).length > 0, "spanIds must be set for span mutation audit.");
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for span mutation audit.",
+  );
+  assert(
+    isUuid(workspaceId),
+    "workspaceId must be a UUID for span mutation audit.",
+  );
+  assert(
+    isUuid(projectId),
+    "projectId must be a UUID for span mutation audit.",
+  );
+  assert(
+    asArray(spanIds).length > 0,
+    "spanIds must be set for span mutation audit.",
+  );
   assert(isUuid(labelId), "labelId must be a UUID for span mutation audit.");
   const sql = `
 WITH requested AS (
@@ -4872,10 +6968,22 @@ async function loadTraceAnnotationDbAudit({
   userId,
   noteText,
 }) {
-  assert(isUuid(organizationId), "organizationId must be a UUID for trace annotation audit.");
-  assert(isUuid(workspaceId), "workspaceId must be a UUID for trace annotation audit.");
-  assert(isUuid(projectId), "projectId must be a UUID for trace annotation audit.");
-  assert(String(spanId || "").trim(), "spanId must be set for trace annotation audit.");
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for trace annotation audit.",
+  );
+  assert(
+    isUuid(workspaceId),
+    "workspaceId must be a UUID for trace annotation audit.",
+  );
+  assert(
+    isUuid(projectId),
+    "projectId must be a UUID for trace annotation audit.",
+  );
+  assert(
+    String(spanId || "").trim(),
+    "spanId must be set for trace annotation audit.",
+  );
   assert(isUuid(traceId), "traceId must be a UUID for trace annotation audit.");
   assert(isUuid(labelId), "labelId must be a UUID for trace annotation audit.");
   assert(isUuid(userId), "userId must be a UUID for trace annotation audit.");
@@ -4961,10 +7069,16 @@ async function loadTraceLifecycleDbAudit({
   traceIds,
   spanIds,
 }) {
-  assert(isUuid(organizationId), "organizationId must be a UUID for trace audit.");
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for trace audit.",
+  );
   assert(isUuid(workspaceId), "workspaceId must be a UUID for trace audit.");
   assert(isUuid(projectId), "projectId must be a UUID for trace audit.");
-  assert(isUuid(projectVersionId), "projectVersionId must be a UUID for trace audit.");
+  assert(
+    isUuid(projectVersionId),
+    "projectVersionId must be a UUID for trace audit.",
+  );
   assert(asArray(traceIds).length > 0, "traceIds must be set for trace audit.");
   assert(asArray(spanIds).length > 0, "spanIds must be set for trace audit.");
   const sql = `
@@ -5044,14 +7158,26 @@ async function loadTraceSessionLifecycleDbAudit({
   spanIds,
   evalLogIds,
 }) {
-  assert(isUuid(organizationId), "organizationId must be a UUID for session audit.");
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for session audit.",
+  );
   assert(isUuid(workspaceId), "workspaceId must be a UUID for session audit.");
   assert(isUuid(projectId), "projectId must be a UUID for session audit.");
-  assert(isUuid(projectVersionId), "projectVersionId must be a UUID for session audit.");
+  assert(
+    isUuid(projectVersionId),
+    "projectVersionId must be a UUID for session audit.",
+  );
   assert(isUuid(sessionId), "sessionId must be a UUID for session audit.");
-  assert(asArray(traceIds).length > 0, "traceIds must be set for session audit.");
+  assert(
+    asArray(traceIds).length > 0,
+    "traceIds must be set for session audit.",
+  );
   assert(asArray(spanIds).length > 0, "spanIds must be set for session audit.");
-  assert(asArray(evalLogIds).length > 0, "evalLogIds must be set for session audit.");
+  assert(
+    asArray(evalLogIds).length > 0,
+    "evalLogIds must be set for session audit.",
+  );
   const sql = `
 WITH requested AS (
   SELECT
@@ -5153,7 +7279,10 @@ async function hardDeleteTraceLifecycleArtifacts({
   spanIds,
 }) {
   assert(isUuid(projectId), "projectId must be a UUID for cleanup.");
-  assert(isUuid(projectVersionId), "projectVersionId must be a UUID for cleanup.");
+  assert(
+    isUuid(projectVersionId),
+    "projectVersionId must be a UUID for cleanup.",
+  );
   assert(asArray(traceIds).length > 0, "traceIds must be set for cleanup.");
   assert(asArray(spanIds).length > 0, "spanIds must be set for cleanup.");
   const sql = `
@@ -5248,9 +7377,18 @@ async function hardDeleteTraceAnnotationArtifacts({
   userId,
   noteText,
 }) {
-  assert(String(spanId || "").trim(), "spanId must be set for trace annotation cleanup.");
-  assert(isUuid(traceId), "traceId must be a UUID for trace annotation cleanup.");
-  assert(isUuid(labelId), "labelId must be a UUID for trace annotation cleanup.");
+  assert(
+    String(spanId || "").trim(),
+    "spanId must be set for trace annotation cleanup.",
+  );
+  assert(
+    isUuid(traceId),
+    "traceId must be a UUID for trace annotation cleanup.",
+  );
+  assert(
+    isUuid(labelId),
+    "labelId must be a UUID for trace annotation cleanup.",
+  );
   assert(isUuid(userId), "userId must be a UUID for trace annotation cleanup.");
   const sql = `
 WITH requested AS (
@@ -5372,11 +7510,23 @@ async function hardDeleteTraceSessionLifecycleArtifacts({
   evalLogIds,
 }) {
   assert(isUuid(projectId), "projectId must be a UUID for session cleanup.");
-  assert(isUuid(projectVersionId), "projectVersionId must be a UUID for session cleanup.");
+  assert(
+    isUuid(projectVersionId),
+    "projectVersionId must be a UUID for session cleanup.",
+  );
   assert(isUuid(sessionId), "sessionId must be a UUID for session cleanup.");
-  assert(asArray(traceIds).length > 0, "traceIds must be set for session cleanup.");
-  assert(asArray(spanIds).length > 0, "spanIds must be set for session cleanup.");
-  assert(asArray(evalLogIds).length > 0, "evalLogIds must be set for session cleanup.");
+  assert(
+    asArray(traceIds).length > 0,
+    "traceIds must be set for session cleanup.",
+  );
+  assert(
+    asArray(spanIds).length > 0,
+    "spanIds must be set for session cleanup.",
+  );
+  assert(
+    asArray(evalLogIds).length > 0,
+    "evalLogIds must be set for session cleanup.",
+  );
   const sql = `
 WITH requested AS (
   SELECT
@@ -5481,6 +7631,58 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
+async function loadOtelProjectResolutionAudit({
+  sourceProjectId,
+  resolvedProjectId,
+  organizationId,
+  workspaceId,
+}) {
+  const sql = `
+WITH requested AS (
+  SELECT
+    ${sqlUuid(sourceProjectId)} AS source_project_id,
+    ${sqlUuid(resolvedProjectId)} AS resolved_project_id,
+    ${sqlUuid(organizationId)} AS organization_id,
+    ${sqlUuid(workspaceId)} AS workspace_id
+),
+source_project AS (
+  SELECT project.id, project.name, project.trace_type, project.organization_id, project.workspace_id
+  FROM tracer_project project, requested r
+  WHERE project.id = r.source_project_id
+),
+resolved_project AS (
+  SELECT project.id, project.name, project.trace_type, project.organization_id, project.workspace_id
+  FROM tracer_project project, requested r
+  WHERE project.id = r.resolved_project_id
+)
+SELECT json_build_object(
+  'source_project_id', (SELECT id::text FROM source_project),
+  'source_project_name', (SELECT name FROM source_project),
+  'source_workspace_id', (SELECT workspace_id::text FROM source_project),
+  'resolved_project_id', (SELECT id::text FROM resolved_project),
+  'resolved_project_name', (SELECT name FROM resolved_project),
+  'resolved_workspace_id', (SELECT workspace_id::text FROM resolved_project),
+  'same_name', (
+    SELECT source_project.name = resolved_project.name
+    FROM source_project, resolved_project
+  ),
+  'same_type', (
+    SELECT source_project.trace_type = resolved_project.trace_type
+    FROM source_project, resolved_project
+  ),
+  'duplicate_project_name_count', COALESCE((
+    SELECT count(*)
+    FROM tracer_project project
+    JOIN source_project source ON source.name = project.name
+      AND source.trace_type = project.trace_type
+    JOIN requested r ON project.organization_id = r.organization_id
+    WHERE project.deleted = false
+  ), 0)
+);
+`;
+  return runPostgresJson(sql);
+}
+
 async function runPostgresJson(sql) {
   const container = process.env.API_JOURNEY_DB_CONTAINER || "ws2-postgres";
   const user = process.env.API_JOURNEY_DB_USER || "user";
@@ -5493,6 +7695,24 @@ async function runPostgresJson(sql) {
   const text = stdout.trim();
   assert(text, "Postgres DB audit returned no JSON output.");
   return JSON.parse(text);
+}
+
+async function runBackendShellJson(script) {
+  const container = process.env.API_JOURNEY_BACKEND_CONTAINER || "ws2-backend";
+  const python = process.env.API_JOURNEY_BACKEND_PYTHON || "python";
+  const { stdout } = await execFileAsync(
+    "docker",
+    ["exec", container, python, "manage.py", "shell", "-c", script],
+    { maxBuffer: 10 * 1024 * 1024 },
+  );
+  const lines = stdout
+    .trim()
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const jsonLine = [...lines].reverse().find((line) => line.startsWith("{"));
+  assert(jsonLine, "Backend shell returned no JSON output.");
+  return JSON.parse(jsonLine);
 }
 
 function sqlUuid(value) {
@@ -5569,7 +7789,9 @@ function sqlTraceTaskStatus(value) {
 
 function sqlEvalTaskStatus(value) {
   assert(
-    ["pending", "running", "completed", "failed", "paused", "deleted"].includes(value),
+    ["pending", "running", "completed", "failed", "paused", "deleted"].includes(
+      value,
+    ),
     "SQL eval task status value was invalid.",
   );
   return sqlString(value);
@@ -5584,6 +7806,16 @@ function sqlTimestampOrNull(value) {
 
 function sqlString(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function sqlStringOrNull(value) {
+  if (value === null || value === undefined || value === "") return "NULL";
+  return sqlString(value);
+}
+
+function sqlUuidOrNull(value) {
+  if (!value) return "NULL::uuid";
+  return sqlUuid(value);
 }
 
 async function expectApiJourneyHttpStatus(status, fn, label) {
@@ -5609,7 +7841,10 @@ function responseCount(payload) {
 }
 
 function dashboardQueryConfig(projectId) {
-  assert(isUuid(projectId), "projectId must be a UUID for dashboard query config.");
+  assert(
+    isUuid(projectId),
+    "projectId must be a UUID for dashboard query config.",
+  );
   return {
     workflow: "observability",
     project_ids: [projectId],
@@ -5631,12 +7866,10 @@ function dashboardQueryConfig(projectId) {
   };
 }
 
-function assertDashboardPayload(payload, {
-  dashboardId,
-  name,
-  description,
-  workspaceId,
-}) {
+function assertDashboardPayload(
+  payload,
+  { dashboardId, name, description, workspaceId },
+) {
   assert(payload?.id === dashboardId, "Dashboard payload returned wrong id.");
   assert(payload?.name === name, "Dashboard payload returned wrong name.");
   assert(
@@ -5664,15 +7897,21 @@ function assertWidgetPayload(payload, { widgetId, name, width, chartType }) {
   );
 }
 
-function assertDashboardDbAudit(audit, {
-  organizationId,
-  workspaceId,
-  dashboardId,
-  widgetIds,
-  expectedDashboardDeleted,
-  expectedActiveWidgetCount,
-}) {
-  assert(audit?.dashboard_id === dashboardId, "Dashboard DB audit returned wrong id.");
+function assertDashboardDbAudit(
+  audit,
+  {
+    organizationId,
+    workspaceId,
+    dashboardId,
+    widgetIds,
+    expectedDashboardDeleted,
+    expectedActiveWidgetCount,
+  },
+) {
+  assert(
+    audit?.dashboard_id === dashboardId,
+    "Dashboard DB audit returned wrong id.",
+  );
   assert(
     audit?.dashboard_organization_id === organizationId,
     "Dashboard DB audit returned wrong organization.",
@@ -5753,15 +7992,19 @@ function observationSpanWritePayload({
   };
 }
 
-function assertObservationSpanDetail(payload, {
-  spanId,
-  traceId,
-  projectId,
-  projectVersionId,
-}) {
+function assertObservationSpanDetail(
+  payload,
+  { spanId, traceId, projectId, projectVersionId },
+) {
   assert(payload?.id === spanId, "Observation span detail returned wrong id.");
-  assert(payload?.trace === traceId, "Observation span detail returned wrong trace id.");
-  assert(payload?.project === projectId, "Observation span detail returned wrong project id.");
+  assert(
+    payload?.trace === traceId,
+    "Observation span detail returned wrong trace id.",
+  );
+  assert(
+    payload?.project === projectId,
+    "Observation span detail returned wrong project id.",
+  );
   assert(
     payload?.project_version === projectVersionId,
     "Observation span detail returned wrong project version id.",
@@ -5772,29 +8015,39 @@ function assertObservationSpanDetail(payload, {
   );
 }
 
-function assertTraceLifecycleDbAudit(audit, {
-  organizationId,
-  workspaceId,
-  projectId,
-  projectVersionId,
-  activeTraceIds,
-  deletedTraceIds,
-  activeSpanIds,
-  deletedSpanIds,
-  expectedTag,
-}) {
+function assertTraceLifecycleDbAudit(
+  audit,
+  {
+    organizationId,
+    workspaceId,
+    projectId,
+    projectVersionId,
+    activeTraceIds,
+    deletedTraceIds,
+    activeSpanIds,
+    deletedSpanIds,
+    expectedTag,
+  },
+) {
   const traces = asArray(audit?.traces);
   const spans = asArray(audit?.spans);
   const projectVersion = audit?.project_version || {};
   assert(
-    projectVersion.id === projectVersionId && projectVersion.project_id === projectId,
+    projectVersion.id === projectVersionId &&
+      projectVersion.project_id === projectId,
     "Trace DB audit project-version row did not match the disposable project/run.",
   );
 
-  for (const traceId of [...asArray(activeTraceIds), ...asArray(deletedTraceIds)]) {
+  for (const traceId of [
+    ...asArray(activeTraceIds),
+    ...asArray(deletedTraceIds),
+  ]) {
     const row = traces.find((candidate) => candidate.id === traceId);
     assert(row, `Trace DB audit did not include trace ${traceId}.`);
-    assert(row.organization_id === organizationId, "Trace DB audit organization mismatch.");
+    assert(
+      row.organization_id === organizationId,
+      "Trace DB audit organization mismatch.",
+    );
     assert(
       audit.workspace_is_default || row.workspace_id === workspaceId,
       "Trace DB audit workspace mismatch.",
@@ -5813,21 +8066,35 @@ function assertTraceLifecycleDbAudit(audit, {
   for (const traceId of asArray(deletedTraceIds)) {
     const row = traces.find((candidate) => candidate.id === traceId);
     assert(row.deleted === true, `Trace ${traceId} should be soft-deleted.`);
-    assert(row.deleted_at_set === true, `Trace ${traceId} should have deleted_at set.`);
+    assert(
+      row.deleted_at_set === true,
+      `Trace ${traceId} should have deleted_at set.`,
+    );
   }
 
-  const taggedTrace = traces.find((row) => asArray(row.tags).includes(expectedTag));
+  const taggedTrace = traces.find((row) =>
+    asArray(row.tags).includes(expectedTag),
+  );
   assert(taggedTrace, "Trace DB audit did not persist the updated tag.");
 
-  for (const spanId of [...asArray(activeSpanIds), ...asArray(deletedSpanIds)]) {
+  for (const spanId of [
+    ...asArray(activeSpanIds),
+    ...asArray(deletedSpanIds),
+  ]) {
     const row = spans.find((candidate) => candidate.id === spanId);
     assert(row, `Trace DB audit did not include span ${spanId}.`);
-    assert(row.organization_id === organizationId, "Trace span DB audit organization mismatch.");
+    assert(
+      row.organization_id === organizationId,
+      "Trace span DB audit organization mismatch.",
+    );
     assert(
       audit.workspace_is_default || row.workspace_id === workspaceId,
       "Trace span DB audit workspace mismatch.",
     );
-    assert(row.project_id === projectId, "Trace span DB audit project mismatch.");
+    assert(
+      row.project_id === projectId,
+      "Trace span DB audit project mismatch.",
+    );
     assert(
       row.project_version_id === projectVersionId,
       "Trace span DB audit project-version mismatch.",
@@ -5840,23 +8107,29 @@ function assertTraceLifecycleDbAudit(audit, {
   for (const spanId of asArray(deletedSpanIds)) {
     const row = spans.find((candidate) => candidate.id === spanId);
     assert(row.deleted === true, `Span ${spanId} should be soft-deleted.`);
-    assert(row.deleted_at_set === true, `Span ${spanId} should have deleted_at set.`);
+    assert(
+      row.deleted_at_set === true,
+      `Span ${spanId} should have deleted_at set.`,
+    );
   }
 }
 
-function assertTraceSessionLifecycleDbAudit(audit, {
-  organizationId,
-  workspaceId,
-  projectId,
-  projectVersionId,
-  sessionId,
-  activeTraceIds,
-  deletedTraceIds,
-  activeSpanIds,
-  deletedSpanIds,
-  activeEvalLogIds,
-  deletedEvalLogIds,
-}) {
+function assertTraceSessionLifecycleDbAudit(
+  audit,
+  {
+    organizationId,
+    workspaceId,
+    projectId,
+    projectVersionId,
+    sessionId,
+    activeTraceIds,
+    deletedTraceIds,
+    activeSpanIds,
+    deletedSpanIds,
+    activeEvalLogIds,
+    deletedEvalLogIds,
+  },
+) {
   const session = audit?.session || {};
   const projectVersion = audit?.project_version || {};
   const traces = asArray(audit?.traces);
@@ -5864,11 +8137,18 @@ function assertTraceSessionLifecycleDbAudit(audit, {
   const evalLogs = asArray(audit?.eval_logs);
 
   assert(
-    projectVersion.id === projectVersionId && projectVersion.project_id === projectId,
+    projectVersion.id === projectVersionId &&
+      projectVersion.project_id === projectId,
     "Trace-session DB audit project-version row did not match the disposable project/run.",
   );
-  assert(session.id === sessionId, "Trace-session DB audit returned wrong session id.");
-  assert(session.project_id === projectId, "Trace-session DB audit returned wrong project id.");
+  assert(
+    session.id === sessionId,
+    "Trace-session DB audit returned wrong session id.",
+  );
+  assert(
+    session.project_id === projectId,
+    "Trace-session DB audit returned wrong project id.",
+  );
   assert(
     session.organization_id === organizationId,
     "Trace-session DB audit returned wrong organization.",
@@ -5878,11 +8158,20 @@ function assertTraceSessionLifecycleDbAudit(audit, {
     "Trace-session DB audit returned wrong workspace.",
   );
 
-  for (const traceId of [...asArray(activeTraceIds), ...asArray(deletedTraceIds)]) {
+  for (const traceId of [
+    ...asArray(activeTraceIds),
+    ...asArray(deletedTraceIds),
+  ]) {
     const row = traces.find((candidate) => candidate.id === traceId);
     assert(row, `Trace-session DB audit did not include trace ${traceId}.`);
-    assert(row.session_id === sessionId, "Trace-session DB audit trace session mismatch.");
-    assert(row.project_id === projectId, "Trace-session DB audit trace project mismatch.");
+    assert(
+      row.session_id === sessionId,
+      "Trace-session DB audit trace session mismatch.",
+    );
+    assert(
+      row.project_id === projectId,
+      "Trace-session DB audit trace project mismatch.",
+    );
     assert(
       row.project_version_id === projectVersionId,
       "Trace-session DB audit trace run mismatch.",
@@ -5895,13 +8184,22 @@ function assertTraceSessionLifecycleDbAudit(audit, {
   for (const traceId of asArray(deletedTraceIds)) {
     const row = traces.find((candidate) => candidate.id === traceId);
     assert(row.deleted === true, `Trace ${traceId} should be soft-deleted.`);
-    assert(row.deleted_at_set === true, `Trace ${traceId} should have deleted_at set.`);
+    assert(
+      row.deleted_at_set === true,
+      `Trace ${traceId} should have deleted_at set.`,
+    );
   }
 
-  for (const spanId of [...asArray(activeSpanIds), ...asArray(deletedSpanIds)]) {
+  for (const spanId of [
+    ...asArray(activeSpanIds),
+    ...asArray(deletedSpanIds),
+  ]) {
     const row = spans.find((candidate) => candidate.id === spanId);
     assert(row, `Trace-session DB audit did not include span ${spanId}.`);
-    assert(row.project_id === projectId, "Trace-session DB audit span project mismatch.");
+    assert(
+      row.project_id === projectId,
+      "Trace-session DB audit span project mismatch.",
+    );
     assert(
       row.project_version_id === projectVersionId,
       "Trace-session DB audit span run mismatch.",
@@ -5914,25 +8212,43 @@ function assertTraceSessionLifecycleDbAudit(audit, {
   for (const spanId of asArray(deletedSpanIds)) {
     const row = spans.find((candidate) => candidate.id === spanId);
     assert(row.deleted === true, `Span ${spanId} should be soft-deleted.`);
-    assert(row.deleted_at_set === true, `Span ${spanId} should have deleted_at set.`);
+    assert(
+      row.deleted_at_set === true,
+      `Span ${spanId} should have deleted_at set.`,
+    );
   }
 
-  for (const evalLogId of [...asArray(activeEvalLogIds), ...asArray(deletedEvalLogIds)]) {
+  for (const evalLogId of [
+    ...asArray(activeEvalLogIds),
+    ...asArray(deletedEvalLogIds),
+  ]) {
     const row = evalLogs.find((candidate) => candidate.id === evalLogId);
-    assert(row, `Trace-session DB audit did not include eval log ${evalLogId}.`);
+    assert(
+      row,
+      `Trace-session DB audit did not include eval log ${evalLogId}.`,
+    );
     assert(
       row.trace_session_id === sessionId,
       "Trace-session DB audit eval log session mismatch.",
     );
-    assert(row.target_type === "session", "Trace-session eval log target type mismatch.");
+    assert(
+      row.target_type === "session",
+      "Trace-session eval log target type mismatch.",
+    );
   }
   for (const evalLogId of asArray(activeEvalLogIds)) {
     const row = evalLogs.find((candidate) => candidate.id === evalLogId);
-    assert(row.deleted === false, `Eval log ${evalLogId} should still be active.`);
+    assert(
+      row.deleted === false,
+      `Eval log ${evalLogId} should still be active.`,
+    );
   }
   for (const evalLogId of asArray(deletedEvalLogIds)) {
     const row = evalLogs.find((candidate) => candidate.id === evalLogId);
-    assert(row.deleted === true, `Eval log ${evalLogId} should be soft-deleted.`);
+    assert(
+      row.deleted === true,
+      `Eval log ${evalLogId} should be soft-deleted.`,
+    );
     assert(
       row.deleted_at_set === true,
       `Eval log ${evalLogId} should have deleted_at set.`,
@@ -5956,19 +8272,31 @@ function assertSpanIndexPayload(payload, label) {
   }
 }
 
-function assertObservationSpanDbAudit(audit, {
-  organizationId,
-  workspaceId,
-  projectId,
-  spanId,
-  traceId,
-  rootSpanId,
-  expectedTag,
-}) {
+function assertObservationSpanDbAudit(
+  audit,
+  {
+    organizationId,
+    workspaceId,
+    projectId,
+    spanId,
+    traceId,
+    rootSpanId,
+    expectedTag,
+  },
+) {
   const row = audit?.selected_span || {};
-  assert(row.id === spanId, "Observation span DB audit returned wrong span id.");
-  assert(row.trace_id === traceId, "Observation span DB audit returned wrong trace id.");
-  assert(row.project_id === projectId, "Observation span DB audit returned wrong project id.");
+  assert(
+    row.id === spanId,
+    "Observation span DB audit returned wrong span id.",
+  );
+  assert(
+    row.trace_id === traceId,
+    "Observation span DB audit returned wrong trace id.",
+  );
+  assert(
+    row.project_id === projectId,
+    "Observation span DB audit returned wrong project id.",
+  );
   assert(
     row.organization_id === organizationId,
     "Observation span DB audit returned wrong organization id.",
@@ -5992,23 +8320,31 @@ function assertObservationSpanDbAudit(audit, {
   );
 }
 
-function assertObservationSpanMutationDbAudit(audit, {
-  organizationId,
-  workspaceId,
-  projectId,
-  spanIds,
-  updatedSpanId,
-  updatedSpanName,
-  labelId,
-}) {
+function assertObservationSpanMutationDbAudit(
+  audit,
+  {
+    organizationId,
+    workspaceId,
+    projectId,
+    spanIds,
+    updatedSpanId,
+    updatedSpanName,
+    expectedProjectIdsBySpanId = {},
+    labelId,
+  },
+) {
   const rows = asArray(audit?.spans);
   const rowsById = new Map(rows.map((row) => [row.id, row]));
   for (const spanId of spanIds) {
     const row = rowsById.get(spanId);
     assert(row, `Observation span mutation DB audit missed span ${spanId}.`);
-    assert(row.deleted === false, `Observation span ${spanId} was unexpectedly deleted.`);
     assert(
-      row.project_id === projectId,
+      row.deleted === false,
+      `Observation span ${spanId} was unexpectedly deleted.`,
+    );
+    const expectedProjectId = expectedProjectIdsBySpanId[spanId] || projectId;
+    assert(
+      row.project_id === expectedProjectId,
       `Observation span ${spanId} DB audit returned wrong project id.`,
     );
     assert(
@@ -6033,8 +8369,14 @@ function assertObservationSpanMutationDbAudit(audit, {
   );
 
   const label = audit?.label || {};
-  assert(label.id === labelId, "Observation span label-delete audit returned wrong label id.");
-  assert(label.deleted === true, "Observation span label-delete audit found an active label.");
+  assert(
+    label.id === labelId,
+    "Observation span label-delete audit returned wrong label id.",
+  );
+  assert(
+    label.deleted === true,
+    "Observation span label-delete audit found an active label.",
+  );
   assert(
     label.deleted_at_set === true,
     "Observation span label-delete audit did not find deleted_at populated.",
@@ -6171,6 +8513,95 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
+async function loadAlertNotificationAudit({ alertId, logId }) {
+  const sql = `
+WITH requested AS (
+  SELECT
+    ${sqlUuid(alertId)} AS alert_id,
+    ${sqlUuidOrNull(logId)} AS log_id
+),
+alert_row AS (
+  SELECT *
+  FROM tracer_useralertmonitor monitor
+  JOIN requested r ON monitor.id = r.alert_id
+),
+log_row AS (
+  SELECT *
+  FROM tracer_useralertmonitorlog log
+  JOIN requested r ON log.alert_id = r.alert_id
+  WHERE r.log_id IS NULL OR log.id = r.log_id
+  ORDER BY log.created_at DESC
+  LIMIT 1
+)
+SELECT json_build_object(
+  'alert_exists', EXISTS (SELECT 1 FROM alert_row),
+  'alert_deleted', COALESCE((SELECT deleted FROM alert_row), false),
+  'workspace_id', (SELECT workspace_id FROM alert_row),
+  'project_id', (SELECT project_id FROM alert_row),
+  'notification_email_count', COALESCE((
+    SELECT cardinality(notification_emails) FROM alert_row
+  ), 0),
+  'slack_webhook_url', (SELECT slack_webhook_url FROM alert_row),
+  'log_exists', EXISTS (SELECT 1 FROM log_row),
+  'log_id', (SELECT id FROM log_row),
+  'log_type', (SELECT type FROM log_row),
+  'log_resolved', COALESCE((SELECT resolved FROM log_row), false),
+  'time_window_start_set', COALESCE((
+    SELECT time_window_start IS NOT NULL FROM log_row
+  ), false),
+  'time_window_end_set', COALESCE((
+    SELECT time_window_end IS NOT NULL FROM log_row
+  ), false)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function triggerAlertThresholdInBackend({ alertId, currentValue }) {
+  assert(isUuid(alertId), "alertId must be a UUID for alert trigger.");
+  const script = `
+import json
+import os
+import sys
+import types
+from datetime import timedelta
+from django.utils import timezone
+from tracer.models.monitor import UserAlertMonitor, UserAlertMonitorLog
+
+tasks_package = types.ModuleType("model_hub.tasks")
+tasks_package.__path__ = [os.path.join(os.getcwd(), "model_hub", "tasks")]
+sys.modules.setdefault("model_hub.tasks", tasks_package)
+
+from tracer.utils.monitor import _check_thresholds_and_alert
+
+monitor = UserAlertMonitor.objects.get(id="${alertId}")
+before = UserAlertMonitorLog.objects.filter(alert=monitor).count()
+now = timezone.now()
+time_window_start = now - timedelta(minutes=monitor.alert_frequency)
+_check_thresholds_and_alert(monitor, ${sqlNumber(currentValue)}, time_window_start, now)
+after = UserAlertMonitorLog.objects.filter(alert=monitor).count()
+latest = (
+    UserAlertMonitorLog.objects
+    .filter(alert=monitor)
+    .order_by("-created_at")
+    .values("id", "type", "message", "resolved", "time_window_start", "time_window_end")
+    .first()
+)
+if latest:
+    latest["id"] = str(latest["id"])
+    latest["time_window_start"] = latest["time_window_start"].isoformat() if latest["time_window_start"] else None
+    latest["time_window_end"] = latest["time_window_end"].isoformat() if latest["time_window_end"] else None
+print(json.dumps({
+    "alert_id": str(monitor.id),
+    "before_count": before,
+    "after_count": after,
+    "current_value": ${sqlNumber(currentValue)},
+    "latest_log": latest,
+}))
+`;
+  return runBackendShellJson(script);
+}
+
 async function insertAlertLog({ alertId, logId, message }) {
   const sql = `
 WITH inserted AS (
@@ -6239,9 +8670,12 @@ async function resolveObserveFilterCoverage(client, evidence) {
 
   for (const project of projects) {
     if (!project?.id) continue;
-    const metricsPayload = await client.get(apiPath("/tracer/dashboard/metrics/"), {
-      query: { project_ids: project.id },
-    });
+    const metricsPayload = await client.get(
+      apiPath("/tracer/dashboard/metrics/"),
+      {
+        query: { project_ids: project.id },
+      },
+    );
     const metrics = asArray(metricsPayload.metrics || metricsPayload);
     if (!metrics.length) continue;
 
@@ -6259,11 +8693,16 @@ async function resolveObserveFilterCoverage(client, evidence) {
     );
     if (!statusValues.length) continue;
 
-    const customAttribute = await firstMetricWithValues(client, project.id, metrics, {
-      category: "custom_attribute",
-      metricType: "custom_attribute",
-      preferName: "fi.trace.source",
-    });
+    const customAttribute = await firstMetricWithValues(
+      client,
+      project.id,
+      metrics,
+      {
+        category: "custom_attribute",
+        metricType: "custom_attribute",
+        preferName: "fi.trace.source",
+      },
+    );
     if (!customAttribute) continue;
 
     const annotationMetric = await firstMetricWithValues(
@@ -6465,7 +8904,9 @@ function valueOfOption(option) {
 }
 
 function metricLabel(metric) {
-  return String(metric?.display_name || metric?.displayName || metric?.name || "");
+  return String(
+    metric?.display_name || metric?.displayName || metric?.name || "",
+  );
 }
 
 function normalizeTags(value) {
@@ -6492,7 +8933,11 @@ function arraysEqual(left, right) {
 async function findSessionNotAlreadyQueued(client, queueId, sessionRows) {
   for (const row of sessionRows) {
     if (!row?.session_id) continue;
-    const queueEntry = await findQueueEntryForSource(client, queueId, row.session_id);
+    const queueEntry = await findQueueEntryForSource(
+      client,
+      queueId,
+      row.session_id,
+    );
     if (!queueEntry?.item?.id) return row;
   }
   return null;
@@ -6510,7 +8955,12 @@ async function findQueueEntryForSource(client, queueId, sessionId) {
   return entries.find((entry) => String(entry?.queue?.id) === String(queueId));
 }
 
-async function resolveObserveSpanForLifecycle(client, cleanup, runId, evidence) {
+async function resolveObserveSpanForLifecycle(
+  client,
+  cleanup,
+  runId,
+  evidence,
+) {
   const preferredProjectId = process.env.OBSERVE_PROJECT_ID;
   const projects = preferredProjectId
     ? [{ id: preferredProjectId, name: "env observe project" }]
@@ -6523,13 +8973,19 @@ async function resolveObserveSpanForLifecycle(client, cleanup, runId, evidence) 
   for (const project of projects) {
     if (!project?.id) continue;
     const observeList = await client.get(
-      queryWithFilters(apiPath("/tracer/observation-span/list_spans_observe/"), [], {
-        project_id: project.id,
-        page_number: 0,
-        page_size: 25,
-      }),
+      queryWithFilters(
+        apiPath("/tracer/observation-span/list_spans_observe/"),
+        [],
+        {
+          project_id: project.id,
+          page_number: 0,
+          page_size: 25,
+        },
+      ),
     );
-    const rows = asArray(observeList).filter((row) => row?.span_id && row?.trace_id);
+    const rows = asArray(observeList).filter(
+      (row) => row?.span_id && row?.trace_id,
+    );
     for (const row of rows.slice(0, 10)) {
       try {
         const detailPayload = await client.get(
@@ -6581,13 +9037,20 @@ async function createDisposableObserveSpanForLifecycle(
   }
 
   const suffix = journeySafeId(runId);
-  const projectVersion = await client.post(apiPath("/tracer/project-version/"), {
-    project: project.id,
-    name: `api journey span run ${suffix}`,
-    metadata: { source: "api-journey", run_id: runId },
-  });
-  const projectVersionId = projectVersion.project_version_id || projectVersion.id;
-  assert(isUuid(projectVersionId), "Disposable project version create returned no id.");
+  const projectVersion = await client.post(
+    apiPath("/tracer/project-version/"),
+    {
+      project: project.id,
+      name: `api journey span run ${suffix}`,
+      metadata: { source: "api-journey", run_id: runId },
+    },
+  );
+  const projectVersionId =
+    projectVersion.project_version_id || projectVersion.id;
+  assert(
+    isUuid(projectVersionId),
+    "Disposable project version create returned no id.",
+  );
   cleanup.defer("delete OBS-API-013 project version", () =>
     client.delete(
       apiPath("/tracer/project-version/{id}/", { id: projectVersionId }),
@@ -6637,7 +9100,10 @@ async function createDisposableObserveSpanForLifecycle(
     metadata: { source: "api-journey", run_id: runId },
   });
   const createdSpanId = span.id || spanId;
-  assert(createdSpanId === spanId, "Disposable observation span create returned wrong id.");
+  assert(
+    createdSpanId === spanId,
+    "Disposable observation span create returned wrong id.",
+  );
   cleanup.defer("delete OBS-API-013 span", () =>
     client.delete(apiPath("/tracer/observation-span/{id}/", { id: spanId }), {
       okStatuses: [200, 204, 400, 404],
@@ -6645,17 +9111,22 @@ async function createDisposableObserveSpanForLifecycle(
   );
 
   const observeList = await client.get(
-    queryWithFilters(apiPath("/tracer/observation-span/list_spans_observe/"), [], {
-      project_id: project.id,
-      page_number: 0,
-      page_size: 25,
-    }),
+    queryWithFilters(
+      apiPath("/tracer/observation-span/list_spans_observe/"),
+      [],
+      {
+        project_id: project.id,
+        page_number: 0,
+        page_size: 25,
+      },
+    ),
   );
-  const row =
-    asArray(observeList).find((candidate) => candidate?.span_id === spanId) || {
-      span_id: spanId,
-      trace_id: traceId,
-    };
+  const row = asArray(observeList).find(
+    (candidate) => candidate?.span_id === spanId,
+  ) || {
+    span_id: spanId,
+    trace_id: traceId,
+  };
   const detail = observationSpanPayload(
     await client.get(apiPath("/tracer/observation-span/{id}/", { id: spanId })),
   );
@@ -6671,7 +9142,10 @@ async function createDisposableObserveSpanForLifecycle(
 }
 
 function journeySafeId(value) {
-  return String(value || Date.now().toString(36)).replace(/[^a-zA-Z0-9_-]/g, "_");
+  return String(value || Date.now().toString(36)).replace(
+    /[^a-zA-Z0-9_-]/g,
+    "_",
+  );
 }
 
 async function resolveObserveProjectWithUsers(client, evidence, filters = []) {
@@ -6707,7 +9181,9 @@ async function resolveObserveProjectWithUsers(client, evidence, filters = []) {
   }
 
   if (!bestMatch?.user?.user_id) {
-    skip("No observe project with end-user rows is available for user coverage.");
+    skip(
+      "No observe project with end-user rows is available for user coverage.",
+    );
   }
   evidence.push({
     endpoint: "observe user project search",
@@ -6742,9 +9218,12 @@ async function resolveObserveVoiceCallForAnnotation(client, evidence) {
     if (!baseRows.length) continue;
 
     for (const call of baseRows) {
-      const detail = await client.get(apiPath("/tracer/trace/voice_call_detail/"), {
-        query: { trace_id: call.trace_id },
-      });
+      const detail = await client.get(
+        apiPath("/tracer/trace/voice_call_detail/"),
+        {
+          query: { trace_id: call.trace_id },
+        },
+      );
       const rootSpan = findRootConversationSpan(detail?.observation_span);
       if (!rootSpan?.id) continue;
 
@@ -6809,7 +9288,8 @@ function findRootConversationSpan(spans) {
   const rows = asArray(spans);
   return (
     rows.find(
-      (span) => !span?.parent_span_id && span?.observation_type === "conversation",
+      (span) =>
+        !span?.parent_span_id && span?.observation_type === "conversation",
     ) ||
     rows.find((span) => !span?.parent_span_id) ||
     rows[0]
@@ -6822,7 +9302,8 @@ function scoreValueForVoiceLabel(label, runId) {
   if (type.includes("thumb")) return { value: "down" };
   if (type.includes("categorical") || type.includes("select")) {
     const option = asArray(settings.options)[0];
-    const selected = option?.value ?? option?.id ?? option?.label ?? option?.name;
+    const selected =
+      option?.value ?? option?.id ?? option?.label ?? option?.name;
     return { selected: [String(selected ?? "api journey")] };
   }
   if (type.includes("numeric") || type.includes("number")) return { value: 3 };
@@ -6831,7 +9312,10 @@ function scoreValueForVoiceLabel(label, runId) {
 }
 
 function valuesEqual(left, right) {
-  return JSON.stringify(normalizeJsonValue(left)) === JSON.stringify(normalizeJsonValue(right));
+  return (
+    JSON.stringify(normalizeJsonValue(left)) ===
+    JSON.stringify(normalizeJsonValue(right))
+  );
 }
 
 function normalizeJsonValue(value) {
@@ -6848,7 +9332,9 @@ async function resolveObserveSpanWithEvalForFeedback(client, evidence) {
     process.env.OBSERVE_FEEDBACK_PROJECT_ID || process.env.OBSERVE_PROJECT_ID;
   let projects;
   if (preferredProjectId) {
-    projects = [{ id: preferredProjectId, name: "env observe feedback project" }];
+    projects = [
+      { id: preferredProjectId, name: "env observe feedback project" },
+    ];
   } else {
     const defaultQueues = await listDefaultQueuesByProject(client);
     const queuedProjects = defaultQueues.map((queue) => ({
@@ -6856,7 +9342,9 @@ async function resolveObserveSpanWithEvalForFeedback(client, evidence) {
       name: queue.name,
       defaultQueue: queue,
     }));
-    const queuedProjectIds = new Set(queuedProjects.map((project) => project.id));
+    const queuedProjectIds = new Set(
+      queuedProjects.map((project) => project.id),
+    );
     const remainingProjects = asArray(
       await client.get(apiPath("/tracer/project/list_projects/"), {
         query: { page_number: 0, page_size: 100 },
@@ -6871,7 +9359,9 @@ async function resolveObserveSpanWithEvalForFeedback(client, evidence) {
       apiPath("/tracer/observation-span/list_spans_observe/"),
       { query: { project_id: project.id, page_number: 0, page_size: 25 } },
     );
-    const rows = asArray(list.table || list).filter((row) => row?.span_id || row?.id);
+    const rows = asArray(list.table || list).filter(
+      (row) => row?.span_id || row?.id,
+    );
     for (const span of rows) {
       const spanId = span.span_id || span.id;
       for (const evalConfigId of evalConfigIdsFromSpanRow(span)) {
@@ -6906,7 +9396,9 @@ async function resolveObserveSpanWithEvalForFeedback(client, evidence) {
     }
   }
 
-  skip("No observe span with a reloadable eval detail is available for feedback coverage.");
+  skip(
+    "No observe span with a reloadable eval detail is available for feedback coverage.",
+  );
 }
 
 async function listDefaultQueuesByProject(client) {
@@ -6915,14 +9407,17 @@ async function listDefaultQueuesByProject(client) {
       query: { limit: 100 },
     }),
   );
-  return queues.filter((queue) => queue?.is_default && queue?.project && queue?.id);
+  return queues.filter(
+    (queue) => queue?.is_default && queue?.project && queue?.id,
+  );
 }
 
 function evalConfigIdsFromSpanRow(row) {
   const ids = [];
   const push = (value) => {
     const stringValue = String(value || "");
-    if (isUuidLike(stringValue) && !ids.includes(stringValue)) ids.push(stringValue);
+    if (isUuidLike(stringValue) && !ids.includes(stringValue))
+      ids.push(stringValue);
   };
 
   for (const [key, value] of Object.entries(row || {})) {
@@ -7016,6 +9511,52 @@ function defaultObserveUserDateFilter(days = 90) {
       filter_value: [start.toISOString(), end.toISOString()],
     },
   };
+}
+
+function observeChartsDateFilter(days) {
+  const end = new Date();
+  end.setDate(end.getDate() + 1);
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  return {
+    column_id: "created_at",
+    filter_config: {
+      filter_type: "datetime",
+      filter_op: "between",
+      filter_value: [start.toISOString(), end.toISOString()],
+    },
+  };
+}
+
+function assertObserveChartsGraph(graph, label) {
+  const systemMetrics = graph?.system_metrics || {};
+  const summary = {};
+  for (const [metric, valueKey] of [
+    ["latency", "latency"],
+    ["tokens", "tokens"],
+    ["traffic", "traffic"],
+    ["cost", "cost"],
+  ]) {
+    const rows = asArray(systemMetrics[metric]);
+    assert(rows.length > 0, `${label} chart omitted ${metric} buckets.`);
+    for (const row of rows) {
+      assert(row?.timestamp, `${label} ${metric} row omitted timestamp.`);
+      assert(
+        !Number.isNaN(Date.parse(row.timestamp)),
+        `${label} ${metric} row returned invalid timestamp ${row.timestamp}.`,
+      );
+      assert(
+        Number.isFinite(Number(row[valueKey] ?? row.value ?? 0)),
+        `${label} ${metric} row returned non-numeric value.`,
+      );
+    }
+    summary[`${metric}_points`] = rows.length;
+    summary[`${metric}_sum`] = rows.reduce(
+      (total, row) => total + Number(row[valueKey] ?? row.value ?? 0),
+      0,
+    );
+  }
+  return summary;
 }
 
 function rowContainsValue(row, expected) {

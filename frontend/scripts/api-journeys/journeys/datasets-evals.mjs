@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import process from "node:process";
 import { promisify } from "node:util";
 import {
   apiPath,
@@ -236,18 +237,258 @@ export const datasetEvalJourneys = [
     },
   },
   {
+    id: "DOPT-API-001",
+    title:
+      "Dataset optimization read surfaces, guards, update, and delete cascade",
+    tags: ["dataset", "optimization", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      workspaceId,
+      runId,
+    }) {
+      requireMutations();
+      let candidate = await loadDatasetOptimizationReadCandidate(
+        organizationId,
+        workspaceId,
+      );
+      let fixture = null;
+      if (!candidate?.optimization_id || !candidate?.trial_id) {
+        fixture = await seedDatasetOptimizationFixture({
+          runId,
+          organizationId,
+          workspaceId,
+        });
+        if (!fixture?.fixture_created) {
+          skip(
+            "No scoped dataset column and eval metric found for disposable optimization fixture.",
+          );
+        }
+        cleanup.defer(
+          "hard delete API journey dataset optimization fixture",
+          () => hardDeleteDatasetOptimizationFixture(fixture.optimization_id),
+        );
+        candidate = {
+          optimization_id: fixture.optimization_id,
+          optimization_name: fixture.optimization_name,
+          status: "completed",
+          column_id: fixture.column_id,
+          dataset_id: fixture.dataset_id,
+          trial_id: fixture.trial_id,
+          step_count: 1,
+          trial_count: 2,
+        };
+        evidence.push({
+          dataset_optimization_read_fixture: "seeded",
+          seeded_read_optimization_id: fixture.optimization_id,
+        });
+      }
+
+      const listPayload = await client.get(
+        apiPath("/model-hub/dataset-optimization/"),
+        {
+          query: {
+            dataset_id: candidate.dataset_id,
+            page: 1,
+            page_size: 20,
+          },
+        },
+      );
+      const listRows = payloadArray(listPayload, "table");
+      assert(
+        listRows.some((row) => row.id === candidate.optimization_id),
+        "Dataset optimization list did not include the selected run.",
+      );
+      assertDatasetOptimizationListRows(listRows);
+
+      const optimizationPath = apiPath(
+        "/model-hub/dataset-optimization/{id}/",
+        {
+          id: candidate.optimization_id,
+        },
+      );
+      const [
+        detail,
+        steps,
+        graph,
+        trialDetail,
+        trialPrompt,
+        scenarios,
+        evaluations,
+      ] = await Promise.all([
+        client.get(optimizationPath),
+        client.get(
+          apiPath("/model-hub/dataset-optimization/{id}/steps/", {
+            id: candidate.optimization_id,
+          }),
+        ),
+        client.get(
+          apiPath("/model-hub/dataset-optimization/{id}/graph/", {
+            id: candidate.optimization_id,
+          }),
+        ),
+        client.get(
+          apiPath("/model-hub/dataset-optimization/{id}/trial/{trial_id}/", {
+            id: candidate.optimization_id,
+            trial_id: candidate.trial_id,
+          }),
+        ),
+        client.get(
+          apiPath(
+            "/model-hub/dataset-optimization/{id}/trial/{trial_id}/prompt/",
+            {
+              id: candidate.optimization_id,
+              trial_id: candidate.trial_id,
+            },
+          ),
+        ),
+        client.get(
+          apiPath(
+            "/model-hub/dataset-optimization/{id}/trial/{trial_id}/scenarios/",
+            {
+              id: candidate.optimization_id,
+              trial_id: candidate.trial_id,
+            },
+          ),
+        ),
+        client.get(
+          apiPath(
+            "/model-hub/dataset-optimization/{id}/trial/{trial_id}/evaluations/",
+            {
+              id: candidate.optimization_id,
+              trial_id: candidate.trial_id,
+            },
+          ),
+        ),
+      ]);
+      assertDatasetOptimizationDetail(detail);
+      assertDatasetOptimizationSteps(steps, candidate.step_count);
+      assertDatasetOptimizationGraph(graph);
+      assertDatasetOptimizationTrialPayload(trialDetail);
+      assertDatasetOptimizationTrialPrompt(trialPrompt);
+      assertDatasetOptimizationTrialTable(scenarios);
+      assertDatasetOptimizationTrialTable(evaluations);
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/dataset-optimization/{id}/stop/", {
+              id: candidate.optimization_id,
+            }),
+            {},
+          ),
+        400,
+        "Dataset optimization stop accepted a completed optimization.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/dataset-optimization/"), {
+            name: `api journey blocked optimization ${runId}`,
+            column_id: randomUUID(),
+            optimizer_algorithm: "random_search",
+            optimizer_config: { num_variations: 1 },
+            user_eval_template_ids: [],
+          }),
+        400,
+        "Dataset optimization create accepted an unknown column id.",
+      );
+
+      if (!fixture) {
+        fixture = await seedDatasetOptimizationFixture({
+          runId,
+          organizationId,
+          workspaceId,
+        });
+        if (!fixture?.fixture_created) {
+          skip(
+            "No scoped dataset column and eval metric found for disposable optimization fixture.",
+          );
+        }
+        cleanup.defer(
+          "hard delete API journey dataset optimization fixture",
+          () => hardDeleteDatasetOptimizationFixture(fixture.optimization_id),
+        );
+      }
+
+      const fixturePath = apiPath("/model-hub/dataset-optimization/{id}/", {
+        id: fixture.optimization_id,
+      });
+      const seededDetail = await client.get(fixturePath);
+      assertDatasetOptimizationDetail(seededDetail);
+
+      const patchedName = `api_journey_opt_patch_${runId}`;
+      const patched = await client.patch(fixturePath, { name: patchedName });
+      assert(
+        patched?.name === patchedName,
+        "Dataset optimization PATCH did not return the patched name.",
+      );
+
+      const putName = `api_journey_opt_put_${runId}`;
+      const putPayload = {
+        name: putName,
+        column: fixture.column_id,
+        optimizer_algorithm: "random_search",
+        optimizer_model: null,
+        optimizer_config: {
+          num_variations: 1,
+          model_name: "gpt-4o-mini",
+        },
+        status: "completed",
+        error_message: null,
+        best_score: 0.84,
+        baseline_score: 0.42,
+        optimized_k_prompts: ["api journey put prompt"],
+      };
+      const updated = await client.put(fixturePath, putPayload);
+      assert(
+        updated?.name === putName && updated?.best_score === 0.84,
+        "Dataset optimization PUT did not persist the expected fields.",
+      );
+
+      await client.delete(fixturePath);
+      const deletedAudit = await loadDatasetOptimizationDeleteAudit(
+        fixture.optimization_id,
+      );
+      assertDatasetOptimizationDeletedAudit(deletedAudit);
+
+      evidence.push({
+        selected_optimization_id: candidate.optimization_id,
+        selected_trial_id: candidate.trial_id,
+        selected_step_count: Number(candidate.step_count),
+        seeded_optimization_id: fixture.optimization_id,
+        seeded_dataset_id: fixture.dataset_id,
+        seeded_column_id: fixture.column_id,
+        seeded_metric_id: fixture.metric_id,
+        deleted_child_active_counts: {
+          steps: Number(deletedAudit.active_step_count),
+          trials: Number(deletedAudit.active_trial_count),
+          items: Number(deletedAudit.active_item_count),
+          evaluations: Number(deletedAudit.active_evaluation_count),
+        },
+      });
+    },
+  },
+  {
     id: "DPE-API-014",
     title: "Experiment V2 read surfaces and legacy read compatibility",
     tags: ["experiments", "safe", "db-audit"],
     async run({ client, evidence, organizationId, workspaceId }) {
-      const { listRows, row: experimentRow, detail } =
-        await selectExperimentForReadCoverage(client);
+      const {
+        listRows,
+        row: experimentRow,
+        detail,
+      } = await selectExperimentForReadCoverage(client);
       assertExperimentListRow(experimentRow);
 
       const experimentId = experimentRow.id;
       const datasetId = detail.dataset_id || experimentRow.dataset;
       assert(isUuid(experimentId), "Selected experiment id was not a UUID.");
-      assert(isUuid(datasetId), "Selected experiment dataset id was not a UUID.");
+      assert(
+        isUuid(datasetId),
+        "Selected experiment dataset id was not a UUID.",
+      );
       assert(
         detail.id === experimentId,
         "V2 experiment detail returned a different experiment id.",
@@ -325,16 +566,14 @@ export const datasetEvalJourneys = [
             }),
           ),
           client.get(
-            apiPath(
-              "/model-hub/experiments/v2/{experiment_id}/comparisons/",
-              { experiment_id: experimentId },
-            ),
+            apiPath("/model-hub/experiments/v2/{experiment_id}/comparisons/", {
+              experiment_id: experimentId,
+            }),
           ),
           client.get(
-            apiPath(
-              "/model-hub/experiments/v2/{experiment_id}/json-schema/",
-              { experiment_id: experimentId },
-            ),
+            apiPath("/model-hub/experiments/v2/{experiment_id}/json-schema/", {
+              experiment_id: experimentId,
+            }),
           ),
         ]);
       assertExperimentRowsPayload(rowsPayload, dbAudit);
@@ -342,7 +581,9 @@ export const datasetEvalJourneys = [
       assertExperimentStatsPayload(stats);
       assertExperimentComparisonsPayload(comparisons, experimentId);
       assert(
-        jsonSchema && typeof jsonSchema === "object" && !Array.isArray(jsonSchema),
+        jsonSchema &&
+          typeof jsonSchema === "object" &&
+          !Array.isArray(jsonSchema),
         "Experiment JSON schema endpoint did not return an object.",
       );
 
@@ -471,7 +712,9 @@ export const datasetEvalJourneys = [
 
       const evalMetricId = firstExperimentEvalMetricId(detail, dbAudit);
       if (!evalMetricId) {
-        skip("No eval metric found on selected experiment for eval-stat coverage.");
+        skip(
+          "No eval metric found on selected experiment for eval-stat coverage.",
+        );
       }
       const [evalStats, feedbackTemplate, legacyEvalStats] = await Promise.all([
         client.get(
@@ -522,7 +765,16 @@ export const datasetEvalJourneys = [
     id: "EXP-API-002",
     title: "Experiment V2 feedback create, submit, details, and cleanup",
     tags: ["experiments", "feedback", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      apiBase,
+      tokens,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const { row: experimentRow, detail } =
         await selectExperimentForReadCoverage(client);
@@ -537,7 +789,9 @@ export const datasetEvalJourneys = [
         !candidate?.eval_column_id ||
         !candidate?.row_id
       ) {
-        skip("No experiment feedback candidate found for V2 feedback coverage.");
+        skip(
+          "No experiment feedback candidate found for V2 feedback coverage.",
+        );
       }
       assertExperimentFeedbackCandidate(candidate, {
         experimentId,
@@ -568,11 +822,16 @@ export const datasetEvalJourneys = [
           row_id: candidate.row_id,
         },
       );
-      assert(isUuid(created?.id), "Experiment feedback create did not return id.");
+      assert(
+        isUuid(created?.id),
+        "Experiment feedback create did not return id.",
+      );
       const feedbackId = created.id;
       cleanup.defer("delete experiment feedback", () =>
         ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/feedback/{id}/", { id: feedbackId })),
+          client.delete(
+            apiPath("/model-hub/feedback/{id}/", { id: feedbackId }),
+          ),
         ),
       );
 
@@ -663,7 +922,9 @@ export const datasetEvalJourneys = [
         expectedActionType: "retune",
       });
 
-      await client.delete(apiPath("/model-hub/feedback/{id}/", { id: feedbackId }));
+      await client.delete(
+        apiPath("/model-hub/feedback/{id}/", { id: feedbackId }),
+      );
       const deletedAudit = await loadExperimentFeedbackDbAudit({
         feedbackId,
         experimentId,
@@ -688,6 +949,441 @@ export const datasetEvalJourneys = [
         user_eval_metric_id: candidate.user_eval_metric_id,
         action_type: submittedAudit.action_type,
         feedback_deleted_at_set: deletedAudit.feedback_deleted_at_set,
+      });
+    },
+  },
+  {
+    id: "EXP-API-003",
+    title: "Experiment action guards, row diff scope, and compare execution",
+    tags: ["experiments", "mutating", "guard", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      apiBase,
+      tokens,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const { row: experimentRow, detail } =
+        await selectExperimentForReadCoverage(client);
+      const experimentId = experimentRow.id;
+      const datasetId = detail.dataset_id || experimentRow.dataset;
+      const candidate = await loadExperimentActionGuardCandidate(
+        experimentId,
+        organizationId,
+        workspaceId,
+      );
+      if (
+        !candidate?.snapshot_row_id ||
+        !candidate?.snapshot_column_id ||
+        !candidate?.snapshot_dataset_id
+      ) {
+        skip(
+          "Selected experiment lacks a snapshot row/column for action guards.",
+        );
+      }
+
+      const outside = await createExperimentGuardOutsideDataset(
+        client,
+        cleanup,
+        runId,
+        evidence,
+      );
+
+      const rowDiff = await client.post(
+        apiPath("/model-hub/experiments/v2/row-diff/"),
+        {
+          experiment_id: experimentId,
+          column_ids: [candidate.snapshot_column_id],
+          row_ids: [candidate.snapshot_row_id],
+          compare_column_ids: [candidate.snapshot_column_id],
+        },
+      );
+      assert(
+        rowDiff?.[candidate.snapshot_row_id]?.[candidate.snapshot_column_id],
+        "Experiment V2 row-diff did not return the requested snapshot cell.",
+      );
+
+      const rowDiffScopeError = await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/experiments/v2/row-diff/"), {
+            experiment_id: experimentId,
+            column_ids: [outside.column_id],
+            row_ids: [outside.row_id],
+            compare_column_ids: [outside.column_id],
+          }),
+        400,
+        "Experiment row-diff accepted a row/column outside the snapshot.",
+      );
+      assert(
+        !JSON.stringify(rowDiffScopeError.body || {}).includes(
+          outside.cell_value,
+        ),
+        "Experiment row-diff error leaked the outside dataset cell value.",
+      );
+
+      const beforeRerunColumn = await loadColumnStatus(
+        candidate.snapshot_column_id,
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/experiments/v2/{experiment_id}/rerun-cells/", {
+              experiment_id: experimentId,
+            }),
+            {
+              cells: [
+                {
+                  column_id: candidate.snapshot_column_id,
+                  row_id: outside.row_id,
+                },
+              ],
+              max_concurrent_rows: 1,
+            },
+          ),
+        400,
+        "Experiment rerun-cells accepted a row outside the snapshot.",
+      );
+      const afterRerunColumn = await loadColumnStatus(
+        candidate.snapshot_column_id,
+      );
+      assert(
+        afterRerunColumn.status === beforeRerunColumn.status,
+        "Rejected rerun-cells changed the snapshot column status.",
+      );
+
+      const randomExperimentId = randomUUID();
+      await Promise.all([
+        expectApiErrorStatus(
+          () =>
+            client.post(apiPath("/model-hub/experiments/re-run/"), {
+              experiment_ids: [randomExperimentId],
+            }),
+          404,
+          "Legacy experiment re-run accepted an unknown experiment id.",
+        ),
+        expectApiErrorStatus(
+          () =>
+            client.post(apiPath("/model-hub/experiments/v2/re-run/"), {
+              experiment_ids: [randomExperimentId],
+            }),
+          404,
+          "Experiment V2 re-run accepted an unknown experiment id.",
+        ),
+        expectApiErrorStatus(
+          () =>
+            client.delete(apiPath("/model-hub/experiments/delete/"), {
+              body: { experiment_ids: [randomExperimentId] },
+            }),
+          404,
+          "Legacy experiment delete accepted an unknown experiment id.",
+        ),
+        expectApiErrorStatus(
+          () =>
+            client.delete(apiPath("/model-hub/experiments/v2/delete/"), {
+              body: { experiment_ids: [randomExperimentId] },
+            }),
+          404,
+          "Experiment V2 delete accepted an unknown experiment id.",
+        ),
+        expectApiErrorStatus(
+          () =>
+            client.post(
+              apiPath(
+                "/model-hub/experiments/{experiment_id}/run-evaluations/",
+                { experiment_id: experimentId },
+              ),
+              { eval_template_ids: [randomUUID()] },
+            ),
+          400,
+          "Experiment run-evaluations accepted an unknown eval metric id.",
+        ),
+      ]);
+
+      let stopGuard = "skipped-running";
+      if (
+        !["running", "queued"].includes(String(candidate.status).toLowerCase())
+      ) {
+        await expectApiErrorStatus(
+          () =>
+            client.post(
+              apiPath("/model-hub/experiments/v2/{experiment_id}/stop/", {
+                experiment_id: experimentId,
+              }),
+              {},
+            ),
+          400,
+          "Experiment stop accepted a non-running experiment.",
+        );
+        stopGuard = "non-running-rejected";
+      }
+
+      const [v2Compare, legacyCompare] = await Promise.all([
+        client.post(
+          apiPath(
+            "/model-hub/experiments/v2/{experiment_id}/compare-experiments/",
+            { experiment_id: experimentId },
+          ),
+          { weights: {} },
+        ),
+        client.post(
+          apiPath(
+            "/model-hub/experiments/{experiment_id}/compare-experiments/",
+            {
+              experiment_id: experimentId,
+            },
+          ),
+          { weights: {} },
+        ),
+      ]);
+      assertExperimentComparePostPayload(v2Compare, experimentId, "V2");
+      assertExperimentComparePostPayload(legacyCompare, experimentId, "legacy");
+
+      const afterAudit = await loadExperimentReadDbAudit(
+        experimentId,
+        organizationId,
+        workspaceId,
+      );
+      assert(
+        afterAudit.status === candidate.status,
+        "Guarded experiment actions changed the selected experiment status.",
+      );
+
+      evidence.push({
+        experiment_id: experimentId,
+        dataset_id: datasetId,
+        snapshot_dataset_id: candidate.snapshot_dataset_id,
+        snapshot_row_id: candidate.snapshot_row_id,
+        snapshot_column_id: candidate.snapshot_column_id,
+        outside_dataset_id: outside.dataset_id,
+        outside_row_id: outside.row_id,
+        outside_column_id: outside.column_id,
+        stop_guard: stopGuard,
+        v2_compare_datasets: Number(v2Compare.total_datasets),
+        legacy_compare_datasets: Number(legacyCompare.total_datasets),
+        comparison_count_after: Number(afterAudit.comparison_count),
+      });
+    },
+  },
+  {
+    id: "EXP-API-004",
+    title: "Legacy experiment collection create, update, and scope guards",
+    tags: ["experiments", "legacy", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+      user,
+    }) {
+      requireMutations();
+      const fixture = await seedLegacyExperimentCreateUpdateFixture({
+        runId,
+        organizationId,
+        workspaceId,
+        userId: currentUserId(user),
+      });
+      assert(
+        fixture?.fixture_created,
+        "Legacy experiment create/update fixture seed failed.",
+      );
+      cleanup.defer("hard delete legacy experiment create/update fixture", () =>
+        hardDeleteLegacyExperimentCreateUpdateFixture(fixture),
+      );
+
+      const createName = `api journey legacy create ${runId}`;
+      const createPromptConfig = {
+        model: "gpt-4o-mini",
+        temperature: 0.1,
+        journey: "EXP-API-004-create",
+      };
+      const created = await client.post(apiPath("/model-hub/experiments/"), {
+        name: createName,
+        dataset_id: fixture.dataset_id,
+        column_id: fixture.output_column_id,
+        prompt_config: createPromptConfig,
+        user_eval_template_ids: [fixture.eval_metric_id],
+      });
+      assert(
+        String(created).includes("Experiment created successfully"),
+        "Legacy experiment create returned an unexpected response.",
+      );
+
+      const createdAudit = await loadLegacyExperimentCreateUpdateAudit({
+        datasetId: fixture.dataset_id,
+        experimentName: createName,
+        organizationId,
+        workspaceId,
+      });
+      fixture.created_experiment_id = createdAudit.experiment_id;
+      assertLegacyExperimentAudit(createdAudit, {
+        experimentName: createName,
+        datasetId: fixture.dataset_id,
+        columnId: fixture.output_column_id,
+        organizationId,
+        workspaceId,
+        metricIds: [fixture.eval_metric_id],
+        promptConfigJourney: "EXP-API-004-create",
+      });
+
+      const legacyDetail = await client.get(
+        apiPath("/model-hub/experiments/"),
+        {
+          query: { experiment_id: createdAudit.experiment_id },
+        },
+      );
+      assert(
+        legacyDetail?.name === createName &&
+          legacyDetail?.dataset_id === fixture.dataset_id,
+        "Legacy experiment detail did not read back the created experiment.",
+      );
+
+      const updateName = `api journey legacy update ${runId}`;
+      const updatePromptConfig = {
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        journey: "EXP-API-004-update",
+      };
+      const updated = await client.put(apiPath("/model-hub/experiments/"), {
+        experiment_id: createdAudit.experiment_id,
+        re_run: false,
+        name: updateName,
+        dataset_id: fixture.dataset_id,
+        column_id: fixture.output_column_id,
+        prompt_config: updatePromptConfig,
+        user_eval_template_ids: [fixture.second_eval_metric_id],
+      });
+      assert(
+        String(updated).includes("Experiment updated successfully"),
+        "Legacy experiment update returned an unexpected response.",
+      );
+
+      const updatedAudit = await loadLegacyExperimentCreateUpdateAudit({
+        experimentId: createdAudit.experiment_id,
+        datasetId: fixture.dataset_id,
+        organizationId,
+        workspaceId,
+      });
+      assertLegacyExperimentAudit(updatedAudit, {
+        experimentName: updateName,
+        datasetId: fixture.dataset_id,
+        columnId: fixture.output_column_id,
+        organizationId,
+        workspaceId,
+        metricIds: [fixture.second_eval_metric_id],
+        promptConfigJourney: "EXP-API-004-update",
+      });
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/experiments/"), {
+            name: fixture.blocked_column_experiment_name,
+            dataset_id: fixture.dataset_id,
+            column_id: fixture.blocked_column_id,
+            prompt_config: createPromptConfig,
+          }),
+        404,
+        "Legacy experiment create accepted a column from another dataset.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/experiments/"), {
+            name: fixture.blocked_metric_experiment_name,
+            dataset_id: fixture.dataset_id,
+            column_id: fixture.output_column_id,
+            prompt_config: createPromptConfig,
+            user_eval_template_ids: [fixture.blocked_eval_metric_id],
+          }),
+        404,
+        "Legacy experiment create accepted an eval metric from another dataset.",
+      );
+
+      let otherWorkspaceCreateStatus = "skipped:no-other-workspace";
+      let otherWorkspaceDetailGuard = "skipped:no-other-workspace";
+      let otherWorkspaceUpdateGuard = "skipped:no-other-workspace";
+      if (fixture.other_workspace_id) {
+        try {
+          await client.post(apiPath("/model-hub/experiments/"), {
+            name: fixture.other_workspace_create_name,
+            dataset_id: fixture.other_dataset_id,
+            column_id: fixture.other_column_id,
+            prompt_config: createPromptConfig,
+          });
+          throw new Error(
+            "Legacy experiment create accepted another workspace dataset.",
+          );
+        } catch (error) {
+          assert(
+            [400, 404].includes(error?.status),
+            `Other-workspace legacy create returned HTTP ${error?.status}.`,
+          );
+          otherWorkspaceCreateStatus = error.status;
+        }
+
+        await expectApiErrorStatus(
+          () =>
+            client.get(apiPath("/model-hub/experiments/"), {
+              query: { experiment_id: fixture.other_experiment_id },
+            }),
+          404,
+          "Legacy experiment detail exposed another workspace experiment.",
+        );
+        otherWorkspaceDetailGuard = "passed";
+
+        await expectApiErrorStatus(
+          () =>
+            client.put(apiPath("/model-hub/experiments/"), {
+              experiment_id: fixture.other_experiment_id,
+              re_run: false,
+              name: "api journey other workspace update blocked",
+              dataset_id: fixture.dataset_id,
+              column_id: fixture.output_column_id,
+              prompt_config: updatePromptConfig,
+            }),
+          404,
+          "Legacy experiment update accepted another workspace experiment.",
+        );
+        otherWorkspaceUpdateGuard = "passed";
+      }
+
+      const guardAudit = await loadLegacyExperimentGuardAudit(fixture);
+      assert(
+        Number(guardAudit.blocked_column_count) === 0,
+        "Blocked column legacy create persisted an experiment.",
+      );
+      assert(
+        Number(guardAudit.blocked_metric_count) === 0,
+        "Blocked metric legacy create persisted an experiment.",
+      );
+      assert(
+        Number(guardAudit.other_workspace_create_count) === 0,
+        "Blocked other-workspace legacy create persisted an experiment.",
+      );
+      if (fixture.other_experiment_id) {
+        assert(
+          guardAudit.other_experiment_name === fixture.other_experiment_name,
+          "Blocked other-workspace legacy update mutated the experiment name.",
+        );
+      }
+
+      evidence.push({
+        experiment_id: createdAudit.experiment_id,
+        dataset_id: fixture.dataset_id,
+        output_column_id: fixture.output_column_id,
+        created_name: createName,
+        updated_name: updatedAudit.experiment_name,
+        create_metric_id: fixture.eval_metric_id,
+        update_metric_id: fixture.second_eval_metric_id,
+        blocked_column_guard: "passed",
+        blocked_metric_guard: "passed",
+        other_workspace_create_status: otherWorkspaceCreateStatus,
+        other_workspace_detail_guard: otherWorkspaceDetailGuard,
+        other_workspace_update_guard: otherWorkspaceUpdateGuard,
       });
     },
   },
@@ -818,7 +1514,16 @@ export const datasetEvalJourneys = [
     id: "DPE-API-016",
     title: "Dataset advanced row/column readbacks and cleanup audit",
     tags: ["dataset", "develop", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      apiBase,
+      tokens,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const datasetName = `api journey dataset advanced ${runId}`;
@@ -865,9 +1570,12 @@ export const datasetEvalJourneys = [
       });
 
       await client.post(
-        apiPath("/model-hub/develops/{dataset_id}/add_multiple_static_columns/", {
-          dataset_id: datasetId,
-        }),
+        apiPath(
+          "/model-hub/develops/{dataset_id}/add_multiple_static_columns/",
+          {
+            dataset_id: datasetId,
+          },
+        ),
         {
           columns: [
             {
@@ -1076,10 +1784,13 @@ export const datasetEvalJourneys = [
 
       for (const columnId of tempColumnIds) {
         await client.delete(
-          apiPath("/model-hub/develops/{dataset_id}/delete_column/{column_id}/", {
-            dataset_id: datasetId,
-            column_id: columnId,
-          }),
+          apiPath(
+            "/model-hub/develops/{dataset_id}/delete_column/{column_id}/",
+            {
+              dataset_id: datasetId,
+              column_id: columnId,
+            },
+          ),
         );
         deletedColumnIds.add(columnId);
       }
@@ -1108,8 +1819,10 @@ export const datasetEvalJourneys = [
         deleted_columns_with_deleted_at:
           deletedAudit.deleted_column_deleted_at_count,
         deleted_rows_with_deleted_at: deletedAudit.deleted_row_deleted_at_count,
-        deleted_cells_with_deleted_at: deletedAudit.deleted_cell_deleted_at_count,
-        stale_column_config_entries: deletedAudit.column_config_contains_deleted_count,
+        deleted_cells_with_deleted_at:
+          deletedAudit.deleted_cell_deleted_at_count,
+        stale_column_config_entries:
+          deletedAudit.column_config_contains_deleted_count,
       });
     },
   },
@@ -1149,7 +1862,8 @@ export const datasetEvalJourneys = [
       );
       assertDatasetSdkSnippetSafety(result);
       assert(
-        Number(afterAudit.user_key_count) === Number(beforeAudit.user_key_count),
+        Number(afterAudit.user_key_count) ===
+          Number(beforeAudit.user_key_count),
         "add_rows_sdk created or deleted a user API key while generating snippets.",
       );
 
@@ -1166,7 +1880,15 @@ export const datasetEvalJourneys = [
     id: "DPE-API-018",
     title: "Legacy dataset annotations lifecycle, guards, and cleanup",
     tags: ["dataset", "annotations", "legacy", "mutating", "db-audit"],
-    async run({ client, cleanup, runId, user, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      user,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const userId = currentUserId(user);
       if (!userId) skip("Current user id was not available for annotations.");
@@ -1189,6 +1911,9 @@ export const datasetEvalJourneys = [
       let labelId = null;
       let annotationTaskListCount = 0;
       let annotationTaskReadStatus = "skipped_no_task";
+      let annotationTaskFixture = null;
+      let annotationTaskCleanup = null;
+      let annotationTaskFixtureCleaned = false;
 
       const dataset = await createOrResolveWritableDataset(
         client,
@@ -1212,7 +1937,10 @@ export const datasetEvalJourneys = [
         column_config_only: true,
       });
       const staticColumn = findColumn(table, staticColumnName);
-      assert(staticColumn?.id, "Temporary static annotation column was not visible.");
+      assert(
+        staticColumn?.id,
+        "Temporary static annotation column was not visible.",
+      );
       staticColumnId = staticColumn.id;
       cleanup.defer("delete legacy annotation static column", () =>
         ignoreNotFound(() =>
@@ -1241,7 +1969,10 @@ export const datasetEvalJourneys = [
         table = await getDatasetTable(client, datasetId);
         row = firstDatasetRow(table);
       }
-      assert(row?.row_id, "No dataset row was available for annotation coverage.");
+      assert(
+        row?.row_id,
+        "No dataset row was available for annotation coverage.",
+      );
       rowId = row.row_id;
       rowOrder = Number(row.row_order ?? row.order ?? row.row_number - 1 ?? 0);
       if (addedRow) {
@@ -1296,21 +2027,62 @@ export const datasetEvalJourneys = [
         ),
       );
 
+      annotationTaskFixture = await seedAnnotationTaskFixture({
+        runId,
+        userId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        annotationTaskFixture?.fixture_created === true,
+        "AnnotationTask fixture seed did not create a task.",
+      );
+      cleanup.defer("hard delete API journey annotation task fixture", async () => {
+        if (!annotationTaskFixtureCleaned) {
+          await hardDeleteAnnotationTaskFixture(annotationTaskFixture);
+        }
+      });
+
       const annotationTasks = asArray(
         await client.get(apiPath("/model-hub/annotation-tasks/"), {
-          query: { page: 1, limit: 10 },
+          query: {
+            page: 1,
+            limit: 10,
+            predictive_journey: annotationTaskFixture.ai_model_id,
+          },
         }),
       );
       annotationTaskListCount = annotationTasks.length;
-      const annotationTask = annotationTasks.find((task) => task?.id);
-      if (annotationTask?.id) {
-        await client.get(
-          apiPath("/model-hub/annotation-tasks/{id}/", {
-            id: annotationTask.id,
-          }),
-        );
-        annotationTaskReadStatus = 200;
-      }
+      const annotationTask = annotationTasks.find(
+        (task) => task?.id === annotationTaskFixture.annotation_task_id,
+      );
+      assert(
+        annotationTask?.id,
+        "Seeded AnnotationTask was not returned by the filtered list.",
+      );
+      assertAnnotationTaskPayload(annotationTask, annotationTaskFixture, userId);
+      const annotationTaskDetail = await client.get(
+        apiPath("/model-hub/annotation-tasks/{id}/", {
+          id: annotationTask.id,
+        }),
+      );
+      assertAnnotationTaskPayload(
+        annotationTaskDetail,
+        annotationTaskFixture,
+        userId,
+      );
+      annotationTaskReadStatus = 200;
+      annotationTaskCleanup =
+        await hardDeleteAnnotationTaskFixture(annotationTaskFixture);
+      annotationTaskFixtureCleaned = true;
+      assert(
+        Number(annotationTaskCleanup.remaining_task_count) === 0,
+        "AnnotationTask fixture cleanup left a task row.",
+      );
+      assert(
+        Number(annotationTaskCleanup.remaining_ai_model_count) === 0,
+        "AnnotationTask fixture cleanup left an AIModel row.",
+      );
 
       const preview = await client.post(
         apiPath("/model-hub/annotations/preview_annotations/"),
@@ -1378,7 +2150,9 @@ export const datasetEvalJourneys = [
         }),
       );
       assert(
-        listedAnnotations.some((annotation) => annotation.id === detailAnnotation.id),
+        listedAnnotations.some(
+          (annotation) => annotation.id === detailAnnotation.id,
+        ),
         "Dataset-filtered annotations list did not include the created annotation.",
       );
 
@@ -1392,7 +2166,10 @@ export const datasetEvalJourneys = [
       const labelCell = asArray(annotateData?.label).find(
         (label) => label.label_id === labelId,
       );
-      assert(labelCell?.column_id, "annotate_row did not expose label column id.");
+      assert(
+        labelCell?.column_id,
+        "annotate_row did not expose label column id.",
+      );
       assert(
         asArray(annotateData?.static_fields).some(
           (field) => field.column_id === staticColumnId,
@@ -1423,9 +2200,9 @@ export const datasetEvalJourneys = [
         }),
         { query: { row_order: rowOrder } },
       );
-      const updatedLabelCell = asArray((afterUpdate?.data || afterUpdate)?.label).find(
-        (label) => label.label_id === labelId,
-      );
+      const updatedLabelCell = asArray(
+        (afterUpdate?.data || afterUpdate)?.label,
+      ).find((label) => label.label_id === labelId);
       assert(
         Number(updatedLabelCell?.cell_value) === 0,
         "update_cells did not persist numeric zero annotation value.",
@@ -1454,7 +2231,9 @@ export const datasetEvalJourneys = [
         "PATCH name-only update cleared legacy annotation labels.",
       );
       assert(
-        asArray(patched.assigned_users).some((assigned) => assigned.id === userId),
+        asArray(patched.assigned_users).some(
+          (assigned) => assigned.id === userId,
+        ),
         "PATCH name-only update cleared legacy annotation assignees.",
       );
 
@@ -1519,7 +2298,10 @@ export const datasetEvalJourneys = [
         { annotation_ids: [bulkAnnotation.id] },
       );
       const bulkDeletedCount = Number(bulkDestroy?.deleted_count ?? 0);
-      assert(bulkDeletedCount === 1, "bulk_destroy did not delete one annotation.");
+      assert(
+        bulkDeletedCount === 1,
+        "bulk_destroy did not delete one annotation.",
+      );
       deletedAnnotationIds.add(bulkAnnotation.id);
 
       await client.delete(
@@ -1566,15 +2348,1886 @@ export const datasetEvalJourneys = [
         detail_annotation_id: detailAnnotation.id,
         bulk_annotation_id: bulkAnnotation.id,
         annotation_task_list_count: annotationTaskListCount,
+        annotation_task_id: annotationTaskFixture.annotation_task_id,
+        annotation_task_ai_model_id: annotationTaskFixture.ai_model_id,
         annotation_task_read_status: annotationTaskReadStatus,
+        annotation_task_cleanup: annotationTaskCleanup,
         required_update_status: requiredUpdateStatus,
         bulk_deleted_count: bulkDeletedCount,
         deleted_annotation_ids: Array.from(deletedAnnotationIds),
         generated_column_count: Number(audit.generated_column_count),
         generated_cell_count: Number(audit.generated_cell_count),
         active_annotation_count: Number(audit.active_annotation_count),
-        active_generated_column_count: Number(audit.active_generated_column_count),
+        active_generated_column_count: Number(
+          audit.active_generated_column_count,
+        ),
         active_generated_cell_count: Number(audit.active_generated_cell_count),
+      });
+    },
+  },
+  {
+    id: "DPE-API-019",
+    title: "Dataset compare lifecycle, guards, stats, download, and cleanup",
+    tags: ["dataset", "compare", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const candidate = await seedDatasetCompareFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        candidate?.fixture_created,
+        "Dataset compare fixture seed did not create datasets.",
+      );
+      cleanup.defer("hard delete API journey dataset compare fixture", () =>
+        hardDeleteDatasetCompareFixture([
+          candidate.base_dataset_id,
+          candidate.other_dataset_id,
+        ]),
+      );
+
+      const datasetIds = [candidate.other_dataset_id];
+      const fullDatasetIds = [candidate.base_dataset_id, ...datasetIds];
+      const compareRequest = {
+        page_size: 2,
+        current_page_index: 0,
+        base_column_name: candidate.base_column_name,
+        dataset_ids: datasetIds,
+      };
+      const comparePath = apiPath(
+        "/model-hub/datasets/{dataset_id}/compare-datasets/",
+        { dataset_id: candidate.base_dataset_id },
+      );
+      const compare = await client.post(comparePath, compareRequest);
+      assertDatasetComparePayload(compare);
+      const compareId = compare?.metadata?.compare_id || compare?.compare_id;
+      assert(
+        isUuid(compareId),
+        "Dataset compare response did not include compare_id.",
+      );
+      let compareDeleted = false;
+      cleanup.defer("delete API journey dataset compare files", async () => {
+        if (compareDeleted) return;
+        await client.delete(
+          apiPath("/model-hub/datasets/delete-compare/{compare_id}/", {
+            compare_id: compareId,
+          }),
+        );
+      });
+
+      const firstRow = asArray(compare.table)[0];
+      assert(
+        isUuid(firstRow?.row_id),
+        "Dataset compare response lacked row_id.",
+      );
+      const rowDetail = await client.get(
+        apiPath("/model-hub/datasets/get-compare-row/{compare_id}/{row_id}/", {
+          compare_id: compareId,
+          row_id: firstRow.row_id,
+        }),
+      );
+      assertDatasetCompareRowPayload(rowDetail, firstRow.row_id);
+
+      let comparePageTwoRows = null;
+      if (Number(compare?.metadata?.total_pages || 0) > 1) {
+        const comparePageTwo = await client.post(comparePath, {
+          ...compareRequest,
+          compare_id: compareId,
+          current_page_index: 1,
+        });
+        assert(
+          comparePageTwo?.metadata?.compare_id === compareId,
+          "Dataset compare pagination did not reuse compare_id.",
+        );
+        comparePageTwoRows = asArray(comparePageTwo.table).length;
+      }
+
+      const evalsPayload = await client.post(
+        apiPath("/model-hub/datasets/compare/get-evals-list/"),
+        {
+          eval_type: "user",
+          dataset_ids: fullDatasetIds,
+          search_text: "",
+        },
+      );
+      const evals = payloadArray(evalsPayload, "evals");
+      assert(
+        Array.isArray(evals),
+        "Compare evals-list did not return evals array.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/datasets/compare/get-evals-list/"), {
+            eval_type: "system",
+            dataset_ids: fullDatasetIds,
+          }),
+        400,
+        "Compare evals-list accepted an invalid eval_type.",
+      );
+
+      const statsPayload = await client.post(
+        apiPath("/model-hub/datasets/{dataset_id}/compare-stats/", {
+          dataset_id: candidate.base_dataset_id,
+        }),
+        {
+          base_column_name: candidate.base_column_name,
+          dataset_ids: datasetIds,
+          stat_type: "evaluation",
+        },
+      );
+      assert(
+        statsPayload && typeof statsPayload === "object",
+        "Compare stats did not return an object keyed by dataset id.",
+      );
+      for (const datasetId of fullDatasetIds) {
+        assert(
+          Array.isArray(statsPayload[datasetId]),
+          `Compare stats missing dataset key ${datasetId}.`,
+        );
+      }
+
+      const csv = await client.post(
+        apiPath("/model-hub/datasets/{dataset_id}/compare-datasets/download/", {
+          dataset_id: candidate.base_dataset_id,
+        }),
+        {
+          ...compareRequest,
+          compare_id: compareId,
+        },
+      );
+      assert(
+        typeof csv === "string" && csv.includes(candidate.base_column_name),
+        "Compare download did not return CSV content with the base column.",
+      );
+
+      if (candidate.eval_template_id) {
+        const previewError = await expectApiErrorStatus(
+          () =>
+            client.post(
+              apiPath("/model-hub/datasets/compare/preview-run-eval/"),
+              {
+                template_id: candidate.eval_template_id,
+                config: { mapping: {} },
+                dataset_ids: fullDatasetIds,
+              },
+            ),
+          400,
+          "Compare preview accepted a request without dataset_info.",
+        );
+        assert(
+          /dataset/i.test(previewError.body?.detail || ""),
+          "Compare preview guard did not mention dataset info.",
+        );
+      }
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath(
+              "/model-hub/datasets/{dataset_id}/compare-datasets/add-eval/",
+              { dataset_id: candidate.base_dataset_id },
+            ),
+            { dataset_ids: datasetIds },
+          ),
+        400,
+        "Compare add-eval accepted an incomplete request.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath(
+              "/model-hub/datasets/{dataset_id}/compare-datasets/start-eval/",
+              { dataset_id: candidate.base_dataset_id },
+            ),
+            { user_eval_names: [], dataset_ids: datasetIds },
+          ),
+        400,
+        "Compare start-eval accepted an empty eval list.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.get(
+            apiPath("/model-hub/datasets/delete-compare/{compare_id}/", {
+              compare_id: compareId,
+            }),
+          ),
+        405,
+        "Compare delete route accepted GET.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.delete(
+            apiPath(
+              "/model-hub/datasets/get-compare-row/{compare_id}/{row_id}/",
+              {
+                compare_id: compareId,
+                row_id: firstRow.row_id,
+              },
+            ),
+          ),
+        405,
+        "Compare row route accepted DELETE.",
+      );
+
+      const deleteResult = await client.delete(
+        apiPath("/model-hub/datasets/delete-compare/{compare_id}/", {
+          compare_id: compareId,
+        }),
+      );
+      compareDeleted = true;
+      assert(
+        deleteResult?.message === "File(s) deleted successfully",
+        "Compare delete did not return success message.",
+      );
+
+      evidence.push({
+        base_dataset_id: candidate.base_dataset_id,
+        other_dataset_id: candidate.other_dataset_id,
+        base_column_name: candidate.base_column_name,
+        compare_id: compareId,
+        total_rows: Number(compare?.metadata?.total_rows || 0),
+        total_pages: Number(compare?.metadata?.total_pages || 0),
+        first_row_id: firstRow.row_id,
+        page_two_rows: comparePageTwoRows,
+        evals_returned: evals.length,
+        shared_base_values: Number(candidate.shared_value_count),
+        common_columns: Number(candidate.common_column_count),
+        download_bytes: csv.length,
+        cleanup_deleted: compareDeleted,
+      });
+    },
+  },
+  {
+    id: "DPE-API-020",
+    title: "Dataset row copy, merge, import, derived variables, and guards",
+    tags: ["dataset", "copy", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedDatasetCopyFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Dataset copy fixture seed did not create datasets.",
+      );
+      cleanup.defer("hard delete API journey dataset copy fixture", () =>
+        hardDeleteDatasetCopyFixture([
+          fixture.source_dataset_id,
+          fixture.target_dataset_id,
+        ]),
+      );
+
+      const duplicate = await client.post(
+        apiPath("/model-hub/datasets/{dataset_id}/duplicate-rows/", {
+          dataset_id: fixture.source_dataset_id,
+        }),
+        { row_ids: [fixture.source_row_one_id], num_copies: 2 },
+      );
+      const duplicateRowIds = asArray(duplicate?.new_row_ids);
+      assert(
+        Number(duplicate?.total_new_rows) === 2,
+        "Duplicate rows did not report two new rows.",
+      );
+      assert(
+        duplicateRowIds.length === 2 && duplicateRowIds.every(isUuid),
+        "Duplicate rows did not return two new row UUIDs.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/datasets/{dataset_id}/duplicate-rows/", {
+              dataset_id: fixture.source_dataset_id,
+            }),
+            { row_ids: [fixture.target_low_row_id], num_copies: 1 },
+          ),
+        400,
+        "Duplicate rows accepted a row outside the source dataset.",
+      );
+
+      const merge = await client.post(
+        apiPath("/model-hub/datasets/{dataset_id}/merge/", {
+          dataset_id: fixture.source_dataset_id,
+        }),
+        {
+          target_dataset_id: fixture.target_dataset_id,
+          row_ids: [fixture.source_row_two_id],
+        },
+      );
+      assert(
+        Number(merge?.rows_added) === 1,
+        "Dataset merge did not report one added row.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath(
+              "/model-hub/develops/{dataset_id}/add_rows_from_existing_dataset/",
+              { dataset_id: fixture.target_dataset_id },
+            ),
+            {
+              source_dataset_id: fixture.source_dataset_id,
+              column_mapping: {
+                [fixture.target_input_column_id]:
+                  fixture.target_output_column_id,
+              },
+            },
+          ),
+        400,
+        "Add rows from existing accepted a source column outside the source dataset.",
+      );
+
+      const imported = await client.post(
+        apiPath(
+          "/model-hub/develops/{dataset_id}/add_rows_from_existing_dataset/",
+          { dataset_id: fixture.target_dataset_id },
+        ),
+        {
+          source_dataset_id: fixture.source_dataset_id,
+          column_mapping: {
+            [fixture.source_input_column_id]: fixture.target_input_column_id,
+            [fixture.source_output_column_id]: fixture.target_output_column_id,
+          },
+        },
+      );
+      assert(
+        Number(imported?.rows_added) === 4,
+        "Add rows from existing did not report all four source rows.",
+      );
+
+      const derivedVariables = await client.get(
+        apiPath("/model-hub/datasets/{dataset_id}/derived-variables/", {
+          dataset_id: fixture.source_dataset_id,
+        }),
+      );
+      assert(
+        derivedVariables &&
+          typeof derivedVariables === "object" &&
+          derivedVariables.derived_variables &&
+          typeof derivedVariables.derived_variables === "object",
+        "Dataset derived-variables endpoint did not return derived_variables.",
+      );
+
+      const audit = await loadDatasetCopyFixtureAudit(fixture);
+      assertDatasetCopyFixtureAudit(audit);
+
+      evidence.push({
+        source_dataset_id: fixture.source_dataset_id,
+        target_dataset_id: fixture.target_dataset_id,
+        duplicate_row_ids: duplicateRowIds,
+        duplicate_rows_added: Number(duplicate?.total_new_rows),
+        merge_rows_added: Number(merge?.rows_added),
+        imported_rows_added: Number(imported?.rows_added),
+        source_row_count: Number(audit.source_row_count),
+        target_row_count: Number(audit.target_row_count),
+        target_max_order: Number(audit.target_max_order),
+        target_order_11_input: audit.target_order_11_input,
+        derived_variable_columns: Object.keys(
+          derivedVariables.derived_variables,
+        ).length,
+      });
+    },
+  },
+  {
+    id: "DPE-API-021",
+    title: "Dataset file row import, creation validation, and progress guards",
+    tags: ["dataset", "file-import", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      apiBase,
+      tokens,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedDatasetFileImportFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Dataset file import fixture seed did not create a dataset.",
+      );
+      cleanup.defer("hard delete API journey dataset file import fixture", () =>
+        hardDeleteDatasetCopyFixture([fixture.dataset_id]),
+      );
+
+      const progress = await client.get(
+        apiPath("/model-hub/develops/dataset-creation-progress/{dataset_id}/", {
+          dataset_id: fixture.dataset_id,
+        }),
+      );
+      assert(
+        progress?.processing_status === "queued",
+        "Dataset creation progress did not return seeded queued status.",
+      );
+      assert(
+        progress?.original_filename === fixture.original_filename,
+        "Dataset creation progress did not return original filename.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/develops/create-empty-dataset/"), {
+            new_dataset_name: fixture.dataset_name,
+            model_type: "GenerativeLLM",
+            row: 0,
+          }),
+        400,
+        "Create-empty dataset accepted a duplicate dataset name.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/develops/create-dataset-manually/"), {
+            dataset_name: `api invalid manual ${runId}`,
+            model_type: "GenerativeLLM",
+            number_of_rows: 0,
+            number_of_columns: 1,
+          }),
+        400,
+        "Manual dataset creation accepted an invalid row count.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          multipartApiRequest({
+            apiBase,
+            accessToken: tokens.access,
+            organizationId,
+            workspaceId,
+            method: "POST",
+            pathName: apiPath(
+              "/model-hub/develops/create-dataset-from-local-file/",
+            ),
+            fields: {
+              new_dataset_name: fixture.dataset_name,
+              model_type: "GenerativeLLM",
+            },
+            files: [
+              {
+                fieldName: "file",
+                fileName: "duplicate.csv",
+                content: "input,file_extra\nduplicate,guard\n",
+                contentType: "text/csv",
+              },
+            ],
+          }),
+        400,
+        "Create dataset from local file accepted a duplicate dataset name.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          multipartApiRequest({
+            apiBase,
+            accessToken: tokens.access,
+            organizationId,
+            workspaceId,
+            method: "POST",
+            pathName: apiPath("/model-hub/develops/add_rows_from_file/"),
+            fields: { dataset_id: randomUUID() },
+            files: [
+              {
+                fieldName: "file",
+                fileName: "missing-dataset.csv",
+                content: "input,file_extra\nmissing,guard\n",
+                contentType: "text/csv",
+              },
+            ],
+          }),
+        404,
+        "Add rows from file accepted a missing dataset id.",
+      );
+
+      const importResult = await multipartApiRequest({
+        apiBase,
+        accessToken: tokens.access,
+        organizationId,
+        workspaceId,
+        method: "POST",
+        pathName: apiPath("/model-hub/develops/add_rows_from_file/"),
+        fields: { dataset_id: fixture.dataset_id },
+        files: [
+          {
+            fieldName: "file",
+            fileName: "dpe-api-021-import.csv",
+            content: `${fixture.input_column_name},${fixture.new_column_name}\n${fixture.imported_input_one},${fixture.imported_extra_one}\n${fixture.imported_input_two},${fixture.imported_extra_two}\n`,
+            contentType: "text/csv",
+          },
+        ],
+      });
+      assert(
+        String(importResult).includes("2 Row(s) added successfully"),
+        "Add rows from file did not report two imported rows.",
+      );
+
+      const audit = await loadDatasetFileImportFixtureAudit(fixture);
+      assertDatasetFileImportFixtureAudit(audit, fixture);
+
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        progress_status: progress.processing_status,
+        estimated_rows: progress.estimated_rows,
+        estimated_columns: progress.estimated_columns,
+        row_count: Number(audit.row_count),
+        column_count: Number(audit.column_count),
+        max_order: Number(audit.max_order),
+        imported_values: audit.imported_input_values,
+        existing_blank_cells_for_new_column: Number(
+          audit.existing_blank_cells_for_new_column,
+        ),
+        active_cell_count: Number(audit.active_cell_count),
+      });
+    },
+  },
+  {
+    id: "DPE-API-022",
+    title: "Dataset generated-column creation, preview, and scope guards",
+    tags: ["dataset", "dynamic-columns", "mutating", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedDatasetDynamicColumnFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Dynamic-column fixture seed did not create a dataset.",
+      );
+      cleanup.defer("hard delete API journey dynamic-column fixture", () =>
+        hardDeleteDatasetCopyFixture([fixture.dataset_id]),
+      );
+
+      const preview = await client.post(
+        apiPath("/model-hub/datasets/{dataset_id}/preview/{operation_type}/", {
+          dataset_id: fixture.dataset_id,
+          operation_type: "extract_json",
+        }),
+        {
+          column_id: fixture.payload_column_id,
+          json_key: "name",
+        },
+      );
+      const previewResults = asArray(preview?.preview_results);
+      assert(
+        previewResults.length === 2,
+        "Dynamic-column preview did not return the seeded sample rows.",
+      );
+      assert(
+        previewResults
+          .map((row) => row.output)
+          .includes(fixture.preview_name_one),
+        "Dynamic-column extract-json preview did not return the expected value.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/datasets/{dataset_id}/add-api-column/", {
+              dataset_id: randomUUID(),
+            }),
+            {
+              column_name: fixture.missing_guard_column_name,
+              config: {
+                url: "https://example.com",
+                method: "GET",
+                output_type: "string",
+              },
+            },
+          ),
+        404,
+        "Dynamic add-api-column accepted a missing dataset id.",
+      );
+
+      const createdColumns = await createDatasetDynamicColumns(client, fixture);
+
+      const audit = await loadDatasetDynamicColumnFixtureAudit(fixture);
+      assertDatasetDynamicColumnFixtureAudit(audit, fixture, createdColumns);
+
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        preview_outputs: previewResults.map((row) => row.output),
+        dynamic_column_count: Number(audit.dynamic_column_count),
+        column_order_length: Number(audit.column_order_length),
+        created_columns: createdColumns,
+        dynamic_sources: asArray(audit.dynamic_columns).map(
+          (row) => row.source,
+        ),
+      });
+    },
+  },
+  {
+    id: "DPE-API-023",
+    title: "Dataset generated-column config and rerun guards",
+    tags: ["dataset", "dynamic-columns", "mutating", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedDatasetDynamicColumnFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Dynamic-column rerun fixture seed did not create a dataset.",
+      );
+      cleanup.defer(
+        "hard delete API journey dynamic-column rerun fixture",
+        () => hardDeleteDatasetCopyFixture([fixture.dataset_id]),
+      );
+
+      const createdColumns = await createDatasetDynamicColumns(client, fixture);
+      const creationAudit = await loadDatasetDynamicColumnFixtureAudit(fixture);
+      assertDatasetDynamicColumnFixtureAudit(
+        creationAudit,
+        fixture,
+        createdColumns,
+      );
+
+      const configs = {};
+      for (const [name, id] of Object.entries(createdColumns)) {
+        const config = await client.get(
+          apiPath("/model-hub/columns/{column_id}/operation-config/", {
+            column_id: id,
+          }),
+        );
+        assert(
+          config.column_id === id,
+          `Operation config returned the wrong column_id for ${name}.`,
+        );
+        configs[name] = config.metadata;
+      }
+
+      assert(
+        configs[fixture.extract_json_column_name]?.json_key === "name",
+        "Extract-json operation config did not return stored json_key.",
+      );
+      assert(
+        configs[fixture.api_column_name]?.url === "https://example.com",
+        "API-call operation config did not return stored URL.",
+      );
+      assert(
+        asArray(configs[fixture.conditional_column_name]?.config).length === 1,
+        "Conditional operation config did not return stored branch config.",
+      );
+      assert(
+        asArray(configs[fixture.classify_column_name]?.labels).length === 2,
+        "Classification operation config did not return stored labels.",
+      );
+      assert(
+        configs[fixture.entities_column_name]?.instruction === "Extract names",
+        "Entity operation config did not return stored instruction.",
+      );
+      assert(
+        configs[fixture.vector_column_name]?.sub_type === "pinecone",
+        "Vector operation config did not return stored subtype.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.get(
+            apiPath("/model-hub/columns/{column_id}/operation-config/", {
+              column_id: randomUUID(),
+            }),
+          ),
+        400,
+        "Operation config accepted a missing column id.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/columns/{column_id}/rerun-operation/", {
+              column_id: randomUUID(),
+            }),
+            { operation_type: "extract_json" },
+          ),
+        404,
+        "Rerun operation accepted a missing column id.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/columns/{column_id}/rerun-operation/", {
+              column_id: createdColumns[fixture.extract_json_column_name],
+            }),
+            { operation_type: "invalid_type" },
+          ),
+        400,
+        "Rerun operation accepted an invalid operation type.",
+      );
+
+      const rerunJson = await client.post(
+        apiPath("/model-hub/columns/{column_id}/rerun-operation/", {
+          column_id: createdColumns[fixture.extract_json_column_name],
+        }),
+        { operation_type: "extract_json" },
+      );
+      assert(
+        rerunJson.column_id ===
+          createdColumns[fixture.extract_json_column_name] &&
+          rerunJson.status === "running",
+        "Extract-json rerun did not use stored metadata successfully.",
+      );
+
+      const rerunConditional = await client.post(
+        apiPath("/model-hub/columns/{column_id}/rerun-operation/", {
+          column_id: createdColumns[fixture.conditional_column_name],
+        }),
+        { operation_type: "conditional" },
+      );
+      assert(
+        rerunConditional.column_id ===
+          createdColumns[fixture.conditional_column_name] &&
+          rerunConditional.status === "running",
+        "Conditional rerun did not use stored metadata successfully.",
+      );
+
+      const rerunAudit = await loadDatasetDynamicColumnFixtureAudit(fixture);
+      assertDatasetDynamicColumnFixtureAudit(
+        rerunAudit,
+        fixture,
+        createdColumns,
+      );
+
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        configured_columns: Object.keys(configs).length,
+        rerun_columns: [rerunJson.column_id, rerunConditional.column_id],
+        dynamic_column_count: Number(rerunAudit.dynamic_column_count),
+        dynamic_sources: asArray(rerunAudit.dynamic_columns).map(
+          (row) => row.source,
+        ),
+      });
+    },
+  },
+  {
+    id: "DPE-API-024",
+    title: "Dataset synthetic config update and guards",
+    tags: ["dataset", "synthetic", "mutating", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedDatasetSyntheticFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Synthetic dataset fixture seed did not create a dataset.",
+      );
+      cleanup.defer("hard delete API journey synthetic dataset fixture", () =>
+        hardDeleteDatasetCopyFixture([fixture.dataset_id]),
+      );
+
+      const config = await client.get(
+        apiPath("/model-hub/develops/{dataset_id}/synthetic-config/", {
+          dataset_id: fixture.dataset_id,
+        }),
+      );
+      assert(
+        config?.data?.dataset?.description === fixture.original_description,
+        "Synthetic config readback did not return the seeded description.",
+      );
+      assert(
+        Number(config?.data?.num_rows) === 10,
+        "Synthetic config readback did not return the seeded row count.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.get(
+            apiPath("/model-hub/develops/{dataset_id}/synthetic-config/", {
+              dataset_id: randomUUID(),
+            }),
+          ),
+        404,
+        "Synthetic config accepted a missing dataset id.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/develops/create-synthetic-dataset/"),
+            {
+              num_rows: 9,
+              columns: [fixture.synthetic_column_payload],
+              dataset: {
+                name: `api invalid synthetic ${runId}`,
+                description: "Invalid synthetic guard",
+                objective: "Guard invalid synthetic creation",
+                patterns: [],
+              },
+            },
+          ),
+        400,
+        "Create synthetic dataset accepted fewer than ten rows.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/develops/{dataset_id}/add_synthetic_data/", {
+              dataset_id: fixture.dataset_id,
+            }),
+            {
+              num_rows: 9,
+              fill_existing_rows: false,
+              columns: [fixture.synthetic_add_column_payload],
+              dataset: {
+                description: "Invalid synthetic add rows",
+                objective: "Guard invalid synthetic add rows",
+                patterns: [],
+              },
+            },
+          ),
+        400,
+        "Add synthetic data accepted fewer than ten rows.",
+      );
+
+      const updatePayload = {
+        num_rows: 10,
+        columns: [fixture.synthetic_column_payload],
+        dataset: {
+          name: fixture.dataset_name,
+          description: fixture.updated_description,
+          objective: "Update synthetic config through API",
+          patterns: [],
+        },
+        regenerate: false,
+      };
+      const update = await client.put(
+        apiPath("/model-hub/develops/{dataset_id}/update-synthetic-config/", {
+          dataset_id: fixture.dataset_id,
+        }),
+        updatePayload,
+      );
+      assert(
+        update?.data?.dataset_id === fixture.dataset_id,
+        "Synthetic config update returned the wrong dataset id.",
+      );
+
+      const updatedConfig = await client.get(
+        apiPath("/model-hub/develops/{dataset_id}/synthetic-config/", {
+          dataset_id: fixture.dataset_id,
+        }),
+      );
+      assert(
+        updatedConfig?.data?.dataset?.description ===
+          fixture.updated_description,
+        "Synthetic config update did not persist the new description.",
+      );
+
+      const audit = await loadDatasetSyntheticFixtureAudit(fixture);
+      assertDatasetSyntheticFixtureAudit(audit, fixture);
+
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        initial_description: config.data.dataset.description,
+        updated_description: updatedConfig.data.dataset.description,
+        row_count: Number(audit.row_count),
+        column_count: Number(audit.column_count),
+        cell_count: Number(audit.cell_count),
+        column_order_length: Number(audit.column_order_length),
+      });
+    },
+  },
+  {
+    id: "DPE-API-025",
+    title: "Dataset explanation summary refresh guards",
+    tags: ["dataset", "summary", "mutating", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedDatasetExplanationFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Explanation summary fixture seed did not create a dataset.",
+      );
+      cleanup.defer("hard delete API journey explanation summary fixture", () =>
+        hardDeleteDatasetCopyFixture([fixture.dataset_id]),
+      );
+
+      const summary = await client.get(
+        apiPath("/model-hub/datasets/explanation-summary/{dataset_id}/", {
+          dataset_id: fixture.dataset_id,
+        }),
+      );
+      assert(
+        summary.status === "insufficient_data" &&
+          Number(summary.row_count) === fixture.row_count,
+        "Explanation summary read did not return insufficient_data for the seeded small dataset.",
+      );
+
+      const refreshed = await client.post(
+        apiPath(
+          "/model-hub/datasets/explanation-summary/{dataset_id}/refresh/",
+          {
+            dataset_id: fixture.dataset_id,
+          },
+        ),
+        {},
+      );
+      assert(
+        refreshed.status === "insufficient_data" &&
+          Number(refreshed.row_count) === fixture.row_count,
+        "Explanation summary refresh did not preserve insufficient_data status.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.get(
+            apiPath("/model-hub/datasets/explanation-summary/{dataset_id}/", {
+              dataset_id: randomUUID(),
+            }),
+          ),
+        404,
+        "Explanation summary read accepted a missing dataset id.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath(
+              "/model-hub/datasets/explanation-summary/{dataset_id}/refresh/",
+              { dataset_id: randomUUID() },
+            ),
+            {},
+          ),
+        404,
+        "Explanation summary refresh accepted a missing dataset id.",
+      );
+
+      const audit = await loadDatasetExplanationFixtureAudit(fixture);
+      assertDatasetExplanationFixtureAudit(audit, fixture);
+
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        row_count: Number(summary.row_count),
+        read_status: summary.status,
+        refresh_status: refreshed.status,
+        db_status: audit.eval_reason_status,
+      });
+    },
+  },
+  {
+    id: "DPE-API-026",
+    title: "Hugging Face dataset lookup and config",
+    tags: ["dataset", "huggingface", "safe"],
+    async run({ client, evidence }) {
+      const datasetId = "rajpurkar/squad";
+      const list = await client.post(
+        apiPath("/model-hub/datasets/huggingface/list/"),
+        {
+          search_query: "squad",
+          filter_params: { sort: "downloads" },
+        },
+      );
+      const datasets = asArray(list?.datasets);
+      assert(
+        Number(list?.total_datasets) > 0 && datasets.length > 0,
+        "Hugging Face list did not return datasets.",
+      );
+      assert(
+        datasets.some((dataset) => dataset.id === datasetId),
+        "Hugging Face list did not include rajpurkar/squad.",
+      );
+
+      const detail = await client.post(
+        apiPath("/model-hub/datasets/huggingface/detail/"),
+        { dataset_id: datasetId },
+      );
+      assert(
+        detail?.dataset?.id === datasetId &&
+          asArray(detail?.dataset?.tags).length > 0,
+        "Hugging Face detail did not return the expected dataset metadata.",
+      );
+
+      const config = await client.post(
+        apiPath("/model-hub/develops/get-huggingface-dataset-config/"),
+        { dataset_path: datasetId },
+      );
+      const splits = config?.dataset_info?.splits || {};
+      assert(
+        asArray(splits.plain_text).includes("train") &&
+          asArray(splits.plain_text).includes("validation"),
+        "Hugging Face config did not return plain_text train/validation splits.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/develops/get-huggingface-dataset-config/"),
+            { dataset_path: "lhoestq/custom_squad" },
+          ),
+        400,
+        "Hugging Face config accepted a dataset with arbitrary code.",
+      );
+
+      evidence.push({
+        dataset_id: datasetId,
+        total_datasets: Number(list.total_datasets),
+        list_result_count: datasets.length,
+        detail_downloads: Number(detail.dataset.downloads || 0),
+        config_names: Object.keys(splits),
+        plain_text_splits: splits.plain_text,
+      });
+    },
+  },
+  {
+    id: "DPE-API-027",
+    title: "Dataset eval drawer list, preview, run, stop, and cleanup",
+    tags: ["dataset", "evals", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      const template = await findEvalTemplateDetailByName(
+        client,
+        "word_count_in_range",
+      );
+      if (!template) {
+        skip(
+          "System eval word_count_in_range was not available for dataset evals.",
+        );
+      }
+      const requiredKeys = promptEvalRequiredKeys(template);
+      if (!requiredKeys.includes("text")) {
+        skip("word_count_in_range did not expose the expected text input key.");
+      }
+      const paramsConfig = promptEvalParamsForTemplate(template);
+      const evalConfig = {
+        mapping: { text: null },
+        params: paramsConfig.params,
+        reason_column: true,
+      };
+      const fixture = await seedDatasetEvalDrawerFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Dataset eval drawer fixture seed did not create a dataset.",
+      );
+      evalConfig.mapping.text = fixture.input_column_id;
+      cleanup.defer("hard delete API journey dataset eval drawer fixture", () =>
+        hardDeleteDatasetEvalDrawerFixture(fixture),
+      );
+
+      const systemList = await client.get(
+        apiPath("/model-hub/develops/{dataset_id}/get_evals_list/", {
+          dataset_id: fixture.dataset_id,
+        }),
+        {
+          query: {
+            eval_categories: "futureagi_built",
+            search_text: template.name,
+          },
+        },
+      );
+      const systemRows = payloadArray(systemList?.evals, "evals");
+      assert(
+        systemRows.some(
+          (row) => row.id === template.id && row.name === template.name,
+        ),
+        "Dataset eval list did not include the expected system eval template.",
+      );
+
+      const presetStructure = await client.get(
+        apiPath(
+          "/model-hub/develops/{dataset_id}/get_eval_structure/{eval_id}/",
+          { dataset_id: fixture.dataset_id, eval_id: template.id },
+        ),
+        { query: { eval_type: "preset" } },
+      );
+      assertDatasetEvalStructure(presetStructure, {
+        templateId: template.id,
+        expectedName: template.name,
+        expectedMapping: { text: "" },
+      });
+
+      const preview = await client.post(
+        apiPath("/model-hub/develops/{dataset_id}/preview_run_eval/", {
+          dataset_id: fixture.dataset_id,
+        }),
+        {
+          template_id: template.id,
+          config: evalConfig,
+          model: "turing_small",
+        },
+      );
+      const previewResponses = payloadArray(preview?.responses, "responses");
+      assert(
+        previewResponses.length === fixture.row_count,
+        "Dataset eval preview did not evaluate the seeded fixture rows.",
+      );
+      assert(
+        previewResponses.every(
+          (response) => normalizeEvalOutput(response?.output) === "passed",
+        ),
+        "Dataset eval preview did not pass all seeded word-count rows.",
+      );
+
+      const metricName = `api_eval_drawer_${suffix}`;
+      await client.post(
+        apiPath("/model-hub/develops/{dataset_id}/add_user_eval/", {
+          dataset_id: fixture.dataset_id,
+        }),
+        {
+          name: metricName,
+          template_id: template.id,
+          config: evalConfig,
+          run: false,
+          model: "turing_small",
+          error_localizer: false,
+        },
+      );
+
+      const userList = await client.get(
+        apiPath("/model-hub/develops/{dataset_id}/get_evals_list/", {
+          dataset_id: fixture.dataset_id,
+        }),
+        { query: { eval_type: "user", search_text: metricName } },
+      );
+      const userRows = payloadArray(userList?.evals, "evals");
+      const userEval = userRows.find((row) => row.name === metricName);
+      assert(
+        isUuid(userEval?.id),
+        "Dataset eval list did not return the new metric.",
+      );
+      const metricId = userEval.id;
+
+      const userStructure = await client.get(
+        apiPath(
+          "/model-hub/develops/{dataset_id}/get_eval_structure/{eval_id}/",
+          { dataset_id: fixture.dataset_id, eval_id: metricId },
+        ),
+        { query: { eval_type: "user" } },
+      );
+      assertDatasetEvalStructure(userStructure, {
+        metricId,
+        templateId: template.id,
+        expectedName: metricName,
+        expectedMapping: { text: fixture.input_column_id },
+      });
+
+      let activeAudit = await loadDatasetEvalDrawerDbAudit({
+        datasetId: fixture.dataset_id,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+      });
+      assertDatasetEvalDrawerDbAudit(activeAudit, {
+        datasetId: fixture.dataset_id,
+        templateId: template.id,
+        metricId,
+        metricName,
+        organizationId,
+        workspaceId,
+        expectedStatus: "Inactive",
+        expectedDeleted: false,
+        expectedEvalColumns: 0,
+      });
+
+      await client.post(
+        apiPath("/model-hub/develops/{dataset_id}/start_evals_process/", {
+          dataset_id: fixture.dataset_id,
+        }),
+        { user_eval_ids: [metricId] },
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/develops/{dataset_id}/start_evals_process/", {
+              dataset_id: fixture.dataset_id,
+            }),
+            { user_eval_ids: [randomUUID()] },
+          ),
+        404,
+        "Dataset eval start accepted an eval id outside the dataset/workspace.",
+      );
+
+      const startedAudit = await loadDatasetEvalDrawerDbAudit({
+        datasetId: fixture.dataset_id,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+      });
+      assertDatasetEvalDrawerDbAudit(startedAudit, {
+        datasetId: fixture.dataset_id,
+        templateId: template.id,
+        metricId,
+        metricName,
+        organizationId,
+        workspaceId,
+        expectedStatus: "NotStarted",
+        expectedDeleted: false,
+        expectedEvalColumns: 1,
+        expectedReasonColumns: 1,
+      });
+
+      await client.post(
+        apiPath("/model-hub/develops/{dataset_id}/stop_user_eval/{eval_id}/", {
+          dataset_id: fixture.dataset_id,
+          eval_id: metricId,
+        }),
+        {},
+      );
+      const stoppedAudit = await loadDatasetEvalDrawerDbAudit({
+        datasetId: fixture.dataset_id,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+      });
+      assertDatasetEvalDrawerDbAudit(stoppedAudit, {
+        datasetId: fixture.dataset_id,
+        templateId: template.id,
+        metricId,
+        metricName,
+        organizationId,
+        workspaceId,
+        expectedStatus: "Error",
+        expectedDeleted: false,
+        expectedEvalColumns: 1,
+        expectedReasonColumns: 1,
+      });
+
+      await client.delete(
+        apiPath(
+          "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/",
+          {
+            dataset_id: fixture.dataset_id,
+            eval_id: metricId,
+          },
+        ),
+        { body: { delete_column: true } },
+      );
+      const deletedMetricAudit = await loadDatasetEvalDrawerDbAudit({
+        datasetId: fixture.dataset_id,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+      });
+      assertDatasetEvalDrawerDbAudit(deletedMetricAudit, {
+        datasetId: fixture.dataset_id,
+        templateId: template.id,
+        metricId,
+        metricName,
+        organizationId,
+        workspaceId,
+        expectedStatus: "Error",
+        expectedDeleted: true,
+        expectedEvalColumns: 0,
+        expectedReasonColumns: 0,
+        expectedDeletedEvalColumns: 1,
+        expectedDeletedReasonColumns: 1,
+      });
+
+      const templateName = `api_journey_eval_drawer_template_${suffix}`;
+      const createdTemplate = await client.post(
+        apiPath("/model-hub/create_custom_evals/"),
+        {
+          name: templateName,
+          description:
+            "Custom eval template for dataset drawer delete coverage.",
+          template_type: "Futureagi",
+          output_type: "Pass/Fail",
+          required_keys: ["response"],
+          criteria: "Judge {{response}} for clarity.",
+          tags: ["api-journey", "dataset-eval-drawer"],
+          config: {
+            model: "turing_large",
+            proxy_agi: true,
+            visible_ui: true,
+          },
+          check_internet: false,
+        },
+      );
+      const templateId =
+        createdTemplate?.result?.eval_template_id ||
+        createdTemplate?.data?.result?.eval_template_id ||
+        createdTemplate?.eval_template_id;
+      assert(
+        isUuid(templateId),
+        "Dataset eval drawer custom template create did not return a UUID.",
+      );
+      let templateDeleted = false;
+      cleanup.defer("delete API journey dataset eval drawer template", () => {
+        if (templateDeleted) return null;
+        return client.post(apiPath("/model-hub/eval-templates/bulk-delete/"), {
+          template_ids: [templateId],
+        });
+      });
+
+      await client.delete(
+        apiPath(
+          "/model-hub/develops/{dataset_id}/delete_template_eval/{eval_id}/",
+          { dataset_id: fixture.dataset_id, eval_id: templateId },
+        ),
+      );
+      templateDeleted = true;
+      const deletedTemplateAudit = await loadCustomEvalCreateDbAudit({
+        templateId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        deletedTemplateAudit.deleted === true &&
+          deletedTemplateAudit.deleted_at_set === true,
+        "Dataset eval drawer template delete did not stamp deleted_at.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.get(
+            apiPath(
+              "/model-hub/develops/{dataset_id}/get_eval_structure/{eval_id}/",
+              { dataset_id: randomUUID(), eval_id: template.id },
+            ),
+            { query: { eval_type: "preset" } },
+          ),
+        404,
+        "Dataset eval structure accepted an inaccessible dataset id.",
+      );
+
+      activeAudit = await loadDatasetEvalDrawerDbAudit({
+        datasetId: fixture.dataset_id,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+      });
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        template_id: template.id,
+        user_eval_metric_id: metricId,
+        preview_responses: previewResponses.length,
+        status_after_start: startedAudit.metric_status,
+        status_after_stop: stoppedAudit.metric_status,
+        metric_deleted_at_set: deletedMetricAudit.metric_deleted_at_set,
+        deleted_eval_column_count: Number(
+          deletedMetricAudit.deleted_eval_column_count,
+        ),
+        deleted_reason_column_count: Number(
+          deletedMetricAudit.deleted_reason_column_count,
+        ),
+        deleted_template_id: templateId,
+        deleted_template_deleted_at_set: deletedTemplateAudit.deleted_at_set,
+        active_metric_count_after_delete: Number(
+          activeAudit.active_metric_count,
+        ),
+      });
+    },
+  },
+  {
+    id: "DPE-API-028",
+    title: "Legacy experiment row diff scope and payload",
+    tags: ["experiments", "dataset", "guard", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedLegacyExperimentRowDiffFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Legacy row-diff fixture seed did not create an experiment.",
+      );
+      cleanup.defer("hard delete API journey legacy row-diff fixture", () =>
+        hardDeleteLegacyExperimentRowDiffFixture(fixture),
+      );
+
+      const diffPayload = await client.post(
+        apiPath("/model-hub/develops/get-row-diff/"),
+        {
+          experiment_id: fixture.experiment_id,
+          column_ids: [fixture.base_column_id, fixture.other_column_id],
+          row_ids: [fixture.row_id],
+          compare_column_ids: [fixture.base_column_id, fixture.other_column_id],
+        },
+      );
+      const rowPayload = diffPayload?.[fixture.row_id];
+      assert(rowPayload, "Legacy row-diff did not return the requested row.");
+      assert(
+        rowPayload?.[fixture.base_column_id]?.cell_value ===
+          fixture.base_cell_value,
+        "Legacy row-diff returned the wrong base cell value.",
+      );
+      assert(
+        rowPayload?.[fixture.base_column_id]?.cell_diff_value == null,
+        "Legacy row-diff returned a diff for the base column.",
+      );
+      assert(
+        rowPayload?.[fixture.other_column_id]?.cell_value ===
+          fixture.other_cell_value,
+        "Legacy row-diff returned the wrong comparison cell value.",
+      );
+      const diffStatuses = asArray(
+        rowPayload?.[fixture.other_column_id]?.cell_diff_value,
+      ).map((part) => part.status);
+      assert(
+        diffStatuses.includes("removed") && diffStatuses.includes("added"),
+        "Legacy row-diff did not include removed and added diff segments.",
+      );
+      assert(
+        rowPayload?.[fixture.other_column_id]?.value_infos?.metadata?.prompt ===
+          "other",
+        "Legacy row-diff did not preserve JSON value_infos.",
+      );
+
+      const outsideError = await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/develops/get-row-diff/"), {
+            experiment_id: fixture.experiment_id,
+            column_ids: [fixture.base_column_id, fixture.outside_column_id],
+            row_ids: [fixture.outside_row_id],
+            compare_column_ids: [
+              fixture.base_column_id,
+              fixture.outside_column_id,
+            ],
+          }),
+        400,
+        "Legacy row-diff accepted rows or columns outside the experiment dataset.",
+      );
+      assert(
+        !JSON.stringify(outsideError.body || {}).includes(
+          fixture.outside_cell_value,
+        ),
+        "Legacy row-diff outside-dataset error leaked the outside cell value.",
+      );
+
+      let otherWorkspaceGuard = "skipped:no-other-workspace";
+      const otherWorkspaceId = await findOtherWorkspaceId(
+        organizationId,
+        workspaceId,
+      );
+      if (otherWorkspaceId) {
+        const otherFixture = await seedLegacyExperimentRowDiffFixture({
+          runId: `${runId}-otherws`,
+          organizationId,
+          workspaceId: otherWorkspaceId,
+        });
+        cleanup.defer(
+          "hard delete API journey other-workspace legacy row-diff fixture",
+          () => hardDeleteLegacyExperimentRowDiffFixture(otherFixture),
+        );
+        await expectApiErrorStatus(
+          () =>
+            client.post(apiPath("/model-hub/develops/get-row-diff/"), {
+              experiment_id: otherFixture.experiment_id,
+              column_ids: [
+                otherFixture.base_column_id,
+                otherFixture.other_column_id,
+              ],
+              row_ids: [otherFixture.row_id],
+              compare_column_ids: [
+                otherFixture.base_column_id,
+                otherFixture.other_column_id,
+              ],
+            }),
+          404,
+          "Legacy row-diff accepted a same-org experiment from another workspace.",
+        );
+        otherWorkspaceGuard = "passed";
+      }
+
+      evidence.push({
+        experiment_id: fixture.experiment_id,
+        dataset_id: fixture.dataset_id,
+        row_id: fixture.row_id,
+        base_column_id: fixture.base_column_id,
+        other_column_id: fixture.other_column_id,
+        outside_dataset_id: fixture.outside_dataset_id,
+        diff_segment_count: diffStatuses.length,
+        outside_guard_status: outsideError.status,
+        other_workspace_guard: otherWorkspaceGuard,
+      });
+    },
+  },
+  {
+    id: "DPE-API-029",
+    title: "Hugging Face create and add-rows validation guards",
+    tags: ["dataset", "huggingface", "guard", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedHuggingFaceGuardFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Hugging Face guard fixture seed did not create datasets.",
+      );
+      cleanup.defer("hard delete API journey Hugging Face guard fixture", () =>
+        hardDeleteHuggingFaceGuardFixture(fixture),
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/develops/create-dataset-from-huggingface/"),
+            {
+              name: fixture.duplicate_dataset_name,
+              model_type: "GenerativeLLM",
+              num_rows: 1,
+              huggingface_dataset_name: "rajpurkar/squad",
+              huggingface_dataset_config: "plain_text",
+              huggingface_dataset_split: "train",
+            },
+          ),
+        400,
+        "Hugging Face create accepted a duplicate active dataset name.",
+      );
+
+      const afterDuplicateAudit = await loadHuggingFaceGuardFixtureAudit(
+        fixture,
+        organizationId,
+        workspaceId,
+      );
+      assert(
+        Number(afterDuplicateAudit.duplicate_name_active_count) === 1,
+        "Duplicate Hugging Face create produced an extra active dataset.",
+      );
+
+      let otherWorkspaceGuard = "skipped:no-other-workspace";
+      if (fixture.other_dataset_id) {
+        await expectApiErrorStatus(
+          () =>
+            client.post(
+              apiPath(
+                "/model-hub/develops/{dataset_id}/add_rows_from_huggingface/",
+                { dataset_id: fixture.other_dataset_id },
+              ),
+              {
+                num_rows: 1,
+                huggingface_dataset_name: "rajpurkar/squad",
+                huggingface_dataset_config: "plain_text",
+                huggingface_dataset_split: "train",
+              },
+            ),
+          404,
+          "Hugging Face add-rows accepted a same-org other-workspace dataset.",
+        );
+        otherWorkspaceGuard = "passed";
+      }
+
+      const finalAudit = await loadHuggingFaceGuardFixtureAudit(
+        fixture,
+        organizationId,
+        workspaceId,
+      );
+      if (fixture.other_dataset_id) {
+        assert(
+          Number(finalAudit.other_dataset_row_count) ===
+            Number(fixture.other_initial_row_count),
+          "Other-workspace Hugging Face add-rows mutated row count.",
+        );
+        assert(
+          Number(finalAudit.other_dataset_column_count) ===
+            Number(fixture.other_initial_column_count),
+          "Other-workspace Hugging Face add-rows mutated column count.",
+        );
+      }
+
+      evidence.push({
+        duplicate_dataset_id: fixture.duplicate_dataset_id,
+        duplicate_dataset_name: fixture.duplicate_dataset_name,
+        duplicate_name_active_count: Number(
+          finalAudit.duplicate_name_active_count,
+        ),
+        other_workspace_guard: otherWorkspaceGuard,
+        other_dataset_id: fixture.other_dataset_id,
+        other_dataset_row_count: Number(
+          finalAudit.other_dataset_row_count || 0,
+        ),
+        other_dataset_column_count: Number(
+          finalAudit.other_dataset_column_count || 0,
+        ),
+      });
+    },
+  },
+  {
+    id: "DPE-API-030",
+    title: "Experiment dataset table readback and materialize guards",
+    tags: ["dataset", "experiment", "guard", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedExperimentDatasetMaterializeFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Experiment dataset materialize fixture seed did not create records.",
+      );
+      cleanup.defer(
+        "hard delete API journey experiment dataset materialize fixture",
+        () => hardDeleteExperimentDatasetMaterializeFixture(fixture),
+      );
+
+      const table = await client.get(
+        apiPath(
+          "/model-hub/develops/{experiment_dataset_id}/get-experiment-dataset-table/",
+          { experiment_dataset_id: fixture.experiment_dataset_id },
+        ),
+        { query: { page_size: 1, current_page_index: 0 } },
+      );
+      assert(
+        table?.metadata?.dataset_name === fixture.experiment_dataset_name,
+        "Experiment dataset table returned the wrong dataset name.",
+      );
+      assert(
+        table.metadata.experiment_id === fixture.experiment_id,
+        "Experiment dataset table metadata did not expose the parent experiment id.",
+      );
+      assert(
+        table.metadata.experiment_name === fixture.experiment_name,
+        "Experiment dataset table metadata did not expose the parent experiment name.",
+      );
+      assert(
+        Number(table.metadata.total_rows) === 2,
+        "Experiment dataset table total_rows did not include all rows.",
+      );
+      assert(
+        Number(table.metadata.total_pages) === 2,
+        "Experiment dataset table total_pages did not use the unsliced row count.",
+      );
+      assert(
+        Array.isArray(table.table) && table.table.length === 1,
+        "Experiment dataset table page did not return exactly one row.",
+      );
+      assert(
+        table.table[0]?.row_id === fixture.first_row_id,
+        "Experiment dataset table did not preserve row ordering.",
+      );
+      assert(
+        table.table[0]?.[fixture.input_column_id]?.cell_value ===
+          fixture.first_input_value,
+        "Experiment dataset table did not include the base input cell.",
+      );
+      assert(
+        table.table[0]?.[fixture.result_column_id]?.cell_value ===
+          fixture.first_result_value,
+        "Experiment dataset table did not include the experiment result cell.",
+      );
+      const columnNames = new Set(
+        asArray(table.column_config).map((column) => column.name),
+      );
+      assert(
+        columnNames.has("api_exp_input") && columnNames.has("api_exp_result"),
+        "Experiment dataset table did not expose both base and experiment columns.",
+      );
+
+      const [derivedDatasets, summary] = await Promise.all([
+        client.get(
+          apiPath("/model-hub/develops/get-derived-datasets/{dataset_id}/", {
+            dataset_id: fixture.dataset_id,
+          }),
+        ),
+        client.get(
+          apiPath("/model-hub/experiments/v2/{experiment_id}/stats/", {
+            experiment_id: fixture.experiment_id,
+          }),
+        ),
+      ]);
+      const derivedRow = asArray(derivedDatasets).find(
+        (row) => row?.id === fixture.experiment_dataset_id,
+      );
+      assert(
+        derivedRow?.name === fixture.experiment_dataset_name,
+        "Derived datasets endpoint did not include the experiment dataset row.",
+      );
+      assert(
+        derivedRow?.experiment?.id === fixture.experiment_id,
+        "Derived datasets endpoint did not expose the parent experiment id.",
+      );
+      assertExperimentStatsPayload(summary);
+      assert(
+        asArray(summary.table_data).some(
+          (row) => row?.dataset_id === fixture.experiment_dataset_id,
+        ),
+        "Individual experiment summary did not include the experiment dataset row.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.get(
+            apiPath("/model-hub/experiments/v2/{experiment_id}/stats/", {
+              experiment_id: fixture.experiment_dataset_id,
+            }),
+          ),
+        400,
+        "Experiment summary accepted an experiment dataset id as an experiment id.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/develops/{exp_dataset_id}/create-dataset/", {
+              exp_dataset_id: fixture.experiment_dataset_id,
+            }),
+            {
+              name: fixture.duplicate_dataset_name,
+              model_type: "GenerativeLLM",
+            },
+          ),
+        400,
+        "Experiment create-dataset accepted a duplicate active dataset name.",
+      );
+
+      let otherWorkspaceGuard = "skipped:no-other-workspace";
+      if (fixture.other_experiment_dataset_id) {
+        await Promise.all([
+          expectApiErrorStatus(
+            () =>
+              client.get(
+                apiPath(
+                  "/model-hub/develops/{experiment_dataset_id}/get-experiment-dataset-table/",
+                  {
+                    experiment_dataset_id: fixture.other_experiment_dataset_id,
+                  },
+                ),
+              ),
+            404,
+            "Experiment dataset table read accepted a same-org other-workspace fixture.",
+          ),
+          expectApiErrorStatus(
+            () =>
+              client.get(
+                apiPath("/model-hub/develops/get-derived-datasets/{dataset_id}/", {
+                  dataset_id: fixture.other_dataset_id,
+                }),
+              ),
+            404,
+            "Derived datasets endpoint exposed a same-org other-workspace dataset.",
+          ),
+          expectApiErrorStatus(
+            () =>
+              client.post(
+                apiPath("/model-hub/develops/{exp_dataset_id}/create-dataset/", {
+                  exp_dataset_id: fixture.other_experiment_dataset_id,
+                }),
+                {
+                  name: fixture.other_blocked_dataset_name,
+                  model_type: "GenerativeLLM",
+                },
+              ),
+            404,
+            "Experiment create-dataset accepted a same-org other-workspace fixture.",
+          ),
+        ]);
+        otherWorkspaceGuard = "passed";
+      }
+
+      const audit = await loadExperimentDatasetMaterializeAudit(fixture);
+      assert(
+        Number(audit.duplicate_name_active_count) === 1,
+        "Experiment create-dataset duplicate guard produced an extra dataset.",
+      );
+      assert(
+        Number(audit.blocked_dataset_count) === 0,
+        "Experiment create-dataset other-workspace guard created a dataset.",
+      );
+
+      evidence.push({
+        experiment_dataset_id: fixture.experiment_dataset_id,
+        experiment_dataset_name: fixture.experiment_dataset_name,
+        table_total_rows: Number(table.metadata.total_rows),
+        table_total_pages: Number(table.metadata.total_pages),
+        derived_dataset_count: asArray(derivedDatasets).length,
+        summary_rows: asArray(summary.table_data).length,
+        duplicate_dataset_name: fixture.duplicate_dataset_name,
+        duplicate_name_active_count: Number(audit.duplicate_name_active_count),
+        other_workspace_guard: otherWorkspaceGuard,
+        other_experiment_dataset_id: fixture.other_experiment_dataset_id,
+        blocked_dataset_count: Number(audit.blocked_dataset_count),
       });
     },
   },
@@ -1583,7 +4236,14 @@ export const datasetEvalJourneys = [
     title:
       "Dataset run-prompt preview, create, config reload, row rerun, and guards",
     tags: ["prompts", "dataset", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const datasetName = `api journey run prompt ${runId}`;
@@ -1631,7 +4291,7 @@ export const datasetEvalJourneys = [
           source: "OTHERS",
         },
       );
-      let table = await getDatasetTable(client, datasetId, {
+      const table = await getDatasetTable(client, datasetId, {
         column_config_only: true,
       });
       const inputColumn = findColumn(table, inputName);
@@ -1674,14 +4334,11 @@ export const datasetEvalJourneys = [
       );
       assertRunPromptPreview(preview);
 
-      await client.post(
-        apiPath("/model-hub/develops/add_run_prompt_column/"),
-        {
-          dataset_id: datasetId,
-          name: outputName,
-          config,
-        },
-      );
+      await client.post(apiPath("/model-hub/develops/add_run_prompt_column/"), {
+        dataset_id: datasetId,
+        name: outputName,
+        config,
+      });
 
       const firstRun = await waitForRunPromptColumnCompletion(client, {
         datasetId,
@@ -1825,6 +4482,124 @@ export const datasetEvalJourneys = [
     },
   },
   {
+    id: "PROMPT-API-005",
+    title: "Dataset run-prompt edit and config scope guards",
+    tags: ["prompts", "dataset", "mutating", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const fixture = await seedRunPromptEditFixture({
+        runId,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Run-prompt edit fixture seed did not create a dataset.",
+      );
+      cleanup.defer("hard delete API journey run-prompt edit fixture", () =>
+        hardDeleteRunPromptEditFixture(fixture),
+      );
+
+      const initialConfig = await client.get(
+        apiPath("/model-hub/develops/retrieve_run_prompt_column_config/"),
+        { query: { column_id: fixture.output_column_id } },
+      );
+      assertRunPromptConfigReload(initialConfig, {
+        datasetId: fixture.dataset_id,
+        outputName: fixture.output_column_name,
+        modelName: fixture.model_name,
+        inputName: fixture.input_column_name,
+      });
+
+      const editConfig = runPromptColumnConfig(
+        fixture.model_name,
+        fixture.input_column_name,
+      );
+      editConfig.messages[0].content[0].text =
+        "Return exactly EDITED OK. Do not include punctuation.";
+      const editResult = await client.post(
+        apiPath("/model-hub/develops/edit_run_prompt_column/"),
+        {
+          dataset_id: fixture.dataset_id,
+          column_id: fixture.output_column_id,
+          name: fixture.edited_output_column_name,
+          config: editConfig,
+        },
+      );
+      assert(
+        String(editResult).includes("updated successfully"),
+        "Run-prompt edit did not return a success message.",
+      );
+
+      const editedConfig = await client.get(
+        apiPath("/model-hub/develops/retrieve_run_prompt_column_config/"),
+        { query: { column_id: fixture.output_column_id } },
+      );
+      assertRunPromptConfigReload(editedConfig, {
+        datasetId: fixture.dataset_id,
+        outputName: fixture.edited_output_column_name,
+        modelName: fixture.model_name,
+        inputName: fixture.input_column_name,
+      });
+
+      await expectApiErrorStatus(
+        () =>
+          client.get(
+            apiPath("/model-hub/develops/retrieve_run_prompt_column_config/"),
+            { query: { column_id: randomUUID() } },
+          ),
+        404,
+        "Run-prompt config accepted a missing column id.",
+      );
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/develops/edit_run_prompt_column/"), {
+            dataset_id: randomUUID(),
+            column_id: fixture.output_column_id,
+            name: `missing ${fixture.edited_output_column_name}`,
+            config: editConfig,
+          }),
+        404,
+        "Run-prompt edit accepted a missing dataset id.",
+      );
+
+      const audit = await loadRunPromptColumnDbAudit({
+        datasetId: fixture.dataset_id,
+        rowId: fixture.row_id,
+        columnId: fixture.output_column_id,
+        organizationId,
+        workspaceId,
+      });
+      assertRunPromptColumnDbAudit(audit, {
+        datasetId: fixture.dataset_id,
+        rowId: fixture.row_id,
+        columnId: fixture.output_column_id,
+        outputName: fixture.edited_output_column_name,
+        modelName: fixture.model_name,
+        organizationId,
+        workspaceId,
+        expectedDeleted: false,
+      });
+
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        column_id: fixture.output_column_id,
+        run_prompt_id: fixture.run_prompt_id,
+        original_name: fixture.output_column_name,
+        edited_name: fixture.edited_output_column_name,
+        run_prompt_status: audit.run_prompt_status,
+        active_cell_count: Number(audit.active_cell_count),
+      });
+    },
+  },
+  {
     id: "KB-API-001",
     title: "Knowledge base SDK snippets use placeholder credentials",
     tags: ["knowledge-base", "safe", "credential-safety", "db-audit"],
@@ -1836,14 +4611,30 @@ export const datasetEvalJourneys = [
         organizationId,
         email,
       );
-      const createResult = await client.get(
-        apiPath("/model-hub/knowledge-base/"),
-        { query: { type: "create", name: `api journey kb ${runId}` } },
-      );
-      const updateResult = await client.get(
-        apiPath("/model-hub/knowledge-base/"),
-        { query: { type: "update", name: `api journey kb ${runId}` } },
-      );
+      let createResult;
+      let updateResult;
+      try {
+        createResult = await client.get(
+          apiPath("/model-hub/knowledge-base/"),
+          { query: { type: "create", name: `api journey kb ${runId}` } },
+        );
+        updateResult = await client.get(
+          apiPath("/model-hub/knowledge-base/"),
+          { query: { type: "update", name: `api journey kb ${runId}` } },
+        );
+      } catch (error) {
+        if (isLegacyKnowledgeBaseEntitlementDeniedError(error)) {
+          evidence.push({
+            mode: "legacy_entitlement_denied",
+            status: error.status,
+            body: error.body,
+          });
+          skip(
+            "Legacy knowledge-base SDK endpoint is entitlement-blocked in this local workspace; KB-API-004 covers the current gate.",
+          );
+        }
+        throw error;
+      }
       const afterAudit = await loadUserSdkCredentialDbAudit(
         organizationId,
         email,
@@ -1852,7 +4643,8 @@ export const datasetEvalJourneys = [
       assertKnowledgeBaseSdkSnippetSafety(createResult?.code, "create");
       assertKnowledgeBaseSdkSnippetSafety(updateResult?.code, "update");
       assert(
-        Number(afterAudit.user_key_count) === Number(beforeAudit.user_key_count),
+        Number(afterAudit.user_key_count) ===
+          Number(beforeAudit.user_key_count),
         "knowledge-base SDK code generation created or deleted a user API key.",
       );
 
@@ -1880,6 +4672,7 @@ export const datasetEvalJourneys = [
       runId,
     }) {
       requireMutations();
+      await skipIfLegacyKnowledgeBaseEntitlementDenied(client, evidence);
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const kbName = `api_journey_kb_${suffix}`;
       const fileName = `api_journey_kb_${suffix}.txt`;
@@ -1905,7 +4698,10 @@ export const datasetEvalJourneys = [
       });
       kbId = created?.kb_id;
       const fileIds = asArray(created?.file_ids);
-      assert(isUuid(kbId), "Knowledge base create did not return a UUID kb_id.");
+      assert(
+        isUuid(kbId),
+        "Knowledge base create did not return a UUID kb_id.",
+      );
       assert(
         fileIds.length === 1 && isUuid(fileIds[0]),
         "Knowledge base create did not return the uploaded file id.",
@@ -2035,7 +4831,14 @@ export const datasetEvalJourneys = [
     id: "KB-API-003",
     title: "Structured knowledge base viewset lifecycle",
     tags: ["knowledge-base", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, evidence, organizationId, workspaceId, runId }) {
+    async run({
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      workspaceId,
+      runId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const name = `api_journey_structured_kb_${suffix}`;
@@ -2054,19 +4857,37 @@ export const datasetEvalJourneys = [
       assertStructuredEmbeddingModels(underscoreModels);
       const embeddingModel = hyphenModels[0].value;
 
-      const created = await client.post(apiPath("/model-hub/kb/"), {
-        name,
-        embedding_model: embeddingModel,
-        chunk_size: 256,
-      });
+      let created;
+      try {
+        created = await client.post(apiPath("/model-hub/kb/"), {
+          name,
+          embedding_model: embeddingModel,
+          chunk_size: 256,
+        });
+      } catch (error) {
+        if (isLegacyKnowledgeBaseEntitlementDeniedError(error)) {
+          evidence.push({
+            mode: "structured_create_entitlement_denied",
+            status: error.status,
+            body: error.body,
+          });
+          skip(
+            "Structured knowledge-base create is entitlement-blocked in this local workspace; KB-API-004 covers the current gate.",
+          );
+        }
+        throw error;
+      }
       kbId = created?.id;
       assert(isUuid(kbId), "Structured KB create did not return a UUID id.");
-      cleanup.defer("delete API journey structured knowledge base", async () => {
-        if (!kbId || deleted) return null;
-        return ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/kb/{id}/", { id: kbId })),
-        );
-      });
+      cleanup.defer(
+        "delete API journey structured knowledge base",
+        async () => {
+          if (!kbId || deleted) return null;
+          return ignoreNotFound(() =>
+            client.delete(apiPath("/model-hub/kb/{id}/", { id: kbId })),
+          );
+        },
+      );
       assertStructuredKnowledgeBasePayload(created, {
         kbId,
         name,
@@ -2098,7 +4919,9 @@ export const datasetEvalJourneys = [
         "Structured KB list/search did not return the created KB.",
       );
 
-      const detail = await client.get(apiPath("/model-hub/kb/{id}/", { id: kbId }));
+      const detail = await client.get(
+        apiPath("/model-hub/kb/{id}/", { id: kbId }),
+      );
       assertStructuredKnowledgeBasePayload(detail, {
         kbId,
         name,
@@ -2169,7 +4992,57 @@ export const datasetEvalJourneys = [
         supported_model_count: hyphenModels.length,
         list_rows_seen: rows.length,
         deleted_at_set: deletedAudit.deleted_at_set === true,
-        frontend_usage: "No current frontend caller found; UI uses legacy endpoints.knowledge.*",
+        frontend_usage:
+          "No current frontend caller found; UI uses legacy endpoints.knowledge.*",
+      });
+    },
+  },
+  {
+    id: "KB-API-004",
+    title: "Legacy knowledge base entitlement gate and structured KB read availability",
+    tags: ["knowledge-base", "safe", "entitlement", "smoke"],
+    async run({ client, evidence }) {
+      const tableError = await expectLegacyKnowledgeBaseEntitlementDenied(
+        () =>
+          client.get(apiPath("/model-hub/knowledge-base/get/"), {
+            query: { page_number: 0, page_size: 1 },
+          }),
+        "Legacy Knowledge Base table endpoint did not return the expected entitlement gate.",
+      );
+      const optionError = await expectLegacyKnowledgeBaseEntitlementDenied(
+        () => client.get(apiPath("/model-hub/knowledge-base/list/")),
+        "Legacy Knowledge Base option endpoint did not return the expected entitlement gate.",
+      );
+
+      const structuredList = await client.get(apiPath("/model-hub/kb/"), {
+        query: { page: 1, page_size: 5 },
+      });
+      const structuredRows = payloadArray(structuredList, "results");
+      const embeddingModels = asArray(
+        await client.get(apiPath("/model-hub/kb/supported-embedding-models")),
+      );
+      assertStructuredEmbeddingModels(embeddingModels);
+      const structuredCreateError =
+        await expectLegacyKnowledgeBaseEntitlementDenied(
+          () =>
+            client.post(apiPath("/model-hub/kb/"), {
+              name: `api_journey_structured_gate_${Date.now().toString(36)}`,
+              embedding_model: embeddingModels[0].value,
+              chunk_size: 256,
+            }),
+          "Structured Knowledge Base create did not return the expected entitlement gate.",
+        );
+
+      evidence.push({
+        legacy_table_status: tableError.status,
+        legacy_table_code: tableError.body?.code,
+        legacy_option_status: optionError.status,
+        legacy_option_code: optionError.body?.code,
+        structured_create_status: structuredCreateError.status,
+        structured_create_code: structuredCreateError.body?.code,
+        structured_kb_count: structuredList?.count ?? structuredRows.length,
+        structured_embedding_model_count: embeddingModels.length,
+        mode: "legacy_and_structured_create_entitlement_denied_structured_read_available",
       });
     },
   },
@@ -2301,7 +5174,14 @@ export const datasetEvalJourneys = [
     id: "EVAL-API-003",
     title: "Eval template versions, usage, metrics, and ground-truth lifecycle",
     tags: ["evals", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const templateName = `api_journey_eval_gt_${suffix}`;
@@ -2321,7 +5201,10 @@ export const datasetEvalJourneys = [
         },
       );
       const templateId = created?.id;
-      assert(isUuid(templateId), "Eval template create did not return a UUID id.");
+      assert(
+        isUuid(templateId),
+        "Eval template create did not return a UUID id.",
+      );
       cleanup.defer("delete API journey eval template", () =>
         client.post(apiPath("/model-hub/eval-templates/bulk-delete/"), {
           template_ids: [templateId],
@@ -2403,7 +5286,10 @@ export const datasetEvalJourneys = [
           },
         },
       );
-      assert(isUuid(version?.id), "Eval version create did not return a UUID id.");
+      assert(
+        isUuid(version?.id),
+        "Eval version create did not return a UUID id.",
+      );
       assert(
         Number(version.version_number) === 2,
         "Eval version create did not create version 2.",
@@ -2428,7 +5314,10 @@ export const datasetEvalJourneys = [
         ),
         {},
       );
-      assert(isUuid(restored?.id), "Eval version restore did not return a UUID id.");
+      assert(
+        isUuid(restored?.id),
+        "Eval version restore did not return a UUID id.",
+      );
       assert(
         Number(restored.restored_from) === 2,
         "Eval version restore did not report the restored source version.",
@@ -2685,7 +5574,8 @@ export const datasetEvalJourneys = [
 
       assertEvalSdkSnippetSafety(result);
       assert(
-        Number(afterAudit.user_key_count) === Number(beforeAudit.user_key_count),
+        Number(afterAudit.user_key_count) ===
+          Number(beforeAudit.user_key_count),
         "eval SDK code generation created or deleted a user API key.",
       );
 
@@ -2700,6 +5590,783 @@ export const datasetEvalJourneys = [
         user_key_count_before: Number(beforeAudit.user_key_count),
         user_key_count_after: Number(afterAudit.user_key_count),
         placeholders_present: true,
+      });
+    },
+  },
+  {
+    id: "EVAL-API-018",
+    title: "Legacy custom eval create contract and cleanup",
+    tags: ["evals", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      const templateName = `api_journey_custom_eval_${suffix}`;
+      const createPayload = {
+        name: templateName,
+        description: "Custom eval created by API journey.",
+        template_type: "Futureagi",
+        output_type: "Pass/Fail",
+        required_keys: ["response"],
+        criteria: "Judge {{response}} for clarity.",
+        tags: ["api-journey", "custom-eval"],
+        config: {
+          model: "turing_large",
+          proxy_agi: true,
+          visible_ui: true,
+        },
+        check_internet: false,
+      };
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/create_custom_evals/"), {
+            ...createPayload,
+            name: `${templateName}_unknown_field`,
+            requiredKeys: ["legacy"],
+          }),
+        400,
+        "create_custom_evals accepted an unknown camelCase request field.",
+      );
+
+      const created = await client.post(
+        apiPath("/model-hub/create_custom_evals/"),
+        createPayload,
+      );
+      const createResult = created?.result || created?.data?.result || created;
+      const templateId = createResult?.eval_template_id;
+      assert(
+        isUuid(templateId),
+        "create_custom_evals did not return eval_template_id.",
+      );
+
+      let templateDeleted = false;
+      cleanup.defer("delete API journey legacy custom eval", () => {
+        if (templateDeleted) return null;
+        return client.post(apiPath("/model-hub/eval-templates/bulk-delete/"), {
+          template_ids: [templateId],
+        });
+      });
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/create_custom_evals/"),
+            createPayload,
+          ),
+        400,
+        "create_custom_evals accepted a duplicate active template name.",
+      );
+
+      const audit = await loadCustomEvalCreateDbAudit({
+        templateId,
+        organizationId,
+        workspaceId,
+      });
+      assertCustomEvalCreateDbAudit(audit, {
+        templateId,
+        templateName,
+        organizationId,
+        workspaceId,
+        expectedDeleted: false,
+      });
+
+      const deleted = await client.post(
+        apiPath("/model-hub/eval-templates/bulk-delete/"),
+        { template_ids: [templateId] },
+      );
+      assert(
+        Number(deleted?.deleted_count) === 1,
+        "Custom eval cleanup did not delete the created template.",
+      );
+      templateDeleted = true;
+
+      const deletedAudit = await loadCustomEvalCreateDbAudit({
+        templateId,
+        organizationId,
+        workspaceId,
+      });
+      assertCustomEvalCreateDbAudit(deletedAudit, {
+        templateId,
+        templateName,
+        organizationId,
+        workspaceId,
+        expectedDeleted: true,
+      });
+
+      evidence.push({
+        eval_template_id: templateId,
+        eval_type_id: audit.eval_type_id,
+        required_keys: audit.required_keys,
+        version_count: Number(audit.version_count),
+        default_version_count: Number(audit.default_version_count),
+        deleted_at_set: deletedAudit.deleted_at_set,
+      });
+    },
+  },
+  {
+    id: "EVAL-API-019",
+    title: "Legacy eval-template create contract and version audit",
+    tags: ["evals", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const suffix = runId
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .slice(0, 22);
+      const templateName = `api_legacy_eval_${suffix}`;
+      const systemOwnerName = `api_legacy_eval_sys_${suffix}`;
+      const createPayload = {
+        name: templateName,
+        config: {
+          required_keys: ["response"],
+          eval_type_id: "OutputEvaluator",
+          output: "Pass/Fail",
+        },
+        eval_tags: ["api-journey", "legacy-eval-template"],
+      };
+
+      cleanup.defer(
+        "hard delete API journey legacy eval-template create rows",
+        () =>
+          hardDeleteLegacyEvalTemplateCreateFixture(
+            [templateName, systemOwnerName],
+            organizationId,
+          ),
+      );
+
+      const created = await client.post(
+        apiPath("/model-hub/eval-template/create/"),
+        createPayload,
+      );
+      assert(
+        created === "success" || created?.result === "success",
+        "Legacy eval-template create did not return success.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/eval-template/create/"),
+            createPayload,
+          ),
+        400,
+        "Legacy eval-template create accepted a duplicate active template name.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/eval-template/create/"), {
+            ...createPayload,
+            name: systemOwnerName,
+            owner: "system",
+          }),
+        400,
+        "Legacy eval-template create allowed a user to create owner=system.",
+      );
+
+      const audit = await loadLegacyEvalTemplateCreateAudit({
+        templateName,
+        systemOwnerName,
+        organizationId,
+        workspaceId,
+      });
+      assert(
+        Number(audit.active_template_count) === 1,
+        "Legacy eval-template create did not leave exactly one active template.",
+      );
+      assert(
+        isUuid(audit.template_id),
+        "Legacy eval-template audit did not find the created template id.",
+      );
+      assert(
+        audit.owner === "user",
+        "Legacy eval-template create did not force owner=user.",
+      );
+      assert(
+        !workspaceId || audit.workspace_id === workspaceId,
+        "Legacy eval-template create did not persist request workspace.",
+      );
+      assert(
+        Number(audit.version_count) === 1 &&
+          Number(audit.default_version_count) === 1,
+        "Legacy eval-template create did not create exactly one default version.",
+      );
+      assert(
+        Number(audit.version_scope_mismatch_count) === 0,
+        "Legacy eval-template version scope did not match the template.",
+      );
+      assert(
+        Number(audit.system_owner_count) === 0,
+        "Legacy eval-template create inserted owner=system rows.",
+      );
+      assert(
+        asArray(audit.required_keys).includes("response"),
+        "Legacy eval-template config did not persist required_keys.",
+      );
+
+      evidence.push({
+        eval_template_id: audit.template_id,
+        template_name: templateName,
+        owner: audit.owner,
+        workspace_id: audit.workspace_id,
+        version_count: Number(audit.version_count),
+        default_version_count: Number(audit.default_version_count),
+        duplicate_guard: "passed",
+        system_owner_guard: "passed",
+      });
+    },
+  },
+  {
+    id: "EVAL-API-020",
+    title: "Legacy eval-user-template create and evaluate-rows scoping",
+    tags: ["evals", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const suffix = runId
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .slice(0, 22);
+      const metricName = `api_legacy_user_eval_${suffix}`;
+      const duplicateName = `api_legacy_user_dup_${suffix}`;
+      const template = await findEvalTemplateDetailByName(
+        client,
+        "word_count_in_range",
+      );
+      if (!template) {
+        skip(
+          "System eval word_count_in_range was not available for legacy eval-user-template coverage.",
+        );
+      }
+      const requiredKeys = promptEvalRequiredKeys(template);
+      if (!requiredKeys.includes("text")) {
+        skip("word_count_in_range did not expose the expected text input key.");
+      }
+      const paramsConfig = promptEvalParamsForTemplate(template);
+      const fixture = await seedLegacyEvalUserTemplateFixture({
+        runId,
+        organizationId,
+        workspaceId,
+        templateId: template.id,
+      });
+      assert(
+        fixture?.fixture_created,
+        "Legacy eval-user-template fixture seed did not create datasets.",
+      );
+      cleanup.defer(
+        "hard delete API journey legacy eval-user-template fixture",
+        () => hardDeleteLegacyEvalUserTemplateFixture(fixture),
+      );
+
+      const createPayload = {
+        name: metricName,
+        template_id: template.id,
+        dataset_id: fixture.dataset_id,
+        config: {
+          mapping: { text: fixture.input_column_id },
+          params: paramsConfig.params,
+        },
+        model: "turing_small",
+      };
+
+      const created = await client.post(
+        apiPath("/model-hub/eval-user-template/create/"),
+        createPayload,
+      );
+      assert(
+        created === "success" || created?.result === "success",
+        "Legacy eval-user-template create did not return success.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/eval-user-template/create/"),
+            createPayload,
+          ),
+        400,
+        "Legacy eval-user-template create accepted a duplicate metric name.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/eval-user-template/create/"), {
+            ...createPayload,
+            name: duplicateName,
+            config: {
+              ...createPayload.config,
+              mapping: { text: fixture.outside_column_id },
+            },
+          }),
+        400,
+        "Legacy eval-user-template create accepted a mapped column outside the selected dataset.",
+      );
+
+      let otherWorkspaceCreateGuard = "skipped:no-other-workspace";
+      if (fixture.other_dataset_id) {
+        await expectApiErrorStatus(
+          () =>
+            client.post(apiPath("/model-hub/eval-user-template/create/"), {
+              ...createPayload,
+              name: `${duplicateName}_other`,
+              dataset_id: fixture.other_dataset_id,
+              config: {
+                ...createPayload.config,
+                mapping: { text: fixture.other_column_id },
+              },
+            }),
+          404,
+          "Legacy eval-user-template create accepted a same-org dataset from another workspace.",
+        );
+        otherWorkspaceCreateGuard = "passed";
+      }
+
+      const createAudit = await loadLegacyEvalUserTemplateAudit({
+        fixture,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+      });
+      assertLegacyEvalUserTemplateCreateAudit(createAudit, {
+        fixture,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+        expectedParams: paramsConfig.params,
+      });
+      const metricId = createAudit.metric_id;
+      const seededCells = await seedLegacyEvalUserTemplateEvaluationCells({
+        fixture,
+        metricId,
+      });
+      assert(
+        seededCells?.inserted_eval_cell_count === 3,
+        "Legacy evaluate-rows fixture did not seed scoped and guard eval cells.",
+      );
+
+      const beforeEvaluateAudit = await loadLegacyEvalUserTemplateAudit({
+        fixture,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+      });
+      assertLegacyEvalCellState(beforeEvaluateAudit, fixture.row_one_id, {
+        status: "pass",
+        value: fixture.eval_value_one,
+      });
+      assertLegacyEvalCellState(beforeEvaluateAudit, fixture.row_two_id, {
+        status: "pass",
+        value: fixture.eval_value_two,
+      });
+
+      const singleRowQueued = await client.post(
+        apiPath("/model-hub/evaluate-rows/"),
+        {
+          row_ids: [fixture.row_one_id],
+          user_eval_metric_ids: [metricId],
+        },
+      );
+      assert(
+        singleRowQueued?.success ||
+          singleRowQueued?.result?.success ||
+          JSON.stringify(singleRowQueued || {}).includes("Evaluations queued"),
+        "evaluate-rows did not acknowledge the explicit row queue request.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/evaluate-rows/"), {
+            row_ids: [fixture.outside_row_id],
+            user_eval_metric_ids: [metricId],
+          }),
+        404,
+        "evaluate-rows accepted a row outside the metric dataset.",
+      );
+
+      await expectApiErrorStatus(
+        () =>
+          client.post(apiPath("/model-hub/evaluate-rows/"), {
+            selected_all_rows: true,
+            row_ids: [fixture.outside_row_id],
+            user_eval_metric_ids: [metricId],
+          }),
+        404,
+        "evaluate-rows accepted a selected-all exclusion row outside the metric dataset.",
+      );
+
+      let otherWorkspaceMetricGuard = "skipped:no-other-workspace";
+      if (fixture.other_metric_id) {
+        await expectApiErrorStatus(
+          () =>
+            client.post(apiPath("/model-hub/evaluate-rows/"), {
+              row_ids: [fixture.other_row_id],
+              user_eval_metric_ids: [fixture.other_metric_id],
+            }),
+          404,
+          "evaluate-rows accepted a metric from another workspace.",
+        );
+        otherWorkspaceMetricGuard = "passed";
+      }
+
+      const singleRowAudit = await loadLegacyEvalUserTemplateAudit({
+        fixture,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+      });
+      assertLegacyEvalCellState(singleRowAudit, fixture.row_one_id, {
+        status: "running",
+        value: null,
+        valueInfos: {},
+      });
+      assertLegacyEvalCellState(singleRowAudit, fixture.row_two_id, {
+        status: "pass",
+        value: fixture.eval_value_two,
+      });
+      assert(
+        singleRowAudit.outside_eval_cell_status === "pass" &&
+          singleRowAudit.outside_eval_cell_value === fixture.outside_eval_value,
+        "evaluate-rows outside-row guard mutated the outside dataset eval cell.",
+      );
+      if (fixture.other_metric_id) {
+        assert(
+          singleRowAudit.other_eval_cell_status === "pass" &&
+            singleRowAudit.other_eval_cell_value === fixture.other_eval_value,
+          "evaluate-rows other-workspace guard mutated the other workspace eval cell.",
+        );
+      }
+
+      await client.post(apiPath("/model-hub/evaluate-rows/"), {
+        selected_all_rows: true,
+        row_ids: [fixture.row_one_id],
+        user_eval_metric_ids: [metricId],
+      });
+
+      const selectedAllAudit = await loadLegacyEvalUserTemplateAudit({
+        fixture,
+        templateId: template.id,
+        metricName,
+        organizationId,
+        workspaceId,
+      });
+      assertLegacyEvalCellState(selectedAllAudit, fixture.row_one_id, {
+        status: "running",
+        value: null,
+        valueInfos: {},
+      });
+      assertLegacyEvalCellState(selectedAllAudit, fixture.row_two_id, {
+        status: "running",
+        value: null,
+        valueInfos: {},
+      });
+      assert(
+        Number(selectedAllAudit.running_eval_cell_count) === 2,
+        "evaluate-rows selected_all_rows did not reset the remaining scoped row.",
+      );
+
+      evidence.push({
+        dataset_id: fixture.dataset_id,
+        eval_template_id: template.id,
+        user_eval_metric_id: metricId,
+        metric_name: metricName,
+        duplicate_guard: "passed",
+        mapping_guard: "passed",
+        row_scope_guard: "passed",
+        selected_all_scope_guard: "passed",
+        other_workspace_create_guard: otherWorkspaceCreateGuard,
+        other_workspace_metric_guard: otherWorkspaceMetricGuard,
+        running_eval_cell_count: Number(
+          selectedAllAudit.running_eval_cell_count,
+        ),
+      });
+    },
+  },
+  {
+    id: "EVAL-API-021",
+    title: "Ground-truth embed/search guards and workspace scope",
+    tags: ["evals", "mutating", "provider-guard", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const suffix = runId
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .slice(0, 22);
+      const templateName = `api_gt_retrieval_${suffix}`;
+      const emptyGroundTruthName = `api_gt_retrieval_empty_${suffix}`;
+      const groundTruthName = `api_gt_retrieval_rows_${suffix}`;
+
+      const created = await client.post(
+        apiPath("/model-hub/eval-templates/create-v2/"),
+        {
+          name: templateName,
+          eval_type: "code",
+          code: "def evaluate(output=None, expected=None):\n    return True",
+          code_language: "python",
+          output_type: "pass_fail",
+          description: "Created by API journey ground-truth retrieval guards.",
+          tags: ["api-journey", "ground-truth-retrieval"],
+        },
+      );
+      const templateId = created?.id;
+      assert(
+        isUuid(templateId),
+        "Ground-truth retrieval eval template create did not return a UUID id.",
+      );
+      cleanup.defer(
+        "hard delete API journey ground-truth retrieval fixture",
+        () =>
+          hardDeleteGroundTruthRetrievalFixture([templateId], organizationId),
+      );
+
+      const emptyGroundTruth = await client.post(
+        apiPath(
+          "/model-hub/eval-templates/{template_id}/ground-truth/upload/",
+          { template_id: templateId },
+        ),
+        {
+          name: emptyGroundTruthName,
+          description: "Empty ground truth for embed guard coverage.",
+          file_name: "api-journey-empty-ground-truth.json",
+          columns: ["question"],
+          data: [],
+        },
+      );
+      const emptyGroundTruthId = emptyGroundTruth?.id;
+      assert(
+        isUuid(emptyGroundTruthId),
+        "Empty ground-truth upload did not return a UUID id.",
+      );
+
+      const groundTruth = await client.post(
+        apiPath(
+          "/model-hub/eval-templates/{template_id}/ground-truth/upload/",
+          { template_id: templateId },
+        ),
+        {
+          name: groundTruthName,
+          description: "Ground truth rows for retrieval guard coverage.",
+          file_name: "api-journey-ground-truth-retrieval.json",
+          columns: ["question", "answer"],
+          data: [
+            { question: "What is 1+1?", answer: "2" },
+            { question: "Capital of France?", answer: "Paris" },
+          ],
+          role_mapping: { input: "question", expected_output: "answer" },
+        },
+      );
+      const groundTruthId = groundTruth?.id;
+      assert(
+        isUuid(groundTruthId),
+        "Ground-truth upload did not return a UUID id.",
+      );
+
+      const pendingSearchError = await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/ground-truth/{ground_truth_id}/search/", {
+              ground_truth_id: groundTruthId,
+            }),
+            { query: "What is 1+1?", max_results: 2 },
+          ),
+        400,
+        "Ground-truth search accepted a pending embedding dataset.",
+      );
+      assert(
+        String(pendingSearchError.body?.message || "").includes(
+          "Embeddings not ready",
+        ),
+        "Pending ground-truth search did not return the embeddings-not-ready message.",
+      );
+
+      const emptyEmbedError = await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/ground-truth/{ground_truth_id}/embed/", {
+              ground_truth_id: emptyGroundTruthId,
+            }),
+            {},
+          ),
+        400,
+        "Ground-truth embed accepted an empty dataset.",
+      );
+      assert(
+        emptyEmbedError.body?.message === "No data rows to embed.",
+        "Empty ground-truth embed returned an unexpected error message.",
+      );
+
+      await setGroundTruthEmbeddingStatus({
+        groundTruthId,
+        embeddingStatus: "processing",
+        embeddedRowCount: 1,
+      });
+
+      const processingEmbedError = await expectApiErrorStatus(
+        () =>
+          client.post(
+            apiPath("/model-hub/ground-truth/{ground_truth_id}/embed/", {
+              ground_truth_id: groundTruthId,
+            }),
+            {},
+          ),
+        400,
+        "Ground-truth embed accepted a dataset already marked processing.",
+      );
+      assert(
+        processingEmbedError.body?.message ===
+          "Embedding generation is already in progress.",
+        "Processing ground-truth embed returned an unexpected error message.",
+      );
+
+      const groundTruthIds = [emptyGroundTruthId, groundTruthId];
+      const otherWorkspaceId = await findOtherWorkspaceId(
+        organizationId,
+        workspaceId,
+      );
+      let otherWorkspaceGuard = "skipped:no-other-workspace";
+      if (otherWorkspaceId) {
+        const otherTemplateName = `api_gt_retrieval_other_${suffix}`;
+        const otherCreated = await client.post(
+          apiPath("/model-hub/eval-templates/create-v2/"),
+          {
+            name: otherTemplateName,
+            eval_type: "code",
+            code: "def evaluate(output=None, expected=None):\n    return True",
+            code_language: "python",
+            output_type: "pass_fail",
+            description:
+              "Created by API journey ground-truth retrieval workspace guard.",
+            tags: ["api-journey", "ground-truth-retrieval"],
+          },
+        );
+        const otherTemplateId = otherCreated?.id;
+        assert(
+          isUuid(otherTemplateId),
+          "Other-workspace eval template create did not return a UUID id.",
+        );
+        cleanup.defer(
+          "hard delete API journey ground-truth retrieval other-workspace fixture",
+          () =>
+            hardDeleteGroundTruthRetrievalFixture(
+              [otherTemplateId],
+              organizationId,
+            ),
+        );
+
+        const otherGroundTruth = await client.post(
+          apiPath(
+            "/model-hub/eval-templates/{template_id}/ground-truth/upload/",
+            { template_id: otherTemplateId },
+          ),
+          {
+            name: `api_gt_retrieval_other_rows_${suffix}`,
+            description: "Other workspace ground truth guard fixture.",
+            file_name: "api-journey-ground-truth-other-workspace.json",
+            columns: ["question", "answer"],
+            data: [{ question: "private", answer: "hidden" }],
+            role_mapping: { input: "question", expected_output: "answer" },
+          },
+        );
+        const otherGroundTruthId = otherGroundTruth?.id;
+        assert(
+          isUuid(otherGroundTruthId),
+          "Other-workspace ground-truth upload did not return a UUID id.",
+        );
+        await moveGroundTruthRetrievalFixtureToWorkspace({
+          templateId: otherTemplateId,
+          groundTruthId: otherGroundTruthId,
+          workspaceId: otherWorkspaceId,
+        });
+        groundTruthIds.push(otherGroundTruthId);
+
+        await expectApiErrorStatus(
+          () =>
+            client.post(
+              apiPath("/model-hub/ground-truth/{ground_truth_id}/search/", {
+                ground_truth_id: otherGroundTruthId,
+              }),
+              { query: "private", max_results: 1 },
+            ),
+          404,
+          "Ground-truth search accepted a same-org other-workspace dataset.",
+        );
+        await expectApiErrorStatus(
+          () =>
+            client.post(
+              apiPath("/model-hub/ground-truth/{ground_truth_id}/embed/", {
+                ground_truth_id: otherGroundTruthId,
+              }),
+              {},
+            ),
+          404,
+          "Ground-truth embed accepted a same-org other-workspace dataset.",
+        );
+        otherWorkspaceGuard = "passed";
+      }
+
+      const audit = await loadGroundTruthRetrievalAudit({
+        groundTruthIds,
+        organizationId,
+      });
+      const primaryAudit = findGroundTruthAudit(audit, groundTruthId);
+      const emptyAudit = findGroundTruthAudit(audit, emptyGroundTruthId);
+      assert(
+        primaryAudit.workspace_id === workspaceId,
+        "Ground-truth retrieval audit primary workspace mismatch.",
+      );
+      assert(
+        primaryAudit.embedding_status === "processing" &&
+          Number(primaryAudit.embedded_row_count) === 1,
+        "Processing embed guard mutated the primary ground-truth status.",
+      );
+      assert(
+        emptyAudit.row_count === 0 && emptyAudit.embedding_status === "pending",
+        "Empty embed guard mutated the empty ground-truth status.",
+      );
+      assert(
+        Number(audit.embedding_count) === 0,
+        "Ground-truth retrieval guard journey unexpectedly created embeddings.",
+      );
+
+      evidence.push({
+        eval_template_id: templateId,
+        ground_truth_id: groundTruthId,
+        empty_ground_truth_id: emptyGroundTruthId,
+        pending_search_guard: "passed",
+        empty_embed_guard: "passed",
+        processing_embed_guard: "passed",
+        other_workspace_guard: otherWorkspaceGuard,
+        embedding_count: Number(audit.embedding_count),
       });
     },
   },
@@ -2727,7 +6394,10 @@ export const datasetEvalJourneys = [
         { name, description, criteria },
       );
       const templateId = created?.id;
-      assert(isUuid(templateId), "Eval summary template create did not return id.");
+      assert(
+        isUuid(templateId),
+        "Eval summary template create did not return id.",
+      );
       cleanup.defer("delete API journey eval summary template", () =>
         ignoreNotFound(() =>
           client.delete(
@@ -2811,10 +6481,8 @@ export const datasetEvalJourneys = [
 
       evidence.push({
         eval_summary_template_id: templateId,
-        initial_template_count: payloadArray(
-          beforeList?.templates,
-          "templates",
-        ).length,
+        initial_template_count: payloadArray(beforeList?.templates, "templates")
+          .length,
         created_list_contains_template: true,
         db_row_removed_after_delete: postDeleteAudit.row_exists === false,
       });
@@ -2823,8 +6491,22 @@ export const datasetEvalJourneys = [
   {
     id: "EVAL-API-013",
     title: "Eval playground execute, feedback, and log round trip",
-    tags: ["evals", "eval-playground", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId, user }) {
+    tags: [
+      "evals",
+      "eval-playground",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+      user,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const templateName = `api_journey_playground_${suffix}`;
@@ -2843,7 +6525,9 @@ export const datasetEvalJourneys = [
       cleanup.defer("delete API journey eval playground feedback", async () => {
         if (!feedbackId || feedbackDeleted) return null;
         return ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/feedback/{id}/", { id: feedbackId })),
+          client.delete(
+            apiPath("/model-hub/feedback/{id}/", { id: feedbackId }),
+          ),
         );
       });
       cleanup.defer("delete API journey eval playground log", async () => {
@@ -2861,19 +6545,22 @@ export const datasetEvalJourneys = [
         });
       });
 
-      const execution = await client.post(apiPath("/model-hub/eval-playground/"), {
-        template_id: templateId,
-        model: "",
-        mapping: {
-          output: "grounded answer",
-          expected: "grounded answer",
+      const execution = await client.post(
+        apiPath("/model-hub/eval-playground/"),
+        {
+          template_id: templateId,
+          model: "",
+          mapping: {
+            output: "grounded answer",
+            expected: "grounded answer",
+          },
+          config: { params: {} },
+          input_data_types: {
+            output: "text",
+            expected: "text",
+          },
         },
-        config: { params: {} },
-        input_data_types: {
-          output: "text",
-          expected: "text",
-        },
-      });
+      );
       assertEvalPlaygroundExecutionPayload(execution);
       logId = execution.log_id;
 
@@ -2882,10 +6569,16 @@ export const datasetEvalJourneys = [
       });
       assertEvalPlaygroundLogDetail(logDetail, logId);
 
-      const evalConfig = await client.get(apiPath("/model-hub/get-eval-config"), {
-        query: { eval_id: templateId },
+      const evalConfig = await client.get(
+        apiPath("/model-hub/get-eval-config"),
+        {
+          query: { eval_id: templateId },
+        },
+      );
+      assertEvalPlaygroundConfigPayload(evalConfig, {
+        templateId,
+        templateName,
       });
-      assertEvalPlaygroundConfigPayload(evalConfig, { templateId, templateName });
 
       const evalNames = await client.post(
         apiPath("/model-hub/get-eval-template-names"),
@@ -2945,7 +6638,9 @@ export const datasetEvalJourneys = [
                 },
               },
             ]),
-            sort: JSON.stringify([{ column_id: "column1", type: "descending" }]),
+            sort: JSON.stringify([
+              { column_id: "column1", type: "descending" },
+            ]),
             search: { key: "grounded", type: ["text"] },
           },
         },
@@ -3000,7 +6695,10 @@ export const datasetEvalJourneys = [
           explanation: firstFeedback,
         },
       );
-      assert(isUuid(feedback?.feedback_id), "Feedback create did not return id.");
+      assert(
+        isUuid(feedback?.feedback_id),
+        "Feedback create did not return id.",
+      );
       assert(
         String(feedback?.message || "").includes("retuning"),
         "Feedback create did not return the retuning message.",
@@ -3027,7 +6725,11 @@ export const datasetEvalJourneys = [
         }),
         { query: { page: 0, page_size: 5 } },
       );
-      assertEvalPlaygroundFeedbackList(feedbackList, feedbackId, updatedFeedback);
+      assertEvalPlaygroundFeedbackList(
+        feedbackList,
+        feedbackId,
+        updatedFeedback,
+      );
 
       const activeAudit = await loadEvalPlaygroundDbAudit({
         templateId,
@@ -3046,7 +6748,9 @@ export const datasetEvalJourneys = [
         expectedFeedbackExplanation: updatedFeedback,
       });
 
-      await client.delete(apiPath("/model-hub/feedback/{id}/", { id: feedbackId }));
+      await client.delete(
+        apiPath("/model-hub/feedback/{id}/", { id: feedbackId }),
+      );
       feedbackDeleted = true;
       await client.delete(apiPath("/model-hub/get-eval-logs"), {
         body: { log_ids: [logId] },
@@ -3139,7 +6843,14 @@ export const datasetEvalJourneys = [
       "data-roundtrip",
       "db-audit",
     ],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const templateName = `api_journey_playground_localizer_${suffix}`;
@@ -3156,7 +6867,9 @@ export const datasetEvalJourneys = [
       cleanup.defer("delete API journey eval localizer feedback", async () => {
         if (!feedbackId || feedbackDeleted) return null;
         return ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/feedback/{id}/", { id: feedbackId })),
+          client.delete(
+            apiPath("/model-hub/feedback/{id}/", { id: feedbackId }),
+          ),
         );
       });
       cleanup.defer("delete API journey eval localizer log", async () => {
@@ -3174,20 +6887,23 @@ export const datasetEvalJourneys = [
         });
       });
 
-      const execution = await client.post(apiPath("/model-hub/eval-playground/"), {
-        template_id: templateId,
-        model: "",
-        error_localizer: true,
-        mapping: {
-          output: "ungrounded answer",
-          expected: "grounded answer",
+      const execution = await client.post(
+        apiPath("/model-hub/eval-playground/"),
+        {
+          template_id: templateId,
+          model: "",
+          error_localizer: true,
+          mapping: {
+            output: "ungrounded answer",
+            expected: "grounded answer",
+          },
+          config: { params: {} },
+          input_data_types: {
+            output: "text",
+            expected: "text",
+          },
         },
-        config: { params: {} },
-        input_data_types: {
-          output: "text",
-          expected: "text",
-        },
-      });
+      );
       assertEvalPlaygroundExecutionPayload(execution);
       assert(
         String(execution.output || "").toLowerCase() === "failed",
@@ -3224,7 +6940,10 @@ export const datasetEvalJourneys = [
           explanation: feedbackText,
         },
       );
-      assert(isUuid(feedback?.feedback_id), "Recalculate feedback did not return id.");
+      assert(
+        isUuid(feedback?.feedback_id),
+        "Recalculate feedback did not return id.",
+      );
       assert(
         String(feedback?.message || "").includes("recalculation"),
         "Recalculate feedback did not return the recalculation message.",
@@ -3259,18 +6978,22 @@ export const datasetEvalJourneys = [
         expectedFeedbackActionType: "recalculate",
       });
 
-      await client.delete(apiPath("/model-hub/feedback/{id}/", { id: feedbackId }));
+      await client.delete(
+        apiPath("/model-hub/feedback/{id}/", { id: feedbackId }),
+      );
       feedbackDeleted = true;
       await client.delete(apiPath("/model-hub/get-eval-logs"), {
         body: { log_ids: [logId] },
       });
       logDeleted = true;
-      const deletedLocalizerAudit = await loadEvalPlaygroundErrorLocalizerAudit({
-        templateId,
-        logId,
-        organizationId,
-        workspaceId,
-      });
+      const deletedLocalizerAudit = await loadEvalPlaygroundErrorLocalizerAudit(
+        {
+          templateId,
+          logId,
+          organizationId,
+          workspaceId,
+        },
+      );
       assertEvalPlaygroundErrorLocalizerAudit(deletedLocalizerAudit, {
         templateId,
         logId,
@@ -3324,8 +7047,21 @@ export const datasetEvalJourneys = [
   {
     id: "EVAL-API-017",
     title: "Test evaluation template pass/fail and cleanup contract",
-    tags: ["evals", "test-evaluation", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    tags: [
+      "evals",
+      "test-evaluation",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const templateName = `api_journey_test_eval_${suffix}`;
@@ -3335,11 +7071,15 @@ export const datasetEvalJourneys = [
         "word_count_in_range",
       );
       if (!template) {
-        skip("System eval word_count_in_range was not available for test-evaluation.");
+        skip(
+          "System eval word_count_in_range was not available for test-evaluation.",
+        );
       }
       const templateId = template.id;
       const evalTypeId =
-        template?.config?.eval_type_id || template?.eval_type_id || template.name;
+        template?.config?.eval_type_id ||
+        template?.eval_type_id ||
+        template.name;
       let logsDeleted = false;
       let passLogId = null;
       let failLogId = null;
@@ -3461,7 +7201,14 @@ export const datasetEvalJourneys = [
     id: "EVAL-API-012",
     title: "Composite eval create, update, execute, and delete lifecycle",
     tags: ["evals", "composite", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const childOneName = `api_journey_composite_child_a_${suffix}`;
@@ -3481,7 +7228,10 @@ export const datasetEvalJourneys = [
         childTwoName,
         "return output == expected",
       );
-      const childOneVersion = await firstEvalTemplateVersion(client, childOne.id);
+      const childOneVersion = await firstEvalTemplateVersion(
+        client,
+        childOne.id,
+      );
       const childIds = [childOne.id, childTwo.id];
       const pinnedVersionIds = { [childOne.id]: childOneVersion.id };
 
@@ -3681,7 +7431,14 @@ export const datasetEvalJourneys = [
     title:
       "Composite eval dataset binding validates child mappings and cleans up metric",
     tags: ["evals", "composite", "dataset", "mutating", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const datasetName = `api journey composite binding ${runId}`;
@@ -3701,8 +7458,8 @@ export const datasetEvalJourneys = [
       const datasetId = dataset.id;
 
       let metricDeleted = false;
-      let outputColumnDeleted = false;
-      let expectedColumnDeleted = false;
+      const outputColumnDeleted = false;
+      const expectedColumnDeleted = false;
 
       await client.post(
         apiPath("/model-hub/develops/{dataset_id}/add_static_column/", {
@@ -3730,7 +7487,10 @@ export const datasetEvalJourneys = [
       });
       const outputColumn = findColumn(table, outputName);
       const expectedColumn = findColumn(table, expectedName);
-      assert(outputColumn?.id, "Composite binding output column was not visible.");
+      assert(
+        outputColumn?.id,
+        "Composite binding output column was not visible.",
+      );
       assert(
         expectedColumn?.id,
         "Composite binding expected column was not visible.",
@@ -3739,10 +7499,13 @@ export const datasetEvalJourneys = [
         if (expectedColumnDeleted) return null;
         return ignoreNotFound(() =>
           client.delete(
-            apiPath("/model-hub/develops/{dataset_id}/delete_column/{column_id}/", {
-              dataset_id: datasetId,
-              column_id: expectedColumn.id,
-            }),
+            apiPath(
+              "/model-hub/develops/{dataset_id}/delete_column/{column_id}/",
+              {
+                dataset_id: datasetId,
+                column_id: expectedColumn.id,
+              },
+            ),
           ),
         );
       });
@@ -3750,10 +7513,13 @@ export const datasetEvalJourneys = [
         if (outputColumnDeleted) return null;
         return ignoreNotFound(() =>
           client.delete(
-            apiPath("/model-hub/develops/{dataset_id}/delete_column/{column_id}/", {
-              dataset_id: datasetId,
-              column_id: outputColumn.id,
-            }),
+            apiPath(
+              "/model-hub/develops/{dataset_id}/delete_column/{column_id}/",
+              {
+                dataset_id: datasetId,
+                column_id: outputColumn.id,
+              },
+            ),
           ),
         );
       });
@@ -3878,25 +7644,34 @@ export const datasetEvalJourneys = [
 
       const metric = payloadArray(activeAudit.metrics, "metrics")[0];
       const metricId = metric?.id;
-      assert(isUuid(metricId), "Composite dataset binding DB audit found no metric.");
+      assert(
+        isUuid(metricId),
+        "Composite dataset binding DB audit found no metric.",
+      );
       cleanup.defer("delete API journey composite dataset metric", async () => {
         if (metricDeleted) return null;
         return ignoreNotFound(() =>
           client.delete(
-            apiPath("/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/", {
-              dataset_id: datasetId,
-              eval_id: metricId,
-            }),
+            apiPath(
+              "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/",
+              {
+                dataset_id: datasetId,
+                eval_id: metricId,
+              },
+            ),
             { body: { delete_column: true }, okStatuses: [200, 404] },
           ),
         );
       });
 
       await client.delete(
-        apiPath("/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/", {
-          dataset_id: datasetId,
-          eval_id: metricId,
-        }),
+        apiPath(
+          "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/",
+          {
+            dataset_id: datasetId,
+            eval_id: metricId,
+          },
+        ),
         { body: { delete_column: true } },
       );
       metricDeleted = true;
@@ -3941,7 +7716,14 @@ export const datasetEvalJourneys = [
     title:
       "Composite eval experiment binding validates child mappings and cleans up metric",
     tags: ["evals", "composite", "experiments", "mutating", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const metricName = `api_journey_exp_cmp_${suffix}`;
@@ -3988,10 +7770,12 @@ export const datasetEvalJourneys = [
         isUuid(compositeId),
         "Composite experiment binding eval create did not return a UUID id.",
       );
-      cleanup.defer("delete API journey experiment binding composite eval", () =>
-        client.post(apiPath("/model-hub/eval-templates/bulk-delete/"), {
-          template_ids: [compositeId],
-        }),
+      cleanup.defer(
+        "delete API journey experiment binding composite eval",
+        () =>
+          client.post(apiPath("/model-hub/eval-templates/bulk-delete/"), {
+            template_ids: [compositeId],
+          }),
       );
 
       let missingMappingError = null;
@@ -4050,21 +7834,27 @@ export const datasetEvalJourneys = [
         isUuid(metricId),
         "Composite experiment binding add-eval did not return a metric UUID.",
       );
-      cleanup.defer("delete API journey composite experiment metric", async () => {
-        if (metricDeleted) return null;
-        return ignoreNotFound(() =>
-          client.delete(
-            apiPath("/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/", {
-              dataset_id: experiment.dataset_id,
-              eval_id: metricId,
-            }),
-            {
-              body: { delete_column: true, experiment_id: experiment.id },
-              okStatuses: [200, 400, 404],
-            },
-          ),
-        );
-      });
+      cleanup.defer(
+        "delete API journey composite experiment metric",
+        async () => {
+          if (metricDeleted) return null;
+          return ignoreNotFound(() =>
+            client.delete(
+              apiPath(
+                "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/",
+                {
+                  dataset_id: experiment.dataset_id,
+                  eval_id: metricId,
+                },
+              ),
+              {
+                body: { delete_column: true, experiment_id: experiment.id },
+                okStatuses: [200, 400, 404],
+              },
+            ),
+          );
+        },
+      );
 
       const activeAudit = await loadCompositeExperimentBindingDbAudit({
         experimentId: experiment.id,
@@ -4095,10 +7885,13 @@ export const datasetEvalJourneys = [
       const deleteDatasetId = metric.dataset_id || activeAudit.eval_dataset_id;
 
       await client.delete(
-        apiPath("/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/", {
-          dataset_id: deleteDatasetId,
-          eval_id: metricId,
-        }),
+        apiPath(
+          "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/",
+          {
+            dataset_id: deleteDatasetId,
+            eval_id: metricId,
+          },
+        ),
         { body: { delete_column: true, experiment_id: experiment.id } },
       );
       metricDeleted = true;
@@ -4142,8 +7935,21 @@ export const datasetEvalJourneys = [
   {
     id: "EVAL-API-006",
     title: "Legacy eval group CRUD and member lifecycle",
-    tags: ["evals", "legacy-eval-groups", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    tags: [
+      "evals",
+      "legacy-eval-groups",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const name = `api_journey_eval_group_${suffix}`;
@@ -4166,7 +7972,9 @@ export const datasetEvalJourneys = [
         (template) => isUuid(template?.id),
       );
       if (templates.length < 2)
-        skip("At least two eval templates are required for eval group coverage.");
+        skip(
+          "At least two eval templates are required for eval group coverage.",
+        );
       const [firstTemplate, secondTemplate] = templates;
 
       let groupDeleted = false;
@@ -4180,7 +7988,9 @@ export const datasetEvalJourneys = [
       cleanup.defer("delete API journey eval group", async () => {
         if (groupDeleted) return null;
         return ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId })),
+          client.delete(
+            apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+          ),
         );
       });
       assertEvalGroupCreatePayload(created, {
@@ -4316,7 +8126,9 @@ export const datasetEvalJourneys = [
         add_history_count: Number(deletedAudit.add_history_count),
         delete_history_count: Number(deletedAudit.delete_history_count),
         deleted_at_set: deletedAudit.deleted_at_set,
-        relationship_count_after_delete: Number(deletedAudit.relationship_count),
+        relationship_count_after_delete: Number(
+          deletedAudit.relationship_count,
+        ),
       });
     },
   },
@@ -4324,7 +8136,14 @@ export const datasetEvalJourneys = [
     id: "EVAL-API-007",
     title: "Apply eval group to dataset and delete generated metric",
     tags: ["evals", "dataset", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const groupName = `api_journey_apply_group_${suffix}`;
@@ -4345,7 +8164,9 @@ export const datasetEvalJourneys = [
       cleanup.defer("delete API journey apply eval group", async () => {
         if (groupDeleted) return null;
         return ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId })),
+          client.delete(
+            apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+          ),
         );
       });
 
@@ -4386,25 +8207,34 @@ export const datasetEvalJourneys = [
 
       const metric = payloadArray(appliedAudit.metrics, "metrics")[0];
       const metricId = metric?.id;
-      assert(isUuid(metricId), "Dataset apply DB audit did not return metric id.");
+      assert(
+        isUuid(metricId),
+        "Dataset apply DB audit did not return metric id.",
+      );
       cleanup.defer("delete API journey dataset eval metric", async () => {
         if (metricDeleted) return null;
         return ignoreNotFound(() =>
           client.delete(
-            apiPath("/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/", {
-              dataset_id: dataset.id,
-              eval_id: metricId,
-            }),
+            apiPath(
+              "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/",
+              {
+                dataset_id: dataset.id,
+                eval_id: metricId,
+              },
+            ),
             { body: { delete_column: true }, okStatuses: [200, 404] },
           ),
         );
       });
 
       await client.delete(
-        apiPath("/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/", {
-          dataset_id: dataset.id,
-          eval_id: metricId,
-        }),
+        apiPath(
+          "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/",
+          {
+            dataset_id: dataset.id,
+            eval_id: metricId,
+          },
+        ),
         { body: { delete_column: true } },
       );
       metricDeleted = true;
@@ -4425,7 +8255,9 @@ export const datasetEvalJourneys = [
         expectedDeleted: true,
       });
 
-      await client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId }));
+      await client.delete(
+        apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+      );
       groupDeleted = true;
 
       evidence.push({
@@ -4446,8 +8278,8 @@ export const datasetEvalJourneys = [
           deletedMetricAudit.deleted_count,
         ),
         deleted_at_set_after_cleanup:
-          payloadArray(deletedMetricAudit.metrics, "metrics")[0]?.deleted_at_set ===
-          true,
+          payloadArray(deletedMetricAudit.metrics, "metrics")[0]
+            ?.deleted_at_set === true,
       });
     },
   },
@@ -4455,7 +8287,14 @@ export const datasetEvalJourneys = [
     id: "EVAL-API-008",
     title: "Apply eval group to prompt template and delete generated config",
     tags: ["evals", "prompts", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const groupName = `api_journey_prompt_apply_group_${suffix}`;
@@ -4476,7 +8315,9 @@ export const datasetEvalJourneys = [
       cleanup.defer("delete API journey prompt apply eval group", async () => {
         if (groupDeleted) return null;
         return ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId })),
+          client.delete(
+            apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+          ),
         );
       });
 
@@ -4500,16 +8341,22 @@ export const datasetEvalJourneys = [
         isUuid(appliedConfig?.id),
         "Prompt apply did not return a prompt eval config id.",
       );
-      assertPromptApplyPayload(appliedConfig, { templateId: template.id, mapping });
+      assertPromptApplyPayload(appliedConfig, {
+        templateId: template.id,
+        mapping,
+      });
 
       const configId = appliedConfig.id;
       cleanup.defer("delete API journey prompt eval config", async () => {
         if (configDeleted) return null;
         return ignoreNotFound(() =>
           client.delete(
-            `${apiPath("/model-hub/prompt-templates/{id}/delete-evaluation-config/", {
-              id: prompt.id,
-            })}?id=${encodeURIComponent(configId)}`,
+            `${apiPath(
+              "/model-hub/prompt-templates/{id}/delete-evaluation-config/",
+              {
+                id: prompt.id,
+              },
+            )}?id=${encodeURIComponent(configId)}`,
             { okStatuses: [200, 400, 404] },
           ),
         );
@@ -4533,9 +8380,12 @@ export const datasetEvalJourneys = [
       });
 
       await client.delete(
-        `${apiPath("/model-hub/prompt-templates/{id}/delete-evaluation-config/", {
-          id: prompt.id,
-        })}?id=${encodeURIComponent(configId)}`,
+        `${apiPath(
+          "/model-hub/prompt-templates/{id}/delete-evaluation-config/",
+          {
+            id: prompt.id,
+          },
+        )}?id=${encodeURIComponent(configId)}`,
       );
       configDeleted = true;
 
@@ -4556,7 +8406,9 @@ export const datasetEvalJourneys = [
         expectedDeleted: true,
       });
 
-      await client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId }));
+      await client.delete(
+        apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+      );
       groupDeleted = true;
 
       evidence.push({
@@ -4581,11 +8433,19 @@ export const datasetEvalJourneys = [
     id: "EVAL-API-009",
     title: "Apply eval group to simulation run and delete generated config",
     tags: ["evals", "simulate", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const groupName = `api_journey_sim_apply_group_${suffix}`;
-      const description = "Eval group simulation fanout created by API journey.";
+      const description =
+        "Eval group simulation fanout created by API journey.";
 
       const { runTest, template, requiredKeys, mapping } =
         await resolveEvalGroupSimulateApplyFixtures(
@@ -4603,12 +8463,17 @@ export const datasetEvalJourneys = [
       });
       const groupId = created?.id;
       assert(isUuid(groupId), "Eval group create did not return a UUID id.");
-      cleanup.defer("delete API journey simulate apply eval group", async () => {
-        if (groupDeleted) return null;
-        return ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId })),
-        );
-      });
+      cleanup.defer(
+        "delete API journey simulate apply eval group",
+        async () => {
+          if (groupDeleted) return null;
+          return ignoreNotFound(() =>
+            client.delete(
+              apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+            ),
+          );
+        },
+      );
 
       const appliedConfigs = payloadArray(
         await client.post(apiPath("/model-hub/eval-groups/apply-eval-group/"), {
@@ -4672,10 +8537,13 @@ export const datasetEvalJourneys = [
       });
 
       await client.delete(
-        apiPath("/simulate/run-tests/{run_test_id}/eval-configs/{eval_config_id}/", {
-          run_test_id: runTest.id,
-          eval_config_id: configId,
-        }),
+        apiPath(
+          "/simulate/run-tests/{run_test_id}/eval-configs/{eval_config_id}/",
+          {
+            run_test_id: runTest.id,
+            eval_config_id: configId,
+          },
+        ),
       );
       configDeleted = true;
 
@@ -4696,7 +8564,9 @@ export const datasetEvalJourneys = [
         expectedDeleted: true,
       });
 
-      await client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId }));
+      await client.delete(
+        apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+      );
       groupDeleted = true;
 
       evidence.push({
@@ -4725,11 +8595,19 @@ export const datasetEvalJourneys = [
     id: "EVAL-API-010",
     title: "Apply eval group to experiment and delete generated metric",
     tags: ["evals", "experiments", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const groupName = `api_journey_experiment_apply_group_${suffix}`;
-      const description = "Eval group experiment fanout created by API journey.";
+      const description =
+        "Eval group experiment fanout created by API journey.";
 
       const { experiment, template, requiredKeys, mapping, mappedColumns } =
         await resolveEvalGroupExperimentApplyFixtures(
@@ -4747,12 +8625,17 @@ export const datasetEvalJourneys = [
       });
       const groupId = created?.id;
       assert(isUuid(groupId), "Eval group create did not return a UUID id.");
-      cleanup.defer("delete API journey experiment apply eval group", async () => {
-        if (groupDeleted) return null;
-        return ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId })),
-        );
-      });
+      cleanup.defer(
+        "delete API journey experiment apply eval group",
+        async () => {
+          if (groupDeleted) return null;
+          return ignoreNotFound(() =>
+            client.delete(
+              apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+            ),
+          );
+        },
+      );
 
       const applyResult = await client.post(
         apiPath("/model-hub/eval-groups/apply-eval-group/"),
@@ -4792,15 +8675,21 @@ export const datasetEvalJourneys = [
 
       const metric = payloadArray(appliedAudit.metrics, "metrics")[0];
       const metricId = metric?.id;
-      assert(isUuid(metricId), "Experiment apply DB audit did not return metric id.");
+      assert(
+        isUuid(metricId),
+        "Experiment apply DB audit did not return metric id.",
+      );
       cleanup.defer("delete API journey experiment eval metric", async () => {
         if (metricDeleted) return null;
         return ignoreNotFound(() =>
           client.delete(
-            apiPath("/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/", {
-              dataset_id: experiment.dataset_id,
-              eval_id: metricId,
-            }),
+            apiPath(
+              "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/",
+              {
+                dataset_id: experiment.dataset_id,
+                eval_id: metricId,
+              },
+            ),
             {
               body: { delete_column: true, experiment_id: experiment.id },
               okStatuses: [200, 400, 404],
@@ -4810,10 +8699,13 @@ export const datasetEvalJourneys = [
       });
 
       await client.delete(
-        apiPath("/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/", {
-          dataset_id: experiment.dataset_id,
-          eval_id: metricId,
-        }),
+        apiPath(
+          "/model-hub/develops/{dataset_id}/delete_user_eval/{eval_id}/",
+          {
+            dataset_id: experiment.dataset_id,
+            eval_id: metricId,
+          },
+        ),
         { body: { delete_column: true, experiment_id: experiment.id } },
       );
       metricDeleted = true;
@@ -4835,7 +8727,9 @@ export const datasetEvalJourneys = [
         expectedDeleted: true,
       });
 
-      await client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId }));
+      await client.delete(
+        apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+      );
       groupDeleted = true;
 
       evidence.push({
@@ -4848,7 +8742,9 @@ export const datasetEvalJourneys = [
         created_metric_id: metricId,
         required_keys: requiredKeys,
         mapped_columns: mappedColumns,
-        existing_active_eval_metrics: Number(experiment.active_eval_metric_count),
+        existing_active_eval_metrics: Number(
+          experiment.active_eval_metric_count,
+        ),
         active_metric_count_after_apply: Number(appliedAudit.active_count),
         deleted_metric_count_after_cleanup: Number(
           deletedMetricAudit.deleted_count,
@@ -4857,16 +8753,30 @@ export const datasetEvalJourneys = [
           deletedMetricAudit.experiment_active_metric_count,
         ),
         deleted_at_set_after_cleanup:
-          payloadArray(deletedMetricAudit.metrics, "metrics")[0]?.deleted_at_set ===
-          true,
+          payloadArray(deletedMetricAudit.metrics, "metrics")[0]
+            ?.deleted_at_set === true,
       });
     },
   },
   {
     id: "EVAL-API-011",
     title: "Apply eval group to eval task and delete generated custom config",
-    tags: ["evals", "observe", "eval-task", "mutating", "data-roundtrip", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    tags: [
+      "evals",
+      "observe",
+      "eval-task",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
       const groupName = `api_journey_eval_task_apply_group_${suffix}`;
@@ -4888,12 +8798,17 @@ export const datasetEvalJourneys = [
       });
       const groupId = created?.id;
       assert(isUuid(groupId), "Eval group create did not return a UUID id.");
-      cleanup.defer("delete API journey eval-task apply eval group", async () => {
-        if (groupDeleted) return null;
-        return ignoreNotFound(() =>
-          client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId })),
-        );
-      });
+      cleanup.defer(
+        "delete API journey eval-task apply eval group",
+        async () => {
+          if (groupDeleted) return null;
+          return ignoreNotFound(() =>
+            client.delete(
+              apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+            ),
+          );
+        },
+      );
 
       const appliedConfigs = payloadArray(
         await client.post(apiPath("/model-hub/eval-groups/apply-eval-group/"), {
@@ -4923,17 +8838,20 @@ export const datasetEvalJourneys = [
       });
 
       const configId = appliedConfig.id;
-      cleanup.defer("delete API journey eval-task custom eval config", async () => {
-        if (configDeleted) return null;
-        return ignoreNotFound(() =>
-          client.delete(
-            apiPath("/tracer/custom-eval-config/{id}/", {
-              id: configId,
-            }),
-            { okStatuses: [200, 204, 400, 404] },
-          ),
-        );
-      });
+      cleanup.defer(
+        "delete API journey eval-task custom eval config",
+        async () => {
+          if (configDeleted) return null;
+          return ignoreNotFound(() =>
+            client.delete(
+              apiPath("/tracer/custom-eval-config/{id}/", {
+                id: configId,
+              }),
+              { okStatuses: [200, 204, 400, 404] },
+            ),
+          );
+        },
+      );
 
       const appliedAudit = await loadEvalGroupEvalTaskApplyDbAudit(
         groupId,
@@ -4976,7 +8894,9 @@ export const datasetEvalJourneys = [
         expectedDeleted: true,
       });
 
-      await client.delete(apiPath("/model-hub/eval-groups/{id}/", { id: groupId }));
+      await client.delete(
+        apiPath("/model-hub/eval-groups/{id}/", { id: groupId }),
+      );
       groupDeleted = true;
 
       evidence.push({
@@ -4988,7 +8908,9 @@ export const datasetEvalJourneys = [
         custom_eval_config_id: configId,
         required_keys: requiredKeys,
         mapping,
-        existing_active_custom_eval_configs: Number(project.active_config_count),
+        existing_active_custom_eval_configs: Number(
+          project.active_config_count,
+        ),
         active_config_count_after_apply: Number(appliedAudit.active_count),
         deleted_config_count_after_cleanup: Number(
           deletedConfigAudit.deleted_count,
@@ -5101,6 +9023,420 @@ export const datasetEvalJourneys = [
     },
   },
   {
+    id: "PROMPT-API-006",
+    title:
+      "Legacy prompt template list, versions, default, SDK, and cleanup lifecycle",
+    tags: ["prompts", "legacy", "mutating", "data-roundtrip", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const suffix = runId.replace(/[^a-z0-9]/gi, "").slice(0, 18);
+      const promptName = `api journey legacy prompt ${suffix}`;
+      const v1Text = `Legacy v1 says hello to {{name}} from ${runId}`;
+      const v2Text = `Legacy v2 says hello to {{name}} from ${runId}`;
+
+      const created = await client.post(
+        apiPath("/model-hub/prompt-templates/create-draft/"),
+        {
+          name: promptName,
+          variable_names: { name: ["Ada", "Grace"] },
+          metadata: { source: "api-journey", run_id: runId, version: "v1" },
+          prompt_config: [promptConfig("You are concise.", v1Text)],
+        },
+      );
+      const promptId =
+        created?.id || created?.root_template || created?.rootTemplate;
+      assert(isUuid(promptId), "Legacy prompt create did not return a UUID id.");
+      cleanup.defer("delete legacy API journey prompt", () =>
+        deletePromptTemplateIfPresent(client, promptId),
+      );
+
+      const listed = asArray(
+        await client.get(apiPath("/model-hub/prompt-templates/"), {
+          query: { search: promptName, page: 1, limit: 10 },
+        }),
+      );
+      assert(
+        listed.some((row) => row?.id === promptId),
+        "Legacy prompt list/search did not include the created prompt.",
+      );
+
+      const detail = await client.get(
+        apiPath("/model-hub/prompt-templates/{id}/", { id: promptId }),
+      );
+      assert(
+        detail?.name === promptName &&
+          detail?.version === "v1" &&
+          JSON.stringify(detail?.prompt_config || []).includes(v1Text),
+        `Legacy prompt detail did not return v1 draft state: ${JSON.stringify(
+          detail,
+        )}.`,
+      );
+
+      const nextVersionBeforeDraft = await client.get(
+        apiPath("/model-hub/prompt-templates/{id}/get-next-version/", {
+          id: promptId,
+        }),
+      );
+      assert(
+        nextVersionBeforeDraft?.next_version === "v2",
+        `Expected next prompt version v2, got ${JSON.stringify(
+          nextVersionBeforeDraft,
+        )}.`,
+      );
+
+      const createdDrafts = payloadArray(
+        await client.post(
+          apiPath("/model-hub/prompt-templates/{id}/add-new-draft/", {
+            id: promptId,
+          }),
+          {
+            new_prompts: [
+              {
+                variable_names: { name: ["Ada", "Grace"] },
+                evaluation_configs: [],
+                metadata: {
+                  source: "api-journey",
+                  run_id: runId,
+                  version: "v2",
+                },
+                prompt_config: [
+                  promptConfig("You are a sharper concise assistant.", v2Text),
+                ],
+              },
+            ],
+          },
+        ),
+        "result",
+      );
+      assert(
+        createdDrafts.some((row) => row?.template_version === "v2"),
+        `add-new-draft did not create v2: ${JSON.stringify(createdDrafts)}.`,
+      );
+
+      await client.post(
+        apiPath("/model-hub/prompt-templates/{id}/run_template/", {
+          id: promptId,
+        }),
+        {
+          name: promptName,
+          version: "v2",
+          is_run: false,
+          variable_names: { name: ["Ada", "Grace"] },
+          placeholders: {},
+          evaluation_configs: [],
+          prompt_config: [
+            promptConfig("You are a sharper concise assistant.", v2Text),
+          ],
+        },
+      );
+
+      const versions = asArray(
+        await client.get(
+          apiPath("/model-hub/prompt-templates/{id}/versions/", {
+            id: promptId,
+          }),
+          { query: { page: 1, limit: 10 } },
+        ),
+      );
+      const versionNames = versions.map((row) => row?.template_version);
+      assert(
+        versionNames.includes("v1") && versionNames.includes("v2"),
+        `Legacy prompt versions endpoint did not return v1/v2: ${JSON.stringify(
+          versions,
+        )}.`,
+      );
+      assert(
+        versions.find((row) => row?.template_version === "v2")
+          ?.prompt_config_snapshot?.messages?.[1]?.content?.[0]?.text === v2Text,
+        "Legacy prompt versions endpoint did not return the saved v2 content.",
+      );
+
+      const comparison = await client.post(
+        apiPath("/model-hub/prompt-templates/{id}/compare-versions/", {
+          id: promptId,
+        }),
+        { versions: ["v1", "v2"] },
+      );
+      assert(
+        payloadArray(comparison?.data, "data").length === 2 ||
+          payloadArray(comparison, "data").length === 2,
+        `Legacy prompt compare-versions did not return both versions: ${JSON.stringify(
+          comparison,
+        )}.`,
+      );
+
+      await client.post(
+        apiPath("/model-hub/prompt-templates/{id}/commit/", { id: promptId }),
+        {
+          version_name: "v1",
+          message: `API journey v1 commit ${runId}`,
+          is_draft: false,
+          set_default: true,
+        },
+      );
+      await client.post(
+        apiPath("/model-hub/prompt-templates/{id}/set_default/", {
+          id: promptId,
+        }),
+        { version_name: "v2" },
+      );
+      const defaultV2 = await client.get(
+        apiPath("/model-hub/prompt-templates/get-template-by-name/"),
+        { query: { name: promptName } },
+      );
+      assert(
+        defaultV2?.version === "v2" && defaultV2?.is_default === true,
+        `set_default did not make v2 the unique default lookup: ${JSON.stringify(
+          defaultV2,
+        )}.`,
+      );
+      await client.post(
+        apiPath("/model-hub/prompt-templates/{id}/commit/", { id: promptId }),
+        {
+          version_name: "v2",
+          message: `API journey v2 commit ${runId}`,
+          is_draft: false,
+          set_default: true,
+        },
+      );
+      const defaultAfterCommit = await client.get(
+        apiPath("/model-hub/prompt-templates/get-template-by-name/"),
+        { query: { name: promptName } },
+      );
+      assert(
+        defaultAfterCommit?.version === "v2" &&
+          defaultAfterCommit?.is_default === true,
+        `commit set_default did not keep v2 as default: ${JSON.stringify(
+          defaultAfterCommit,
+        )}.`,
+      );
+      const explicitV1 = await client.get(
+        apiPath("/model-hub/prompt-templates/get-template-by-name/"),
+        { query: { name: promptName, version: "v1" } },
+      );
+      assert(
+        explicitV1?.version === "v1",
+        "get-template-by-name with explicit version did not return v1.",
+      );
+
+      const runStatus = await client.get(
+        apiPath("/model-hub/prompt-templates/{id}/get-run-status/", {
+          id: promptId,
+        }),
+        { query: { template_version: "v2" } },
+      );
+      assert(
+        runStatus?.executions_result?.template_version === "v2" &&
+          Array.isArray(runStatus.executions_result.output),
+        `get-run-status did not return v2 status payload: ${JSON.stringify(
+          runStatus,
+        )}.`,
+      );
+
+      const sdkCode = await client.get(
+        apiPath("/model-hub/prompt-templates/{id}/get-sdk-code/{language}/", {
+          id: promptId,
+          language: "python",
+        }),
+      );
+      assert(
+        typeof sdkCode?.python === "string" &&
+          sdkCode.python.includes(`/model-hub/prompt-templates/${promptId}`) &&
+          sdkCode.python.includes("YOUR_API_KEY") &&
+          !/[0-9a-f]{32}/i.test(sdkCode.python),
+        "Legacy prompt SDK code did not return placeholder-only Python snippet.",
+      );
+
+      const activeAudit = await loadPromptTemplateVersionDbAudit({
+        promptId,
+        organizationId,
+        workspaceId,
+      });
+      assertPromptTemplateVersionDbAudit(activeAudit, {
+        promptId,
+        organizationId,
+        workspaceId,
+        expectedDeleted: false,
+        expectedDefaultVersion: "v2",
+      });
+
+      await deletePromptTemplateIfPresent(client, promptId);
+      const deletedAudit = await loadPromptTemplateVersionDbAudit({
+        promptId,
+        organizationId,
+        workspaceId,
+      });
+      assertPromptTemplateVersionDbAudit(deletedAudit, {
+        promptId,
+        organizationId,
+        workspaceId,
+        expectedDeleted: true,
+        expectedDefaultVersion: "v2",
+      });
+
+      evidence.push({
+        prompt_id: promptId,
+        prompt_name: promptName,
+        versions: versionNames,
+        default_version: defaultAfterCommit.version,
+        run_status_version: runStatus.executions_result.template_version,
+        sdk_code_keys: Object.keys(sdkCode),
+        active_default_version_count: activeAudit.active_default_version_count,
+        deleted_versions_without_deleted_at_count:
+          deletedAudit.deleted_versions_without_deleted_at_count,
+      });
+    },
+  },
+  {
+    id: "PROMPT-API-007",
+    title:
+      "Prompt Workbench safe provider run preview, status polling, and DB readback",
+    tags: [
+      "prompts",
+      "workbench",
+      "provider",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const suffix = runId.replace(/[^a-z0-9]/gi, "").slice(0, 18);
+      const promptName = `api journey prompt run ${suffix}`;
+      const variableNames = { topic: ["coverage"] };
+      const runConfig = promptConfig(
+        "Reply with exactly one short phrase.",
+        "Say ready for {{topic}}.",
+      );
+      let promptDeleted = false;
+
+      const options = await client.get(
+        apiPath("/model-hub/develops/retrieve_run_prompt_options/"),
+      );
+      const safeModel = payloadArray(options, "models").find(
+        (model) =>
+          model?.model_name === "gpt-4o-mini" &&
+          model?.providers === "openai" &&
+          model?.mode === "chat" &&
+          model?.is_available === true,
+      );
+      if (!safeModel) {
+        skip("gpt-4o-mini is not available for safe prompt Workbench runs.");
+      }
+      runConfig.configuration.model = safeModel.model_name;
+      runConfig.configuration.model_detail = { type: safeModel.mode };
+      runConfig.configuration.max_tokens = 16;
+      runConfig.configuration.temperature = 0;
+
+      const createdPrompt = await client.post(
+        apiPath("/model-hub/prompt-templates/create-draft/"),
+        {
+          name: promptName,
+          variable_names: variableNames,
+          metadata: { source: "api-journey", run_id: runId },
+          prompt_config: [runConfig],
+        },
+      );
+      const promptId =
+        createdPrompt?.id ||
+        createdPrompt?.root_template ||
+        createdPrompt?.rootTemplate;
+      assert(
+        isUuid(promptId),
+        "Prompt run journey create did not return a UUID id.",
+      );
+      cleanup.defer("delete API journey prompt run prompt", async () => {
+        if (!promptDeleted) {
+          await deletePromptTemplateIfPresent(client, promptId);
+        }
+      });
+
+      const submitted = await client.post(
+        apiPath("/model-hub/prompt-templates/{id}/run_template/", {
+          id: promptId,
+        }),
+        {
+          name: promptName,
+          version: "v1",
+          is_run: "prompt",
+          variable_names: variableNames,
+          placeholders: {},
+          evaluation_configs: [],
+          prompt_config: [runConfig],
+        },
+      );
+      assert(
+        submitted?.template_id === promptId,
+        "Prompt Workbench run submit returned the wrong template id.",
+      );
+
+      const runStatus = await waitForPromptTemplateRunCompletion(client, {
+        promptId,
+        templateVersion: "v1",
+      });
+      assertPromptTemplateRunStatus(runStatus, {
+        promptId,
+        templateVersion: "v1",
+        modelName: safeModel.model_name,
+      });
+
+      const activeAudit = await loadPromptRunPreviewDbAudit({
+        promptId,
+        templateVersion: "v1",
+        organizationId,
+        workspaceId,
+      });
+      assertPromptRunPreviewDbAudit(activeAudit, {
+        promptId,
+        organizationId,
+        workspaceId,
+        modelName: safeModel.model_name,
+        expectedDeleted: false,
+      });
+
+      await deletePromptTemplateIfPresent(client, promptId);
+      promptDeleted = true;
+      const deletedAudit = await loadPromptRunPreviewDbAudit({
+        promptId,
+        templateVersion: "v1",
+        organizationId,
+        workspaceId,
+      });
+      assertPromptRunPreviewDbAudit(deletedAudit, {
+        promptId,
+        organizationId,
+        workspaceId,
+        modelName: safeModel.model_name,
+        expectedDeleted: true,
+      });
+
+      evidence.push({
+        prompt_id: promptId,
+        prompt_name: promptName,
+        model: safeModel.model_name,
+        provider: safeModel.providers,
+        output_count: activeAudit.output_count,
+        metadata_count: activeAudit.metadata_count,
+        status: runStatus.status,
+        deleted_at_set: deletedAudit.prompt_deleted_at_set,
+      });
+    },
+  },
+  {
     id: "PROMPT-API-003",
     title:
       "Prompt Workbench folder list/search, prompt assignment, and soft-delete lifecycle",
@@ -5112,7 +9448,14 @@ export const datasetEvalJourneys = [
       "data-roundtrip",
       "db-audit",
     ],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.replace(/[^a-z0-9]/gi, "").slice(0, 18);
       const folderName = `api_journey_prompt_folder_${suffix}`;
@@ -5132,11 +9475,16 @@ export const datasetEvalJourneys = [
         { name: folderName },
       );
       const folderId = createdFolder?.id;
-      assert(isUuid(folderId), "Prompt folder create did not return a UUID id.");
+      assert(
+        isUuid(folderId),
+        "Prompt folder create did not return a UUID id.",
+      );
       cleanup.defer("delete API journey prompt folder", async () => {
         if (!folderDeleted) {
           await ignoreNotFound(() =>
-            client.delete(apiPath("/model-hub/prompt-folders/{id}/", { id: folderId })),
+            client.delete(
+              apiPath("/model-hub/prompt-folders/{id}/", { id: folderId }),
+            ),
           );
         }
       });
@@ -5144,7 +9492,10 @@ export const datasetEvalJourneys = [
       const folderDetail = await client.get(
         apiPath("/model-hub/prompt-folders/{id}/", { id: folderId }),
       );
-      assert(folderDetail?.name === folderName, "Prompt folder detail name mismatch.");
+      assert(
+        folderDetail?.name === folderName,
+        "Prompt folder detail name mismatch.",
+      );
 
       const createdFolderRow = await findWorkbenchFolderRow(client, folderName);
       assert(
@@ -5204,7 +9555,9 @@ export const datasetEvalJourneys = [
         "Prompt detail did not preserve folder assignment.",
       );
       assert(
-        JSON.stringify(promptDetail?.prompt_config || []).includes("{{customer}}"),
+        JSON.stringify(promptDetail?.prompt_config || []).includes(
+          "{{customer}}",
+        ),
         "Prompt detail did not preserve Workbench variable content.",
       );
 
@@ -5297,7 +9650,9 @@ export const datasetEvalJourneys = [
         }
       });
 
-      await client.delete(apiPath("/model-hub/prompt-folders/{id}/", { id: folderId }));
+      await client.delete(
+        apiPath("/model-hub/prompt-folders/{id}/", { id: folderId }),
+      );
       folderDeleted = true;
       cascadePromptDeleted = true;
 
@@ -5335,7 +9690,9 @@ export const datasetEvalJourneys = [
         folder_prompt_rows: folderPrompts.length,
         pinned_ids_top_indexes: pinnedIndexes,
         prompt_deleted_at_set: deletedPromptAudit.prompt_deleted_at_set,
-        prompt_versions_deleted: Number(deletedPromptAudit.deleted_version_count),
+        prompt_versions_deleted: Number(
+          deletedPromptAudit.deleted_version_count,
+        ),
         folder_deleted_at_set: deletedFolderAudit.folder_deleted_at_set,
         cascade_prompt_deleted_at_set: deletedFolderAudit.prompt_deleted_at_set,
       });
@@ -5353,9 +9710,19 @@ export const datasetEvalJourneys = [
       "data-roundtrip",
       "db-audit",
     ],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
-      const suffix = runId.replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 18);
+      const suffix = runId
+        .replace(/[^a-z0-9]/gi, "")
+        .toLowerCase()
+        .slice(0, 18);
       const promptName = `api journey prompt eval ${suffix}`;
       const evalConfigName = `api_journey_prompt_eval_config_${suffix}`;
       const variableNames = {
@@ -5384,7 +9751,10 @@ export const datasetEvalJourneys = [
         createdPrompt?.id ||
         createdPrompt?.root_template ||
         createdPrompt?.rootTemplate;
-      assert(isUuid(promptId), "Prompt eval journey create did not return a UUID id.");
+      assert(
+        isUuid(promptId),
+        "Prompt eval journey create did not return a UUID id.",
+      );
       cleanup.defer("delete API journey prompt eval prompt", async () => {
         if (!promptDeleted) {
           await deletePromptTemplateIfPresent(client, promptId);
@@ -5475,7 +9845,10 @@ export const datasetEvalJourneys = [
         "evaluation_configs",
       );
       const configRow = configRows.find((row) => row?.id === evalConfigId);
-      assert(configRow, "Evaluation configs did not include the created config.");
+      assert(
+        configRow,
+        "Evaluation configs did not include the created config.",
+      );
       assert(
         configsPayload?.template_id === promptId,
         "Evaluation configs returned wrong prompt template id.",
@@ -5493,7 +9866,10 @@ export const datasetEvalJourneys = [
         "Prompt eval config returned wrong name.",
       );
       assertPromptEvalMapping(configRow.mapping, mapping);
-      assertPromptEvalRequiredKeys(configRow.eval_required_keys, evalTemplate.requiredKeys);
+      assertPromptEvalRequiredKeys(
+        configRow.eval_required_keys,
+        evalTemplate.requiredKeys,
+      );
       assertPromptEvalParams(configRow.params, evalTemplate.expectedParams);
       assertPromptEvalSchemaKeys(
         configRow.function_params_schema,
@@ -5560,9 +9936,8 @@ export const datasetEvalJourneys = [
       });
       const textVariable = evaluationData.variables?.text;
       assert(
-        (Array.isArray(textVariable)
-          ? textVariable[0]
-          : textVariable) === "one two three four",
+        (Array.isArray(textVariable) ? textVariable[0] : textVariable) ===
+          "one two three four",
         "Prompt evaluations did not include prompt variables.",
       );
       const evalNames = payloadArray(versionData.eval_names, "eval_names");
@@ -5612,10 +9987,9 @@ export const datasetEvalJourneys = [
       );
 
       await client.delete(
-        apiPath(
-          "/model-hub/prompt-templates/{id}/delete-evaluation-config/",
-          { id: promptId },
-        ),
+        apiPath("/model-hub/prompt-templates/{id}/delete-evaluation-config/", {
+          id: promptId,
+        }),
         { query: { id: evalConfigId } },
       );
       evalConfigDeleted = true;
@@ -5941,6 +10315,21 @@ function assertExperimentComparisonsPayload(payload, experimentId) {
   );
 }
 
+function assertExperimentComparePostPayload(payload, experimentId, label) {
+  assert(
+    payload?.experiment_id === experimentId,
+    `Experiment ${label} compare returned the wrong experiment id.`,
+  );
+  assert(
+    Number.isInteger(Number(payload.total_datasets)),
+    `Experiment ${label} compare did not return total_datasets.`,
+  );
+  assert(
+    Array.isArray(payload.dataset_comparisons),
+    `Experiment ${label} compare did not return dataset_comparisons.`,
+  );
+}
+
 function assertExperimentEvalStatsPayload(payload, experimentId, evalMetricId) {
   assert(
     payload?.experiment_id === experimentId,
@@ -5995,7 +10384,10 @@ function assertExperimentFeedbackCandidate(
     );
   }
   for (const key of ["row_id", "eval_column_id", "user_eval_metric_id"]) {
-    assert(isUuid(candidate[key]), `Experiment feedback candidate missing ${key}.`);
+    assert(
+      isUuid(candidate[key]),
+      `Experiment feedback candidate missing ${key}.`,
+    );
   }
   assert(
     typeof candidate.feedback_value === "string" &&
@@ -6078,7 +10470,10 @@ function firstExperimentEvalMetricId(detail, dbAudit) {
     if (isUuid(metric)) return metric;
     if (isUuid(metric?.id)) return metric.id;
   }
-  const auditMetrics = payloadArray(dbAudit?.eval_metric_ids, "eval_metric_ids");
+  const auditMetrics = payloadArray(
+    dbAudit?.eval_metric_ids,
+    "eval_metric_ids",
+  );
   return auditMetrics.find((id) => isUuid(id)) || null;
 }
 
@@ -6100,7 +10495,10 @@ function assertEvalSummaryTemplatePayload(
   payload,
   { templateId, name, description, criteria },
 ) {
-  assert(payload?.id === templateId, "Eval summary template returned wrong id.");
+  assert(
+    payload?.id === templateId,
+    "Eval summary template returned wrong id.",
+  );
   assert(payload.name === name, "Eval summary template returned wrong name.");
   assert(
     payload.description === description,
@@ -6183,7 +10581,8 @@ function assertEvalGroupDetailPayload(
     .map((member) => member.eval_template_id)
     .sort();
   assert(
-    JSON.stringify(memberIds) === JSON.stringify([...expectedTemplateIds].sort()),
+    JSON.stringify(memberIds) ===
+      JSON.stringify([...expectedTemplateIds].sort()),
     "Eval group detail returned wrong member templates.",
   );
   assert(
@@ -6212,7 +10611,10 @@ function assertEvalGroupDbAudit(
   },
 ) {
   assert(audit.group_id === groupId, "Eval group DB audit returned wrong id.");
-  assert(audit.row_exists === true, "Eval group DB audit did not find group row.");
+  assert(
+    audit.row_exists === true,
+    "Eval group DB audit did not find group row.",
+  );
   assert(
     audit.organization_id === organizationId,
     "Eval group DB audit organization did not match request context.",
@@ -6241,7 +10643,8 @@ function assertEvalGroupDbAudit(
     "relationship_template_ids",
   ).sort();
   assert(
-    JSON.stringify(relationIds) === JSON.stringify([...expectedTemplateIds].sort()),
+    JSON.stringify(relationIds) ===
+      JSON.stringify([...expectedTemplateIds].sort()),
     "Eval group DB audit relationship template ids mismatch.",
   );
   assert(
@@ -6264,7 +10667,8 @@ async function resolveEvalGroupDatasetApplyFixtures(client) {
       query: { page: 0, page_size: 25 },
     }),
   ).filter((dataset) => isUuid(dataset?.id));
-  if (!datasets.length) skip("No datasets found for eval group apply coverage.");
+  if (!datasets.length)
+    skip("No datasets found for eval group apply coverage.");
 
   const templates = await loadEvalTemplatesWithRequiredKeys(client);
 
@@ -6277,7 +10681,9 @@ async function resolveEvalGroupDatasetApplyFixtures(client) {
     const columns = payloadArray(columnsPayload, "columns").filter(
       (column) => isUuid(column?.id) && typeof column?.name === "string",
     );
-    const columnsByName = new Map(columns.map((column) => [column.name, column]));
+    const columnsByName = new Map(
+      columns.map((column) => [column.name, column]),
+    );
     for (const template of templates) {
       if (!template.requiredKeys.every((key) => columnsByName.has(key))) {
         continue;
@@ -6346,7 +10752,10 @@ async function resolveEvalGroupSimulateApplyFixtures(
       run_test_id: runTest.id,
     }),
   );
-  assert(detail?.id === runTest.id, "Simulation run-test detail returned wrong id.");
+  assert(
+    detail?.id === runTest.id,
+    "Simulation run-test detail returned wrong id.",
+  );
   const templates = await loadEvalTemplatesWithRequiredKeys(client);
   const template =
     templates.find(
@@ -6474,7 +10883,9 @@ async function resolveCompositeExperimentBindingFixtures(
     };
   }
 
-  skip("No experiment candidate could be mapped to composite output/expected keys.");
+  skip(
+    "No experiment candidate could be mapped to composite output/expected keys.",
+  );
 }
 
 async function resolveEvalGroupEvalTaskApplyFixtures(
@@ -6620,12 +11031,18 @@ function assertSimulateApplyPayload(payload, { templateId, mapping }) {
   }
 }
 
-function assertEvalTaskApplyPayload(payload, { templateId, projectId, mapping }) {
+function assertEvalTaskApplyPayload(
+  payload,
+  { templateId, projectId, mapping },
+) {
   assert(
     payload?.eval_template === templateId,
     "Eval-task apply returned wrong eval template id.",
   );
-  assert(payload.project === projectId, "Eval-task apply returned wrong project id.");
+  assert(
+    payload.project === projectId,
+    "Eval-task apply returned wrong project id.",
+  );
   assert(
     payload.model === "turing_small",
     "Eval-task apply did not return selected model.",
@@ -6654,7 +11071,10 @@ function assertEvalGroupDatasetApplyDbAudit(
     expectedDeleted,
   },
 ) {
-  assert(audit.group_id === groupId, "Dataset apply DB audit group id mismatch.");
+  assert(
+    audit.group_id === groupId,
+    "Dataset apply DB audit group id mismatch.",
+  );
   assert(
     audit.dataset_id === datasetId,
     "Dataset apply DB audit dataset id mismatch.",
@@ -6678,7 +11098,10 @@ function assertEvalGroupDatasetApplyDbAudit(
 
   const metrics = payloadArray(audit.metrics, "metrics");
   const metric = metrics[0];
-  assert(metric?.template_id === templateId, "Dataset apply used wrong template.");
+  assert(
+    metric?.template_id === templateId,
+    "Dataset apply used wrong template.",
+  );
   assert(
     metric.organization_id === organizationId,
     "Dataset apply metric organization did not match request context.",
@@ -6697,7 +11120,10 @@ function assertEvalGroupDatasetApplyDbAudit(
       "Dataset apply metric delete did not set deleted_at.",
     );
   } else {
-    assert(metric.status === "Inactive", "Dataset apply metric was not inactive.");
+    assert(
+      metric.status === "Inactive",
+      "Dataset apply metric was not inactive.",
+    );
     assert(
       metric.show_in_sidebar === true,
       "Dataset apply metric was hidden from sidebar unexpectedly.",
@@ -6738,7 +11164,10 @@ function assertEvalGroupPromptApplyDbAudit(
     expectedDeleted,
   },
 ) {
-  assert(audit.group_id === groupId, "Prompt apply DB audit group id mismatch.");
+  assert(
+    audit.group_id === groupId,
+    "Prompt apply DB audit group id mismatch.",
+  );
   assert(
     audit.prompt_template_id === promptId,
     "Prompt apply DB audit prompt id mismatch.",
@@ -6815,7 +11244,10 @@ function assertEvalGroupSimulateApplyDbAudit(
     expectedDeleted,
   },
 ) {
-  assert(audit.group_id === groupId, "Simulate apply DB audit group id mismatch.");
+  assert(
+    audit.group_id === groupId,
+    "Simulate apply DB audit group id mismatch.",
+  );
   assert(
     audit.run_test_id === runTestId,
     "Simulate apply DB audit run-test id mismatch.",
@@ -6851,7 +11283,10 @@ function assertEvalGroupSimulateApplyDbAudit(
 
   const configs = payloadArray(audit.configs, "configs");
   const config = configs[0];
-  assert(config?.id === configId, "Simulate apply DB audit config id mismatch.");
+  assert(
+    config?.id === configId,
+    "Simulate apply DB audit config id mismatch.",
+  );
   assert(
     config.eval_template_id === templateId,
     "Simulate apply DB audit used wrong template.",
@@ -6951,7 +11386,10 @@ function assertEvalGroupExperimentApplyDbAudit(
 
   const metrics = payloadArray(audit.metrics, "metrics");
   const metric = metrics[0];
-  assert(metric?.template_id === templateId, "Experiment apply used wrong template.");
+  assert(
+    metric?.template_id === templateId,
+    "Experiment apply used wrong template.",
+  );
   assert(
     metric.organization_id === organizationId,
     "Experiment apply metric organization did not match request context.",
@@ -7053,7 +11491,10 @@ function assertEvalGroupEvalTaskApplyDbAudit(
 
   const configs = payloadArray(audit.configs, "configs");
   const config = configs[0];
-  assert(config?.id === configId, "Eval-task apply DB audit config id mismatch.");
+  assert(
+    config?.id === configId,
+    "Eval-task apply DB audit config id mismatch.",
+  );
   assert(
     config.eval_template_id === templateId,
     "Eval-task apply DB audit used wrong template.",
@@ -7096,7 +11537,10 @@ function assertEvalGroupEvalTaskApplyDbAudit(
 function assertEvalTemplateDetail(detail, templateId, name) {
   assert(detail?.id === templateId, "Eval template detail returned wrong id.");
   assert(detail.name === name, "Eval template detail returned wrong name.");
-  assert(detail.owner === "user", "Eval template detail did not mark owner=user.");
+  assert(
+    detail.owner === "user",
+    "Eval template detail did not mark owner=user.",
+  );
   assert(
     detail.eval_type === "code",
     "Eval template detail did not preserve eval_type=code.",
@@ -7155,7 +11599,8 @@ async function createCompositeRequiredKeyChildEval(
       model: "turing_large",
       output_type: "pass_fail",
       pass_threshold: 0.5,
-      description: "Composite child with required keys for API journey regression.",
+      description:
+        "Composite child with required keys for API journey regression.",
       tags: ["api-journey", "composite-child"],
       check_internet: false,
     },
@@ -7200,7 +11645,8 @@ async function createEvalPlaygroundCodeEval(client, name) {
       code_language: "python",
       output_type: "pass_fail",
       pass_threshold: 0.5,
-      description: "Eval playground template created by API journey regression.",
+      description:
+        "Eval playground template created by API journey regression.",
       tags: ["api-journey", "eval-playground"],
     },
   );
@@ -7211,7 +11657,13 @@ async function createEvalPlaygroundCodeEval(client, name) {
   return created;
 }
 
-function testEvaluationPayload({ name, templateId, evalTypeId, mapping, params }) {
+function testEvaluationPayload({
+  name,
+  templateId,
+  evalTypeId,
+  mapping,
+  params,
+}) {
   return {
     name,
     template_type: "Function",
@@ -7258,20 +11710,31 @@ function assertTestEvaluationPayload(payload, expectedOutput) {
 function normalizeEvalOutput(value) {
   if (value === true) return "passed";
   if (value === false) return "failed";
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function assertEvalPlaygroundExecutionPayload(payload) {
-  assert(payload && typeof payload === "object", "Eval playground returned no payload.");
+  assert(
+    payload && typeof payload === "object",
+    "Eval playground returned no payload.",
+  );
   assert(
     Object.prototype.hasOwnProperty.call(payload, "output"),
     "Eval playground response did not include output.",
   );
-  assert(isUuid(payload.log_id), "Eval playground response did not include log_id.");
+  assert(
+    isUuid(payload.log_id),
+    "Eval playground response did not include log_id.",
+  );
 }
 
 function assertEvalPlaygroundLogDetail(payload, logId) {
-  assert(payload && typeof payload === "object", "Eval log detail returned no payload.");
+  assert(
+    payload && typeof payload === "object",
+    "Eval log detail returned no payload.",
+  );
   assert(
     String(payload.log_id) === logId || String(payload.evaluation_id) === logId,
     "Eval log detail returned the wrong log id.",
@@ -7288,7 +11751,8 @@ function assertEvalPlaygroundLogDetail(payload, logId) {
 
 function assertEvalPlaygroundErrorLocalizerDetail(payload, logId) {
   assert(
-    String(payload?.log_id) === logId || String(payload?.evaluation_id) === logId,
+    String(payload?.log_id) === logId ||
+      String(payload?.evaluation_id) === logId,
     "Error-localizer log detail returned the wrong log id.",
   );
   const status = String(payload?.error_localizer_status || "");
@@ -7304,9 +11768,15 @@ function assertEvalPlaygroundErrorLocalizerDetail(payload, logId) {
   }
 }
 
-function assertEvalPlaygroundConfigPayload(payload, { templateId, templateName }) {
+function assertEvalPlaygroundConfigPayload(
+  payload,
+  { templateId, templateName },
+) {
   const config = payload?.eval || payload;
-  assert(config && typeof config === "object", "Eval config returned no payload.");
+  assert(
+    config && typeof config === "object",
+    "Eval config returned no payload.",
+  );
   assert(
     config.id === templateId || config.template_id === templateId,
     "Eval config returned the wrong template id.",
@@ -7347,8 +11817,7 @@ function assertEvalPlaygroundUsageTemplateList(
 ) {
   const rows = payloadArray(payload?.row_data, "row_data");
   const match = rows.find(
-    (row) =>
-      row?.id === templateId || row?.eval_template_name === templateName,
+    (row) => row?.id === templateId || row?.eval_template_name === templateName,
   );
   assert(
     Boolean(match) === expectedPresent,
@@ -7417,7 +11886,14 @@ function assertEvalPlaygroundFeedbackList(
 
 function assertTestEvaluationDbAudit(
   audit,
-  { templateId, evalTypeId, logIds, organizationId, workspaceId, expectedLogsDeleted },
+  {
+    templateId,
+    evalTypeId,
+    logIds,
+    organizationId,
+    workspaceId,
+    expectedLogsDeleted,
+  },
 ) {
   assert(
     audit?.template_id === templateId,
@@ -7430,7 +11906,8 @@ function assertTestEvaluationDbAudit(
   );
   if (workspaceId) {
     assert(
-      !audit.template_workspace_id || audit.template_workspace_id === workspaceId,
+      !audit.template_workspace_id ||
+        audit.template_workspace_id === workspaceId,
       "test-evaluation template workspace was neither system-owned nor request-owned.",
     );
   }
@@ -7516,7 +11993,10 @@ function assertEvalPlaygroundDbAudit(
     expectedFeedbackActionType,
   },
 ) {
-  assert(audit?.template_id === templateId, "Playground DB audit returned wrong template.");
+  assert(
+    audit?.template_id === templateId,
+    "Playground DB audit returned wrong template.",
+  );
   assert(audit.log_id === logId, "Playground DB audit returned wrong log.");
   assert(
     audit.template_organization_id === organizationId,
@@ -7546,7 +12026,10 @@ function assertEvalPlaygroundDbAudit(
   );
 
   if (expectedDeleted) {
-    assert(audit.template_deleted === true, "Playground template was not deleted.");
+    assert(
+      audit.template_deleted === true,
+      "Playground template was not deleted.",
+    );
     assert(
       audit.template_deleted_at_set === true,
       "Playground template delete did not stamp deleted_at.",
@@ -7563,7 +12046,10 @@ function assertEvalPlaygroundDbAudit(
     return;
   }
 
-  assert(audit.template_deleted === false, "Playground template was deleted early.");
+  assert(
+    audit.template_deleted === false,
+    "Playground template was deleted early.",
+  );
   assert(audit.log_deleted === false, "Playground log was deleted early.");
   assert(
     audit.feedback_id === feedbackId,
@@ -7658,7 +12144,10 @@ function assertEvalPlaygroundSettingsAudit(
   audit,
   { expectedDeleted, expectedFirstColumnVisible },
 ) {
-  assert(audit?.setting_exists === true, "Eval log settings audit found no row.");
+  assert(
+    audit?.setting_exists === true,
+    "Eval log settings audit found no row.",
+  );
   assert(
     Number(audit.setting_count) === 1,
     "Eval log settings audit found duplicate settings rows.",
@@ -7742,7 +12231,10 @@ function assertCompositeDetail(
   }
 }
 
-function assertCompositeExecutePayload(payload, { compositeId, name, childIds }) {
+function assertCompositeExecutePayload(
+  payload,
+  { compositeId, name, childIds },
+) {
   assert(
     payload?.composite_id === compositeId,
     "Composite execute returned wrong composite_id.",
@@ -7816,7 +12308,10 @@ function assertEvalFeedbackListPayload(payload, templateId) {
 function assertEvalChartsPayload(payload, templateId) {
   const chart = payload?.charts?.[templateId];
   assert(chart, "Eval list-charts endpoint omitted the selected template.");
-  assert(Array.isArray(chart.chart), "Eval list-charts chart was not an array.");
+  assert(
+    Array.isArray(chart.chart),
+    "Eval list-charts chart was not an array.",
+  );
   assert(
     Array.isArray(chart.error_rate),
     "Eval list-charts error_rate was not an array.",
@@ -7883,13 +12378,17 @@ function assertGroundTruthDataPayload(payload, groundTruthId) {
     "Ground-truth data did not return uploaded rows.",
   );
   assert(
-    payload.columns?.includes("question") && payload.columns?.includes("answer"),
+    payload.columns?.includes("question") &&
+      payload.columns?.includes("answer"),
     "Ground-truth data did not return uploaded columns.",
   );
 }
 
 function assertGroundTruthStatusPayload(payload, groundTruthId) {
-  assert(payload?.id === groundTruthId, "Ground-truth status returned wrong id.");
+  assert(
+    payload?.id === groundTruthId,
+    "Ground-truth status returned wrong id.",
+  );
   assert(
     payload.embedding_status === "pending",
     "New ground truth should remain pending until embed is triggered.",
@@ -7920,10 +12419,7 @@ function assertEvalTemplateLifecycleDbAudit(
     !workspaceId || audit.workspace_id === workspaceId,
     "Eval DB audit workspace did not match request context.",
   );
-  assert(
-    audit.owner === "user",
-    "Eval DB audit did not persist owner=user.",
-  );
+  assert(audit.owner === "user", "Eval DB audit did not persist owner=user.");
   assert(
     audit.deleted === expectedDeleted,
     "Eval DB audit deleted state did not match expected state.",
@@ -7945,6 +12441,82 @@ function assertEvalTemplateLifecycleDbAudit(
   assert(
     audit.ground_truth_id === groundTruthId,
     "Eval DB audit ground-truth config did not reference uploaded ground truth.",
+  );
+}
+
+function assertCustomEvalCreateDbAudit(
+  audit,
+  { templateId, templateName, organizationId, workspaceId, expectedDeleted },
+) {
+  assert(
+    audit?.template_id === templateId,
+    "Custom eval audit returned wrong id.",
+  );
+  assert(
+    audit.name === templateName,
+    "Custom eval audit returned wrong template name.",
+  );
+  assert(
+    audit.organization_id === organizationId,
+    "Custom eval audit organization did not match request context.",
+  );
+  assert(
+    !workspaceId || audit.workspace_id === workspaceId,
+    "Custom eval audit workspace did not match request context.",
+  );
+  assert(
+    audit.owner === "user",
+    "Custom eval audit did not persist owner=user.",
+  );
+  assert(
+    audit.deleted === expectedDeleted,
+    "Custom eval audit deleted state did not match expected state.",
+  );
+  if (expectedDeleted) {
+    assert(
+      audit.deleted_at_set === true,
+      "Custom eval soft-delete did not set deleted_at.",
+    );
+  }
+  assert(
+    audit.eval_type_id === "DeterministicEvaluator",
+    "Custom eval config did not persist DeterministicEvaluator.",
+  );
+  assert(
+    audit.config_output === "Pass/Fail",
+    "Custom eval config did not persist Pass/Fail output.",
+  );
+  assert(
+    asArray(audit.required_keys).includes("response"),
+    "Custom eval config did not persist required_keys=response.",
+  );
+  assert(
+    audit.custom_eval === true,
+    "Custom eval config did not persist custom_eval=true.",
+  );
+  assert(
+    audit.check_internet === false,
+    "Custom eval config did not persist check_internet=false.",
+  );
+  assert(
+    audit.criteria === "Judge {{response}} for clarity.",
+    "Custom eval audit did not persist criteria.",
+  );
+  assert(
+    asArray(audit.eval_tags).includes("api-journey"),
+    "Custom eval audit did not persist tags.",
+  );
+  assert(
+    Number(audit.version_count) >= 1,
+    "Custom eval create did not create an initial version.",
+  );
+  assert(
+    Number(audit.default_version_count) === 1,
+    "Custom eval create did not create exactly one default version.",
+  );
+  assert(
+    Number(audit.version_workspace_mismatch_count) === 0,
+    "Custom eval version workspace did not match template workspace.",
   );
 }
 
@@ -8043,7 +12615,10 @@ function assertCompositeDatasetBindingDbAudit(
     "Composite dataset binding deleted metric count mismatch.",
   );
   const metric = payloadArray(audit.metrics, "metrics")[0];
-  assert(metric?.template_id === templateId, "Composite binding used wrong template.");
+  assert(
+    metric?.template_id === templateId,
+    "Composite binding used wrong template.",
+  );
   assert(
     metric.template_type === "composite",
     "Composite binding metric did not reference a composite template.",
@@ -8066,7 +12641,10 @@ function assertCompositeDatasetBindingDbAudit(
       "Composite binding metric delete did not set deleted_at.",
     );
   } else {
-    assert(metric.status === "Inactive", "Composite binding metric was not inactive.");
+    assert(
+      metric.status === "Inactive",
+      "Composite binding metric was not inactive.",
+    );
     assert(
       metric.model === "turing_small",
       "Composite binding metric did not persist selected model.",
@@ -8282,6 +12860,182 @@ function assertDatasetListRow(row) {
     typeof row.dataset_type === "string" && row.dataset_type.length > 0,
     "Dataset list row did not expose dataset_type.",
   );
+}
+
+function assertDatasetOptimizationListRows(rows) {
+  assert(
+    rows.length > 0,
+    "Dataset optimization list returned no rows for the selected dataset.",
+  );
+  for (const row of rows) {
+    assert(isUuid(row.id), "Dataset optimization list row missing UUID id.");
+    assert(
+      typeof row.optimization_name === "string" &&
+        row.optimization_name.length > 0,
+      "Dataset optimization list row missing optimization_name.",
+    );
+    assert(
+      typeof row.status === "string" && row.status.length > 0,
+      "Dataset optimization list row missing status.",
+    );
+    assert(
+      typeof row.optimizer_algorithm === "string" &&
+        row.optimizer_algorithm.length > 0,
+      "Dataset optimization list row missing optimizer_algorithm.",
+    );
+    assert(
+      Number.isInteger(Number(row.trial_count)),
+      "Dataset optimization list row missing numeric trial_count.",
+    );
+    assert(
+      !row.column_id || isUuid(row.column_id),
+      "Dataset optimization list row returned invalid column_id.",
+    );
+  }
+}
+
+function assertDatasetOptimizationDetail(detail) {
+  assert(
+    detail && typeof detail === "object",
+    "Dataset optimization detail returned an empty payload.",
+  );
+  assert(
+    typeof detail.optimiser_name === "string" &&
+      detail.optimiser_name.length > 0,
+    "Dataset optimization detail missing optimiser_name.",
+  );
+  assert(
+    typeof detail.status === "string" && detail.status.length > 0,
+    "Dataset optimization detail missing status.",
+  );
+  assert(
+    Array.isArray(detail.table),
+    "Dataset optimization detail missing trial comparison table.",
+  );
+  assert(
+    Array.isArray(detail.column_config),
+    "Dataset optimization detail missing column_config.",
+  );
+  assert(
+    Array.isArray(detail.parameters),
+    "Dataset optimization detail missing parameters array.",
+  );
+}
+
+function assertDatasetOptimizationSteps(stepsPayload, expectedStepCount) {
+  const steps = payloadArray(stepsPayload, "steps");
+  assert(
+    steps.length >= Number(expectedStepCount || 0),
+    "Dataset optimization steps endpoint returned fewer rows than DB audit.",
+  );
+  for (const step of steps) {
+    assert(isUuid(step.id), "Dataset optimization step missing UUID id.");
+    assert(
+      typeof step.name === "string" && step.name.length > 0,
+      "Dataset optimization step missing name.",
+    );
+    assert(
+      typeof step.status === "string" && step.status.length > 0,
+      "Dataset optimization step missing status.",
+    );
+    assert(
+      Number.isInteger(Number(step.step_number)),
+      "Dataset optimization step missing numeric step_number.",
+    );
+  }
+}
+
+function assertDatasetOptimizationGraph(graph) {
+  assert(
+    graph && typeof graph === "object" && !Array.isArray(graph),
+    "Dataset optimization graph endpoint did not return an object.",
+  );
+}
+
+function assertDatasetOptimizationTrialPayload(payload) {
+  assert(
+    payload && typeof payload === "object",
+    "Dataset optimization trial detail returned an empty payload.",
+  );
+  assert(
+    typeof payload.trial_name === "string" && payload.trial_name.length > 0,
+    "Dataset optimization trial detail missing trial_name.",
+  );
+  assert(
+    payload.trial && isUuid(payload.trial.id),
+    "Dataset optimization trial detail missing trial UUID.",
+  );
+}
+
+function assertDatasetOptimizationTrialPrompt(payload) {
+  assert(
+    payload && typeof payload === "object",
+    "Dataset optimization trial prompt returned an empty payload.",
+  );
+  assert(
+    typeof payload.trial_name === "string" && payload.trial_name.length > 0,
+    "Dataset optimization trial prompt missing trial_name.",
+  );
+  assert(
+    typeof payload.trial_prompt === "string" || payload.trial_prompt === null,
+    "Dataset optimization trial prompt returned invalid trial_prompt.",
+  );
+  assert(
+    typeof payload.base_prompt === "string" || payload.base_prompt === null,
+    "Dataset optimization trial prompt returned invalid base_prompt.",
+  );
+}
+
+function assertDatasetOptimizationTrialTable(payload) {
+  assert(
+    payload && typeof payload === "object",
+    "Dataset optimization trial table endpoint returned an empty payload.",
+  );
+  assert(
+    Array.isArray(payload.table),
+    "Dataset optimization trial table endpoint missing table array.",
+  );
+  assert(
+    Array.isArray(payload.column_config),
+    "Dataset optimization trial table endpoint missing column_config.",
+  );
+  assert(
+    Number.isInteger(Number(payload.total_items)),
+    "Dataset optimization trial table endpoint missing numeric total_items.",
+  );
+}
+
+function assertDatasetOptimizationDeletedAudit(audit) {
+  assert(
+    audit?.run_deleted === true,
+    "Dataset optimization delete did not soft-delete the run.",
+  );
+  assert(
+    audit.run_deleted_at_set === true,
+    "Dataset optimization delete did not set run deleted_at.",
+  );
+  for (const key of [
+    "active_step_count",
+    "active_trial_count",
+    "active_item_count",
+    "active_evaluation_count",
+  ]) {
+    assert(
+      Number(audit[key]) === 0,
+      `Dataset optimization delete left active child rows for ${key}.`,
+    );
+  }
+  for (const key of [
+    "deleted_step_deleted_at_count",
+    "deleted_trial_deleted_at_count",
+    "deleted_item_deleted_at_count",
+    "deleted_evaluation_deleted_at_count",
+  ]) {
+    assert(
+      Number(audit[key]) > 0,
+      `Dataset optimization delete did not set deleted_at for ${key}.`,
+    );
+  }
 }
 
 function assertDatasetNameRows(rows) {
@@ -8581,7 +13335,10 @@ function assertRunPromptConfigReload(
   { datasetId, outputName, modelName, inputName },
 ) {
   const config = payload?.config || payload;
-  assert(config?.dataset_id === datasetId, "Run-prompt config dataset mismatch.");
+  assert(
+    config?.dataset_id === datasetId,
+    "Run-prompt config dataset mismatch.",
+  );
   assert(config?.name === outputName, "Run-prompt config name mismatch.");
   assert(config?.model === modelName, "Run-prompt config model mismatch.");
   const messageText = JSON.stringify(config?.messages || []);
@@ -8600,7 +13357,9 @@ async function waitForRunPromptColumnCompletion(
   while (Date.now() < deadline) {
     const table = await getDatasetTable(client, datasetId, { page_size: 100 });
     const column = findColumn(table, columnName);
-    const row = asArray(table?.table).find((candidate) => candidate.row_id === rowId);
+    const row = asArray(table?.table).find(
+      (candidate) => candidate.row_id === rowId,
+    );
     const cell = column?.id && row ? row[column.id] : null;
     const status = String(
       cell?.cell_status || cell?.status || cell?.value_status || "",
@@ -8634,6 +13393,51 @@ async function expectApiErrorStatus(fn, status, message) {
     return error;
   }
   throw new Error(message);
+}
+
+async function expectLegacyKnowledgeBaseEntitlementDenied(fn, message) {
+  try {
+    await fn();
+  } catch (error) {
+    assert(
+      isLegacyKnowledgeBaseEntitlementDeniedError(error),
+      `${message} Expected HTTP 402 knowledge_base entitlement metadata, got ${
+        error?.status || error.message
+      }: ${JSON.stringify(error?.body || {})}`,
+    );
+    return error;
+  }
+  throw new Error(message);
+}
+
+async function skipIfLegacyKnowledgeBaseEntitlementDenied(client, evidence) {
+  try {
+    await client.get(apiPath("/model-hub/knowledge-base/get/"), {
+      query: { page_number: 0, page_size: 1 },
+    });
+  } catch (error) {
+    if (isLegacyKnowledgeBaseEntitlementDeniedError(error)) {
+      evidence.push({
+        mode: "legacy_entitlement_denied",
+        status: error.status,
+        body: error.body,
+      });
+      skip(
+        "Legacy knowledge-base endpoints are entitlement-blocked in this local workspace; KB-API-004 covers the current gate.",
+      );
+    }
+    throw error;
+  }
+}
+
+function isLegacyKnowledgeBaseEntitlementDeniedError(error) {
+  const text = JSON.stringify(error?.body || {}).toLowerCase();
+  return (
+    error?.status === 402 &&
+    (text.includes("entitlement") ||
+      text.includes("upgrade") ||
+      text.includes("knowledge_base"))
+  );
 }
 
 function assertFunctionRows(functions) {
@@ -8716,7 +13520,14 @@ function assertAdvancedDatasetReadbacks(
 
 function assertDatasetRowColumnLifecycleDbAudit(
   audit,
-  { datasetId, organizationId, workspaceId, expectedDeleted, rowCount, columnCount },
+  {
+    datasetId,
+    organizationId,
+    workspaceId,
+    expectedDeleted,
+    rowCount,
+    columnCount,
+  },
 ) {
   assert(
     audit.dataset_id === datasetId,
@@ -8799,7 +13610,10 @@ function assertRunPromptColumnDbAudit(
   assert(rowId, "Run-prompt DB audit expected a row id.");
   assert(audit?.dataset_id === datasetId, "Run-prompt DB dataset mismatch.");
   assert(audit.column_id === columnId, "Run-prompt DB column mismatch.");
-  assert(audit.column_name === outputName, "Run-prompt DB column name mismatch.");
+  assert(
+    audit.column_name === outputName,
+    "Run-prompt DB column name mismatch.",
+  );
   assert(
     audit.run_prompt_dataset_id === datasetId,
     "Run-prompt DB run prompt points at the wrong dataset.",
@@ -8827,7 +13641,10 @@ function assertRunPromptColumnDbAudit(
     "Run-prompt DB model did not match the executed model.",
   );
   if (expectedDeleted) {
-    assert(audit.column_deleted === true, "Run-prompt output column not deleted.");
+    assert(
+      audit.column_deleted === true,
+      "Run-prompt output column not deleted.",
+    );
     assert(
       audit.column_deleted_at_set === true,
       "Run-prompt output column missing deleted_at.",
@@ -8848,7 +13665,10 @@ function assertRunPromptColumnDbAudit(
       "Run-prompt output cells were not soft-deleted with deleted_at.",
     );
   } else {
-    assert(audit.column_deleted === false, "Run-prompt output column is deleted.");
+    assert(
+      audit.column_deleted === false,
+      "Run-prompt output column is deleted.",
+    );
     assert(audit.run_prompt_deleted === false, "RunPrompter is deleted.");
     assert(
       ["Completed", "Running", "Failed"].includes(audit.run_prompt_status),
@@ -8928,7 +13748,10 @@ function assertKnowledgeBaseSdkSnippetSafety(code, mode) {
 function assertKnowledgeBaseTableRows(rows, kbId, kbName) {
   const row = rows.find((item) => item?.id === kbId);
   assert(row, "Knowledge base table endpoint did not return the created KB.");
-  assert(row.name === kbName, "Knowledge base table returned the wrong KB name.");
+  assert(
+    row.name === kbName,
+    "Knowledge base table returned the wrong KB name.",
+  );
   assert(
     Number(row.files_uploaded) >= 1,
     "Knowledge base table did not report the uploaded file.",
@@ -8941,8 +13764,14 @@ function assertKnowledgeBaseTableRows(rows, kbId, kbName) {
 
 function assertKnowledgeBaseFileRows(rows, fileId, fileName) {
   const row = rows.find((item) => item?.id === fileId);
-  assert(row, "Knowledge base files endpoint did not return the uploaded file.");
-  assert(row.name === fileName, "Knowledge base files endpoint returned wrong name.");
+  assert(
+    row,
+    "Knowledge base files endpoint did not return the uploaded file.",
+  );
+  assert(
+    row.name === fileName,
+    "Knowledge base files endpoint returned wrong name.",
+  );
   assert(
     Number(row.file_size) > 0,
     "Knowledge base files endpoint did not return file size.",
@@ -8964,8 +13793,14 @@ function assertKnowledgeBaseLegacyDbAudit(
     expectedFileIds,
   },
 ) {
-  assert(audit?.kb_id === kbId, "Knowledge base DB audit returned wrong KB id.");
-  assert(audit.name === kbName, "Knowledge base DB audit returned wrong KB name.");
+  assert(
+    audit?.kb_id === kbId,
+    "Knowledge base DB audit returned wrong KB id.",
+  );
+  assert(
+    audit.name === kbName,
+    "Knowledge base DB audit returned wrong KB name.",
+  );
   assert(
     audit.organization_id === organizationId,
     "Knowledge base DB audit organization mismatch.",
@@ -9004,7 +13839,10 @@ function assertKnowledgeBaseLegacyDbAudit(
 }
 
 function assertStructuredEmbeddingModels(models) {
-  assert(Array.isArray(models), "Structured KB embedding model list was not an array.");
+  assert(
+    Array.isArray(models),
+    "Structured KB embedding model list was not an array.",
+  );
   assert(
     models.some((row) => row?.value === "BAAI/bge-small-en-v1.5"),
     "Structured KB embedding model list did not include the default BGE model.",
@@ -9022,7 +13860,10 @@ function assertStructuredKnowledgeBasePayload(
   { kbId, name, embeddingModel, chunkSize },
 ) {
   assert(payload?.id === kbId, "Structured KB payload returned the wrong id.");
-  assert(payload.name === name, "Structured KB payload returned the wrong name.");
+  assert(
+    payload.name === name,
+    "Structured KB payload returned the wrong name.",
+  );
   assert(
     payload.embedding_model === embeddingModel,
     "Structured KB payload returned the wrong embedding model.",
@@ -9118,6 +13959,89 @@ function payloadArray(payload, key) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.[key])) return payload[key];
   return asArray(payload);
+}
+
+function assertDatasetComparePayload(payload) {
+  assert(
+    payload && typeof payload === "object",
+    "Dataset compare returned an empty payload.",
+  );
+  assert(
+    isUuid(payload?.metadata?.compare_id || payload?.compare_id),
+    "Dataset compare payload missing compare_id.",
+  );
+  assert(
+    Number(payload?.metadata?.total_rows || 0) > 0,
+    "Dataset compare payload reported no rows.",
+  );
+  assert(
+    Number(payload?.metadata?.total_pages || 0) > 0,
+    "Dataset compare payload reported no pages.",
+  );
+  assert(
+    asArray(payload.table).length > 0,
+    "Dataset compare payload did not return table rows.",
+  );
+  assert(
+    asArray(payload.column_config).length > 0,
+    "Dataset compare payload did not return column_config.",
+  );
+}
+
+function assertDatasetCompareRowPayload(payload, expectedRowId) {
+  const rows = asArray(payload?.table);
+  assert(rows.length === 1, "Compare row detail did not return one row.");
+  assert(
+    rows[0]?.row_id === expectedRowId,
+    "Compare row detail returned a different row id.",
+  );
+  assert(
+    Object.prototype.hasOwnProperty.call(payload, "prev_row_id"),
+    "Compare row detail missing prev_row_id.",
+  );
+  assert(
+    Object.prototype.hasOwnProperty.call(payload, "next_row_id"),
+    "Compare row detail missing next_row_id.",
+  );
+}
+
+function assertDatasetCopyFixtureAudit(audit) {
+  assert(
+    Number(audit?.source_row_count) === 4,
+    "Dataset copy DB audit source row count mismatch.",
+  );
+  assert(
+    Number(audit?.source_max_order) === 3,
+    "Dataset copy DB audit source max order mismatch.",
+  );
+  assert(
+    Number(audit?.source_duplicate_value_count) === 3,
+    "Dataset copy DB audit did not find the duplicated source rows.",
+  );
+  assert(
+    Number(audit?.target_row_count) === 7,
+    "Dataset copy DB audit target row count mismatch.",
+  );
+  assert(
+    Number(audit?.target_max_order) === 15,
+    "Dataset copy DB audit target max order mismatch.",
+  );
+  assert(
+    audit?.target_order_11_input === audit?.source_input_two_value,
+    "Dataset merge did not append the selected row after the highest target order.",
+  );
+  assert(
+    Number(audit?.target_source_one_count) === 3,
+    "Dataset import did not copy all duplicated source-one rows.",
+  );
+  assert(
+    Number(audit?.target_source_two_count) === 2,
+    "Dataset merge/import source-two row count mismatch.",
+  );
+  assert(
+    Number(audit?.target_order_12_15_count) === 4,
+    "Dataset import did not append rows after the merged row.",
+  );
 }
 
 function maskedKeyStrings(value) {
@@ -9225,6 +14149,5796 @@ FROM dataset_row d;
   return runPostgresJson(sql);
 }
 
+async function seedDatasetCompareFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const baseDatasetId = randomUUID();
+  const otherDatasetId = randomUUID();
+  const baseInputColumnId = randomUUID();
+  const baseAnswerColumnId = randomUUID();
+  const baseJudgeColumnId = randomUUID();
+  const otherInputColumnId = randomUUID();
+  const otherAnswerColumnId = randomUUID();
+  const otherJudgeColumnId = randomUUID();
+  const rowPairs = [0, 1, 2].map((index) => ({
+    input: `api compare ${suffix} row ${index + 1}`,
+    baseRowId: randomUUID(),
+    otherRowId: randomUUID(),
+    baseAnswer: `base answer ${index + 1} ${suffix}`,
+    otherAnswer: `other answer ${index + 1} ${suffix}`,
+    baseJudge: index % 2 === 0 ? "pass" : "fail",
+    otherJudge: index % 2 === 0 ? "fail" : "pass",
+  }));
+  const datasetRows = [
+    {
+      id: baseDatasetId,
+      name: `api journey compare base ${runId}`,
+      columnIds: [baseInputColumnId, baseAnswerColumnId, baseJudgeColumnId],
+    },
+    {
+      id: otherDatasetId,
+      name: `api journey compare other ${runId}`,
+      columnIds: [otherInputColumnId, otherAnswerColumnId, otherJudgeColumnId],
+    },
+  ];
+  const columnRows = [
+    [baseInputColumnId, "input", "text", "OTHERS", null, baseDatasetId],
+    [baseAnswerColumnId, "answer", "text", "OTHERS", null, baseDatasetId],
+    [baseJudgeColumnId, "judge", "text", "evaluation", null, baseDatasetId],
+    [otherInputColumnId, "input", "text", "OTHERS", null, otherDatasetId],
+    [otherAnswerColumnId, "answer", "text", "OTHERS", null, otherDatasetId],
+    [otherJudgeColumnId, "judge", "text", "evaluation", null, otherDatasetId],
+  ];
+  const rowRows = rowPairs.flatMap((rowPair, index) => [
+    [rowPair.baseRowId, index, baseDatasetId],
+    [rowPair.otherRowId, index, otherDatasetId],
+  ]);
+  const cellRows = rowPairs.flatMap((rowPair) => [
+    [
+      randomUUID(),
+      rowPair.input,
+      baseInputColumnId,
+      baseDatasetId,
+      rowPair.baseRowId,
+    ],
+    [
+      randomUUID(),
+      rowPair.baseAnswer,
+      baseAnswerColumnId,
+      baseDatasetId,
+      rowPair.baseRowId,
+    ],
+    [
+      randomUUID(),
+      rowPair.baseJudge,
+      baseJudgeColumnId,
+      baseDatasetId,
+      rowPair.baseRowId,
+    ],
+    [
+      randomUUID(),
+      rowPair.input,
+      otherInputColumnId,
+      otherDatasetId,
+      rowPair.otherRowId,
+    ],
+    [
+      randomUUID(),
+      rowPair.otherAnswer,
+      otherAnswerColumnId,
+      otherDatasetId,
+      rowPair.otherRowId,
+    ],
+    [
+      randomUUID(),
+      rowPair.otherJudge,
+      otherJudgeColumnId,
+      otherDatasetId,
+      rowPair.otherRowId,
+    ],
+  ]);
+  const datasetValues = datasetRows
+    .map(
+      (row) => `(
+    ${sqlUuid(row.id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(row.name)},
+    ARRAY[${row.columnIds.map((id) => sqlTextLiteral(id)).join(", ")}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )`,
+    )
+    .join(",\n");
+  const columnValues = columnRows
+    .map(
+      ([id, name, dataType, source, sourceId, datasetId]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(name)},
+    ${sqlTextLiteral(dataType)},
+    ${sqlTextLiteral(source)},
+    ${sourceId ? sqlTextLiteral(sourceId) : "NULL::varchar"},
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )`,
+    )
+    .join(",\n");
+  const rowValues = rowRows
+    .map(
+      ([id, order, datasetId]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${Number(order)},
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb
+  )`,
+    )
+    .join(",\n");
+  const cellValues = cellRows
+    .map(
+      ([id, value, columnId, datasetId, rowId]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(value)},
+    ${sqlUuid(columnId)},
+    ${sqlUuid(datasetId)},
+    ${sqlUuid(rowId)},
+    'pass',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  )`,
+    )
+    .join(",\n");
+  const sql = `
+WITH inserted_datasets AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES
+${datasetValues}
+  RETURNING id
+),
+inserted_columns AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES
+${columnValues}
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+${rowValues}
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES
+${cellValues}
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_datasets) = 2,
+  'base_dataset_id', ${sqlUuid(baseDatasetId)}::text,
+  'base_dataset_name', ${sqlTextLiteral(datasetRows[0].name)},
+  'other_dataset_id', ${sqlUuid(otherDatasetId)}::text,
+  'other_dataset_name', ${sqlTextLiteral(datasetRows[1].name)},
+  'base_column_name', 'input',
+  'shared_value_count', ${rowPairs.length},
+  'common_column_count', 2,
+  'inserted_column_count', (SELECT count(*) FROM inserted_columns),
+  'inserted_row_count', (SELECT count(*) FROM inserted_rows),
+  'inserted_cell_count', (SELECT count(*) FROM inserted_cells),
+  'eval_template_id', (
+    SELECT et.id::text
+    FROM model_hub_evaltemplate et
+    WHERE et.deleted = false
+      AND (et.organization_id = ${sqlUuid(organizationId)} OR et.owner = 'SYSTEM')
+    ORDER BY CASE WHEN et.owner = 'SYSTEM' THEN 0 ELSE 1 END, et.created_at DESC
+    LIMIT 1
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteDatasetCompareFixture(datasetIds) {
+  assert(
+    Array.isArray(datasetIds) && datasetIds.every(isUuid),
+    "datasetIds must be UUIDs for DB cleanup.",
+  );
+  const sql = `
+WITH deleted_cells AS (
+  DELETE FROM model_hub_cell
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_rows AS (
+  DELETE FROM model_hub_row
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_columns AS (
+  DELETE FROM model_hub_column
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_datasets AS (
+  DELETE FROM model_hub_dataset
+  WHERE id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets),
+  'deleted_column_count', (SELECT count(*) FROM deleted_columns),
+  'deleted_row_count', (SELECT count(*) FROM deleted_rows),
+  'deleted_cell_count', (SELECT count(*) FROM deleted_cells)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function findOtherWorkspaceId(organizationId, workspaceId) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const activeWorkspaceFilter = workspaceId
+    ? `AND id <> ${sqlUuid(workspaceId)}`
+    : "";
+  const sql = `
+SELECT COALESCE((
+  SELECT json_build_object('workspace_id', id::text)
+  FROM accounts_workspace
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND deleted = false
+    ${activeWorkspaceFilter}
+  ORDER BY is_default ASC, created_at DESC
+  LIMIT 1
+), '{}'::json);
+`;
+  const result = await runPostgresJson(sql);
+  return result?.workspace_id || null;
+}
+
+async function seedExperimentDatasetMaterializeFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const activeWorkspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const otherWorkspaceId = await findOtherWorkspaceId(
+    organizationId,
+    workspaceId,
+  );
+  const datasetId = randomUUID();
+  const duplicateDatasetId = randomUUID();
+  const experimentId = randomUUID();
+  const experimentDatasetId = randomUUID();
+  const inputColumnId = randomUUID();
+  const resultColumnId = randomUUID();
+  const firstRowId = randomUUID();
+  const secondRowId = randomUUID();
+  const otherDatasetId = otherWorkspaceId ? randomUUID() : null;
+  const otherExperimentId = otherWorkspaceId ? randomUUID() : null;
+  const otherExperimentDatasetId = otherWorkspaceId ? randomUUID() : null;
+  const otherInputColumnId = otherWorkspaceId ? randomUUID() : null;
+  const otherResultColumnId = otherWorkspaceId ? randomUUID() : null;
+  const otherRowId = otherWorkspaceId ? randomUUID() : null;
+  const datasetName = `api journey exp materialize source ${runId}`;
+  const experimentDatasetName = `api journey exp materialize result ${runId}`;
+  const duplicateDatasetName = `api journey exp materialize duplicate ${runId}`;
+  const otherDatasetName = `api journey exp materialize other ${runId}`;
+  const otherBlockedDatasetName = `api journey exp materialize blocked ${runId}`;
+  const firstInputValue = `first input ${suffix}`;
+  const firstResultValue = `first result ${suffix}`;
+  const secondInputValue = `second input ${suffix}`;
+  const secondResultValue = `second result ${suffix}`;
+
+  const datasetRows = [
+    {
+      id: datasetId,
+      name: datasetName,
+      workspaceSql: activeWorkspaceSql,
+      columnIds: [inputColumnId, resultColumnId],
+    },
+    {
+      id: duplicateDatasetId,
+      name: duplicateDatasetName,
+      workspaceSql: activeWorkspaceSql,
+      columnIds: [],
+    },
+  ];
+  if (otherWorkspaceId) {
+    datasetRows.push({
+      id: otherDatasetId,
+      name: otherDatasetName,
+      workspaceSql: sqlUuid(otherWorkspaceId),
+      columnIds: [otherInputColumnId, otherResultColumnId],
+    });
+  }
+
+  const datasetValues = datasetRows
+    .map((row) => {
+      const columnOrderSql = row.columnIds.length
+        ? `${sqlTextArray(row.columnIds)}::varchar[]`
+        : "ARRAY[]::varchar[]";
+      return `(
+    ${sqlUuid(row.id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(row.name)},
+    ${columnOrderSql},
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${row.workspaceSql},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )`;
+    })
+    .join(",\n");
+
+  const columnRows = [
+    [inputColumnId, "api_exp_input", datasetId],
+    [resultColumnId, "api_exp_result", datasetId],
+  ];
+  if (otherWorkspaceId) {
+    columnRows.push(
+      [otherInputColumnId, "api_exp_input", otherDatasetId],
+      [otherResultColumnId, "api_exp_result", otherDatasetId],
+    );
+  }
+  const columnValues = columnRows
+    .map(
+      ([id, name, columnDatasetId]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(name)},
+    'text',
+    'OTHERS',
+    NULL::varchar,
+    ${sqlUuid(columnDatasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )`,
+    )
+    .join(",\n");
+
+  const rowRows = [
+    [firstRowId, datasetId, 0],
+    [secondRowId, datasetId, 7],
+  ];
+  if (otherWorkspaceId) rowRows.push([otherRowId, otherDatasetId, 0]);
+  const rowValues = rowRows
+    .map(
+      ([id, rowDatasetId, order]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${Number(order)},
+    ${sqlUuid(rowDatasetId)},
+    '{}'::jsonb
+  )`,
+    )
+    .join(",\n");
+
+  const cellRows = [
+    [randomUUID(), inputColumnId, datasetId, firstRowId, firstInputValue],
+    [randomUUID(), resultColumnId, datasetId, firstRowId, firstResultValue],
+    [randomUUID(), inputColumnId, datasetId, secondRowId, secondInputValue],
+    [randomUUID(), resultColumnId, datasetId, secondRowId, secondResultValue],
+  ];
+  if (otherWorkspaceId) {
+    cellRows.push(
+      [
+        randomUUID(),
+        otherInputColumnId,
+        otherDatasetId,
+        otherRowId,
+        `other input ${suffix}`,
+      ],
+      [
+        randomUUID(),
+        otherResultColumnId,
+        otherDatasetId,
+        otherRowId,
+        `other result ${suffix}`,
+      ],
+    );
+  }
+  const cellValues = cellRows
+    .map(
+      ([id, columnId, cellDatasetId, rowId, value]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(value)},
+    ${sqlUuid(columnId)},
+    ${sqlUuid(cellDatasetId)},
+    ${sqlUuid(rowId)},
+    'pass',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  )`,
+    )
+    .join(",\n");
+
+  const experimentRows = [
+    [experimentId, `${datasetName} experiment`, datasetId, inputColumnId, datasetId],
+  ];
+  if (otherWorkspaceId) {
+    experimentRows.push([
+      otherExperimentId,
+      `${otherDatasetName} experiment`,
+      otherDatasetId,
+      otherInputColumnId,
+      otherDatasetId,
+    ]);
+  }
+  const experimentValues = experimentRows
+    .map(
+      ([id, name, experimentDatasetIdForRow, columnId, snapshotDatasetId]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(name)},
+    '[]'::jsonb,
+    'Completed',
+    ${sqlUuid(experimentDatasetIdForRow)},
+    ${sqlUuid(columnId)},
+    NULL::uuid,
+    'llm',
+    ${sqlUuid(snapshotDatasetId)}
+  )`,
+    )
+    .join(",\n");
+
+  const experimentDatasetRows = [
+    [experimentDatasetId, experimentDatasetName, experimentId],
+  ];
+  if (otherWorkspaceId) {
+    experimentDatasetRows.push([
+      otherExperimentDatasetId,
+      `${experimentDatasetName} other`,
+      otherExperimentId,
+    ]);
+  }
+  const experimentDatasetValues = experimentDatasetRows
+    .map(
+      ([id, name, experimentIdForRow]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(name)},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    'Completed',
+    ${sqlUuid(experimentIdForRow)}
+  )`,
+    )
+    .join(",\n");
+
+  const experimentDatasetColumnRows = [[experimentDatasetId, resultColumnId]];
+  if (otherWorkspaceId) {
+    experimentDatasetColumnRows.push([
+      otherExperimentDatasetId,
+      otherResultColumnId,
+    ]);
+  }
+  const experimentDatasetColumnValues = experimentDatasetColumnRows
+    .map(([edtId, columnId]) => `(${sqlUuid(edtId)}, ${sqlUuid(columnId)})`)
+    .join(",\n");
+
+  const experimentDatasetM2mRows = [[experimentId, experimentDatasetId]];
+  if (otherWorkspaceId) {
+    experimentDatasetM2mRows.push([
+      otherExperimentId,
+      otherExperimentDatasetId,
+    ]);
+  }
+  const experimentDatasetM2mValues = experimentDatasetM2mRows
+    .map(([expId, edtId]) => `(${sqlUuid(expId)}, ${sqlUuid(edtId)})`)
+    .join(",\n");
+
+  const sql = `
+WITH inserted_datasets AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES
+${datasetValues}
+  RETURNING id
+),
+inserted_columns AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES
+${columnValues}
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+${rowValues}
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES
+${cellValues}
+  RETURNING id
+),
+inserted_experiments AS (
+  INSERT INTO model_hub_experimentstable (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    prompt_config,
+    status,
+    dataset_id,
+    column_id,
+    user_id,
+    experiment_type,
+    snapshot_dataset_id
+  )
+  VALUES
+${experimentValues}
+  RETURNING id
+),
+inserted_experiment_datasets AS (
+  INSERT INTO model_hub_experimentdatasettable (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    prompt_config,
+    exclude_values,
+    status,
+    experiment_id
+  )
+  VALUES
+${experimentDatasetValues}
+  RETURNING id
+),
+inserted_experiment_dataset_columns AS (
+  INSERT INTO model_hub_experimentdatasettable_columns (
+    experimentdatasettable_id,
+    column_id
+  )
+  VALUES
+${experimentDatasetColumnValues}
+  RETURNING id
+),
+inserted_experiment_dataset_m2m AS (
+  INSERT INTO model_hub_experimentstable_experiments_datasets (
+    experimentstable_id,
+    experimentdatasettable_id
+  )
+  VALUES
+${experimentDatasetM2mValues}
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_experiments) >= 1,
+  'organization_id', ${sqlUuid(organizationId)}::text,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'duplicate_dataset_id', ${sqlUuid(duplicateDatasetId)}::text,
+  'duplicate_dataset_name', ${sqlTextLiteral(duplicateDatasetName)},
+  'experiment_id', ${sqlUuid(experimentId)}::text,
+  'experiment_name', ${sqlTextLiteral(`${datasetName} experiment`)},
+  'experiment_dataset_id', ${sqlUuid(experimentDatasetId)}::text,
+  'experiment_dataset_name', ${sqlTextLiteral(experimentDatasetName)},
+  'input_column_id', ${sqlUuid(inputColumnId)}::text,
+  'result_column_id', ${sqlUuid(resultColumnId)}::text,
+  'first_row_id', ${sqlUuid(firstRowId)}::text,
+  'first_input_value', ${sqlTextLiteral(firstInputValue)},
+  'first_result_value', ${sqlTextLiteral(firstResultValue)},
+  'other_workspace_id', ${otherWorkspaceId ? `${sqlUuid(otherWorkspaceId)}::text` : "NULL"},
+  'other_dataset_id', ${otherDatasetId ? `${sqlUuid(otherDatasetId)}::text` : "NULL"},
+  'other_experiment_id', ${otherExperimentId ? `${sqlUuid(otherExperimentId)}::text` : "NULL"},
+  'other_experiment_dataset_id', ${otherExperimentDatasetId ? `${sqlUuid(otherExperimentDatasetId)}::text` : "NULL"},
+  'other_blocked_dataset_name', ${sqlTextLiteral(otherBlockedDatasetName)}
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadExperimentDatasetMaterializeAudit(fixture) {
+  assert(
+    isUuid(fixture.organization_id),
+    "fixture organization id required for DB audit.",
+  );
+  const sql = `
+SELECT json_build_object(
+  'duplicate_name_active_count', (
+    SELECT count(*)
+    FROM model_hub_dataset d
+    WHERE d.name = ${sqlTextLiteral(fixture.duplicate_dataset_name)}
+      AND d.organization_id = ${sqlUuid(fixture.organization_id)}
+      AND d.deleted = false
+  ),
+  'blocked_dataset_count', (
+    SELECT count(*)
+    FROM model_hub_dataset d
+    WHERE d.name = ${sqlTextLiteral(fixture.other_blocked_dataset_name)}
+      AND d.organization_id = ${sqlUuid(fixture.organization_id)}
+      AND d.deleted = false
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteExperimentDatasetMaterializeFixture(fixture) {
+  const datasetIds = [
+    fixture.dataset_id,
+    fixture.duplicate_dataset_id,
+    fixture.other_dataset_id,
+  ].filter(isUuid);
+  const experimentIds = [
+    fixture.experiment_id,
+    fixture.other_experiment_id,
+  ].filter(isUuid);
+  const experimentDatasetIds = [
+    fixture.experiment_dataset_id,
+    fixture.other_experiment_dataset_id,
+  ].filter(isUuid);
+  assert(
+    datasetIds.length > 0,
+    "Experiment dataset materialize cleanup missing dataset ids.",
+  );
+  assert(
+    isUuid(fixture.organization_id),
+    "Experiment dataset materialize cleanup missing organization id.",
+  );
+  const sql = `
+WITH target_datasets AS (
+  SELECT id
+  FROM model_hub_dataset
+  WHERE id = ANY(${sqlUuidArray(datasetIds)})
+     OR (
+       organization_id = ${sqlUuid(fixture.organization_id)}
+       AND name = ${sqlTextLiteral(fixture.other_blocked_dataset_name)}
+     )
+),
+deleted_cells AS (
+  DELETE FROM model_hub_cell
+  WHERE dataset_id IN (SELECT id FROM target_datasets)
+  RETURNING 1
+),
+deleted_rows AS (
+  DELETE FROM model_hub_row
+  WHERE dataset_id IN (SELECT id FROM target_datasets)
+  RETURNING 1
+),
+deleted_experiment_m2m AS (
+  DELETE FROM model_hub_experimentstable_experiments_datasets
+  WHERE experimentstable_id = ANY(${sqlUuidArray(experimentIds)})
+     OR experimentdatasettable_id = ANY(${sqlUuidArray(experimentDatasetIds)})
+  RETURNING 1
+),
+deleted_experiment_dataset_columns AS (
+  DELETE FROM model_hub_experimentdatasettable_columns
+  WHERE experimentdatasettable_id = ANY(${sqlUuidArray(experimentDatasetIds)})
+  RETURNING 1
+),
+deleted_experiment_datasets AS (
+  DELETE FROM model_hub_experimentdatasettable
+  WHERE id = ANY(${sqlUuidArray(experimentDatasetIds)})
+  RETURNING 1
+),
+deleted_experiments AS (
+  DELETE FROM model_hub_experimentstable
+  WHERE id = ANY(${sqlUuidArray(experimentIds)})
+  RETURNING 1
+),
+deleted_columns AS (
+  DELETE FROM model_hub_column
+  WHERE dataset_id IN (SELECT id FROM target_datasets)
+  RETURNING 1
+),
+deleted_datasets AS (
+  DELETE FROM model_hub_dataset
+  WHERE id IN (SELECT id FROM target_datasets)
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_cell_count', (SELECT count(*) FROM deleted_cells),
+  'deleted_row_count', (SELECT count(*) FROM deleted_rows),
+  'deleted_experiment_m2m_count', (SELECT count(*) FROM deleted_experiment_m2m),
+  'deleted_experiment_dataset_column_count', (SELECT count(*) FROM deleted_experiment_dataset_columns),
+  'deleted_experiment_dataset_count', (SELECT count(*) FROM deleted_experiment_datasets),
+  'deleted_experiment_count', (SELECT count(*) FROM deleted_experiments),
+  'deleted_column_count', (SELECT count(*) FROM deleted_columns),
+  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedHuggingFaceGuardFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const activeWorkspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const otherWorkspaceId = await findOtherWorkspaceId(
+    organizationId,
+    workspaceId,
+  );
+  const duplicateDatasetId = randomUUID();
+  const otherDatasetId = otherWorkspaceId ? randomUUID() : null;
+  const otherColumnId = otherWorkspaceId ? randomUUID() : null;
+  const otherRowId = otherWorkspaceId ? randomUUID() : null;
+  const otherCellId = otherWorkspaceId ? randomUUID() : null;
+  const duplicateDatasetName = `api journey hf duplicate ${runId}`;
+  const otherDatasetName = `api journey hf other ${runId}`;
+  const otherDatasetSql = otherWorkspaceId
+    ? `,
+  (
+    ${sqlUuid(otherDatasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(otherDatasetName)},
+    ARRAY[${sqlTextLiteral(otherColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(otherWorkspaceId)},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )`
+    : "";
+  const otherChildSql = otherWorkspaceId
+    ? `,
+inserted_other_column AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES (
+    ${sqlUuid(otherColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'existing',
+    'text',
+    'OTHERS',
+    NULL::varchar,
+    ${sqlUuid(otherDatasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )
+  RETURNING id
+),
+inserted_other_row AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES (
+    ${sqlUuid(otherRowId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    5,
+    ${sqlUuid(otherDatasetId)},
+    '{}'::jsonb
+  )
+  RETURNING id
+),
+inserted_other_cell AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES (
+    ${sqlUuid(otherCellId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'existing other workspace row',
+    ${sqlUuid(otherColumnId)},
+    ${sqlUuid(otherDatasetId)},
+    ${sqlUuid(otherRowId)},
+    'pass',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  )
+  RETURNING id
+)`
+    : "";
+  const sql = `
+WITH inserted_datasets AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES
+  (
+    ${sqlUuid(duplicateDatasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(duplicateDatasetName)},
+    ARRAY[]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${activeWorkspaceSql},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )${otherDatasetSql}
+  RETURNING id
+)${otherChildSql}
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_datasets) >= 1,
+  'duplicate_dataset_id', ${sqlUuid(duplicateDatasetId)}::text,
+  'duplicate_dataset_name', ${sqlTextLiteral(duplicateDatasetName)},
+  'other_workspace_id', ${otherWorkspaceId ? `${sqlUuid(otherWorkspaceId)}::text` : "NULL"},
+  'other_dataset_id', ${otherDatasetId ? `${sqlUuid(otherDatasetId)}::text` : "NULL"},
+  'other_initial_row_count', ${otherWorkspaceId ? 1 : 0},
+  'other_initial_column_count', ${otherWorkspaceId ? 1 : 0}
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadHuggingFaceGuardFixtureAudit(
+  fixture,
+  organizationId,
+  workspaceId,
+) {
+  assert(
+    isUuid(fixture.duplicate_dataset_id),
+    "fixture duplicate dataset id required.",
+  );
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const otherDatasetSelect = fixture.other_dataset_id
+    ? `(SELECT count(*) FROM model_hub_row r WHERE r.dataset_id = ${sqlUuid(fixture.other_dataset_id)} AND r.deleted = false)`
+    : "0";
+  const otherColumnSelect = fixture.other_dataset_id
+    ? `(SELECT count(*) FROM model_hub_column c WHERE c.dataset_id = ${sqlUuid(fixture.other_dataset_id)} AND c.deleted = false)`
+    : "0";
+  const sql = `
+SELECT json_build_object(
+  'duplicate_name_active_count', (
+    SELECT count(*)
+    FROM model_hub_dataset d
+    WHERE d.name = ${sqlTextLiteral(fixture.duplicate_dataset_name)}
+      AND d.organization_id = ${sqlUuid(organizationId)}
+      AND d.deleted = false
+  ),
+  'duplicate_dataset_workspace_id', (
+    SELECT d.workspace_id::text
+    FROM model_hub_dataset d
+    WHERE d.id = ${sqlUuid(fixture.duplicate_dataset_id)}
+  ),
+  'other_dataset_row_count', ${otherDatasetSelect},
+  'other_dataset_column_count', ${otherColumnSelect}
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteHuggingFaceGuardFixture(fixture) {
+  const datasetIds = [
+    fixture.duplicate_dataset_id,
+    fixture.other_dataset_id,
+  ].filter(isUuid);
+  assert(
+    datasetIds.length > 0,
+    "Hugging Face fixture cleanup missing datasets.",
+  );
+  const sql = `
+WITH deleted_cells AS (
+  DELETE FROM model_hub_cell
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_rows AS (
+  DELETE FROM model_hub_row
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_columns AS (
+  DELETE FROM model_hub_column
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_datasets AS (
+  DELETE FROM model_hub_dataset
+  WHERE id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_cell_count', (SELECT count(*) FROM deleted_cells),
+  'deleted_row_count', (SELECT count(*) FROM deleted_rows),
+  'deleted_column_count', (SELECT count(*) FROM deleted_columns),
+  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedLegacyExperimentRowDiffFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const datasetId = randomUUID();
+  const outsideDatasetId = randomUUID();
+  const experimentId = randomUUID();
+  const experimentDatasetId = randomUUID();
+  const baseColumnId = randomUUID();
+  const otherColumnId = randomUUID();
+  const outsideColumnId = randomUUID();
+  const rowId = randomUUID();
+  const outsideRowId = randomUUID();
+  const baseCellValue = `legacy base answer ${suffix}`;
+  const otherCellValue = `legacy other response ${suffix}`;
+  const outsideCellValue = `outside legacy row diff ${suffix}`;
+  const datasetName = `api journey legacy diff ${runId}`;
+  const outsideDatasetName = `api journey legacy diff outside ${runId}`;
+  const columnValues = [
+    [baseColumnId, "legacy_prompt_a", datasetId],
+    [otherColumnId, "legacy_prompt_b", datasetId],
+    [outsideColumnId, "legacy_outside", outsideDatasetId],
+  ]
+    .map(
+      ([id, name, columnDatasetId]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(name)},
+    'text',
+    'experiment',
+    NULL::varchar,
+    ${sqlUuid(columnDatasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )`,
+    )
+    .join(",\n");
+  const cellValues = [
+    [
+      randomUUID(),
+      baseCellValue,
+      baseColumnId,
+      datasetId,
+      rowId,
+      { metadata: { prompt: "base" } },
+    ],
+    [
+      randomUUID(),
+      otherCellValue,
+      otherColumnId,
+      datasetId,
+      rowId,
+      { metadata: { prompt: "other" } },
+    ],
+    [
+      randomUUID(),
+      outsideCellValue,
+      outsideColumnId,
+      outsideDatasetId,
+      outsideRowId,
+      { metadata: { prompt: "outside" } },
+    ],
+  ]
+    .map(
+      ([id, value, columnId, cellDatasetId, cellRowId, valueInfos]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(value)},
+    ${sqlUuid(columnId)},
+    ${sqlUuid(cellDatasetId)},
+    ${sqlUuid(cellRowId)},
+    'pass',
+    ${sqlJsonLiteral(valueInfos)},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  )`,
+    )
+    .join(",\n");
+  const sql = `
+WITH inserted_datasets AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES
+  (
+    ${sqlUuid(datasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(datasetName)},
+    ARRAY[${sqlTextLiteral(baseColumnId)}, ${sqlTextLiteral(otherColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  ),
+  (
+    ${sqlUuid(outsideDatasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(outsideDatasetName)},
+    ARRAY[${sqlTextLiteral(outsideColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )
+  RETURNING id
+),
+inserted_columns AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES
+${columnValues}
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+  (
+    ${sqlUuid(rowId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    0,
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb
+  ),
+  (
+    ${sqlUuid(outsideRowId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    0,
+    ${sqlUuid(outsideDatasetId)},
+    '{}'::jsonb
+  )
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES
+${cellValues}
+  RETURNING id
+),
+inserted_experiment AS (
+  INSERT INTO model_hub_experimentstable (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    prompt_config,
+    status,
+    dataset_id,
+    column_id,
+    user_id,
+    experiment_type,
+    snapshot_dataset_id
+  )
+  VALUES (
+    ${sqlUuid(experimentId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(`api journey legacy diff experiment ${runId}`)},
+    '[]'::jsonb,
+    'Completed',
+    ${sqlUuid(datasetId)},
+    ${sqlUuid(baseColumnId)},
+    NULL::uuid,
+    'llm',
+    NULL::uuid
+  )
+  RETURNING id
+),
+inserted_experiment_dataset AS (
+  INSERT INTO model_hub_experimentdatasettable (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    prompt_config,
+    exclude_values,
+    status,
+    experiment_id
+  )
+  VALUES (
+    ${sqlUuid(experimentDatasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'legacy_prompt_a',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    'Completed',
+    ${sqlUuid(experimentId)}
+  )
+  RETURNING id
+),
+inserted_experiment_dataset_columns AS (
+  INSERT INTO model_hub_experimentdatasettable_columns (
+    experimentdatasettable_id,
+    column_id
+  )
+  VALUES
+  (${sqlUuid(experimentDatasetId)}, ${sqlUuid(baseColumnId)}),
+  (${sqlUuid(experimentDatasetId)}, ${sqlUuid(otherColumnId)})
+  RETURNING id
+),
+inserted_experiment_dataset_m2m AS (
+  INSERT INTO model_hub_experimentstable_experiments_datasets (
+    experimentstable_id,
+    experimentdatasettable_id
+  )
+  VALUES (${sqlUuid(experimentId)}, ${sqlUuid(experimentDatasetId)})
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_experiment) = 1,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'outside_dataset_id', ${sqlUuid(outsideDatasetId)}::text,
+  'experiment_id', ${sqlUuid(experimentId)}::text,
+  'experiment_dataset_id', ${sqlUuid(experimentDatasetId)}::text,
+  'base_column_id', ${sqlUuid(baseColumnId)}::text,
+  'other_column_id', ${sqlUuid(otherColumnId)}::text,
+  'outside_column_id', ${sqlUuid(outsideColumnId)}::text,
+  'row_id', ${sqlUuid(rowId)}::text,
+  'outside_row_id', ${sqlUuid(outsideRowId)}::text,
+  'base_cell_value', ${sqlTextLiteral(baseCellValue)},
+  'other_cell_value', ${sqlTextLiteral(otherCellValue)},
+  'outside_cell_value', ${sqlTextLiteral(outsideCellValue)}
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteLegacyExperimentRowDiffFixture(fixture) {
+  const datasetIds = [fixture.dataset_id, fixture.outside_dataset_id].filter(
+    isUuid,
+  );
+  const experimentIds = [fixture.experiment_id].filter(isUuid);
+  const experimentDatasetIds = [fixture.experiment_dataset_id].filter(isUuid);
+  assert(datasetIds.length > 0, "Legacy row-diff cleanup missing dataset ids.");
+  assert(
+    experimentIds.length > 0,
+    "Legacy row-diff cleanup missing experiment ids.",
+  );
+  assert(
+    experimentDatasetIds.length > 0,
+    "Legacy row-diff cleanup missing experiment dataset ids.",
+  );
+  const sql = `
+WITH deleted_cells AS (
+  DELETE FROM model_hub_cell
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_rows AS (
+  DELETE FROM model_hub_row
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_experiment_m2m AS (
+  DELETE FROM model_hub_experimentstable_experiments_datasets
+  WHERE experimentstable_id = ANY(${sqlUuidArray(experimentIds)})
+     OR experimentdatasettable_id = ANY(${sqlUuidArray(experimentDatasetIds)})
+  RETURNING 1
+),
+deleted_experiment_dataset_columns AS (
+  DELETE FROM model_hub_experimentdatasettable_columns
+  WHERE experimentdatasettable_id = ANY(${sqlUuidArray(experimentDatasetIds)})
+  RETURNING 1
+),
+deleted_experiment_datasets AS (
+  DELETE FROM model_hub_experimentdatasettable
+  WHERE id = ANY(${sqlUuidArray(experimentDatasetIds)})
+  RETURNING 1
+),
+deleted_experiments AS (
+  DELETE FROM model_hub_experimentstable
+  WHERE id = ANY(${sqlUuidArray(experimentIds)})
+  RETURNING 1
+),
+deleted_columns AS (
+  DELETE FROM model_hub_column
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_datasets AS (
+  DELETE FROM model_hub_dataset
+  WHERE id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_cell_count', (SELECT count(*) FROM deleted_cells),
+  'deleted_row_count', (SELECT count(*) FROM deleted_rows),
+  'deleted_experiment_m2m_count', (SELECT count(*) FROM deleted_experiment_m2m),
+  'deleted_experiment_dataset_column_count', (SELECT count(*) FROM deleted_experiment_dataset_columns),
+  'deleted_experiment_dataset_count', (SELECT count(*) FROM deleted_experiment_datasets),
+  'deleted_experiment_count', (SELECT count(*) FROM deleted_experiments),
+  'deleted_column_count', (SELECT count(*) FROM deleted_columns),
+  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedLegacyExperimentCreateUpdateFixture({
+  runId,
+  organizationId,
+  workspaceId,
+  userId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const activeWorkspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const userSql = userId && isUuid(userId) ? sqlUuid(userId) : "NULL::uuid";
+  const otherWorkspaceId = await findOtherWorkspaceId(
+    organizationId,
+    workspaceId,
+  );
+  const datasetId = randomUUID();
+  const outputColumnId = randomUUID();
+  const blockedDatasetId = randomUUID();
+  const blockedColumnId = randomUUID();
+  const evalTemplateId = randomUUID();
+  const evalMetricId = randomUUID();
+  const secondEvalMetricId = randomUUID();
+  const blockedEvalMetricId = randomUUID();
+  const otherDatasetId = otherWorkspaceId ? randomUUID() : null;
+  const otherColumnId = otherWorkspaceId ? randomUUID() : null;
+  const otherExperimentId = otherWorkspaceId ? randomUUID() : null;
+  const datasetName = `api journey legacy exp dataset ${runId}`;
+  const blockedDatasetName = `api journey legacy blocked dataset ${runId}`;
+  const evalTemplateName = `api journey legacy exp eval ${runId}`;
+  const otherExperimentName = `api journey legacy other ws ${runId}`;
+  const blockedColumnExperimentName = `api journey legacy blocked column ${runId}`;
+  const blockedMetricExperimentName = `api journey legacy blocked metric ${runId}`;
+  const otherWorkspaceCreateName = `api journey legacy other create ${runId}`;
+  const otherDatasetSql = otherWorkspaceId
+    ? `,
+  (
+    ${sqlUuid(otherDatasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(`api journey legacy other dataset ${runId}`)},
+    ARRAY[${sqlTextLiteral(otherColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(otherWorkspaceId)},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )`
+    : "";
+  const otherColumnSql = otherWorkspaceId
+    ? `,
+  (
+    ${sqlUuid(otherColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'Other Workspace Output',
+    'text',
+    'run_prompt',
+    '',
+    ${sqlUuid(otherDatasetId)},
+    '{}'::jsonb,
+    'NotStarted'
+  )`
+    : "";
+  const otherExperimentSql = otherWorkspaceId
+    ? `,
+inserted_other_experiment AS (
+  INSERT INTO model_hub_experimentstable (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    prompt_config,
+    status,
+    dataset_id,
+    column_id,
+    user_id,
+    experiment_type,
+    snapshot_dataset_id
+  )
+  VALUES (
+    ${sqlUuid(otherExperimentId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(otherExperimentName)},
+    ${sqlJsonLiteral({ model: "gpt-4o-mini", journey: "EXP-API-004-other" })},
+    'NotStarted',
+    ${sqlUuid(otherDatasetId)},
+    ${sqlUuid(otherColumnId)},
+    ${userSql},
+    'llm',
+    NULL::uuid
+  )
+  RETURNING id
+)`
+    : "";
+  const sql = `
+WITH inserted_datasets AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES
+  (
+    ${sqlUuid(datasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(datasetName)},
+    ARRAY[${sqlTextLiteral(outputColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${activeWorkspaceSql},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  ),
+  (
+    ${sqlUuid(blockedDatasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(blockedDatasetName)},
+    ARRAY[${sqlTextLiteral(blockedColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${activeWorkspaceSql},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )${otherDatasetSql}
+  RETURNING id
+),
+inserted_columns AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES
+  (
+    ${sqlUuid(outputColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'Legacy Output',
+    'text',
+    'run_prompt',
+    '',
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb,
+    'NotStarted'
+  ),
+  (
+    ${sqlUuid(blockedColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'Blocked Other Dataset Column',
+    'text',
+    'run_prompt',
+    '',
+    ${sqlUuid(blockedDatasetId)},
+    '{}'::jsonb,
+    'NotStarted'
+  )${otherColumnSql}
+  RETURNING id
+),
+inserted_eval_template AS (
+  INSERT INTO model_hub_evaltemplate (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    owner,
+    eval_tags,
+    config,
+    organization_id,
+    description,
+    eval_id,
+    criteria,
+    choices,
+    multi_choice,
+    model,
+    proxy_agi,
+    visible_ui,
+    evaluator_id,
+    workspace_id,
+    choice_scores,
+    output_type_normalized,
+    pass_threshold,
+    template_type,
+    eval_type,
+    allow_edit,
+    allow_copy,
+    error_localizer_enabled,
+    aggregation_enabled,
+    aggregation_function,
+    composite_child_axis
+  )
+  VALUES (
+    ${sqlUuid(evalTemplateId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(evalTemplateName)},
+    'user',
+    ARRAY[]::varchar[],
+    ${sqlJsonLiteral({ required_keys: ["output"] })},
+    ${sqlUuid(organizationId)},
+    'API journey legacy experiment eval',
+    0,
+    'Evaluate {{output}}',
+    NULL::jsonb,
+    false,
+    'gpt-4o-mini',
+    false,
+    false,
+    NULL::uuid,
+    ${activeWorkspaceSql},
+    NULL::jsonb,
+    NULL::varchar,
+    NULL::double precision,
+    'single',
+    'llm',
+    true,
+    true,
+    false,
+    false,
+    'mean',
+    'shared'
+  )
+  RETURNING id
+),
+inserted_eval_metrics AS (
+  INSERT INTO model_hub_userevalmetric (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    config,
+    dataset_id,
+    template_id,
+    organization_id,
+    status,
+    show_in_sidebar,
+    source_id,
+    column_deleted,
+    user_id,
+    error_localizer,
+    kb_id,
+    model,
+    workspace_id,
+    eval_group_id,
+    composite_weight_overrides
+  )
+  VALUES
+  (
+    ${sqlUuid(evalMetricId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'Legacy Create Metric',
+    ${sqlJsonLiteral({ mapping: { output: outputColumnId }, config: {} })},
+    ${sqlUuid(datasetId)},
+    ${sqlUuid(evalTemplateId)},
+    ${sqlUuid(organizationId)},
+    'NotStarted',
+    true,
+    '',
+    false,
+    ${userSql},
+    false,
+    NULL::uuid,
+    'gpt-4o-mini',
+    ${activeWorkspaceSql},
+    NULL::uuid,
+    NULL::jsonb
+  ),
+  (
+    ${sqlUuid(secondEvalMetricId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'Legacy Update Metric',
+    ${sqlJsonLiteral({ mapping: { output: outputColumnId }, config: {} })},
+    ${sqlUuid(datasetId)},
+    ${sqlUuid(evalTemplateId)},
+    ${sqlUuid(organizationId)},
+    'NotStarted',
+    true,
+    '',
+    false,
+    ${userSql},
+    false,
+    NULL::uuid,
+    'gpt-4o-mini',
+    ${activeWorkspaceSql},
+    NULL::uuid,
+    NULL::jsonb
+  ),
+  (
+    ${sqlUuid(blockedEvalMetricId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'Legacy Blocked Metric',
+    ${sqlJsonLiteral({ mapping: { output: blockedColumnId }, config: {} })},
+    ${sqlUuid(blockedDatasetId)},
+    ${sqlUuid(evalTemplateId)},
+    ${sqlUuid(organizationId)},
+    'NotStarted',
+    true,
+    '',
+    false,
+    ${userSql},
+    false,
+    NULL::uuid,
+    'gpt-4o-mini',
+    ${activeWorkspaceSql},
+    NULL::uuid,
+    NULL::jsonb
+  )
+  RETURNING id
+)${otherExperimentSql}
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_datasets) >= 2,
+  'organization_id', ${sqlUuid(organizationId)}::text,
+  'workspace_id', ${workspaceId ? `${sqlUuid(workspaceId)}::text` : "NULL"},
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'output_column_id', ${sqlUuid(outputColumnId)}::text,
+  'blocked_dataset_id', ${sqlUuid(blockedDatasetId)}::text,
+  'blocked_column_id', ${sqlUuid(blockedColumnId)}::text,
+  'eval_template_id', ${sqlUuid(evalTemplateId)}::text,
+  'eval_metric_id', ${sqlUuid(evalMetricId)}::text,
+  'second_eval_metric_id', ${sqlUuid(secondEvalMetricId)}::text,
+  'blocked_eval_metric_id', ${sqlUuid(blockedEvalMetricId)}::text,
+  'blocked_column_experiment_name', ${sqlTextLiteral(blockedColumnExperimentName)},
+  'blocked_metric_experiment_name', ${sqlTextLiteral(blockedMetricExperimentName)},
+  'other_workspace_id', ${otherWorkspaceId ? `${sqlUuid(otherWorkspaceId)}::text` : "NULL"},
+  'other_dataset_id', ${otherDatasetId ? `${sqlUuid(otherDatasetId)}::text` : "NULL"},
+  'other_column_id', ${otherColumnId ? `${sqlUuid(otherColumnId)}::text` : "NULL"},
+  'other_experiment_id', ${otherExperimentId ? `${sqlUuid(otherExperimentId)}::text` : "NULL"},
+  'other_experiment_name', ${sqlTextLiteral(otherExperimentName)},
+  'other_workspace_create_name', ${sqlTextLiteral(otherWorkspaceCreateName)}
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyExperimentCreateUpdateAudit({
+  experimentId,
+  datasetId,
+  experimentName,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(datasetId), "datasetId must be a UUID for DB audit.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (experimentId)
+    assert(isUuid(experimentId), "experimentId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const experimentPredicate = experimentId
+    ? `e.id = ${sqlUuid(experimentId)}`
+    : `e.name = ${sqlTextLiteral(experimentName)}`;
+  const workspacePredicate = workspaceId
+    ? `AND d.workspace_id = ${sqlUuid(workspaceId)}`
+    : "";
+  const sql = `
+WITH experiment_row AS (
+  SELECT
+    e.id,
+    e.name,
+    e.prompt_config,
+    e.status,
+    e.dataset_id,
+    e.column_id,
+    e.user_id,
+    e.deleted,
+    d.organization_id,
+    d.workspace_id,
+    c.dataset_id AS column_dataset_id
+  FROM model_hub_experimentstable e
+  JOIN model_hub_dataset d ON d.id = e.dataset_id
+  LEFT JOIN model_hub_column c ON c.id = e.column_id
+  WHERE ${experimentPredicate}
+    AND e.dataset_id = ${sqlUuid(datasetId)}
+    AND d.organization_id = ${sqlUuid(organizationId)}
+    ${workspacePredicate}
+    AND e.deleted = false
+  ORDER BY e.created_at DESC
+  LIMIT 1
+)
+SELECT COALESCE((
+  SELECT json_build_object(
+    'experiment_id', e.id::text,
+    'experiment_name', e.name,
+    'prompt_config', e.prompt_config,
+    'status', e.status,
+    'dataset_id', e.dataset_id::text,
+    'column_id', e.column_id::text,
+    'organization_id', e.organization_id::text,
+    'workspace_id', e.workspace_id::text,
+    'column_dataset_id', e.column_dataset_id::text,
+    'metric_count', (
+      SELECT count(*)
+      FROM model_hub_experimentstable_user_eval_template_ids m
+      WHERE m.experimentstable_id = e.id
+    ),
+    'metric_ids', (
+      SELECT COALESCE(json_agg(m.userevalmetric_id::text ORDER BY m.userevalmetric_id::text), '[]'::json)
+      FROM model_hub_experimentstable_user_eval_template_ids m
+      WHERE m.experimentstable_id = e.id
+    )
+  )
+  FROM experiment_row e
+), '{}'::json);
+`;
+  return runPostgresJson(sql);
+}
+
+function assertLegacyExperimentAudit(
+  audit,
+  {
+    experimentName,
+    datasetId,
+    columnId,
+    organizationId,
+    workspaceId,
+    metricIds,
+    promptConfigJourney,
+  },
+) {
+  assert(isUuid(audit?.experiment_id), "Legacy experiment audit found no row.");
+  assert(
+    audit.experiment_name === experimentName,
+    "Legacy experiment audit name mismatch.",
+  );
+  assert(
+    audit.dataset_id === datasetId,
+    "Legacy experiment audit dataset mismatch.",
+  );
+  assert(
+    audit.column_id === columnId,
+    "Legacy experiment audit column mismatch.",
+  );
+  assert(
+    audit.column_dataset_id === datasetId,
+    "Legacy experiment audit column was not in the experiment dataset.",
+  );
+  assert(
+    audit.organization_id === organizationId,
+    "Legacy experiment audit organization mismatch.",
+  );
+  if (workspaceId) {
+    assert(
+      audit.workspace_id === workspaceId,
+      "Legacy experiment audit workspace mismatch.",
+    );
+  }
+  assert(
+    audit.prompt_config?.journey === promptConfigJourney,
+    "Legacy experiment audit prompt_config mismatch.",
+  );
+  const actualMetricIds = payloadArray(audit.metric_ids, "metric_ids").sort();
+  assert(
+    JSON.stringify(actualMetricIds) === JSON.stringify([...metricIds].sort()),
+    "Legacy experiment audit metric relation mismatch.",
+  );
+}
+
+async function loadLegacyExperimentGuardAudit(fixture) {
+  assert(isUuid(fixture.dataset_id), "fixture dataset id is required.");
+  const otherExperimentNameSelect = fixture.other_experiment_id
+    ? `(SELECT name FROM model_hub_experimentstable WHERE id = ${sqlUuid(fixture.other_experiment_id)})`
+    : "NULL";
+  const sql = `
+SELECT json_build_object(
+  'blocked_column_count', (
+    SELECT count(*)
+    FROM model_hub_experimentstable e
+    WHERE e.name = ${sqlTextLiteral(fixture.blocked_column_experiment_name)}
+      AND e.deleted = false
+  ),
+  'blocked_metric_count', (
+    SELECT count(*)
+    FROM model_hub_experimentstable e
+    WHERE e.name = ${sqlTextLiteral(fixture.blocked_metric_experiment_name)}
+      AND e.deleted = false
+  ),
+  'other_workspace_create_count', (
+    SELECT count(*)
+    FROM model_hub_experimentstable e
+    WHERE e.name = ${sqlTextLiteral(fixture.other_workspace_create_name)}
+      AND e.deleted = false
+  ),
+  'other_experiment_name', ${otherExperimentNameSelect}
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteLegacyExperimentCreateUpdateFixture(fixture) {
+  const datasetIds = [
+    fixture.dataset_id,
+    fixture.blocked_dataset_id,
+    fixture.other_dataset_id,
+  ].filter(isUuid);
+  const experimentIds = [
+    fixture.created_experiment_id,
+    fixture.other_experiment_id,
+  ].filter(isUuid);
+  const metricIds = [
+    fixture.eval_metric_id,
+    fixture.second_eval_metric_id,
+    fixture.blocked_eval_metric_id,
+  ].filter(isUuid);
+  const templateIds = [fixture.eval_template_id].filter(isUuid);
+  assert(datasetIds.length > 0, "Legacy experiment cleanup missing datasets.");
+  const experimentIdArray = experimentIds.length
+    ? sqlUuidArray(experimentIds)
+    : "ARRAY[]::uuid[]";
+  const sql = `
+WITH target_datasets AS (
+  SELECT id
+  FROM model_hub_dataset
+  WHERE id = ANY(${sqlUuidArray(datasetIds)})
+),
+target_experiments AS (
+  SELECT id
+  FROM model_hub_experimentstable
+  WHERE id = ANY(${experimentIdArray})
+     OR dataset_id IN (SELECT id FROM target_datasets)
+     OR name IN (
+       ${sqlTextLiteral(fixture.blocked_column_experiment_name)},
+       ${sqlTextLiteral(fixture.blocked_metric_experiment_name)},
+       ${sqlTextLiteral(fixture.other_workspace_create_name)}
+     )
+),
+deleted_pending_tasks AS (
+  DELETE FROM model_hub_pendingrowtask
+  WHERE experiment_id IN (SELECT id FROM target_experiments)
+  RETURNING 1
+),
+deleted_metric_m2m AS (
+  DELETE FROM model_hub_experimentstable_user_eval_template_ids
+  WHERE experimentstable_id IN (SELECT id FROM target_experiments)
+     OR userevalmetric_id = ANY(${sqlUuidArray(metricIds)})
+  RETURNING 1
+),
+deleted_experiment_m2m AS (
+  DELETE FROM model_hub_experimentstable_experiments_datasets
+  WHERE experimentstable_id IN (SELECT id FROM target_experiments)
+  RETURNING 1
+),
+deleted_experiment_dataset_columns AS (
+  DELETE FROM model_hub_experimentdatasettable_columns edtc
+  USING model_hub_experimentdatasettable edt
+  WHERE edtc.experimentdatasettable_id = edt.id
+    AND edt.experiment_id IN (SELECT id FROM target_experiments)
+  RETURNING 1
+),
+deleted_experiment_datasets AS (
+  DELETE FROM model_hub_experimentdatasettable
+  WHERE experiment_id IN (SELECT id FROM target_experiments)
+  RETURNING 1
+),
+deleted_comparisons AS (
+  DELETE FROM model_hub_experimentcomparison
+  WHERE experiment_id IN (SELECT id FROM target_experiments)
+  RETURNING 1
+),
+deleted_experiments AS (
+  DELETE FROM model_hub_experimentstable
+  WHERE id IN (SELECT id FROM target_experiments)
+  RETURNING 1
+),
+deleted_metrics AS (
+  DELETE FROM model_hub_userevalmetric
+  WHERE id = ANY(${sqlUuidArray(metricIds)})
+  RETURNING 1
+),
+deleted_templates AS (
+  DELETE FROM model_hub_evaltemplate
+  WHERE id = ANY(${sqlUuidArray(templateIds)})
+  RETURNING 1
+),
+deleted_cells AS (
+  DELETE FROM model_hub_cell
+  WHERE dataset_id IN (SELECT id FROM target_datasets)
+  RETURNING 1
+),
+deleted_rows AS (
+  DELETE FROM model_hub_row
+  WHERE dataset_id IN (SELECT id FROM target_datasets)
+  RETURNING 1
+),
+deleted_columns AS (
+  DELETE FROM model_hub_column
+  WHERE dataset_id IN (SELECT id FROM target_datasets)
+  RETURNING 1
+),
+deleted_datasets AS (
+  DELETE FROM model_hub_dataset
+  WHERE id IN (SELECT id FROM target_datasets)
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_pending_task_count', (SELECT count(*) FROM deleted_pending_tasks),
+  'deleted_metric_m2m_count', (SELECT count(*) FROM deleted_metric_m2m),
+  'deleted_experiment_m2m_count', (SELECT count(*) FROM deleted_experiment_m2m),
+  'deleted_experiment_dataset_column_count', (SELECT count(*) FROM deleted_experiment_dataset_columns),
+  'deleted_experiment_dataset_count', (SELECT count(*) FROM deleted_experiment_datasets),
+  'deleted_comparison_count', (SELECT count(*) FROM deleted_comparisons),
+  'deleted_experiment_count', (SELECT count(*) FROM deleted_experiments),
+  'deleted_metric_count', (SELECT count(*) FROM deleted_metrics),
+  'deleted_template_count', (SELECT count(*) FROM deleted_templates),
+  'deleted_cell_count', (SELECT count(*) FROM deleted_cells),
+  'deleted_row_count', (SELECT count(*) FROM deleted_rows),
+  'deleted_column_count', (SELECT count(*) FROM deleted_columns),
+  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedDatasetCopyFixture({ runId, organizationId, workspaceId }) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const sourceDatasetId = randomUUID();
+  const targetDatasetId = randomUUID();
+  const sourceInputColumnId = randomUUID();
+  const sourceOutputColumnId = randomUUID();
+  const targetInputColumnId = randomUUID();
+  const targetOutputColumnId = randomUUID();
+  const sourceRowOneId = randomUUID();
+  const sourceRowTwoId = randomUUID();
+  const targetHighRowId = randomUUID();
+  const targetLowRowId = randomUUID();
+  const sourceInputOneValue = `api copy source one ${suffix}`;
+  const sourceInputTwoValue = `api copy source two ${suffix}`;
+  const datasetRows = [
+    {
+      id: sourceDatasetId,
+      name: `api journey copy source ${runId}`,
+      columnIds: [sourceInputColumnId, sourceOutputColumnId],
+    },
+    {
+      id: targetDatasetId,
+      name: `api journey copy target ${runId}`,
+      columnIds: [targetInputColumnId, targetOutputColumnId],
+    },
+  ];
+  const columnRows = [
+    [sourceInputColumnId, "input", "text", "OTHERS", null, sourceDatasetId],
+    [sourceOutputColumnId, "output", "text", "OTHERS", null, sourceDatasetId],
+    [targetInputColumnId, "input", "text", "OTHERS", null, targetDatasetId],
+    [targetOutputColumnId, "output", "text", "OTHERS", null, targetDatasetId],
+  ];
+  const rowRows = [
+    [sourceRowOneId, 0, sourceDatasetId, "now() - interval '3 minutes'"],
+    [sourceRowTwoId, 1, sourceDatasetId, "now() - interval '2 minutes'"],
+    [targetHighRowId, 10, targetDatasetId, "now() - interval '10 minutes'"],
+    [targetLowRowId, 0, targetDatasetId, "now()"],
+  ];
+  const cellRows = [
+    [
+      randomUUID(),
+      sourceInputOneValue,
+      sourceInputColumnId,
+      sourceDatasetId,
+      sourceRowOneId,
+    ],
+    [
+      randomUUID(),
+      `source output one ${suffix}`,
+      sourceOutputColumnId,
+      sourceDatasetId,
+      sourceRowOneId,
+    ],
+    [
+      randomUUID(),
+      sourceInputTwoValue,
+      sourceInputColumnId,
+      sourceDatasetId,
+      sourceRowTwoId,
+    ],
+    [
+      randomUUID(),
+      `source output two ${suffix}`,
+      sourceOutputColumnId,
+      sourceDatasetId,
+      sourceRowTwoId,
+    ],
+    [
+      randomUUID(),
+      `target high input ${suffix}`,
+      targetInputColumnId,
+      targetDatasetId,
+      targetHighRowId,
+    ],
+    [
+      randomUUID(),
+      `target high output ${suffix}`,
+      targetOutputColumnId,
+      targetDatasetId,
+      targetHighRowId,
+    ],
+    [
+      randomUUID(),
+      `target low input ${suffix}`,
+      targetInputColumnId,
+      targetDatasetId,
+      targetLowRowId,
+    ],
+    [
+      randomUUID(),
+      `target low output ${suffix}`,
+      targetOutputColumnId,
+      targetDatasetId,
+      targetLowRowId,
+    ],
+  ];
+  const datasetValues = datasetRows
+    .map(
+      (row) => `(
+    ${sqlUuid(row.id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(row.name)},
+    ARRAY[${row.columnIds.map((id) => sqlTextLiteral(id)).join(", ")}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )`,
+    )
+    .join(",\n");
+  const columnValues = columnRows
+    .map(
+      ([id, name, dataType, source, sourceId, datasetId]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(name)},
+    ${sqlTextLiteral(dataType)},
+    ${sqlTextLiteral(source)},
+    ${sourceId ? sqlTextLiteral(sourceId) : "NULL::varchar"},
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )`,
+    )
+    .join(",\n");
+  const rowValues = rowRows
+    .map(
+      ([id, order, datasetId, createdAtSql]) => `(
+    ${sqlUuid(id)},
+    ${createdAtSql},
+    ${createdAtSql},
+    false,
+    NULL::timestamptz,
+    ${Number(order)},
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb
+  )`,
+    )
+    .join(",\n");
+  const cellValues = cellRows
+    .map(
+      ([id, value, columnId, datasetId, rowId]) => `(
+    ${sqlUuid(id)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(value)},
+    ${sqlUuid(columnId)},
+    ${sqlUuid(datasetId)},
+    ${sqlUuid(rowId)},
+    'pass',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  )`,
+    )
+    .join(",\n");
+  const sql = `
+WITH inserted_datasets AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES
+${datasetValues}
+  RETURNING id
+),
+inserted_columns AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES
+${columnValues}
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+${rowValues}
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES
+${cellValues}
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_datasets) = 2,
+  'source_dataset_id', ${sqlUuid(sourceDatasetId)}::text,
+  'target_dataset_id', ${sqlUuid(targetDatasetId)}::text,
+  'source_input_column_id', ${sqlUuid(sourceInputColumnId)}::text,
+  'source_output_column_id', ${sqlUuid(sourceOutputColumnId)}::text,
+  'target_input_column_id', ${sqlUuid(targetInputColumnId)}::text,
+  'target_output_column_id', ${sqlUuid(targetOutputColumnId)}::text,
+  'source_row_one_id', ${sqlUuid(sourceRowOneId)}::text,
+  'source_row_two_id', ${sqlUuid(sourceRowTwoId)}::text,
+  'target_high_row_id', ${sqlUuid(targetHighRowId)}::text,
+  'target_low_row_id', ${sqlUuid(targetLowRowId)}::text,
+  'source_input_one_value', ${sqlTextLiteral(sourceInputOneValue)},
+  'source_input_two_value', ${sqlTextLiteral(sourceInputTwoValue)},
+  'inserted_column_count', (SELECT count(*) FROM inserted_columns),
+  'inserted_row_count', (SELECT count(*) FROM inserted_rows),
+  'inserted_cell_count', (SELECT count(*) FROM inserted_cells)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadDatasetCopyFixtureAudit(fixture) {
+  const requiredIds = [
+    fixture.source_dataset_id,
+    fixture.target_dataset_id,
+    fixture.source_input_column_id,
+    fixture.target_input_column_id,
+  ];
+  assert(
+    requiredIds.every(isUuid),
+    "Dataset copy audit fixture ids must be UUIDs.",
+  );
+  const sql = `
+WITH source_rows AS (
+  SELECT r.id, r."order"
+  FROM model_hub_row r
+  WHERE r.dataset_id = ${sqlUuid(fixture.source_dataset_id)}
+    AND r.deleted = false
+),
+target_rows AS (
+  SELECT r.id, r."order"
+  FROM model_hub_row r
+  WHERE r.dataset_id = ${sqlUuid(fixture.target_dataset_id)}
+    AND r.deleted = false
+)
+SELECT json_build_object(
+  'source_input_one_value', ${sqlTextLiteral(fixture.source_input_one_value)},
+  'source_input_two_value', ${sqlTextLiteral(fixture.source_input_two_value)},
+  'source_row_count', (SELECT count(*) FROM source_rows),
+  'source_max_order', COALESCE((SELECT max("order") FROM source_rows), -1),
+  'source_duplicate_value_count', (
+    SELECT count(DISTINCT r.id)
+    FROM source_rows r
+    JOIN model_hub_cell c
+      ON c.row_id = r.id
+     AND c.column_id = ${sqlUuid(fixture.source_input_column_id)}
+     AND c.deleted = false
+    WHERE c.value = ${sqlTextLiteral(fixture.source_input_one_value)}
+  ),
+  'target_row_count', (SELECT count(*) FROM target_rows),
+  'target_max_order', COALESCE((SELECT max("order") FROM target_rows), -1),
+  'target_order_11_input', (
+    SELECT c.value
+    FROM target_rows r
+    JOIN model_hub_cell c
+      ON c.row_id = r.id
+     AND c.column_id = ${sqlUuid(fixture.target_input_column_id)}
+     AND c.deleted = false
+    WHERE r."order" = 11
+    LIMIT 1
+  ),
+  'target_source_one_count', (
+    SELECT count(DISTINCT r.id)
+    FROM target_rows r
+    JOIN model_hub_cell c
+      ON c.row_id = r.id
+     AND c.column_id = ${sqlUuid(fixture.target_input_column_id)}
+     AND c.deleted = false
+    WHERE c.value = ${sqlTextLiteral(fixture.source_input_one_value)}
+  ),
+  'target_source_two_count', (
+    SELECT count(DISTINCT r.id)
+    FROM target_rows r
+    JOIN model_hub_cell c
+      ON c.row_id = r.id
+     AND c.column_id = ${sqlUuid(fixture.target_input_column_id)}
+     AND c.deleted = false
+    WHERE c.value = ${sqlTextLiteral(fixture.source_input_two_value)}
+  ),
+  'target_order_12_15_count', (
+    SELECT count(*)
+    FROM target_rows r
+    WHERE r."order" BETWEEN 12 AND 15
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteDatasetCopyFixture(datasetIds) {
+  return hardDeleteDatasetCompareFixture(datasetIds);
+}
+
+async function seedDatasetFileImportFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const datasetId = randomUUID();
+  const inputColumnId = randomUUID();
+  const rowOneId = randomUUID();
+  const rowTwoId = randomUUID();
+  const datasetName = `api journey file import ${runId}`;
+  const inputColumnName = "input";
+  const newColumnName = "file_extra";
+  const originalFilename = `api-file-import-${suffix}.csv`;
+  const existingInputOne = `existing file import one ${suffix}`;
+  const existingInputTwo = `existing file import two ${suffix}`;
+  const importedInputOne = `imported file one ${suffix}`;
+  const importedInputTwo = `imported file two ${suffix}`;
+  const importedExtraOne = `extra one ${suffix}`;
+  const importedExtraTwo = `extra two ${suffix}`;
+  const columnConfig = {
+    [inputColumnId]: { is_visible: true, is_frozen: null },
+  };
+  const datasetConfig = {
+    dataset_source_local: true,
+    file_processing_status: "queued",
+    file_processing_queued_at: new Date().toISOString(),
+    original_filename: originalFilename,
+    estimated_rows: 2,
+    estimated_columns: 1,
+  };
+  const sql = `
+WITH inserted_dataset AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES (
+    ${sqlUuid(datasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(datasetName)},
+    ARRAY[${sqlTextLiteral(inputColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    ${sqlJsonLiteral(columnConfig)},
+    ${sqlJsonLiteral(datasetConfig)},
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )
+  RETURNING id
+),
+inserted_column AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES (
+    ${sqlUuid(inputColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(inputColumnName)},
+    'text',
+    'OTHERS',
+    NULL::varchar,
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+    (
+      ${sqlUuid(rowOneId)},
+      now() - interval '2 minutes',
+      now() - interval '2 minutes',
+      false,
+      NULL::timestamptz,
+      4,
+      ${sqlUuid(datasetId)},
+      '{}'::jsonb
+    ),
+    (
+      ${sqlUuid(rowTwoId)},
+      now() - interval '1 minute',
+      now() - interval '1 minute',
+      false,
+      NULL::timestamptz,
+      5,
+      ${sqlUuid(datasetId)},
+      '{}'::jsonb
+    )
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES
+    (
+      ${sqlUuid(randomUUID())},
+      now(),
+      now(),
+      false,
+      NULL::timestamptz,
+      ${sqlTextLiteral(existingInputOne)},
+      ${sqlUuid(inputColumnId)},
+      ${sqlUuid(datasetId)},
+      ${sqlUuid(rowOneId)},
+      'pass',
+      '{}'::jsonb,
+      '{}'::jsonb,
+      '{}'::jsonb,
+      NULL::integer,
+      NULL::integer,
+      NULL::double precision
+    ),
+    (
+      ${sqlUuid(randomUUID())},
+      now(),
+      now(),
+      false,
+      NULL::timestamptz,
+      ${sqlTextLiteral(existingInputTwo)},
+      ${sqlUuid(inputColumnId)},
+      ${sqlUuid(datasetId)},
+      ${sqlUuid(rowTwoId)},
+      'pass',
+      '{}'::jsonb,
+      '{}'::jsonb,
+      '{}'::jsonb,
+      NULL::integer,
+      NULL::integer,
+      NULL::double precision
+    )
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_dataset) = 1,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'dataset_name', ${sqlTextLiteral(datasetName)},
+  'input_column_id', ${sqlUuid(inputColumnId)}::text,
+  'input_column_name', ${sqlTextLiteral(inputColumnName)},
+  'new_column_name', ${sqlTextLiteral(newColumnName)},
+  'original_filename', ${sqlTextLiteral(originalFilename)},
+  'imported_input_one', ${sqlTextLiteral(importedInputOne)},
+  'imported_input_two', ${sqlTextLiteral(importedInputTwo)},
+  'imported_extra_one', ${sqlTextLiteral(importedExtraOne)},
+  'imported_extra_two', ${sqlTextLiteral(importedExtraTwo)},
+  'inserted_row_count', (SELECT count(*) FROM inserted_rows),
+  'inserted_cell_count', (SELECT count(*) FROM inserted_cells)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadDatasetFileImportFixtureAudit(fixture) {
+  assert(isUuid(fixture.dataset_id), "dataset_id must be a UUID for DB audit.");
+  const sql = `
+WITH rows AS (
+  SELECT id, "order"
+  FROM model_hub_row
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+    AND deleted = false
+),
+columns AS (
+  SELECT id, name
+  FROM model_hub_column
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+    AND deleted = false
+),
+new_column AS (
+  SELECT id
+  FROM columns
+  WHERE name = ${sqlTextLiteral(fixture.new_column_name)}
+  LIMIT 1
+),
+input_column AS (
+  SELECT id
+  FROM columns
+  WHERE name = ${sqlTextLiteral(fixture.input_column_name)}
+  LIMIT 1
+)
+SELECT json_build_object(
+  'row_count', (SELECT count(*) FROM rows),
+  'column_count', (SELECT count(*) FROM columns),
+  'column_names', (
+    SELECT COALESCE(json_agg(name ORDER BY name), '[]'::json)
+    FROM columns
+  ),
+  'max_order', COALESCE((SELECT max("order") FROM rows), -1),
+  'imported_input_values', (
+    SELECT COALESCE(json_agg(c.value ORDER BY r."order"), '[]'::json)
+    FROM rows r
+    JOIN input_column ic ON true
+    JOIN model_hub_cell c
+      ON c.row_id = r.id
+     AND c.column_id = ic.id
+     AND c.deleted = false
+    WHERE r."order" >= 6
+  ),
+  'imported_extra_values', (
+    SELECT COALESCE(json_agg(c.value ORDER BY r."order"), '[]'::json)
+    FROM rows r
+    JOIN new_column nc ON true
+    JOIN model_hub_cell c
+      ON c.row_id = r.id
+     AND c.column_id = nc.id
+     AND c.deleted = false
+    WHERE r."order" >= 6
+  ),
+  'existing_blank_cells_for_new_column', (
+    SELECT count(*)
+    FROM rows r
+    JOIN new_column nc ON true
+    JOIN model_hub_cell c
+      ON c.row_id = r.id
+     AND c.column_id = nc.id
+     AND c.deleted = false
+    WHERE r."order" < 6
+      AND COALESCE(c.value, '') = ''
+  ),
+  'active_cell_count', (
+    SELECT count(*)
+    FROM model_hub_cell c
+    WHERE c.dataset_id = ${sqlUuid(fixture.dataset_id)}
+      AND c.deleted = false
+  ),
+  'progress_status', (
+    SELECT dataset_config->>'file_processing_status'
+    FROM model_hub_dataset
+    WHERE id = ${sqlUuid(fixture.dataset_id)}
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+function assertDatasetFileImportFixtureAudit(audit, fixture) {
+  assert(Number(audit.row_count) === 4, "File import row count mismatch.");
+  assert(
+    Number(audit.column_count) === 2,
+    "File import column count mismatch.",
+  );
+  assert(
+    asArray(audit.column_names).includes(fixture.new_column_name),
+    "File import did not create the new CSV column.",
+  );
+  assert(
+    Number(audit.max_order) === 7,
+    "File import did not append after max order.",
+  );
+  assert(
+    JSON.stringify(audit.imported_input_values) ===
+      JSON.stringify([fixture.imported_input_one, fixture.imported_input_two]),
+    "File import input values did not round-trip in order.",
+  );
+  assert(
+    JSON.stringify(audit.imported_extra_values) ===
+      JSON.stringify([fixture.imported_extra_one, fixture.imported_extra_two]),
+    "File import new-column values did not round-trip in order.",
+  );
+  assert(
+    Number(audit.existing_blank_cells_for_new_column) === 2,
+    "File import did not backfill blank cells for existing rows.",
+  );
+  assert(
+    Number(audit.active_cell_count) === 8,
+    "File import cell count mismatch.",
+  );
+  assert(
+    audit.progress_status === "queued",
+    "File import changed the seeded local-file progress status unexpectedly.",
+  );
+}
+
+async function seedDatasetDynamicColumnFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const datasetId = randomUUID();
+  const payloadColumnId = randomUUID();
+  const rowOneId = randomUUID();
+  const rowTwoId = randomUUID();
+  const datasetName = `api journey dynamic columns ${runId}`;
+  const previewNameOne = `Dynamic Alice ${suffix}`;
+  const previewNameTwo = `Dynamic Bob ${suffix}`;
+  const columnConfig = {
+    [payloadColumnId]: { is_visible: true, is_frozen: null },
+  };
+  const values = [
+    [rowOneId, 1, `{"name":"${previewNameOne}","priority":"high"}`],
+    [rowTwoId, 2, `{"name":"${previewNameTwo}","priority":"low"}`],
+  ];
+  const rowValues = values
+    .map(
+      ([rowId, order]) => `(
+    ${sqlUuid(rowId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${Number(order)},
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb
+  )`,
+    )
+    .join(",\n");
+  const cellValues = values
+    .map(
+      ([rowId, , value]) => `(
+    ${sqlUuid(randomUUID())},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(value)},
+    ${sqlUuid(payloadColumnId)},
+    ${sqlUuid(datasetId)},
+    ${sqlUuid(rowId)},
+    'pass',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  )`,
+    )
+    .join(",\n");
+  const sql = `
+WITH inserted_dataset AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES (
+    ${sqlUuid(datasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(datasetName)},
+    ARRAY[${sqlTextLiteral(payloadColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    ${sqlJsonLiteral(columnConfig)},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )
+  RETURNING id
+),
+inserted_column AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES (
+    ${sqlUuid(payloadColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'payload',
+    'text',
+    'OTHERS',
+    NULL::varchar,
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+${rowValues}
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES
+${cellValues}
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_dataset) = 1,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'dataset_name', ${sqlTextLiteral(datasetName)},
+  'payload_column_id', ${sqlUuid(payloadColumnId)}::text,
+  'preview_name_one', ${sqlTextLiteral(previewNameOne)},
+  'preview_name_two', ${sqlTextLiteral(previewNameTwo)},
+  'extract_json_column_name', ${sqlTextLiteral(`json_name_${suffix}`)},
+  'api_column_name', ${sqlTextLiteral(`api_result_${suffix}`)},
+  'conditional_column_name', ${sqlTextLiteral(`conditional_${suffix}`)},
+  'classify_column_name', ${sqlTextLiteral(`classification_${suffix}`)},
+  'entities_column_name', ${sqlTextLiteral(`entities_${suffix}`)},
+  'vector_column_name', ${sqlTextLiteral(`vector_${suffix}`)},
+  'missing_guard_column_name', ${sqlTextLiteral(`missing_guard_${suffix}`)},
+  'inserted_row_count', (SELECT count(*) FROM inserted_rows),
+  'inserted_cell_count', (SELECT count(*) FROM inserted_cells)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function createDatasetDynamicColumns(client, fixture) {
+  const extractJson = await client.post(
+    apiPath("/model-hub/develops/{dataset_id}/extract-json-column/", {
+      dataset_id: fixture.dataset_id,
+    }),
+    {
+      column_id: fixture.payload_column_id,
+      json_key: "name",
+      new_column_name: fixture.extract_json_column_name,
+      concurrency: 1,
+    },
+  );
+  const apiColumn = await client.post(
+    apiPath("/model-hub/datasets/{dataset_id}/add-api-column/", {
+      dataset_id: fixture.dataset_id,
+    }),
+    {
+      column_name: fixture.api_column_name,
+      config: {
+        url: "https://example.com",
+        method: "GET",
+        output_type: "string",
+      },
+      concurrency: 1,
+    },
+  );
+  const conditional = await client.post(
+    apiPath("/model-hub/datasets/{dataset_id}/conditional-column/", {
+      dataset_id: fixture.dataset_id,
+    }),
+    {
+      new_column_name: fixture.conditional_column_name,
+      config: [
+        {
+          branch_type: "else",
+          condition: "",
+          branch_node_config: {
+            type: "static_value",
+            config: { value: "fallback" },
+          },
+        },
+      ],
+      concurrency: 1,
+    },
+  );
+  const classification = await client.post(
+    apiPath("/model-hub/datasets/{dataset_id}/classify-column/", {
+      dataset_id: fixture.dataset_id,
+    }),
+    {
+      column_id: fixture.payload_column_id,
+      labels: ["alpha", "beta"],
+      new_column_name: fixture.classify_column_name,
+      language_model_id: "gpt-4o-mini",
+      concurrency: 1,
+    },
+  );
+  const entities = await client.post(
+    apiPath("/model-hub/datasets/{dataset_id}/extract-entities/", {
+      dataset_id: fixture.dataset_id,
+    }),
+    {
+      column_id: fixture.payload_column_id,
+      instruction: "Extract names",
+      new_column_name: fixture.entities_column_name,
+      language_model_id: "gpt-4o-mini",
+      concurrency: 1,
+    },
+  );
+  const vector = await client.post(
+    apiPath("/model-hub/datasets/{dataset_id}/add_vector_db_column/", {
+      dataset_id: fixture.dataset_id,
+    }),
+    {
+      column_id: fixture.payload_column_id,
+      sub_type: "pinecone",
+      api_key: randomUUID(),
+      new_column_name: fixture.vector_column_name,
+      index_name: "api-journey-index",
+      top_k: 1,
+      embedding_config: {
+        type: "openai",
+        model: "text-embedding-3-small",
+      },
+      concurrency: 1,
+    },
+  );
+
+  const createdColumns = {
+    [fixture.extract_json_column_name]: extractJson.new_column_id,
+    [fixture.api_column_name]: apiColumn.new_column_id,
+    [fixture.conditional_column_name]: conditional.new_column_id,
+    [fixture.classify_column_name]: classification.new_column_id,
+    [fixture.entities_column_name]: entities.new_column_id,
+    [fixture.vector_column_name]: vector.new_column_id,
+  };
+  for (const [name, id] of Object.entries(createdColumns)) {
+    assert(isUuid(id), `Dynamic-column API did not return a UUID for ${name}.`);
+  }
+  return createdColumns;
+}
+
+async function loadDatasetDynamicColumnFixtureAudit(fixture) {
+  assert(isUuid(fixture.dataset_id), "dataset_id must be a UUID for DB audit.");
+  const expectedNames = [
+    fixture.extract_json_column_name,
+    fixture.api_column_name,
+    fixture.conditional_column_name,
+    fixture.classify_column_name,
+    fixture.entities_column_name,
+    fixture.vector_column_name,
+  ];
+  const sql = `
+WITH dataset_row AS (
+  SELECT id, column_order
+  FROM model_hub_dataset
+  WHERE id = ${sqlUuid(fixture.dataset_id)}
+    AND deleted = false
+),
+base_rows AS (
+  SELECT id
+  FROM model_hub_row
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+    AND deleted = false
+),
+base_cells AS (
+  SELECT id
+  FROM model_hub_cell
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+    AND column_id = ${sqlUuid(fixture.payload_column_id)}
+    AND deleted = false
+),
+dynamic_columns AS (
+  SELECT id, name, source, status, metadata
+  FROM model_hub_column
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+    AND deleted = false
+    AND name = ANY(${sqlTextArray(expectedNames)})
+)
+SELECT json_build_object(
+  'row_count', (SELECT count(*) FROM base_rows),
+  'base_cell_count', (SELECT count(*) FROM base_cells),
+  'column_order_length', (
+    SELECT COALESCE(cardinality(column_order), 0)
+    FROM dataset_row
+  ),
+  'column_order', (
+    SELECT COALESCE(array_to_json(column_order), '[]'::json)
+    FROM dataset_row
+  ),
+  'dynamic_column_count', (SELECT count(*) FROM dynamic_columns),
+  'dynamic_columns', (
+    SELECT COALESCE(
+      json_agg(
+        json_build_object(
+          'id', id::text,
+          'name', name,
+          'source', source,
+          'status', status,
+          'metadata', metadata
+        )
+        ORDER BY name
+      ),
+      '[]'::json
+    )
+    FROM dynamic_columns
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+function assertDatasetDynamicColumnFixtureAudit(
+  audit,
+  fixture,
+  createdColumns,
+) {
+  assert(Number(audit.row_count) === 2, "Dynamic fixture row count mismatch.");
+  assert(
+    Number(audit.base_cell_count) === 2,
+    "Dynamic fixture base cell count mismatch.",
+  );
+  assert(
+    Number(audit.dynamic_column_count) === 6,
+    "Dynamic fixture did not create all generated columns.",
+  );
+  assert(
+    Number(audit.column_order_length) === 7,
+    "Dynamic fixture column order did not include all generated columns.",
+  );
+  const columns = asArray(audit.dynamic_columns);
+  const byName = new Map(columns.map((column) => [column.name, column]));
+  const expected = [
+    [fixture.extract_json_column_name, "extracted_json"],
+    [fixture.api_column_name, "api_call"],
+    [fixture.conditional_column_name, "conditional"],
+    [fixture.classify_column_name, "classification"],
+    [fixture.entities_column_name, "extracted_entities"],
+    [fixture.vector_column_name, "vector_db"],
+  ];
+  for (const [name, source] of expected) {
+    const column = byName.get(name);
+    assert(column, `Dynamic column ${name} was missing from DB audit.`);
+    assert(
+      column.id === createdColumns[name],
+      `Dynamic column ${name} id mismatch.`,
+    );
+    assert(column.source === source, `Dynamic column ${name} source mismatch.`);
+    assert(
+      ["Running", "Completed", "Error"].includes(column.status),
+      `Dynamic column ${name} had an unexpected status.`,
+    );
+    assert(
+      asArray(audit.column_order).includes(column.id),
+      `Dynamic column ${name} was missing from dataset column_order.`,
+    );
+  }
+
+  const extractJson = byName.get(fixture.extract_json_column_name);
+  assert(
+    extractJson.metadata?.column_id === fixture.payload_column_id &&
+      extractJson.metadata?.json_key === "name",
+    "Extract-json column metadata did not preserve source column and json_key.",
+  );
+  const apiColumn = byName.get(fixture.api_column_name);
+  assert(
+    apiColumn.metadata?.url === "https://example.com" &&
+      apiColumn.metadata?.method === "GET",
+    "API column metadata did not preserve request config.",
+  );
+  const conditional = byName.get(fixture.conditional_column_name);
+  assert(
+    asArray(conditional.metadata?.config).length === 1,
+    "Conditional column metadata did not preserve branch config.",
+  );
+  const classification = byName.get(fixture.classify_column_name);
+  assert(
+    classification.metadata?.column_id === fixture.payload_column_id &&
+      asArray(classification.metadata?.labels).length === 2,
+    "Classification metadata did not preserve labels/source column.",
+  );
+  const entities = byName.get(fixture.entities_column_name);
+  assert(
+    entities.metadata?.column_id === fixture.payload_column_id &&
+      entities.metadata?.instruction === "Extract names",
+    "Entity extraction metadata did not preserve instruction/source column.",
+  );
+  const vector = byName.get(fixture.vector_column_name);
+  assert(
+    vector.metadata?.column_id === fixture.payload_column_id &&
+      vector.metadata?.sub_type === "pinecone",
+    "Vector DB metadata did not preserve source column/sub_type.",
+  );
+}
+
+async function seedDatasetSyntheticFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const datasetId = randomUUID();
+  const columnId = randomUUID();
+  const datasetName = `api journey synthetic ${runId}`;
+  const columnName = `synthetic_answer_${suffix}`;
+  const originalDescription = `Original synthetic description ${suffix}`;
+  const updatedDescription = `Updated synthetic description ${suffix}`;
+  const syntheticColumnPayload = {
+    name: columnName,
+    data_type: "text",
+    description: "Synthetic answer",
+    property: "answer",
+  };
+  const syntheticAddColumnPayload = {
+    ...syntheticColumnPayload,
+    skip: false,
+    is_new: false,
+  };
+  const syntheticConfig = {
+    num_rows: 10,
+    columns: [syntheticColumnPayload],
+    dataset: {
+      name: datasetName,
+      description: originalDescription,
+      objective: "Seed synthetic config for API journey",
+      patterns: [],
+    },
+  };
+  const columnConfig = {
+    [columnId]: { is_visible: true, is_frozen: null },
+  };
+  const rowValues = Array.from({ length: 10 }, (_, index) => {
+    const rowId = randomUUID();
+    return {
+      rowSql: `(
+        ${sqlUuid(rowId)},
+        now(),
+        now(),
+        false,
+        NULL::timestamptz,
+        ${index},
+        ${sqlUuid(datasetId)},
+        '{}'::jsonb
+      )`,
+      cellSql: `(
+        ${sqlUuid(randomUUID())},
+        now(),
+        now(),
+        false,
+        NULL::timestamptz,
+        ${sqlTextLiteral(`synthetic seeded value ${index} ${suffix}`)},
+        ${sqlUuid(columnId)},
+        ${sqlUuid(datasetId)},
+        ${sqlUuid(rowId)},
+        'pass',
+        '{}'::jsonb,
+        '{}'::jsonb,
+        '{}'::jsonb,
+        NULL::integer,
+        NULL::integer,
+        NULL::double precision
+      )`,
+    };
+  });
+  const sql = `
+WITH inserted_dataset AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES (
+    ${sqlUuid(datasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(datasetName)},
+    ARRAY[${sqlTextLiteral(columnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    ${sqlJsonLiteral(columnConfig)},
+    '{}'::jsonb,
+    ${sqlJsonLiteral(syntheticConfig)},
+    '[]'::jsonb,
+    'pending'
+  )
+  RETURNING id
+),
+inserted_column AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES (
+    ${sqlUuid(columnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(columnName)},
+    'text',
+    'OTHERS',
+    NULL::varchar,
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+${rowValues.map((row) => row.rowSql).join(",\n")}
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES
+${rowValues.map((row) => row.cellSql).join(",\n")}
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_dataset) = 1,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'dataset_name', ${sqlTextLiteral(datasetName)},
+  'workspace_id', ${workspaceId ? `${sqlUuid(workspaceId)}::text` : "NULL::text"},
+  'column_id', ${sqlUuid(columnId)}::text,
+  'column_name', ${sqlTextLiteral(columnName)},
+  'original_description', ${sqlTextLiteral(originalDescription)},
+  'updated_description', ${sqlTextLiteral(updatedDescription)},
+  'synthetic_column_payload', ${sqlJsonLiteral(syntheticColumnPayload)},
+  'synthetic_add_column_payload', ${sqlJsonLiteral(syntheticAddColumnPayload)},
+  'inserted_row_count', (SELECT count(*) FROM inserted_rows),
+  'inserted_cell_count', (SELECT count(*) FROM inserted_cells)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadDatasetSyntheticFixtureAudit(fixture) {
+  assert(isUuid(fixture.dataset_id), "dataset_id must be a UUID for DB audit.");
+  const sql = `
+SELECT json_build_object(
+  'workspace_id', d.workspace_id::text,
+  'synthetic_description', d.synthetic_dataset_config->'dataset'->>'description',
+  'synthetic_num_rows', (d.synthetic_dataset_config->>'num_rows')::integer,
+  'column_order_length', COALESCE(array_length(d.column_order, 1), 0),
+  'row_count', (
+    SELECT count(*)
+    FROM model_hub_row r
+    WHERE r.dataset_id = d.id
+      AND r.deleted = false
+  ),
+  'column_count', (
+    SELECT count(*)
+    FROM model_hub_column c
+    WHERE c.dataset_id = d.id
+      AND c.deleted = false
+  ),
+  'cell_count', (
+    SELECT count(*)
+    FROM model_hub_cell c
+    WHERE c.dataset_id = d.id
+      AND c.deleted = false
+  ),
+  'column_statuses', (
+    SELECT COALESCE(json_agg(DISTINCT c.status), '[]'::json)
+    FROM model_hub_column c
+    WHERE c.dataset_id = d.id
+      AND c.deleted = false
+  )
+)
+FROM model_hub_dataset d
+WHERE d.id = ${sqlUuid(fixture.dataset_id)}
+  AND d.deleted = false;
+`;
+  return runPostgresJson(sql);
+}
+
+function assertDatasetSyntheticFixtureAudit(audit, fixture) {
+  assert(
+    audit.workspace_id === fixture.workspace_id,
+    "Synthetic fixture workspace id mismatch.",
+  );
+  assert(
+    audit.synthetic_description === fixture.updated_description,
+    "Synthetic config description was not updated.",
+  );
+  assert(
+    Number(audit.synthetic_num_rows) === 10,
+    "Synthetic config row count was not preserved.",
+  );
+  assert(Number(audit.row_count) === 10, "Synthetic row count changed.");
+  assert(Number(audit.column_count) === 1, "Synthetic column count changed.");
+  assert(Number(audit.cell_count) === 10, "Synthetic cell count changed.");
+  assert(
+    Number(audit.column_order_length) === 1,
+    "Synthetic column order length changed.",
+  );
+}
+
+async function seedDatasetExplanationFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const datasetId = randomUUID();
+  const datasetName = `api journey explanation summary ${runId}`;
+  const rowIds = [randomUUID(), randomUUID()];
+  const rowSql = rowIds
+    .map(
+      (rowId, index) => `(
+        ${sqlUuid(rowId)},
+        now(),
+        now(),
+        false,
+        NULL::timestamptz,
+        ${index},
+        ${sqlUuid(datasetId)},
+        '{}'::jsonb
+      )`,
+    )
+    .join(",\n");
+  const sql = `
+WITH inserted_dataset AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES (
+    ${sqlUuid(datasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(datasetName)},
+    ARRAY[]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'completed'
+  )
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+${rowSql}
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_dataset) = 1,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'dataset_name', ${sqlTextLiteral(datasetName)},
+  'workspace_id', ${workspaceId ? `${sqlUuid(workspaceId)}::text` : "NULL::text"},
+  'row_count', (SELECT count(*) FROM inserted_rows)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadDatasetExplanationFixtureAudit(fixture) {
+  assert(isUuid(fixture.dataset_id), "dataset_id must be a UUID for DB audit.");
+  const sql = `
+SELECT json_build_object(
+  'workspace_id', d.workspace_id::text,
+  'eval_reason_status', d.eval_reason_status,
+  'row_count', (
+    SELECT count(*)
+    FROM model_hub_row r
+    WHERE r.dataset_id = d.id
+      AND r.deleted = false
+  )
+)
+FROM model_hub_dataset d
+WHERE d.id = ${sqlUuid(fixture.dataset_id)}
+  AND d.deleted = false;
+`;
+  return runPostgresJson(sql);
+}
+
+function assertDatasetExplanationFixtureAudit(audit, fixture) {
+  assert(
+    audit.workspace_id === fixture.workspace_id,
+    "Explanation summary fixture workspace id mismatch.",
+  );
+  assert(
+    audit.eval_reason_status === "insufficient_data",
+    "Explanation summary refresh did not persist insufficient_data status.",
+  );
+  assert(
+    Number(audit.row_count) === fixture.row_count,
+    "Explanation summary fixture row count changed.",
+  );
+}
+
+function assertDatasetEvalStructure(
+  payload,
+  { metricId, templateId, expectedName, expectedMapping },
+) {
+  const evalData = payload?.eval || payload;
+  assert(evalData && typeof evalData === "object", "Eval structure was empty.");
+  if (metricId) {
+    assert(
+      evalData.id === metricId,
+      "Eval structure returned wrong metric id.",
+    );
+  }
+  assert(
+    evalData.template_id === templateId,
+    "Eval structure returned wrong template id.",
+  );
+  assert(evalData.name === expectedName, "Eval structure returned wrong name.");
+  for (const [key, value] of Object.entries(expectedMapping || {})) {
+    assert(
+      String(evalData.mapping?.[key] ?? "") === String(value),
+      `Eval structure mapping for ${key} did not match.`,
+    );
+  }
+  assert(
+    payloadArray(evalData.required_keys, "required_keys").includes("text"),
+    "Eval structure did not expose required key text.",
+  );
+}
+
+async function seedDatasetEvalDrawerFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const datasetId = randomUUID();
+  const inputColumnId = randomUUID();
+  const datasetName = `api journey eval drawer ${runId}`;
+  const inputColumnName = `api_eval_text_${suffix}`;
+  const rowTexts = [
+    `alpha beta gamma ${suffix}`,
+    `delta epsilon zeta ${suffix}`,
+    `eta theta iota ${suffix}`,
+  ];
+  const rows = rowTexts.map((text, index) => ({
+    rowId: randomUUID(),
+    cellId: randomUUID(),
+    text,
+    order: index,
+  }));
+  const columnConfig = {
+    [inputColumnId]: { is_visible: true, is_frozen: null },
+  };
+  const rowValues = rows
+    .map(
+      (row) => `(
+        ${sqlUuid(row.rowId)},
+        now(),
+        now(),
+        false,
+        NULL::timestamptz,
+        ${row.order},
+        ${sqlUuid(datasetId)},
+        '{}'::jsonb
+      )`,
+    )
+    .join(",\n");
+  const cellValues = rows
+    .map(
+      (row) => `(
+        ${sqlUuid(row.cellId)},
+        now(),
+        now(),
+        false,
+        NULL::timestamptz,
+        ${sqlTextLiteral(row.text)},
+        '{}'::jsonb,
+        '{}'::jsonb,
+        '{}'::jsonb,
+        'pass',
+        ${sqlUuid(datasetId)},
+        ${sqlUuid(inputColumnId)},
+        ${sqlUuid(row.rowId)}
+      )`,
+    )
+    .join(",\n");
+  const sql = `
+WITH inserted_dataset AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES (
+    ${sqlUuid(datasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(datasetName)},
+    ARRAY[${sqlTextLiteral(inputColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    ${sqlJsonLiteral(columnConfig)},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )
+  RETURNING id
+),
+inserted_column AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES (
+    ${sqlUuid(inputColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(inputColumnName)},
+    'text',
+    'OTHERS',
+    NULL::varchar,
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+${rowValues}
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    status,
+    dataset_id,
+    column_id,
+    row_id
+  )
+  VALUES
+${cellValues}
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_dataset) = 1,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'dataset_name', ${sqlTextLiteral(datasetName)},
+  'input_column_id', ${sqlUuid(inputColumnId)}::text,
+  'input_column_name', ${sqlTextLiteral(inputColumnName)},
+  'workspace_id', ${workspaceId ? `${sqlUuid(workspaceId)}::text` : "NULL::text"},
+  'row_count', (SELECT count(*) FROM inserted_rows),
+  'cell_count', (SELECT count(*) FROM inserted_cells)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteDatasetEvalDrawerFixture(fixture) {
+  assert(
+    fixture && isUuid(fixture.dataset_id),
+    "Dataset eval drawer fixture id must be a UUID for DB cleanup.",
+  );
+  const sql = `
+WITH deleted_pending_tasks AS (
+  DELETE FROM model_hub_pendingrowtask
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+  RETURNING 1
+),
+deleted_metrics AS (
+  DELETE FROM model_hub_userevalmetric
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_pending_task_count', (SELECT count(*) FROM deleted_pending_tasks),
+  'deleted_metric_count', (SELECT count(*) FROM deleted_metrics)
+);
+`;
+  await runPostgresJson(sql);
+  return hardDeleteDatasetCopyFixture([fixture.dataset_id]);
+}
+
+async function seedLegacyEvalUserTemplateFixture({
+  runId,
+  organizationId,
+  workspaceId,
+  templateId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  assert(isUuid(templateId), "templateId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const activeWorkspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const otherWorkspaceId = await findOtherWorkspaceId(
+    organizationId,
+    workspaceId,
+  );
+  const datasetId = randomUUID();
+  const outsideDatasetId = randomUUID();
+  const inputColumnId = randomUUID();
+  const outsideColumnId = randomUUID();
+  const rowOneId = randomUUID();
+  const rowTwoId = randomUUID();
+  const outsideRowId = randomUUID();
+  const inputCellOneId = randomUUID();
+  const inputCellTwoId = randomUUID();
+  const outsideInputCellId = randomUUID();
+  const otherDatasetId = otherWorkspaceId ? randomUUID() : null;
+  const otherColumnId = otherWorkspaceId ? randomUUID() : null;
+  const otherRowId = otherWorkspaceId ? randomUUID() : null;
+  const otherInputCellId = otherWorkspaceId ? randomUUID() : null;
+  const otherMetricId = otherWorkspaceId ? randomUUID() : null;
+  const otherEvalColumnId = otherWorkspaceId ? randomUUID() : null;
+  const otherEvalCellId = otherWorkspaceId ? randomUUID() : null;
+  const datasetName = `api journey legacy eval user ${runId}`;
+  const outsideDatasetName = `api journey legacy eval outside ${runId}`;
+  const inputColumnName = `api_legacy_eval_input_${suffix}`;
+  const outsideColumnName = `api_legacy_eval_outside_${suffix}`;
+  const inputValueOne = `alpha beta gamma ${suffix}`;
+  const inputValueTwo = `delta epsilon zeta ${suffix}`;
+  const outsideInputValue = `outside row ${suffix}`;
+  const evalValueOne = `old eval one ${suffix}`;
+  const evalValueTwo = `old eval two ${suffix}`;
+  const outsideEvalValue = `outside old eval ${suffix}`;
+  const otherInputValue = `other workspace row ${suffix}`;
+  const otherEvalValue = `other workspace old eval ${suffix}`;
+  const datasetValues = [
+    {
+      id: datasetId,
+      name: datasetName,
+      workspaceSql: activeWorkspaceSql,
+      columnIds: [inputColumnId],
+    },
+    {
+      id: outsideDatasetId,
+      name: outsideDatasetName,
+      workspaceSql: activeWorkspaceSql,
+      columnIds: [outsideColumnId],
+    },
+  ];
+  if (otherWorkspaceId) {
+    datasetValues.push({
+      id: otherDatasetId,
+      name: `api journey legacy eval other ${runId}`,
+      workspaceSql: sqlUuid(otherWorkspaceId),
+      columnIds: [otherColumnId],
+    });
+  }
+  const datasetSql = datasetValues
+    .map(
+      (dataset) => `(
+        ${sqlUuid(dataset.id)},
+        now(),
+        now(),
+        false,
+        NULL::timestamptz,
+        ${sqlTextLiteral(dataset.name)},
+        ARRAY[${dataset.columnIds.map(sqlTextLiteral).join(", ")}]::varchar[],
+        'GenerativeLLM',
+        ${sqlUuid(organizationId)},
+        ${dataset.workspaceSql},
+        'build',
+        ${sqlJsonLiteral(
+          Object.fromEntries(
+            dataset.columnIds.map((columnId) => [
+              columnId,
+              { is_visible: true, is_frozen: null },
+            ]),
+          ),
+        )},
+        '{}'::jsonb,
+        '{}'::jsonb,
+        '[]'::jsonb,
+        'pending'
+      )`,
+    )
+    .join(",\n");
+  const columnRows = [
+    [inputColumnId, inputColumnName, datasetId],
+    [outsideColumnId, outsideColumnName, outsideDatasetId],
+  ];
+  if (otherWorkspaceId) {
+    columnRows.push([
+      otherColumnId,
+      `api_legacy_eval_other_${suffix}`,
+      otherDatasetId,
+    ]);
+  }
+  const columnSql = columnRows
+    .map(
+      ([columnId, name, datasetIdForColumn]) => `(
+        ${sqlUuid(columnId)},
+        now(),
+        now(),
+        false,
+        NULL::timestamptz,
+        ${sqlTextLiteral(name)},
+        'text',
+        'OTHERS',
+        NULL::varchar,
+        ${sqlUuid(datasetIdForColumn)},
+        '{}'::jsonb,
+        'Completed'
+      )`,
+    )
+    .join(",\n");
+  const rowRows = [
+    [rowOneId, datasetId, 0],
+    [rowTwoId, datasetId, 1],
+    [outsideRowId, outsideDatasetId, 0],
+  ];
+  if (otherWorkspaceId) rowRows.push([otherRowId, otherDatasetId, 0]);
+  const rowSql = rowRows
+    .map(
+      ([rowId, rowDatasetId, order]) => `(
+        ${sqlUuid(rowId)},
+        now(),
+        now(),
+        false,
+        NULL::timestamptz,
+        ${order},
+        ${sqlUuid(rowDatasetId)},
+        '{}'::jsonb
+      )`,
+    )
+    .join(",\n");
+  const cellRows = [
+    [inputCellOneId, inputValueOne, inputColumnId, datasetId, rowOneId],
+    [inputCellTwoId, inputValueTwo, inputColumnId, datasetId, rowTwoId],
+    [
+      outsideInputCellId,
+      outsideInputValue,
+      outsideColumnId,
+      outsideDatasetId,
+      outsideRowId,
+    ],
+  ];
+  if (otherWorkspaceId) {
+    cellRows.push([
+      otherInputCellId,
+      otherInputValue,
+      otherColumnId,
+      otherDatasetId,
+      otherRowId,
+    ]);
+  }
+  const cellSql = cellRows
+    .map(
+      ([cellId, value, columnId, cellDatasetId, rowId]) => `(
+        ${sqlUuid(cellId)},
+        now(),
+        now(),
+        false,
+        NULL::timestamptz,
+        ${sqlTextLiteral(value)},
+        ${sqlUuid(columnId)},
+        ${sqlUuid(cellDatasetId)},
+        ${sqlUuid(rowId)},
+        'pass',
+        '{}'::jsonb,
+        '{}'::jsonb,
+        '{}'::jsonb,
+        NULL::integer,
+        NULL::integer,
+        NULL::double precision
+      )`,
+    )
+    .join(",\n");
+  const otherWorkspaceSql = otherWorkspaceId
+    ? `,
+inserted_other_metric AS (
+  INSERT INTO model_hub_userevalmetric (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    config,
+    dataset_id,
+    template_id,
+    organization_id,
+    workspace_id,
+    status,
+    show_in_sidebar,
+    source_id,
+    column_deleted,
+    user_id,
+    error_localizer,
+    kb_id,
+    model,
+    eval_group_id,
+    composite_weight_overrides
+  )
+  VALUES (
+    ${sqlUuid(otherMetricId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(`api legacy eval other metric ${runId}`)},
+    ${sqlJsonLiteral({ mapping: { text: otherColumnId }, params: {} })},
+    ${sqlUuid(otherDatasetId)},
+    ${sqlUuid(templateId)},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(otherWorkspaceId)},
+    'Inactive',
+    true,
+    '',
+    false,
+    NULL::uuid,
+    false,
+    NULL::uuid,
+    'turing_small',
+    NULL::uuid,
+    NULL::jsonb
+  )
+  RETURNING id
+),
+inserted_other_eval_column AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES (
+    ${sqlUuid(otherEvalColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(`api_legacy_eval_other_output_${suffix}`)},
+    'text',
+    'evaluation',
+    ${sqlTextLiteral(otherMetricId)},
+    ${sqlUuid(otherDatasetId)},
+    '{}'::jsonb,
+    'Completed'
+  )
+  RETURNING id
+),
+inserted_other_eval_cell AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES (
+    ${sqlUuid(otherEvalCellId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(otherEvalValue)},
+    ${sqlUuid(otherEvalColumnId)},
+    ${sqlUuid(otherDatasetId)},
+    ${sqlUuid(otherRowId)},
+    'pass',
+    ${sqlJsonLiteral({ kept: true })},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  )
+  RETURNING id
+)`
+    : "";
+  const sql = `
+WITH inserted_datasets AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES
+${datasetSql}
+  RETURNING id
+),
+inserted_columns AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES
+${columnSql}
+  RETURNING id
+),
+inserted_rows AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES
+${rowSql}
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES
+${cellSql}
+  RETURNING id
+)${otherWorkspaceSql}
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_datasets) >= 2,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'dataset_name', ${sqlTextLiteral(datasetName)},
+  'input_column_id', ${sqlUuid(inputColumnId)}::text,
+  'row_one_id', ${sqlUuid(rowOneId)}::text,
+  'row_two_id', ${sqlUuid(rowTwoId)}::text,
+  'outside_dataset_id', ${sqlUuid(outsideDatasetId)}::text,
+  'outside_column_id', ${sqlUuid(outsideColumnId)}::text,
+  'outside_row_id', ${sqlUuid(outsideRowId)}::text,
+  'other_workspace_id', ${otherWorkspaceId ? `${sqlUuid(otherWorkspaceId)}::text` : "NULL::text"},
+  'other_dataset_id', ${otherDatasetId ? `${sqlUuid(otherDatasetId)}::text` : "NULL::text"},
+  'other_column_id', ${otherColumnId ? `${sqlUuid(otherColumnId)}::text` : "NULL::text"},
+  'other_row_id', ${otherRowId ? `${sqlUuid(otherRowId)}::text` : "NULL::text"},
+  'other_metric_id', ${otherMetricId ? `${sqlUuid(otherMetricId)}::text` : "NULL::text"},
+  'eval_value_one', ${sqlTextLiteral(evalValueOne)},
+  'eval_value_two', ${sqlTextLiteral(evalValueTwo)},
+  'outside_eval_value', ${sqlTextLiteral(outsideEvalValue)},
+  'other_eval_value', ${sqlTextLiteral(otherEvalValue)},
+  'workspace_id', ${workspaceId ? `${sqlUuid(workspaceId)}::text` : "NULL::text"},
+  'inserted_dataset_count', (SELECT count(*) FROM inserted_datasets),
+  'inserted_column_count', (SELECT count(*) FROM inserted_columns),
+  'inserted_row_count', (SELECT count(*) FROM inserted_rows),
+  'inserted_cell_count', (SELECT count(*) FROM inserted_cells)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedLegacyEvalUserTemplateEvaluationCells({
+  fixture,
+  metricId,
+}) {
+  assert(
+    fixture && isUuid(fixture.dataset_id) && isUuid(fixture.outside_dataset_id),
+    "Legacy eval-user-template fixture ids must be UUIDs for DB seeding.",
+  );
+  assert(isUuid(metricId), "metricId must be a UUID for DB seeding.");
+  const evalColumnId = randomUUID();
+  const outsideEvalColumnId = randomUUID();
+  const evalCellOneId = randomUUID();
+  const evalCellTwoId = randomUUID();
+  const outsideEvalCellId = randomUUID();
+  const sql = `
+WITH inserted_columns AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES
+  (
+    ${sqlUuid(evalColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'api legacy eval output',
+    'text',
+    'evaluation',
+    ${sqlTextLiteral(metricId)},
+    ${sqlUuid(fixture.dataset_id)},
+    '{}'::jsonb,
+    'Completed'
+  ),
+  (
+    ${sqlUuid(outsideEvalColumnId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    'api legacy outside eval output',
+    'text',
+    'evaluation',
+    ${sqlTextLiteral(metricId)},
+    ${sqlUuid(fixture.outside_dataset_id)},
+    '{}'::jsonb,
+    'Completed'
+  )
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    column_id,
+    dataset_id,
+    row_id,
+    status,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    completion_tokens,
+    prompt_tokens,
+    response_time
+  )
+  VALUES
+  (
+    ${sqlUuid(evalCellOneId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(fixture.eval_value_one)},
+    ${sqlUuid(evalColumnId)},
+    ${sqlUuid(fixture.dataset_id)},
+    ${sqlUuid(fixture.row_one_id)},
+    'pass',
+    ${sqlJsonLiteral({ seeded: true, row: 1 })},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  ),
+  (
+    ${sqlUuid(evalCellTwoId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(fixture.eval_value_two)},
+    ${sqlUuid(evalColumnId)},
+    ${sqlUuid(fixture.dataset_id)},
+    ${sqlUuid(fixture.row_two_id)},
+    'pass',
+    ${sqlJsonLiteral({ seeded: true, row: 2 })},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  ),
+  (
+    ${sqlUuid(outsideEvalCellId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(fixture.outside_eval_value)},
+    ${sqlUuid(outsideEvalColumnId)},
+    ${sqlUuid(fixture.outside_dataset_id)},
+    ${sqlUuid(fixture.outside_row_id)},
+    'pass',
+    ${sqlJsonLiteral({ kept: true })},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NULL::integer,
+    NULL::integer,
+    NULL::double precision
+  )
+  RETURNING id
+)
+SELECT json_build_object(
+  'inserted_eval_column_count', (SELECT count(*) FROM inserted_columns),
+  'inserted_eval_cell_count', (SELECT count(*) FROM inserted_cells),
+  'eval_column_id', ${sqlUuid(evalColumnId)}::text,
+  'outside_eval_column_id', ${sqlUuid(outsideEvalColumnId)}::text
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteLegacyEvalUserTemplateFixture(fixture) {
+  assert(
+    fixture && isUuid(fixture.dataset_id) && isUuid(fixture.outside_dataset_id),
+    "Legacy eval-user-template fixture ids must be UUIDs for DB cleanup.",
+  );
+  const datasetIds = [fixture.dataset_id, fixture.outside_dataset_id].filter(
+    isUuid,
+  );
+  if (isUuid(fixture.other_dataset_id))
+    datasetIds.push(fixture.other_dataset_id);
+  const sql = `
+WITH deleted_pending_tasks AS (
+  DELETE FROM model_hub_pendingrowtask
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_metrics AS (
+  DELETE FROM model_hub_userevalmetric
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_cells AS (
+  DELETE FROM model_hub_cell
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_rows AS (
+  DELETE FROM model_hub_row
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_columns AS (
+  DELETE FROM model_hub_column
+  WHERE dataset_id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+),
+deleted_datasets AS (
+  DELETE FROM model_hub_dataset
+  WHERE id = ANY(${sqlUuidArray(datasetIds)})
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_pending_task_count', (SELECT count(*) FROM deleted_pending_tasks),
+  'deleted_metric_count', (SELECT count(*) FROM deleted_metrics),
+  'deleted_cell_count', (SELECT count(*) FROM deleted_cells),
+  'deleted_row_count', (SELECT count(*) FROM deleted_rows),
+  'deleted_column_count', (SELECT count(*) FROM deleted_columns),
+  'deleted_dataset_count', (SELECT count(*) FROM deleted_datasets)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyEvalUserTemplateAudit({
+  fixture,
+  templateId,
+  metricName,
+  organizationId,
+  workspaceId,
+}) {
+  assert(
+    fixture && isUuid(fixture.dataset_id) && isUuid(fixture.outside_dataset_id),
+    "Legacy eval-user-template fixture ids must be UUIDs for DB audit.",
+  );
+  assert(isUuid(templateId), "templateId must be a UUID for DB audit.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const otherMetricStatus = isUuid(fixture.other_metric_id)
+    ? `(SELECT c.status FROM model_hub_cell c JOIN model_hub_column col ON col.id = c.column_id WHERE c.row_id = ${sqlUuid(fixture.other_row_id)} AND c.dataset_id = ${sqlUuid(fixture.other_dataset_id)} AND col.source_id = ${sqlTextLiteral(fixture.other_metric_id)} AND c.deleted = false LIMIT 1)`
+    : "NULL::varchar";
+  const otherMetricValue = isUuid(fixture.other_metric_id)
+    ? `(SELECT c.value FROM model_hub_cell c JOIN model_hub_column col ON col.id = c.column_id WHERE c.row_id = ${sqlUuid(fixture.other_row_id)} AND c.dataset_id = ${sqlUuid(fixture.other_dataset_id)} AND col.source_id = ${sqlTextLiteral(fixture.other_metric_id)} AND c.deleted = false LIMIT 1)`
+    : "NULL::text";
+  const sql = `
+WITH requested AS (
+  SELECT
+    ${sqlUuid(fixture.dataset_id)}::uuid AS dataset_id,
+    ${sqlUuid(fixture.outside_dataset_id)}::uuid AS outside_dataset_id,
+    ${sqlUuid(templateId)}::uuid AS template_id,
+    ${sqlTextLiteral(metricName)}::text AS metric_name
+),
+metric AS (
+  SELECT uem.*
+  FROM requested
+  JOIN model_hub_userevalmetric uem
+    ON uem.dataset_id = requested.dataset_id
+   AND uem.template_id = requested.template_id
+   AND uem.name = requested.metric_name
+   AND uem.organization_id = ${sqlUuid(organizationId)}
+   AND uem.deleted = false
+  ORDER BY uem.created_at DESC
+  LIMIT 1
+),
+eval_cells AS (
+  SELECT
+    c.row_id::text,
+    c.status,
+    c.value,
+    c.value_infos,
+    r."order"
+  FROM metric m
+  JOIN model_hub_column col
+    ON col.dataset_id = m.dataset_id
+   AND col.source = 'evaluation'
+   AND col.source_id = m.id::text
+   AND col.deleted = false
+  JOIN model_hub_cell c
+    ON c.column_id = col.id
+   AND c.dataset_id = m.dataset_id
+   AND c.deleted = false
+  JOIN model_hub_row r
+    ON r.id = c.row_id
+   AND r.dataset_id = m.dataset_id
+   AND r.deleted = false
+),
+outside_eval_cell AS (
+  SELECT c.status, c.value
+  FROM metric m
+  JOIN requested req ON true
+  JOIN model_hub_column col
+    ON col.dataset_id = req.outside_dataset_id
+   AND col.source = 'evaluation'
+   AND col.source_id = m.id::text
+   AND col.deleted = false
+  JOIN model_hub_cell c
+    ON c.column_id = col.id
+   AND c.dataset_id = req.outside_dataset_id
+   AND c.row_id = ${sqlUuid(fixture.outside_row_id)}
+   AND c.deleted = false
+  LIMIT 1
+)
+SELECT json_build_object(
+  'dataset_id', d.id::text,
+  'workspace_id', d.workspace_id::text,
+  'template_id', requested.template_id::text,
+  'metric_id', (SELECT id::text FROM metric),
+  'metric_name', (SELECT name FROM metric),
+  'metric_organization_id', (SELECT organization_id::text FROM metric),
+  'metric_workspace_id', (SELECT workspace_id::text FROM metric),
+  'metric_dataset_id', (SELECT dataset_id::text FROM metric),
+  'metric_template_id', (SELECT template_id::text FROM metric),
+  'metric_config', (SELECT config FROM metric),
+  'metric_model', (SELECT model FROM metric),
+  'active_metric_count', (
+    SELECT count(*)
+    FROM model_hub_userevalmetric uem
+    WHERE uem.dataset_id = requested.dataset_id
+      AND uem.template_id = requested.template_id
+      AND uem.name = requested.metric_name
+      AND uem.organization_id = ${sqlUuid(organizationId)}
+      AND uem.deleted = false
+  ),
+  'failed_candidate_metric_count', (
+    SELECT count(*)
+    FROM model_hub_userevalmetric uem
+    WHERE uem.dataset_id = requested.dataset_id
+      AND uem.name LIKE ${sqlTextLiteral("api_legacy_user_dup_%")}
+      AND uem.organization_id = ${sqlUuid(organizationId)}
+      AND uem.deleted = false
+  ),
+  'eval_cells', COALESCE((
+    SELECT json_agg(
+      json_build_object(
+        'row_id', row_id,
+        'status', status,
+        'value', value,
+        'value_infos', value_infos
+      )
+      ORDER BY "order"
+    )
+    FROM eval_cells
+  ), '[]'::json),
+  'running_eval_cell_count', (
+    SELECT count(*) FROM eval_cells WHERE status = 'running'
+  ),
+  'outside_eval_cell_status', (SELECT status FROM outside_eval_cell),
+  'outside_eval_cell_value', (SELECT value FROM outside_eval_cell),
+  'other_eval_cell_status', ${otherMetricStatus},
+  'other_eval_cell_value', ${otherMetricValue}
+)
+FROM requested
+LEFT JOIN model_hub_dataset d
+  ON d.id = requested.dataset_id;
+`;
+  return runPostgresJson(sql);
+}
+
+function assertLegacyEvalUserTemplateCreateAudit(
+  audit,
+  {
+    fixture,
+    templateId,
+    metricName,
+    organizationId,
+    workspaceId,
+    expectedParams,
+  },
+) {
+  assert(
+    audit?.dataset_id === fixture.dataset_id,
+    "Legacy eval-user-template audit dataset mismatch.",
+  );
+  assert(
+    audit.template_id === templateId,
+    "Legacy eval-user-template audit template mismatch.",
+  );
+  assert(
+    isUuid(audit.metric_id),
+    "Legacy eval-user-template audit did not find the created metric.",
+  );
+  assert(
+    Number(audit.active_metric_count) === 1,
+    "Legacy eval-user-template create did not leave exactly one active metric.",
+  );
+  assert(
+    Number(audit.failed_candidate_metric_count) === 0,
+    "Legacy eval-user-template failed guard inserted a candidate metric.",
+  );
+  assert(
+    audit.metric_name === metricName,
+    "Legacy eval-user-template audit metric name mismatch.",
+  );
+  assert(
+    audit.metric_organization_id === organizationId,
+    "Legacy eval-user-template audit organization mismatch.",
+  );
+  assert(
+    audit.metric_dataset_id === fixture.dataset_id,
+    "Legacy eval-user-template audit metric dataset mismatch.",
+  );
+  assert(
+    audit.metric_template_id === templateId,
+    "Legacy eval-user-template audit metric template mismatch.",
+  );
+  if (workspaceId) {
+    assert(
+      audit.workspace_id === workspaceId,
+      "Legacy eval-user-template audit dataset workspace mismatch.",
+    );
+    assert(
+      audit.metric_workspace_id === workspaceId,
+      "Legacy eval-user-template audit metric workspace mismatch.",
+    );
+  }
+  assert(
+    audit.metric_model === "turing_small",
+    "Legacy eval-user-template create did not persist requested model.",
+  );
+  assert(
+    String(audit.metric_config?.mapping?.text || "") ===
+      fixture.input_column_id,
+    "Legacy eval-user-template create did not persist the scoped column mapping.",
+  );
+  const actualParams = audit.metric_config?.params || {};
+  const expectedParamEntries = Object.entries(expectedParams || {});
+  assert(
+    Object.keys(actualParams).length === expectedParamEntries.length,
+    "Legacy eval-user-template create persisted an unexpected params shape.",
+  );
+  for (const [key, value] of expectedParamEntries) {
+    assert(
+      String(actualParams[key]) === String(value),
+      "Legacy eval-user-template create did not persist params config.",
+    );
+  }
+}
+
+function assertLegacyEvalCellState(audit, rowId, expected) {
+  const cell = payloadArray(audit?.eval_cells, "eval_cells").find(
+    (candidate) => candidate?.row_id === rowId,
+  );
+  assert(
+    isUuid(cell?.row_id),
+    "Legacy evaluate-rows audit did not find eval cell.",
+  );
+  if (Object.hasOwn(expected, "status")) {
+    assert(
+      cell.status === expected.status,
+      `Legacy evaluate-rows cell ${rowId} status mismatch.`,
+    );
+  }
+  if (Object.hasOwn(expected, "value")) {
+    assert(
+      cell.value === expected.value,
+      `Legacy evaluate-rows cell ${rowId} value mismatch.`,
+    );
+  }
+  if (Object.hasOwn(expected, "valueInfos")) {
+    assert(
+      JSON.stringify(cell.value_infos || {}) ===
+        JSON.stringify(expected.valueInfos || {}),
+      `Legacy evaluate-rows cell ${rowId} value_infos mismatch.`,
+    );
+  }
+}
+
+async function loadDatasetEvalDrawerDbAudit({
+  datasetId,
+  templateId,
+  metricName,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(datasetId), "datasetId must be a UUID for DB audit.");
+  assert(isUuid(templateId), "templateId must be a UUID for DB audit.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const sql = `
+WITH requested AS (
+  SELECT
+    ${sqlUuid(datasetId)}::uuid AS dataset_id,
+    ${sqlUuid(templateId)}::uuid AS template_id,
+    ${sqlTextLiteral(metricName)}::text AS metric_name
+),
+metric AS (
+  SELECT uem.*
+  FROM requested
+  JOIN model_hub_userevalmetric uem
+    ON uem.dataset_id = requested.dataset_id
+   AND uem.template_id = requested.template_id
+   AND uem.name = requested.metric_name
+   AND uem.organization_id = ${sqlUuid(organizationId)}
+  ORDER BY uem.created_at DESC
+  LIMIT 1
+),
+eval_columns AS (
+  SELECT c.*
+  FROM metric m
+  JOIN model_hub_column c
+    ON c.dataset_id = m.dataset_id
+   AND c.source = 'evaluation'
+   AND c.source_id = m.id::text
+),
+reason_columns AS (
+  SELECT rc.*
+  FROM metric m
+  JOIN eval_columns ec
+    ON true
+  JOIN model_hub_column rc
+    ON rc.dataset_id = m.dataset_id
+   AND rc.source = 'evaluation_reason'
+   AND rc.source_id = ec.id::text || '-sourceid-' || m.id::text
+)
+SELECT json_build_object(
+  'dataset_id', d.id::text,
+  'dataset_workspace_id', d.workspace_id::text,
+  'template_id', requested.template_id::text,
+  'metric_exists', EXISTS(SELECT 1 FROM metric),
+  'metric_id', (SELECT id::text FROM metric),
+  'metric_name', (SELECT name FROM metric),
+  'metric_organization_id', (SELECT organization_id::text FROM metric),
+  'metric_workspace_id', (SELECT workspace_id::text FROM metric),
+  'metric_status', (SELECT status FROM metric),
+  'metric_config', (SELECT config FROM metric),
+  'metric_deleted', (SELECT deleted FROM metric),
+  'metric_deleted_at_set', (SELECT deleted_at IS NOT NULL FROM metric),
+  'active_metric_count', (
+    SELECT count(*)
+    FROM model_hub_userevalmetric uem
+    WHERE uem.dataset_id = requested.dataset_id
+      AND uem.template_id = requested.template_id
+      AND uem.name = requested.metric_name
+      AND uem.organization_id = ${sqlUuid(organizationId)}
+      AND uem.deleted = false
+  ),
+  'active_eval_column_count', (
+    SELECT count(*) FROM eval_columns WHERE deleted = false
+  ),
+  'deleted_eval_column_count', (
+    SELECT count(*) FROM eval_columns WHERE deleted = true
+  ),
+  'deleted_eval_column_deleted_at_count', (
+    SELECT count(*) FROM eval_columns WHERE deleted = true AND deleted_at IS NOT NULL
+  ),
+  'active_reason_column_count', (
+    SELECT count(*) FROM reason_columns WHERE deleted = false
+  ),
+  'deleted_reason_column_count', (
+    SELECT count(*) FROM reason_columns WHERE deleted = true
+  ),
+  'deleted_reason_column_deleted_at_count', (
+    SELECT count(*) FROM reason_columns WHERE deleted = true AND deleted_at IS NOT NULL
+  ),
+  'column_order_contains_active_eval', EXISTS(
+    SELECT 1
+    FROM eval_columns c
+    WHERE c.deleted = false AND c.id::text = ANY(d.column_order)
+  ),
+  'column_order_contains_active_reason', EXISTS(
+    SELECT 1
+    FROM reason_columns c
+    WHERE c.deleted = false AND c.id::text = ANY(d.column_order)
+  )
+)
+FROM requested
+LEFT JOIN model_hub_dataset d
+  ON d.id = requested.dataset_id;
+`;
+  return runPostgresJson(sql);
+}
+
+function assertDatasetEvalDrawerDbAudit(
+  audit,
+  {
+    datasetId,
+    templateId,
+    metricId,
+    metricName,
+    organizationId,
+    workspaceId,
+    expectedStatus,
+    expectedDeleted,
+    expectedEvalColumns = 0,
+    expectedReasonColumns = 0,
+    expectedDeletedEvalColumns = 0,
+    expectedDeletedReasonColumns = 0,
+  },
+) {
+  assert(
+    audit?.dataset_id === datasetId,
+    "Eval drawer audit dataset mismatch.",
+  );
+  assert(
+    audit.template_id === templateId,
+    "Eval drawer audit template mismatch.",
+  );
+  assert(
+    audit.metric_exists === true,
+    "Eval drawer audit did not find metric.",
+  );
+  assert(audit.metric_id === metricId, "Eval drawer audit metric id mismatch.");
+  assert(
+    audit.metric_name === metricName,
+    "Eval drawer audit metric name mismatch.",
+  );
+  assert(
+    audit.metric_organization_id === organizationId,
+    "Eval drawer audit organization mismatch.",
+  );
+  if (workspaceId) {
+    assert(
+      audit.dataset_workspace_id === workspaceId,
+      "Eval drawer audit dataset workspace mismatch.",
+    );
+    assert(
+      audit.metric_workspace_id === workspaceId,
+      "Eval drawer audit metric workspace mismatch.",
+    );
+  }
+  assert(
+    audit.metric_status === expectedStatus,
+    "Eval drawer audit metric status mismatch.",
+  );
+  assert(
+    audit.metric_deleted === expectedDeleted,
+    "Eval drawer audit deleted state mismatch.",
+  );
+  assert(
+    String(audit.metric_config?.mapping?.text || ""),
+    "Eval drawer audit metric mapping was empty.",
+  );
+  if (expectedDeleted) {
+    assert(
+      audit.metric_deleted_at_set === true,
+      "Deleted eval drawer metric missing deleted_at.",
+    );
+    assert(
+      Number(audit.active_metric_count) === 0,
+      "Deleted eval drawer metric still counted as active.",
+    );
+  } else {
+    assert(
+      Number(audit.active_metric_count) === 1,
+      "Active eval drawer metric count mismatch.",
+    );
+  }
+  assert(
+    Number(audit.active_eval_column_count) === expectedEvalColumns,
+    "Eval drawer active eval column count mismatch.",
+  );
+  assert(
+    Number(audit.active_reason_column_count) === expectedReasonColumns,
+    "Eval drawer active reason column count mismatch.",
+  );
+  assert(
+    Number(audit.deleted_eval_column_count) === expectedDeletedEvalColumns,
+    "Eval drawer deleted eval column count mismatch.",
+  );
+  assert(
+    Number(audit.deleted_reason_column_count) === expectedDeletedReasonColumns,
+    "Eval drawer deleted reason column count mismatch.",
+  );
+  if (expectedEvalColumns > 0) {
+    assert(
+      audit.column_order_contains_active_eval === true,
+      "Eval drawer column_order missing active eval column.",
+    );
+  }
+  if (expectedReasonColumns > 0) {
+    assert(
+      audit.column_order_contains_active_reason === true,
+      "Eval drawer column_order missing active reason column.",
+    );
+  }
+  if (expectedDeletedEvalColumns > 0) {
+    assert(
+      Number(audit.deleted_eval_column_deleted_at_count) >=
+        expectedDeletedEvalColumns,
+      "Deleted eval drawer eval column missing deleted_at.",
+    );
+  }
+  if (expectedDeletedReasonColumns > 0) {
+    assert(
+      Number(audit.deleted_reason_column_deleted_at_count) >=
+        expectedDeletedReasonColumns,
+      "Deleted eval drawer reason column missing deleted_at.",
+    );
+  }
+}
+
+async function seedRunPromptEditFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const workspaceSql = workspaceId ? sqlUuid(workspaceId) : "NULL::uuid";
+  const datasetId = randomUUID();
+  const inputColumnId = randomUUID();
+  const outputColumnId = randomUUID();
+  const rowId = randomUUID();
+  const inputCellId = randomUUID();
+  const outputCellId = randomUUID();
+  const runPromptId = randomUUID();
+  const datasetName = `api journey run prompt edit ${runId}`;
+  const inputColumnName = `api_edit_input_${suffix}`;
+  const outputColumnName = `api_edit_output_${suffix}`;
+  const editedOutputColumnName = `api_edit_output_renamed_${suffix}`;
+  const modelName = "gpt-4o-mini";
+  const inputValue = `Seeded prompt edit input ${runId}`;
+  const outputValue = `seeded output ${runId}`;
+  const messages = [
+    {
+      role: "system",
+      content: [
+        {
+          type: "text",
+          text: "Return exactly OK. Do not include punctuation.",
+        },
+      ],
+    },
+    {
+      role: "user",
+      content: [{ type: "text", text: `Input: {{${inputColumnName}}}` }],
+    },
+  ];
+  const runPromptConfig = {
+    temperature: 0,
+    max_tokens: 20,
+    template_format: "f-string",
+    model_type: "llm",
+  };
+  const columnConfig = {
+    [inputColumnId]: { is_visible: true, is_frozen: null },
+    [outputColumnId]: { is_visible: true, is_frozen: null },
+  };
+  const sql = `
+WITH inserted_dataset AS (
+  INSERT INTO model_hub_dataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    column_order,
+    model_type,
+    organization_id,
+    workspace_id,
+    source,
+    column_config,
+    dataset_config,
+    synthetic_dataset_config,
+    eval_reasons,
+    eval_reason_status
+  )
+  VALUES (
+    ${sqlUuid(datasetId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(datasetName)},
+    ARRAY[${sqlTextLiteral(inputColumnId)}, ${sqlTextLiteral(outputColumnId)}]::varchar[],
+    'GenerativeLLM',
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    'build',
+    ${sqlJsonLiteral(columnConfig)},
+    '{}'::jsonb,
+    '{}'::jsonb,
+    '[]'::jsonb,
+    'pending'
+  )
+  RETURNING id
+),
+inserted_columns AS (
+  INSERT INTO model_hub_column (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    data_type,
+    source,
+    source_id,
+    dataset_id,
+    metadata,
+    status
+  )
+  VALUES
+    (
+      ${sqlUuid(inputColumnId)},
+      now(),
+      now(),
+      false,
+      NULL::timestamptz,
+      ${sqlTextLiteral(inputColumnName)},
+      'text',
+      'OTHERS',
+      NULL::varchar,
+      ${sqlUuid(datasetId)},
+      '{}'::jsonb,
+      'Completed'
+    ),
+    (
+      ${sqlUuid(outputColumnId)},
+      now(),
+      now(),
+      false,
+      NULL::timestamptz,
+      ${sqlTextLiteral(outputColumnName)},
+      'text',
+      'run_prompt',
+      ${sqlTextLiteral(runPromptId)},
+      ${sqlUuid(datasetId)},
+      '{}'::jsonb,
+      'Completed'
+    )
+  RETURNING id
+),
+inserted_row AS (
+  INSERT INTO model_hub_row (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    "order",
+    dataset_id,
+    metadata
+  )
+  VALUES (
+    ${sqlUuid(rowId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    0,
+    ${sqlUuid(datasetId)},
+    '{}'::jsonb
+  )
+  RETURNING id
+),
+inserted_cells AS (
+  INSERT INTO model_hub_cell (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    value,
+    value_infos,
+    feedback_info,
+    column_metadata,
+    status,
+    dataset_id,
+    column_id,
+    row_id
+  )
+  VALUES
+    (
+      ${sqlUuid(inputCellId)},
+      now(),
+      now(),
+      false,
+      NULL::timestamptz,
+      ${sqlTextLiteral(inputValue)},
+      '{}'::jsonb,
+      '{}'::jsonb,
+      '{}'::jsonb,
+      'pass',
+      ${sqlUuid(datasetId)},
+      ${sqlUuid(inputColumnId)},
+      ${sqlUuid(rowId)}
+    ),
+    (
+      ${sqlUuid(outputCellId)},
+      now(),
+      now(),
+      false,
+      NULL::timestamptz,
+      ${sqlTextLiteral(outputValue)},
+      '{}'::jsonb,
+      '{}'::jsonb,
+      '{}'::jsonb,
+      'pass',
+      ${sqlUuid(datasetId)},
+      ${sqlUuid(outputColumnId)},
+      ${sqlUuid(rowId)}
+    )
+  RETURNING id
+),
+inserted_run_prompt AS (
+  INSERT INTO model_hub_runprompter (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    model,
+    name,
+    concurrency,
+    messages,
+    output_format,
+    temperature,
+    frequency_penalty,
+    presence_penalty,
+    max_tokens,
+    top_p,
+    response_format,
+    tool_choice,
+    status,
+    dataset_id,
+    organization_id,
+    workspace_id,
+    run_prompt_config
+  )
+  VALUES (
+    ${sqlUuid(runPromptId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(modelName)},
+    ${sqlTextLiteral(outputColumnName)},
+    1,
+    ARRAY[${messages.map(sqlJsonLiteral).join(", ")}]::jsonb[],
+    'string',
+    0,
+    NULL::double precision,
+    NULL::double precision,
+    20,
+    1,
+    NULL::jsonb,
+    NULL::varchar,
+    'Completed',
+    ${sqlUuid(datasetId)},
+    ${sqlUuid(organizationId)},
+    ${workspaceSql},
+    ${sqlJsonLiteral(runPromptConfig)}
+  )
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', (SELECT count(*) FROM inserted_dataset) = 1,
+  'dataset_id', ${sqlUuid(datasetId)}::text,
+  'dataset_name', ${sqlTextLiteral(datasetName)},
+  'input_column_id', ${sqlUuid(inputColumnId)}::text,
+  'input_column_name', ${sqlTextLiteral(inputColumnName)},
+  'output_column_id', ${sqlUuid(outputColumnId)}::text,
+  'output_column_name', ${sqlTextLiteral(outputColumnName)},
+  'edited_output_column_name', ${sqlTextLiteral(editedOutputColumnName)},
+  'model_name', ${sqlTextLiteral(modelName)},
+  'run_prompt_id', ${sqlUuid(runPromptId)}::text,
+  'row_id', ${sqlUuid(rowId)}::text,
+  'workspace_id', ${workspaceId ? `${sqlUuid(workspaceId)}::text` : "NULL::text"},
+  'inserted_column_count', (SELECT count(*) FROM inserted_columns),
+  'inserted_cell_count', (SELECT count(*) FROM inserted_cells),
+  'inserted_run_prompt_count', (SELECT count(*) FROM inserted_run_prompt)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteRunPromptEditFixture(fixture) {
+  assert(
+    fixture && isUuid(fixture.dataset_id) && isUuid(fixture.run_prompt_id),
+    "Run-prompt edit fixture ids must be UUIDs for DB cleanup.",
+  );
+  const sql = `
+WITH deleted_pending_tasks AS (
+  DELETE FROM model_hub_pendingrowtask
+  WHERE dataset_id = ${sqlUuid(fixture.dataset_id)}
+  RETURNING 1
+),
+deleted_run_prompt_tools AS (
+  DELETE FROM model_hub_runprompter_tools
+  WHERE runprompter_id = ${sqlUuid(fixture.run_prompt_id)}
+  RETURNING 1
+),
+deleted_run_prompt AS (
+  DELETE FROM model_hub_runprompter
+  WHERE id = ${sqlUuid(fixture.run_prompt_id)}
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_pending_task_count', (SELECT count(*) FROM deleted_pending_tasks),
+  'deleted_run_prompt_tool_count', (SELECT count(*) FROM deleted_run_prompt_tools),
+  'deleted_run_prompt_count', (SELECT count(*) FROM deleted_run_prompt)
+);
+`;
+  await runPostgresJson(sql);
+  return hardDeleteDatasetCopyFixture([fixture.dataset_id]);
+}
+
+async function loadDatasetOptimizationReadCandidate(
+  organizationId,
+  workspaceId,
+) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const workspacePredicate = workspaceId
+    ? `(d.workspace_id = ${sqlUuid(workspaceId)} OR d.workspace_id IS NULL)`
+    : "true";
+  const sql = `
+WITH candidate AS (
+  SELECT
+    o.id,
+    o.name,
+    o.status,
+    o.column_id,
+    c.dataset_id,
+    d.workspace_id,
+    trial.id AS trial_id,
+    (
+      SELECT count(*)
+      FROM dataset_optimization_step s
+      WHERE s.optimization_run_id = o.id AND s.deleted = false
+    ) AS step_count,
+    (
+      SELECT count(*)
+      FROM dataset_optimization_trial t
+      WHERE t.optimization_run_id = o.id AND t.deleted = false
+    ) AS trial_count
+  FROM model_hub_optimizedataset o
+  JOIN model_hub_column c ON c.id = o.column_id AND c.deleted = false
+  JOIN model_hub_dataset d ON d.id = c.dataset_id AND d.deleted = false
+  JOIN LATERAL (
+    SELECT t.id
+    FROM dataset_optimization_trial t
+    WHERE t.optimization_run_id = o.id AND t.deleted = false
+    ORDER BY t.is_baseline ASC, t.trial_number ASC
+    LIMIT 1
+  ) trial ON true
+  WHERE o.deleted = false
+    AND o.optimizer_algorithm IS NOT NULL
+    AND d.organization_id = ${sqlUuid(organizationId)}
+    AND ${workspacePredicate}
+  ORDER BY
+    CASE WHEN o.status = 'completed' THEN 0 ELSE 1 END,
+    o.created_at DESC
+  LIMIT 1
+)
+SELECT COALESCE(
+  (
+    SELECT json_build_object(
+      'optimization_id', id::text,
+      'optimization_name', name,
+      'status', status,
+      'column_id', column_id::text,
+      'dataset_id', dataset_id::text,
+      'workspace_id', workspace_id::text,
+      'trial_id', trial_id::text,
+      'step_count', step_count,
+      'trial_count', trial_count
+    )
+    FROM candidate
+  ),
+  'null'::json
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedDatasetOptimizationFixture({
+  runId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const optimizationId = randomUUID();
+  const stepId = randomUUID();
+  const baselineTrialId = randomUUID();
+  const trialId = randomUUID();
+  const baselineItemId = randomUUID();
+  const trialItemId = randomUUID();
+  const baselineEvaluationId = randomUUID();
+  const trialEvaluationId = randomUUID();
+  const optimizationName = `api_journey_dataset_opt_${runId}`;
+  const workspacePredicate = workspaceId
+    ? `(d.workspace_id = ${sqlUuid(workspaceId)} OR d.workspace_id IS NULL)`
+    : "true";
+  const metricWorkspacePredicate = workspaceId
+    ? `(m.workspace_id = ${sqlUuid(workspaceId)} OR m.workspace_id IS NULL)`
+    : "true";
+  const sql = `
+WITH candidate AS (
+  SELECT
+    c.id AS column_id,
+    d.id AS dataset_id,
+    m.id AS metric_id
+  FROM model_hub_dataset d
+  JOIN model_hub_column c ON c.dataset_id = d.id AND c.deleted = false
+  JOIN model_hub_userevalmetric m
+    ON m.dataset_id = d.id
+   AND m.organization_id = d.organization_id
+   AND m.deleted = false
+   AND ${metricWorkspacePredicate}
+  WHERE d.organization_id = ${sqlUuid(organizationId)}
+    AND d.deleted = false
+    AND ${workspacePredicate}
+  ORDER BY
+    CASE WHEN d.workspace_id = ${workspaceId ? sqlUuid(workspaceId) : "NULL::uuid"} THEN 0 ELSE 1 END,
+    d.created_at DESC,
+    c.created_at DESC
+  LIMIT 1
+),
+inserted_run AS (
+  INSERT INTO model_hub_optimizedataset (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    name,
+    environment,
+    version,
+    status,
+    optimized_k_prompts,
+    optimize_type,
+    eval_instructions,
+    criteria_breakdown,
+    used_in,
+    column_id,
+    optimizer_algorithm,
+    optimizer_config,
+    best_score,
+    baseline_score
+  )
+  SELECT
+    ${sqlUuid(optimizationId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    ${sqlTextLiteral(optimizationName)},
+    'Training',
+    '1.0',
+    'completed',
+    ARRAY['api journey optimized prompt']::text[],
+    'PromptTemplate',
+    '{}'::jsonb,
+    ARRAY[]::varchar[],
+    'develop',
+    candidate.column_id,
+    'random_search',
+    jsonb_build_object('num_variations', 1, 'model_name', 'gpt-4o-mini'),
+    0.82,
+    0.41
+  FROM candidate
+  RETURNING id
+),
+inserted_metric_link AS (
+  INSERT INTO model_hub_optimizedataset_user_eval_template_ids (
+    optimizedataset_id,
+    userevalmetric_id
+  )
+  SELECT inserted_run.id, candidate.metric_id
+  FROM inserted_run, candidate
+  RETURNING 1
+),
+inserted_steps AS (
+  INSERT INTO dataset_optimization_step (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    optimization_run_id,
+    step_number,
+    name,
+    description,
+    status,
+    metadata
+  )
+  SELECT
+    ${sqlUuid(stepId)},
+    now(),
+    now(),
+    false,
+    NULL::timestamptz,
+    inserted_run.id,
+    1,
+    'Seeded optimization step',
+    'API journey seeded step',
+    'completed',
+    '{}'::jsonb
+  FROM inserted_run
+  RETURNING 1
+),
+inserted_trials AS (
+  INSERT INTO dataset_optimization_trial (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    optimization_run_id,
+    trial_number,
+    is_baseline,
+    prompt,
+    average_score,
+    metadata
+  )
+  SELECT
+    ${sqlUuid(baselineTrialId)}, now(), now(), false, NULL::timestamptz, inserted_run.id,
+    0, true, 'api journey baseline prompt', 0.41,
+    jsonb_build_object('individual_results', jsonb_build_array())
+  FROM inserted_run
+  UNION ALL
+  SELECT
+    ${sqlUuid(trialId)}, now(), now(), false, NULL::timestamptz, inserted_run.id,
+    1, false, 'api journey trial prompt', 0.82,
+    jsonb_build_object('individual_results', jsonb_build_array())
+  FROM inserted_run
+  RETURNING id
+),
+inserted_items AS (
+  INSERT INTO dataset_optimization_trial_item (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    trial_id,
+    row_id,
+    score,
+    reason,
+    input_text,
+    output_text,
+    filled_prompt,
+    metadata
+  )
+  VALUES
+    (
+      ${sqlUuid(baselineItemId)}, now(), now(), false, NULL::timestamptz,
+      ${sqlUuid(baselineTrialId)}, 'row-1', 0.41, 'baseline reason',
+      '{"input":"seed"}', 'baseline output', 'baseline filled prompt', '{}'::jsonb
+    ),
+    (
+      ${sqlUuid(trialItemId)}, now(), now(), false, NULL::timestamptz,
+      ${sqlUuid(trialId)}, 'row-1', 0.82, 'trial reason',
+      '{"input":"seed"}', 'trial output', 'trial filled prompt', '{}'::jsonb
+    )
+  RETURNING id
+),
+inserted_evaluations AS (
+  INSERT INTO dataset_optimization_item_evaluation (
+    id,
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    trial_item_id,
+    eval_metric_id,
+    score,
+    reason
+  )
+  SELECT
+    ${sqlUuid(baselineEvaluationId)}, now(), now(), false, NULL::timestamptz,
+    ${sqlUuid(baselineItemId)}, candidate.metric_id, 0.41, 'baseline eval'
+  FROM candidate
+  UNION ALL
+  SELECT
+    ${sqlUuid(trialEvaluationId)}, now(), now(), false, NULL::timestamptz,
+    ${sqlUuid(trialItemId)}, candidate.metric_id, 0.82, 'trial eval'
+  FROM candidate
+  RETURNING 1
+)
+SELECT json_build_object(
+  'fixture_created', EXISTS(SELECT 1 FROM inserted_run),
+  'optimization_id', ${sqlTextLiteral(optimizationId)},
+  'optimization_name', ${sqlTextLiteral(optimizationName)},
+  'dataset_id', (SELECT dataset_id::text FROM candidate),
+  'column_id', (SELECT column_id::text FROM candidate),
+  'metric_id', (SELECT metric_id::text FROM candidate),
+  'trial_id', ${sqlTextLiteral(trialId)}
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadDatasetOptimizationDeleteAudit(optimizationId) {
+  assert(isUuid(optimizationId), "optimizationId must be a UUID for DB audit.");
+  const sql = `
+SELECT json_build_object(
+  'optimization_id', o.id::text,
+  'run_deleted', o.deleted,
+  'run_deleted_at_set', o.deleted_at IS NOT NULL,
+  'active_step_count', (
+    SELECT count(*) FROM dataset_optimization_step s
+    WHERE s.optimization_run_id = o.id AND s.deleted = false
+  ),
+  'active_trial_count', (
+    SELECT count(*) FROM dataset_optimization_trial t
+    WHERE t.optimization_run_id = o.id AND t.deleted = false
+  ),
+  'active_item_count', (
+    SELECT count(*)
+    FROM dataset_optimization_trial_item item
+    JOIN dataset_optimization_trial t ON t.id = item.trial_id
+    WHERE t.optimization_run_id = o.id AND item.deleted = false
+  ),
+  'active_evaluation_count', (
+    SELECT count(*)
+    FROM dataset_optimization_item_evaluation eval
+    JOIN dataset_optimization_trial_item item ON item.id = eval.trial_item_id
+    JOIN dataset_optimization_trial t ON t.id = item.trial_id
+    WHERE t.optimization_run_id = o.id AND eval.deleted = false
+  ),
+  'deleted_step_deleted_at_count', (
+    SELECT count(*) FROM dataset_optimization_step s
+    WHERE s.optimization_run_id = o.id
+      AND s.deleted = true
+      AND s.deleted_at IS NOT NULL
+  ),
+  'deleted_trial_deleted_at_count', (
+    SELECT count(*) FROM dataset_optimization_trial t
+    WHERE t.optimization_run_id = o.id
+      AND t.deleted = true
+      AND t.deleted_at IS NOT NULL
+  ),
+  'deleted_item_deleted_at_count', (
+    SELECT count(*)
+    FROM dataset_optimization_trial_item item
+    JOIN dataset_optimization_trial t ON t.id = item.trial_id
+    WHERE t.optimization_run_id = o.id
+      AND item.deleted = true
+      AND item.deleted_at IS NOT NULL
+  ),
+  'deleted_evaluation_deleted_at_count', (
+    SELECT count(*)
+    FROM dataset_optimization_item_evaluation eval
+    JOIN dataset_optimization_trial_item item ON item.id = eval.trial_item_id
+    JOIN dataset_optimization_trial t ON t.id = item.trial_id
+    WHERE t.optimization_run_id = o.id
+      AND eval.deleted = true
+      AND eval.deleted_at IS NOT NULL
+  )
+)
+FROM model_hub_optimizedataset o
+WHERE o.id = ${sqlUuid(optimizationId)};
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteDatasetOptimizationFixture(optimizationId) {
+  assert(
+    isUuid(optimizationId),
+    "optimizationId must be a UUID for DB cleanup.",
+  );
+  const sql = `
+WITH deleted_evaluations AS (
+  DELETE FROM dataset_optimization_item_evaluation eval
+  USING dataset_optimization_trial_item item, dataset_optimization_trial trial
+  WHERE eval.trial_item_id = item.id
+    AND item.trial_id = trial.id
+    AND trial.optimization_run_id = ${sqlUuid(optimizationId)}
+  RETURNING 1
+),
+deleted_items AS (
+  DELETE FROM dataset_optimization_trial_item item
+  USING dataset_optimization_trial trial
+  WHERE item.trial_id = trial.id
+    AND trial.optimization_run_id = ${sqlUuid(optimizationId)}
+  RETURNING 1
+),
+deleted_trials AS (
+  DELETE FROM dataset_optimization_trial
+  WHERE optimization_run_id = ${sqlUuid(optimizationId)}
+  RETURNING 1
+),
+deleted_steps AS (
+  DELETE FROM dataset_optimization_step
+  WHERE optimization_run_id = ${sqlUuid(optimizationId)}
+  RETURNING 1
+),
+deleted_metric_links AS (
+  DELETE FROM model_hub_optimizedataset_user_eval_template_ids
+  WHERE optimizedataset_id = ${sqlUuid(optimizationId)}
+  RETURNING 1
+),
+deleted_run AS (
+  DELETE FROM model_hub_optimizedataset
+  WHERE id = ${sqlUuid(optimizationId)}
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_run_count', (SELECT count(*) FROM deleted_run),
+  'deleted_step_count', (SELECT count(*) FROM deleted_steps),
+  'deleted_trial_count', (SELECT count(*) FROM deleted_trials),
+  'deleted_item_count', (SELECT count(*) FROM deleted_items),
+  'deleted_evaluation_count', (SELECT count(*) FROM deleted_evaluations),
+  'deleted_metric_link_count', (SELECT count(*) FROM deleted_metric_links)
+);
+`;
+  return runPostgresJson(sql);
+}
+
 async function loadUserSdkCredentialDbAudit(organizationId, email) {
   assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
   assert(email, "email is required for SDK credential DB audit.");
@@ -9243,6 +19957,181 @@ WHERE ak.organization_id = ${sqlUuid(organizationId)}
   AND u.email = ${sqlTextLiteral(email)};
 `;
   return runPostgresJson(sql);
+}
+
+async function seedAnnotationTaskFixture({
+  runId,
+  userId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(userId), "userId must be a UUID for AnnotationTask seed.");
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for AnnotationTask seed.",
+  );
+  assert(
+    isUuid(workspaceId),
+    "workspaceId must be a UUID for AnnotationTask seed.",
+  );
+  const aiModelId = randomUUID();
+  const annotationTaskId = randomUUID();
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const modelUserId = `api_journey_annotation_task_model_${suffix}`;
+  const taskName = `api journey annotation task ${runId}`;
+  const sql = `
+WITH inserted_model AS (
+  INSERT INTO model_hub_aimodel (
+    id,
+    organization_id,
+    workspace_id,
+    created_at,
+    model_type,
+    user_model_id,
+    deleted
+  )
+  VALUES (
+    ${sqlUuid(aiModelId)},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)},
+    NOW(),
+    'GenerativeLLM',
+    ${sqlTextLiteral(modelUserId)},
+    false
+  )
+  RETURNING id, user_model_id
+),
+inserted_task AS (
+  INSERT INTO model_hub_annotationtask (
+    id,
+    created_at,
+    updated_at,
+    is_deleted,
+    ai_model_id,
+    task_name,
+    organization_id,
+    workspace_id
+  )
+  SELECT
+    ${sqlUuid(annotationTaskId)},
+    NOW(),
+    NOW(),
+    false,
+    id,
+    ${sqlTextLiteral(taskName)},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)}
+  FROM inserted_model
+  RETURNING id
+),
+inserted_assignment AS (
+  INSERT INTO model_hub_annotationtask_assigned_users (
+    annotationtask_id,
+    user_id
+  )
+  SELECT id, ${sqlUuid(userId)}
+  FROM inserted_task
+  RETURNING id
+)
+SELECT json_build_object(
+  'fixture_created', EXISTS(SELECT 1 FROM inserted_model)
+    AND EXISTS(SELECT 1 FROM inserted_task)
+    AND EXISTS(SELECT 1 FROM inserted_assignment),
+  'ai_model_id', ${sqlTextLiteral(aiModelId)},
+  'annotation_task_id', ${sqlTextLiteral(annotationTaskId)},
+  'task_name', ${sqlTextLiteral(taskName)},
+  'model_user_id', ${sqlTextLiteral(modelUserId)},
+  'organization_id', ${sqlTextLiteral(organizationId)},
+  'workspace_id', ${sqlTextLiteral(workspaceId)},
+  'assigned_user_id', ${sqlTextLiteral(userId)}
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteAnnotationTaskFixture(fixture) {
+  assert(
+    isUuid(fixture?.annotation_task_id) && isUuid(fixture?.ai_model_id),
+    "AnnotationTask fixture cleanup requires task and model ids.",
+  );
+  const sql = `
+WITH deleted_assignments AS (
+  DELETE FROM model_hub_annotationtask_assigned_users
+  WHERE annotationtask_id = ${sqlUuid(fixture.annotation_task_id)}
+  RETURNING 1
+),
+deleted_clickhouse_annotations AS (
+  DELETE FROM model_hub_clickhouseannotation
+  WHERE annotation_task_id = ${sqlUuid(fixture.annotation_task_id)}
+  RETURNING 1
+),
+deleted_task AS (
+  DELETE FROM model_hub_annotationtask
+  WHERE id = ${sqlUuid(fixture.annotation_task_id)}
+  RETURNING 1
+),
+deleted_model AS (
+  DELETE FROM model_hub_aimodel
+  WHERE id = ${sqlUuid(fixture.ai_model_id)}
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_assignment_count', (SELECT COUNT(*)::int FROM deleted_assignments),
+  'deleted_clickhouse_annotation_count',
+    (SELECT COUNT(*)::int FROM deleted_clickhouse_annotations),
+  'deleted_task_count', (SELECT COUNT(*)::int FROM deleted_task),
+  'deleted_ai_model_count', (SELECT COUNT(*)::int FROM deleted_model)
+);
+`;
+  const deleteAudit = await runPostgresJson(sql);
+  const residueAudit = await loadAnnotationTaskFixtureResidue(fixture);
+  return { ...deleteAudit, ...residueAudit };
+}
+
+async function loadAnnotationTaskFixtureResidue(fixture) {
+  assert(
+    isUuid(fixture?.annotation_task_id) && isUuid(fixture?.ai_model_id),
+    "AnnotationTask fixture residue check requires task and model ids.",
+  );
+  const sql = `
+SELECT json_build_object(
+  'remaining_assignment_count', (
+    SELECT COUNT(*)::int
+    FROM model_hub_annotationtask_assigned_users
+    WHERE annotationtask_id = ${sqlUuid(fixture.annotation_task_id)}
+  ),
+  'remaining_task_count', (
+    SELECT COUNT(*)::int
+    FROM model_hub_annotationtask
+    WHERE id = ${sqlUuid(fixture.annotation_task_id)}
+  ),
+  'remaining_ai_model_count', (
+    SELECT COUNT(*)::int
+    FROM model_hub_aimodel
+    WHERE id = ${sqlUuid(fixture.ai_model_id)}
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+function assertAnnotationTaskPayload(task, fixture, userId) {
+  assert(
+    task?.id === fixture.annotation_task_id,
+    "AnnotationTask payload returned the wrong task id.",
+  );
+  assert(
+    task.task_name === fixture.task_name,
+    "AnnotationTask payload returned the wrong task name.",
+  );
+  assert(
+    task.ai_model?.id === fixture.ai_model_id,
+    "AnnotationTask payload returned the wrong AI model.",
+  );
+  assert(
+    asArray(task.assigned_users).some((assigned) => assigned.id === userId),
+    "AnnotationTask payload did not include the assigned user.",
+  );
 }
 
 async function loadLegacyAnnotationLifecycleDbAudit({
@@ -9372,10 +20261,7 @@ GROUP BY kb.id, kb.name, kb.organization_id, kb.workspace_id, kb.deleted, kb.del
   return runPostgresJson(sql);
 }
 
-async function loadKnowledgeBaseOutsideFileCandidate({
-  kbId,
-  organizationId,
-}) {
+async function loadKnowledgeBaseOutsideFileCandidate({ kbId, organizationId }) {
   assert(isUuid(kbId), "kbId must be a UUID for outside file audit.");
   assert(isUuid(organizationId), "organizationId must be a UUID for audit.");
   const sql = `
@@ -9633,10 +20519,7 @@ async function loadExperimentReadDbAudit(
   organizationId,
   workspaceId,
 ) {
-  assert(
-    isUuid(experimentId),
-    "experimentId must be a UUID for DB audit.",
-  );
+  assert(isUuid(experimentId), "experimentId must be a UUID for DB audit.");
   assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
   if (workspaceId)
     assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
@@ -9742,6 +20625,113 @@ SELECT json_build_object(
   )
 )
 FROM experiment_row e;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadExperimentActionGuardCandidate(
+  experimentId,
+  organizationId,
+  workspaceId,
+) {
+  assert(
+    isUuid(experimentId),
+    "experimentId must be a UUID for action guard candidate.",
+  );
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for action guard candidate.",
+  );
+  if (workspaceId) {
+    assert(
+      isUuid(workspaceId),
+      "workspaceId must be a UUID for action guard candidate.",
+    );
+  }
+  const workspaceFilter = workspaceId
+    ? `AND d.workspace_id = ${sqlUuid(workspaceId)}`
+    : "";
+  const sql = `
+WITH experiment_row AS (
+  SELECT
+    e.id,
+    e.status,
+    e.dataset_id,
+    e.snapshot_dataset_id,
+    e.column_id
+  FROM model_hub_experimentstable e
+  JOIN model_hub_dataset d ON d.id = e.dataset_id
+  WHERE e.id = ${sqlUuid(experimentId)}
+    AND d.organization_id = ${sqlUuid(organizationId)}
+    ${workspaceFilter}
+    AND e.deleted = false
+    AND d.deleted = false
+),
+candidate AS (
+  SELECT
+    e.*,
+    (
+      SELECT r.id
+      FROM model_hub_row r
+      WHERE r.dataset_id = e.snapshot_dataset_id
+        AND r.deleted = false
+      ORDER BY r.created_at
+      LIMIT 1
+    ) AS snapshot_row_id,
+    COALESCE(
+      (
+        SELECT c.id
+        FROM model_hub_column c
+        WHERE c.id = e.column_id
+          AND c.dataset_id = e.snapshot_dataset_id
+          AND c.deleted = false
+        LIMIT 1
+      ),
+      (
+        SELECT c.id
+        FROM model_hub_column c
+        WHERE c.dataset_id = e.snapshot_dataset_id
+          AND c.source = 'experiment'
+          AND c.deleted = false
+        ORDER BY c.created_at
+        LIMIT 1
+      ),
+      (
+        SELECT c.id
+        FROM model_hub_column c
+        WHERE c.dataset_id = e.snapshot_dataset_id
+          AND c.deleted = false
+        ORDER BY c.created_at
+        LIMIT 1
+      )
+    ) AS snapshot_column_id
+  FROM experiment_row e
+)
+SELECT json_build_object(
+  'experiment_id', c.id::text,
+  'status', c.status,
+  'dataset_id', c.dataset_id::text,
+  'snapshot_dataset_id', c.snapshot_dataset_id::text,
+  'snapshot_row_id', c.snapshot_row_id::text,
+  'snapshot_column_id', c.snapshot_column_id::text,
+  'snapshot_column_status', col.status
+)
+FROM candidate c
+LEFT JOIN model_hub_column col ON col.id = c.snapshot_column_id;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadColumnStatus(columnId) {
+  assert(isUuid(columnId), "columnId must be a UUID for DB audit.");
+  const sql = `
+SELECT json_build_object(
+  'column_id', c.id::text,
+  'status', c.status,
+  'deleted', c.deleted
+)
+FROM model_hub_column c
+WHERE c.id = ${sqlUuid(columnId)};
 `;
   return runPostgresJson(sql);
 }
@@ -9992,6 +20982,190 @@ FROM template_row t;
   return runPostgresJson(sql);
 }
 
+async function loadCustomEvalCreateDbAudit({
+  templateId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(templateId), "templateId must be a UUID for DB audit.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const sql = `
+WITH template_row AS (
+  SELECT
+    id,
+    name,
+    owner,
+    organization_id,
+    workspace_id,
+    eval_tags,
+    config,
+    criteria,
+    model,
+    proxy_agi,
+    visible_ui,
+    deleted,
+    deleted_at
+  FROM model_hub_evaltemplate
+  WHERE id = ${sqlUuid(templateId)}
+    AND organization_id = ${sqlUuid(organizationId)}
+)
+SELECT json_build_object(
+  'template_id', t.id::text,
+  'name', t.name,
+  'owner', t.owner,
+  'organization_id', t.organization_id::text,
+  'workspace_id', t.workspace_id::text,
+  'eval_tags', t.eval_tags,
+  'criteria', t.criteria,
+  'model', t.model,
+  'proxy_agi', t.proxy_agi,
+  'visible_ui', t.visible_ui,
+  'deleted', t.deleted,
+  'deleted_at_set', t.deleted_at IS NOT NULL,
+  'required_keys', t.config->'required_keys',
+  'config_output', t.config->>'output',
+  'eval_type_id', t.config->>'eval_type_id',
+  'custom_eval', (t.config->>'custom_eval')::boolean,
+  'check_internet', (t.config->>'check_internet')::boolean,
+  'version_count', (
+    SELECT count(*)
+    FROM model_hub_eval_template_version v
+    WHERE v.eval_template_id = t.id
+  ),
+  'default_version_count', (
+    SELECT count(*)
+    FROM model_hub_eval_template_version v
+    WHERE v.eval_template_id = t.id AND v.is_default = true
+  ),
+  'version_workspace_mismatch_count', (
+    SELECT count(*)
+    FROM model_hub_eval_template_version v
+    WHERE v.eval_template_id = t.id
+      AND (
+        (v.workspace_id IS DISTINCT FROM t.workspace_id)
+        OR (v.organization_id IS DISTINCT FROM t.organization_id)
+      )
+  )
+)
+FROM template_row t;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyEvalTemplateCreateAudit({
+  templateName,
+  systemOwnerName,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const sql = `
+WITH template_row AS (
+  SELECT
+    id,
+    name,
+    owner,
+    organization_id,
+    workspace_id,
+    eval_tags,
+    config
+  FROM model_hub_evaltemplate
+  WHERE name = ${sqlTextLiteral(templateName)}
+    AND organization_id = ${sqlUuid(organizationId)}
+    AND deleted = false
+  ORDER BY created_at ASC
+  LIMIT 1
+)
+SELECT COALESCE((
+  SELECT json_build_object(
+    'template_id', t.id::text,
+    'name', t.name,
+    'owner', t.owner,
+    'organization_id', t.organization_id::text,
+    'workspace_id', t.workspace_id::text,
+    'eval_tags', t.eval_tags,
+    'required_keys', t.config->'required_keys',
+    'eval_type_id', t.config->>'eval_type_id',
+    'active_template_count', (
+      SELECT count(*)
+      FROM model_hub_evaltemplate et
+      WHERE et.name = ${sqlTextLiteral(templateName)}
+        AND et.organization_id = ${sqlUuid(organizationId)}
+        AND et.deleted = false
+    ),
+    'system_owner_count', (
+      SELECT count(*)
+      FROM model_hub_evaltemplate et
+      WHERE et.name = ${sqlTextLiteral(systemOwnerName)}
+        AND et.organization_id = ${sqlUuid(organizationId)}
+        AND et.owner = 'system'
+        AND et.deleted = false
+    ),
+    'version_count', (
+      SELECT count(*)
+      FROM model_hub_eval_template_version v
+      WHERE v.eval_template_id = t.id
+        AND v.deleted = false
+    ),
+    'default_version_count', (
+      SELECT count(*)
+      FROM model_hub_eval_template_version v
+      WHERE v.eval_template_id = t.id
+        AND v.is_default = true
+        AND v.deleted = false
+    ),
+    'version_scope_mismatch_count', (
+      SELECT count(*)
+      FROM model_hub_eval_template_version v
+      WHERE v.eval_template_id = t.id
+        AND v.deleted = false
+        AND (
+          v.organization_id IS DISTINCT FROM t.organization_id
+          OR v.workspace_id IS DISTINCT FROM t.workspace_id
+        )
+    )
+  )
+  FROM template_row t
+), '{}'::json);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteLegacyEvalTemplateCreateFixture(
+  templateNames,
+  organizationId,
+) {
+  assert(Array.isArray(templateNames), "templateNames must be an array.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for cleanup.");
+  const sql = `
+WITH target_templates AS (
+  SELECT id
+  FROM model_hub_evaltemplate
+  WHERE name = ANY(${sqlTextArray(templateNames)})
+    AND organization_id = ${sqlUuid(organizationId)}
+),
+deleted_versions AS (
+  DELETE FROM model_hub_eval_template_version
+  WHERE eval_template_id IN (SELECT id FROM target_templates)
+  RETURNING 1
+),
+deleted_templates AS (
+  DELETE FROM model_hub_evaltemplate
+  WHERE id IN (SELECT id FROM target_templates)
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_version_count', (SELECT count(*) FROM deleted_versions),
+  'deleted_template_count', (SELECT count(*) FROM deleted_templates)
+);
+`;
+  return runPostgresJson(sql);
+}
+
 async function loadEvalPlaygroundDbAudit({
   templateId,
   logId,
@@ -10118,9 +21292,15 @@ async function loadEvalPlaygroundErrorLocalizerAudit({
 }) {
   assert(isUuid(templateId), "templateId must be a UUID for localizer audit.");
   assert(isUuid(logId), "logId must be a UUID for localizer audit.");
-  assert(isUuid(organizationId), "organizationId must be a UUID for localizer audit.");
+  assert(
+    isUuid(organizationId),
+    "organizationId must be a UUID for localizer audit.",
+  );
   if (workspaceId)
-    assert(isUuid(workspaceId), "workspaceId must be a UUID for localizer audit.");
+    assert(
+      isUuid(workspaceId),
+      "workspaceId must be a UUID for localizer audit.",
+    );
   const sql = `
 WITH task AS (
   SELECT *
@@ -10182,7 +21362,11 @@ SELECT json_build_object(
   return runPostgresJson(sql);
 }
 
-async function loadCompositeEvalDbAudit(compositeId, organizationId, workspaceId) {
+async function loadCompositeEvalDbAudit(
+  compositeId,
+  organizationId,
+  workspaceId,
+) {
   assert(isUuid(compositeId), "compositeId must be a UUID for DB audit.");
   assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
   if (workspaceId)
@@ -10831,7 +22015,10 @@ JOIN run_test ON run_test.id = requested.run_test_id;
   return runPostgresJson(sql);
 }
 
-async function loadExperimentApplyCandidatesDbAudit(organizationId, workspaceId) {
+async function loadExperimentApplyCandidatesDbAudit(
+  organizationId,
+  workspaceId,
+) {
   assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
   if (workspaceId)
     assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
@@ -11199,6 +22386,214 @@ WHERE gt.id = ${sqlUuid(groundTruthId)}
   return runPostgresJson(sql);
 }
 
+async function setGroundTruthEmbeddingStatus({
+  groundTruthId,
+  embeddingStatus,
+  embeddedRowCount = 0,
+}) {
+  assert(isUuid(groundTruthId), "groundTruthId must be a UUID for DB update.");
+  assert(
+    ["pending", "processing", "completed", "failed"].includes(embeddingStatus),
+    "Invalid ground-truth embedding status for DB update.",
+  );
+  const sql = `
+WITH updated AS (
+  UPDATE model_hub_eval_ground_truth
+  SET
+    embedding_status = ${sqlTextLiteral(embeddingStatus)},
+    embedded_row_count = ${Number(embeddedRowCount) || 0},
+    updated_at = now()
+  WHERE id = ${sqlUuid(groundTruthId)}
+  RETURNING id, embedding_status, embedded_row_count
+)
+SELECT json_build_object(
+  'updated_count', (SELECT count(*) FROM updated),
+  'ground_truth_id', (SELECT id::text FROM updated),
+  'embedding_status', (SELECT embedding_status FROM updated),
+  'embedded_row_count', (SELECT embedded_row_count FROM updated)
+);
+`;
+  const result = await runPostgresJson(sql);
+  assert(
+    Number(result.updated_count) === 1,
+    "Ground-truth embedding status DB update did not affect one row.",
+  );
+  return result;
+}
+
+async function moveGroundTruthRetrievalFixtureToWorkspace({
+  templateId,
+  groundTruthId,
+  workspaceId,
+}) {
+  assert(isUuid(templateId), "templateId must be a UUID for DB update.");
+  assert(isUuid(groundTruthId), "groundTruthId must be a UUID for DB update.");
+  assert(isUuid(workspaceId), "workspaceId must be a UUID for DB update.");
+  const sql = `
+WITH updated_template AS (
+  UPDATE model_hub_evaltemplate
+  SET workspace_id = ${sqlUuid(workspaceId)}, updated_at = now()
+  WHERE id = ${sqlUuid(templateId)}
+  RETURNING id
+),
+updated_versions AS (
+  UPDATE model_hub_eval_template_version
+  SET workspace_id = ${sqlUuid(workspaceId)}, updated_at = now()
+  WHERE eval_template_id = ${sqlUuid(templateId)}
+  RETURNING id
+),
+updated_ground_truth AS (
+  UPDATE model_hub_eval_ground_truth
+  SET workspace_id = ${sqlUuid(workspaceId)}, updated_at = now()
+  WHERE id = ${sqlUuid(groundTruthId)}
+    AND eval_template_id = ${sqlUuid(templateId)}
+  RETURNING id
+)
+SELECT json_build_object(
+  'updated_template_count', (SELECT count(*) FROM updated_template),
+  'updated_version_count', (SELECT count(*) FROM updated_versions),
+  'updated_ground_truth_count', (SELECT count(*) FROM updated_ground_truth)
+);
+`;
+  const result = await runPostgresJson(sql);
+  assert(
+    Number(result.updated_template_count) === 1 &&
+      Number(result.updated_ground_truth_count) === 1,
+    "Ground-truth retrieval fixture workspace move did not update expected rows.",
+  );
+  return result;
+}
+
+async function loadGroundTruthRetrievalAudit({
+  groundTruthIds,
+  organizationId,
+}) {
+  assert(
+    Array.isArray(groundTruthIds) && groundTruthIds.every(isUuid),
+    "groundTruthIds must be UUIDs for DB audit.",
+  );
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  const sql = `
+WITH requested AS (
+  SELECT unnest(${sqlUuidArray(groundTruthIds)}) AS ground_truth_id
+),
+ground_truths AS (
+  SELECT
+    gt.id,
+    gt.eval_template_id,
+    gt.organization_id,
+    gt.workspace_id,
+    gt.name,
+    gt.row_count,
+    gt.embedding_status,
+    gt.embedded_row_count,
+    gt.deleted,
+    gt.deleted_at,
+    et.workspace_id AS template_workspace_id,
+    et.deleted AS template_deleted
+  FROM requested
+  JOIN model_hub_eval_ground_truth gt
+    ON gt.id = requested.ground_truth_id
+   AND gt.organization_id = ${sqlUuid(organizationId)}
+  JOIN model_hub_evaltemplate et
+    ON et.id = gt.eval_template_id
+)
+SELECT json_build_object(
+  'ground_truths', COALESCE((
+    SELECT json_agg(
+      json_build_object(
+        'ground_truth_id', id::text,
+        'template_id', eval_template_id::text,
+        'organization_id', organization_id::text,
+        'workspace_id', workspace_id::text,
+        'template_workspace_id', template_workspace_id::text,
+        'name', name,
+        'row_count', row_count,
+        'embedding_status', embedding_status,
+        'embedded_row_count', embedded_row_count,
+        'deleted', deleted,
+        'deleted_at_set', deleted_at IS NOT NULL,
+        'template_deleted', template_deleted
+      )
+      ORDER BY name
+    )
+    FROM ground_truths
+  ), '[]'::json),
+  'ground_truth_count', (SELECT count(*) FROM ground_truths),
+  'embedding_count', (
+    SELECT count(*)
+    FROM model_hub_eval_ground_truth_embedding emb
+    WHERE emb.ground_truth_id = ANY(${sqlUuidArray(groundTruthIds)})
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+function findGroundTruthAudit(audit, groundTruthId) {
+  const row = payloadArray(audit?.ground_truths, "ground_truths").find(
+    (candidate) => candidate?.ground_truth_id === groundTruthId,
+  );
+  assert(row, "Ground-truth retrieval audit did not find expected row.");
+  return row;
+}
+
+async function hardDeleteGroundTruthRetrievalFixture(
+  templateIds,
+  organizationId,
+) {
+  const ids = (templateIds || []).filter(isUuid);
+  assert(isUuid(organizationId), "organizationId must be a UUID for cleanup.");
+  if (!ids.length) {
+    return {
+      deleted_embedding_count: 0,
+      deleted_ground_truth_count: 0,
+      deleted_version_count: 0,
+      deleted_template_count: 0,
+    };
+  }
+  const sql = `
+WITH target_templates AS (
+  SELECT id
+  FROM model_hub_evaltemplate
+  WHERE id = ANY(${sqlUuidArray(ids)})
+    AND organization_id = ${sqlUuid(organizationId)}
+),
+target_ground_truths AS (
+  SELECT id
+  FROM model_hub_eval_ground_truth
+  WHERE eval_template_id IN (SELECT id FROM target_templates)
+),
+deleted_embeddings AS (
+  DELETE FROM model_hub_eval_ground_truth_embedding
+  WHERE ground_truth_id IN (SELECT id FROM target_ground_truths)
+  RETURNING 1
+),
+deleted_ground_truths AS (
+  DELETE FROM model_hub_eval_ground_truth
+  WHERE id IN (SELECT id FROM target_ground_truths)
+  RETURNING 1
+),
+deleted_versions AS (
+  DELETE FROM model_hub_eval_template_version
+  WHERE eval_template_id IN (SELECT id FROM target_templates)
+  RETURNING 1
+),
+deleted_templates AS (
+  DELETE FROM model_hub_evaltemplate
+  WHERE id IN (SELECT id FROM target_templates)
+  RETURNING 1
+)
+SELECT json_build_object(
+  'deleted_embedding_count', (SELECT count(*) FROM deleted_embeddings),
+  'deleted_ground_truth_count', (SELECT count(*) FROM deleted_ground_truths),
+  'deleted_version_count', (SELECT count(*) FROM deleted_versions),
+  'deleted_template_count', (SELECT count(*) FROM deleted_templates)
+);
+`;
+  return runPostgresJson(sql);
+}
+
 async function loadPromptWorkbenchDbAudit({
   folderId,
   promptId,
@@ -11383,6 +22778,281 @@ function assertPromptWorkbenchDbAudit(
   }
 }
 
+async function loadPromptTemplateVersionDbAudit({
+  promptId,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(promptId), "promptId must be a UUID for DB audit.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const sql = `
+WITH requested AS (
+  SELECT ${sqlUuid(promptId)}::uuid AS prompt_id
+),
+prompt AS (
+  SELECT
+    id,
+    name,
+    organization_id,
+    workspace_id,
+    deleted,
+    deleted_at
+  FROM model_hub_prompttemplate
+  WHERE id = (SELECT prompt_id FROM requested)
+),
+versions AS (
+  SELECT
+    id,
+    original_template_id,
+    template_version,
+    is_draft,
+    is_default,
+    deleted,
+    deleted_at,
+    prompt_config_snapshot
+  FROM model_hub_promptversion
+  WHERE original_template_id = (SELECT prompt_id FROM requested)
+)
+SELECT json_build_object(
+  'prompt_id', (SELECT id::text FROM prompt),
+  'prompt_name', (SELECT name FROM prompt),
+  'prompt_organization_id', (SELECT organization_id::text FROM prompt),
+  'prompt_workspace_id', (SELECT workspace_id::text FROM prompt),
+  'prompt_deleted', (SELECT deleted FROM prompt),
+  'prompt_deleted_at_set', (SELECT deleted_at IS NOT NULL FROM prompt),
+  'version_count', (SELECT count(*) FROM versions),
+  'active_version_count', (SELECT count(*) FROM versions WHERE deleted = false),
+  'deleted_version_count', (SELECT count(*) FROM versions WHERE deleted = true),
+  'active_default_version_count', (
+    SELECT count(*) FROM versions WHERE deleted = false AND is_default = true
+  ),
+  'deleted_versions_without_deleted_at_count', (
+    SELECT count(*) FROM versions WHERE deleted = true AND deleted_at IS NULL
+  ),
+  'active_default_versions', (
+    SELECT COALESCE(json_agg(template_version ORDER BY template_version), '[]'::json)
+    FROM versions
+    WHERE deleted = false AND is_default = true
+  ),
+  'all_default_versions', (
+    SELECT COALESCE(json_agg(template_version ORDER BY template_version), '[]'::json)
+    FROM versions
+    WHERE is_default = true
+  ),
+  'versions', (
+    SELECT COALESCE(
+      json_agg(
+        json_build_object(
+          'id', id::text,
+          'template_version', template_version,
+          'is_draft', is_draft,
+          'is_default', is_default,
+          'deleted', deleted,
+          'deleted_at_set', deleted_at IS NOT NULL,
+          'prompt_config_snapshot', prompt_config_snapshot
+        )
+        ORDER BY template_version
+      ),
+      '[]'::json
+    )
+    FROM versions
+  )
+)
+FROM requested;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadPromptRunPreviewDbAudit({
+  promptId,
+  templateVersion,
+  organizationId,
+  workspaceId,
+}) {
+  assert(isUuid(promptId), "promptId must be a UUID for DB audit.");
+  assert(isUuid(organizationId), "organizationId must be a UUID for DB audit.");
+  if (workspaceId)
+    assert(isUuid(workspaceId), "workspaceId must be a UUID for DB audit.");
+  const workspaceFilter = workspaceId
+    ? `AND p.workspace_id = ${sqlUuid(workspaceId)}`
+    : "";
+  const sql = `
+WITH prompt AS (
+  SELECT
+    id,
+    name,
+    organization_id,
+    workspace_id,
+    deleted,
+    deleted_at
+  FROM model_hub_prompttemplate p
+  WHERE p.id = ${sqlUuid(promptId)}
+    AND p.organization_id = ${sqlUuid(organizationId)}
+    ${workspaceFilter}
+),
+version AS (
+  SELECT
+    id,
+    original_template_id,
+    template_version,
+    is_draft,
+    deleted,
+    deleted_at,
+    prompt_config_snapshot,
+    output,
+    metadata
+  FROM model_hub_promptversion
+  WHERE original_template_id = (SELECT id FROM prompt)
+    AND template_version = ${sqlText(templateVersion)}
+)
+SELECT json_build_object(
+  'prompt_id', p.id::text,
+  'prompt_name', p.name,
+  'prompt_organization_id', p.organization_id::text,
+  'prompt_workspace_id', p.workspace_id::text,
+  'prompt_deleted', p.deleted,
+  'prompt_deleted_at_set', p.deleted_at IS NOT NULL,
+  'version_id', v.id::text,
+  'template_version', v.template_version,
+  'is_draft', v.is_draft,
+  'version_deleted', v.deleted,
+  'version_deleted_at_set', v.deleted_at IS NOT NULL,
+  'model_name', v.prompt_config_snapshot->'configuration'->>'model',
+  'output', v.output,
+  'metadata', v.metadata,
+  'output_count', CASE
+    WHEN jsonb_typeof(v.output) = 'array' THEN jsonb_array_length(v.output)
+    ELSE 0
+  END,
+  'metadata_count', CASE
+    WHEN jsonb_typeof(v.metadata) = 'array' THEN jsonb_array_length(v.metadata)
+    ELSE 0
+  END
+)
+FROM prompt p
+LEFT JOIN version v
+  ON v.original_template_id = p.id;
+`;
+  return runPostgresJson(sql);
+}
+
+function assertPromptRunPreviewDbAudit(
+  audit,
+  { promptId, organizationId, workspaceId, modelName, expectedDeleted },
+) {
+  assert(audit?.prompt_id === promptId, "Prompt run DB audit id mismatch.");
+  assert(
+    audit.prompt_organization_id === organizationId,
+    "Prompt run DB audit organization mismatch.",
+  );
+  if (workspaceId) {
+    assert(
+      audit.prompt_workspace_id === workspaceId,
+      "Prompt run DB audit workspace mismatch.",
+    );
+  }
+  assert(
+    audit.template_version === "v1",
+    "Prompt run DB audit returned the wrong version.",
+  );
+  assert(
+    audit.model_name === modelName,
+    "Prompt run DB audit returned the wrong model.",
+  );
+
+  if (expectedDeleted) {
+    assert(audit.prompt_deleted === true, "Prompt run prompt should be deleted.");
+    assert(
+      audit.prompt_deleted_at_set === true,
+      "Deleted prompt run prompt missing deleted_at.",
+    );
+    assert(
+      audit.version_deleted === true,
+      "Prompt run version should be deleted.",
+    );
+    assert(
+      audit.version_deleted_at_set === true,
+      "Deleted prompt run version missing deleted_at.",
+    );
+    return;
+  }
+
+  assert(audit.prompt_deleted === false, "Prompt run prompt should be active.");
+  assert(audit.version_deleted === false, "Prompt run version should be active.");
+  assert(audit.is_draft === false, "Prompt run version should be non-draft.");
+  assert(Number(audit.output_count) > 0, "Prompt run DB audit found no output.");
+  assert(
+    Number(audit.metadata_count) > 0,
+    "Prompt run DB audit found no metadata.",
+  );
+}
+
+function assertPromptTemplateVersionDbAudit(
+  audit,
+  {
+    promptId,
+    organizationId,
+    workspaceId,
+    expectedDeleted,
+    expectedDefaultVersion,
+  },
+) {
+  assert(audit?.prompt_id === promptId, "Prompt DB audit id mismatch.");
+  assert(
+    audit.prompt_organization_id === organizationId,
+    "Prompt DB audit organization mismatch.",
+  );
+  if (workspaceId) {
+    assert(
+      audit.prompt_workspace_id === workspaceId,
+      "Prompt DB audit workspace mismatch.",
+    );
+  }
+  assert(Number(audit.version_count) >= 2, "Prompt DB audit found too few versions.");
+  const allDefaultVersions = payloadArray(
+    audit.all_default_versions,
+    "all_default_versions",
+  );
+  assert(
+    allDefaultVersions.length === 1 &&
+      allDefaultVersions[0] === expectedDefaultVersion,
+    `Prompt DB default version should be unique ${expectedDefaultVersion}: ${JSON.stringify(
+      audit,
+    )}.`,
+  );
+
+  if (expectedDeleted) {
+    assert(audit.prompt_deleted === true, "Prompt should be soft-deleted.");
+    assert(audit.prompt_deleted_at_set === true, "Deleted prompt missing deleted_at.");
+    assert(
+      Number(audit.active_version_count) === 0,
+      "Deleted prompt still had active versions.",
+    );
+    assert(
+      Number(audit.deleted_version_count) === Number(audit.version_count),
+      "Deleted prompt did not soft-delete all versions.",
+    );
+    assert(
+      Number(audit.deleted_versions_without_deleted_at_count) === 0,
+      "Deleted prompt versions were missing deleted_at.",
+    );
+    return;
+  }
+
+  assert(audit.prompt_deleted === false, "Prompt should still be active.");
+  assert(
+    Number(audit.active_default_version_count) === 1,
+    "Active prompt should have exactly one active default version.",
+  );
+  assert(
+    payloadArray(audit.active_default_versions, "active_default_versions")[0] ===
+      expectedDefaultVersion,
+    "Active prompt default version mismatch.",
+  );
+}
+
 async function loadPromptEvalConfigDbAudit({
   promptId,
   evalConfigId,
@@ -11477,7 +23147,10 @@ function assertPromptEvalConfigDbAudit(
     expectedDeleted,
   },
 ) {
-  assert(audit?.prompt_id === promptId, "Prompt eval DB audit prompt id mismatch.");
+  assert(
+    audit?.prompt_id === promptId,
+    "Prompt eval DB audit prompt id mismatch.",
+  );
   assert(
     audit?.config_id === evalConfigId,
     "Prompt eval DB audit config id mismatch.",
@@ -11561,11 +23234,14 @@ async function multipartApiRequest({
   });
   const body = await parseApiJourneyResponseBody(response);
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       `${method} ${pathName} failed with HTTP ${response.status}: ${formatApiJourneyBody(
         body,
       )}`,
     );
+    error.status = response.status;
+    error.body = body;
+    throw error;
   }
   if (body && typeof body === "object" && body.status === false) {
     throw new Error(
@@ -11595,6 +23271,11 @@ function sqlUuid(value) {
   return `'${value}'::uuid`;
 }
 
+function sqlText(value) {
+  assert(typeof value === "string", "SQL text value must be a string.");
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
 function sqlUuidArray(values) {
   assert(Array.isArray(values), "SQL UUID array value must be an array.");
   for (const value of values) {
@@ -11610,6 +23291,10 @@ function sqlTextArray(values) {
 
 function sqlTextLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function sqlJsonLiteral(value) {
+  return `${sqlTextLiteral(JSON.stringify(value))}::jsonb`;
 }
 
 async function getDatasetTable(client, datasetId, query = {}) {
@@ -11673,6 +23358,123 @@ async function createOrResolveWritableDataset(
   }
 }
 
+async function createExperimentGuardOutsideDataset(
+  client,
+  cleanup,
+  runId,
+  evidence,
+) {
+  const suffix = runId.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const datasetName = `api journey experiment guard ${runId}`;
+  const columnName = `api_exp_guard_${suffix}`;
+  const cellValue = `outside experiment guard ${runId}`;
+  const rowId = randomUUID();
+
+  let datasetId;
+  let createdDataset = false;
+  try {
+    const created = await client.post(
+      apiPath("/model-hub/develops/create-empty-dataset/"),
+      {
+        new_dataset_name: datasetName,
+        model_type: "generative_llm",
+        row: 0,
+      },
+    );
+    datasetId = created?.dataset_id;
+    createdDataset = true;
+  } catch (error) {
+    if (error?.status !== 429) throw error;
+    const datasets = asArray(
+      await client.get(apiPath("/model-hub/develops/get-datasets/"), {
+        query: { page: 0, page_size: 25 },
+      }),
+    );
+    const fallback = datasets.find((row) => row?.id);
+    if (!fallback) {
+      skip(
+        "Dataset creation is plan-limited and no existing dataset is available.",
+      );
+    }
+    datasetId = fallback.id;
+    evidence.push({
+      experiment_guard_dataset_creation:
+        "plan-limited; reused existing dataset",
+      dataset_id: datasetId,
+    });
+  }
+  assert(datasetId, "Create empty dataset did not return dataset_id.");
+  if (createdDataset) {
+    cleanup.defer("delete API journey experiment guard dataset", () =>
+      client.delete(apiPath("/model-hub/develops/delete_dataset/"), {
+        body: { dataset_ids: [datasetId] },
+        okStatuses: [200, 404],
+      }),
+    );
+  }
+
+  await client.post(
+    apiPath("/model-hub/develops/{dataset_id}/add_static_column/", {
+      dataset_id: datasetId,
+    }),
+    {
+      new_column_name: columnName,
+      column_type: "text",
+      source: "OTHERS",
+    },
+  );
+
+  const table = await getDatasetTable(client, datasetId);
+  const column = findColumn(table, columnName);
+  assert(column?.id, "Experiment guard outside column was not visible.");
+  cleanup.defer("delete API journey experiment guard column", () =>
+    ignoreNotFound(() =>
+      client.delete(
+        apiPath("/model-hub/develops/{dataset_id}/delete_column/{column_id}/", {
+          dataset_id: datasetId,
+          column_id: column.id,
+        }),
+      ),
+    ),
+  );
+  cleanup.defer("delete API journey experiment guard row", () =>
+    client.delete(
+      apiPath("/model-hub/develops/{dataset_id}/delete_row/", {
+        dataset_id: datasetId,
+      }),
+      {
+        body: { row_ids: [rowId], selected_all_rows: false },
+        okStatuses: [200, 404],
+      },
+    ),
+  );
+
+  await client.post(
+    apiPath("/model-hub/develops/{dataset_id}/add_rows/", {
+      dataset_id: datasetId,
+    }),
+    {
+      rows: [
+        {
+          id: rowId,
+          cells: [{ column_name: columnName, value: cellValue }],
+        },
+      ],
+    },
+  );
+  evidence.push({
+    experiment_guard_dataset_id: datasetId,
+    experiment_guard_row_id: rowId,
+    experiment_guard_column_id: column.id,
+  });
+  return {
+    dataset_id: datasetId,
+    row_id: rowId,
+    column_id: column.id,
+    cell_value: cellValue,
+  };
+}
+
 function findColumn(tablePayload, name) {
   return asArray(tablePayload?.column_config).find(
     (column) => column.name === name,
@@ -11700,6 +23502,73 @@ function promptConfig(systemText, userText) {
     },
     placeholders: [],
   };
+}
+
+async function waitForPromptTemplateRunCompletion(
+  client,
+  { promptId, templateVersion, timeoutMs = 120000, intervalMs = 3000 },
+) {
+  const deadline = Date.now() + timeoutMs;
+  let lastStatus = null;
+  while (Date.now() < deadline) {
+    lastStatus = await client.get(
+      apiPath("/model-hub/prompt-templates/{id}/get-run-status/", {
+        id: promptId,
+      }),
+      { query: { template_version: templateVersion } },
+    );
+    const result = lastStatus?.executions_result || {};
+    const outputRows = payloadArray(result.output, "output");
+    const firstOutput = outputRows.find(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    );
+    if (firstOutput) return lastStatus;
+
+    const status = String(lastStatus?.status || "").toLowerCase();
+    const errorMessage = lastStatus?.error_message || result?.error_message;
+    if (status === "failed" || errorMessage) {
+      throw new Error(
+        `Prompt Workbench run failed: ${errorMessage || JSON.stringify(lastStatus)}`,
+      );
+    }
+    await sleep(intervalMs);
+  }
+  throw new Error(
+    `Timed out waiting for prompt Workbench run ${promptId}/${templateVersion}; last status=${JSON.stringify(
+      lastStatus,
+    )}.`,
+  );
+}
+
+function assertPromptTemplateRunStatus(
+  payload,
+  { promptId, templateVersion, modelName },
+) {
+  const result = payload?.executions_result || {};
+  assert(
+    result.template_version === templateVersion,
+    "Prompt Workbench run status returned the wrong version.",
+  );
+  assert(
+    result.original_template === promptId,
+    "Prompt Workbench run status returned the wrong prompt id.",
+  );
+  const outputRows = payloadArray(result.output, "output");
+  assert(
+    outputRows.some(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    ),
+    "Prompt Workbench run status did not return generated output.",
+  );
+  const metadataRows = payloadArray(result.metadata, "metadata");
+  assert(
+    metadataRows.some((row) => row && typeof row === "object"),
+    "Prompt Workbench run status did not return run metadata.",
+  );
+  assert(
+    result.prompt_config_snapshot?.configuration?.model === modelName,
+    "Prompt Workbench run status returned the wrong model.",
+  );
 }
 
 async function resolvePromptEvalTemplateForConfig(client, cleanup, suffix) {
@@ -11760,14 +23629,17 @@ async function resolvePromptEvalTemplateForConfig(client, cleanup, suffix) {
 }
 
 async function findEvalTemplateDetailByName(client, name) {
-  const payload = await client.post(apiPath("/model-hub/eval-templates/list/"), {
-    page: 0,
-    page_size: 10,
-    owner_filter: "all",
-    search: name,
-    sort_by: "updated_at",
-    sort_order: "desc",
-  });
+  const payload = await client.post(
+    apiPath("/model-hub/eval-templates/list/"),
+    {
+      page: 0,
+      page_size: 10,
+      owner_filter: "all",
+      search: name,
+      sort_by: "updated_at",
+      sort_order: "desc",
+    },
+  );
   const row = payloadArray(payload?.items, "items").find(
     (item) => item?.name === name && isUuid(item?.id),
   );
@@ -11913,16 +23785,20 @@ async function createWorkbenchPrompt(
       ],
     },
   );
-  const promptId = created?.id || created?.root_template || created?.rootTemplate;
+  const promptId =
+    created?.id || created?.root_template || created?.rootTemplate;
   assert(isUuid(promptId), "Workbench prompt create did not return a UUID id.");
   return promptId;
 }
 
 async function deletePromptTemplateIfPresent(client, promptId) {
   try {
-    return await client.post(apiPath("/model-hub/prompt-templates/bulk-delete/"), {
-      ids: [promptId],
-    });
+    return await client.post(
+      apiPath("/model-hub/prompt-templates/bulk-delete/"),
+      {
+        ids: [promptId],
+      },
+    );
   } catch (error) {
     const message = String(error?.message || "").toLowerCase();
     if (
@@ -11939,10 +23815,9 @@ async function deletePromptTemplateIfPresent(client, promptId) {
 async function deletePromptEvalConfigIfPresent(client, promptId, evalConfigId) {
   try {
     return await client.delete(
-      apiPath(
-        "/model-hub/prompt-templates/{id}/delete-evaluation-config/",
-        { id: promptId },
-      ),
+      apiPath("/model-hub/prompt-templates/{id}/delete-evaluation-config/", {
+        id: promptId,
+      }),
       { query: { id: evalConfigId } },
     );
   } catch (error) {

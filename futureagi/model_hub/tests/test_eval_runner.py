@@ -34,7 +34,11 @@ from model_hub.models.choices import (
     SourceChoices,
 )
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
-from model_hub.models.evals_metric import EvalTemplate, UserEvalMetric
+from model_hub.models.evals_metric import (
+    EvalTemplate,
+    EvalTemplateVersion,
+    UserEvalMetric,
+)
 from model_hub.serializers.eval_runner import (
     CustomEvalTemplateCreateSerializer,
     EvalTemplateSerializer,
@@ -526,6 +530,109 @@ class TestEvalTemplateCreateView(EvalRunnerBaseTestCase):
         assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
 
 
+@pytest.mark.django_db
+def test_legacy_eval_template_create_sets_workspace_and_initial_version(
+    auth_client, organization, workspace
+):
+    response = auth_client.post(
+        "/model-hub/eval-template/create/",
+        {
+            "name": "legacy-template-workspace",
+            "config": {
+                "required_keys": ["response"],
+                "eval_type_id": "OutputEvaluator",
+                "output": "Pass/Fail",
+            },
+            "eval_tags": ["api"],
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    template = EvalTemplate.no_workspace_objects.get(
+        name="legacy-template-workspace",
+        organization=organization,
+        deleted=False,
+    )
+    assert template.owner == OwnerChoices.USER.value
+    assert template.workspace_id == workspace.id
+    assert template.config["required_keys"] == ["response"]
+    assert template.eval_tags == ["api"]
+    version = EvalTemplateVersion.no_workspace_objects.get(eval_template=template)
+    assert version.version_number == 1
+    assert version.is_default is True
+    assert version.organization_id == organization.id
+    assert version.workspace_id == workspace.id
+    assert version.config_snapshot == template.config
+
+
+@pytest.mark.django_db
+def test_legacy_eval_template_create_rejects_system_owner(
+    auth_client, organization
+):
+    response = auth_client.post(
+        "/model-hub/eval-template/create/",
+        {
+            "name": "legacy-template-system-owner",
+            "owner": OwnerChoices.SYSTEM.value,
+            "config": {
+                "required_keys": ["response"],
+                "eval_type_id": "OutputEvaluator",
+            },
+            "eval_tags": ["api"],
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert not EvalTemplate.no_workspace_objects.filter(
+        name="legacy-template-system-owner",
+        organization=organization,
+        deleted=False,
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_legacy_eval_template_create_duplicate_name_does_not_create_version(
+    auth_client, organization, workspace
+):
+    existing = EvalTemplate.no_workspace_objects.create(
+        name="legacy-template-duplicate",
+        organization=organization,
+        workspace=workspace,
+        owner=OwnerChoices.USER.value,
+        config={"required_keys": ["response"], "eval_type_id": "OutputEvaluator"},
+        eval_tags=["api"],
+    )
+
+    response = auth_client.post(
+        "/model-hub/eval-template/create/",
+        {
+            "name": "legacy-template-duplicate",
+            "config": {
+                "required_keys": ["response"],
+                "eval_type_id": "OutputEvaluator",
+            },
+            "eval_tags": ["api"],
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert (
+        EvalTemplate.no_workspace_objects.filter(
+            name="legacy-template-duplicate",
+            organization=organization,
+            deleted=False,
+        ).count()
+        == 1
+    )
+    assert not EvalTemplateVersion.no_workspace_objects.filter(
+        eval_template=existing,
+        deleted=False,
+    ).exists()
+
+
 # =============================================================================
 # EvalUserTemplateCreateView Tests
 # =============================================================================
@@ -537,12 +644,18 @@ class TestEvalUserTemplateCreateView(EvalRunnerBaseTestCase):
 
     def test_create_user_eval_template_success(self):
         """Successfully create a user eval template."""
+        input_column = Column.objects.create(
+            name="response",
+            dataset=self.dataset,
+            data_type=DataTypeChoices.TEXT.value,
+            source=SourceChoices.OTHERS.value,
+        )
         data = {
             "name": "my-user-eval",
             "template_id": str(self.eval_template.id),
             "dataset_id": str(self.dataset.id),
             "config": {
-                "mapping": {"response": str(uuid.uuid4())},
+                "mapping": {"response": str(input_column.id)},
             },
             "model": ModelChoices.TURING_LARGE.value,
         }
@@ -563,6 +676,137 @@ class TestEvalUserTemplateCreateView(EvalRunnerBaseTestCase):
         ).first()
         assert user_metric is not None
         assert user_metric.template == self.eval_template
+        assert user_metric.dataset == self.dataset
+        assert user_metric.workspace == self.workspace
+
+    def test_create_user_eval_template_rejects_other_workspace_dataset(self):
+        """Create must not bind a metric to a dataset outside the active workspace."""
+        other_workspace = Workspace.objects.create(
+            name="Other Same Org Workspace",
+            organization=self.organization,
+            created_by=self.user,
+        )
+        other_dataset = Dataset.objects.create(
+            name="Other Workspace Dataset",
+            organization=self.organization,
+            user=self.user,
+            source=DatasetSourceChoices.BUILD.value,
+            model_type=ModelTypes.GENERATIVE_LLM.value,
+            workspace=other_workspace,
+        )
+        data = {
+            "name": "other-workspace-metric",
+            "template_id": str(self.eval_template.id),
+            "dataset_id": str(other_dataset.id),
+            "config": {"mapping": {}},
+        }
+
+        response = self.client.post(
+            "/model-hub/eval-user-template/create/",
+            data,
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert not UserEvalMetric.objects.filter(name=data["name"]).exists()
+
+    def test_create_user_eval_template_rejects_other_workspace_user_template(self):
+        """Create must not bind a metric to a user template outside the workspace."""
+        other_workspace = Workspace.objects.create(
+            name="Other Same Org Workspace",
+            organization=self.organization,
+            created_by=self.user,
+        )
+        other_template = EvalTemplate.objects.create(
+            name="other-workspace-template",
+            organization=self.organization,
+            workspace=other_workspace,
+            owner=OwnerChoices.USER.value,
+            config={
+                "required_keys": ["response"],
+                "eval_type_id": "OutputEvaluator",
+                "output": "Pass/Fail",
+            },
+        )
+        data = {
+            "name": "other-workspace-template-metric",
+            "template_id": str(other_template.id),
+            "dataset_id": str(self.dataset.id),
+            "config": {"mapping": {}},
+        }
+
+        response = self.client.post(
+            "/model-hub/eval-user-template/create/",
+            data,
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert not UserEvalMetric.objects.filter(name=data["name"]).exists()
+
+    def test_create_user_eval_template_rejects_mapping_outside_dataset(self):
+        """Mapped column ids must belong to the selected dataset."""
+        outside_dataset = Dataset.objects.create(
+            name="Outside Dataset",
+            organization=self.organization,
+            user=self.user,
+            source=DatasetSourceChoices.BUILD.value,
+            model_type=ModelTypes.GENERATIVE_LLM.value,
+            workspace=self.workspace,
+        )
+        outside_column = Column.objects.create(
+            name="outside",
+            dataset=outside_dataset,
+            data_type=DataTypeChoices.TEXT.value,
+            source=SourceChoices.OTHERS.value,
+        )
+        data = {
+            "name": "outside-column-metric",
+            "template_id": str(self.eval_template.id),
+            "dataset_id": str(self.dataset.id),
+            "config": {"mapping": {"response": str(outside_column.id)}},
+        }
+
+        response = self.client.post(
+            "/model-hub/eval-user-template/create/",
+            data,
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not UserEvalMetric.objects.filter(name=data["name"]).exists()
+
+    def test_create_user_eval_template_rejects_duplicate_dataset_name(self):
+        """Create must not insert duplicate active metric names for a dataset."""
+        UserEvalMetric.objects.create(
+            name="duplicate-user-eval",
+            organization=self.organization,
+            workspace=self.workspace,
+            dataset=self.dataset,
+            template=self.eval_template,
+            config={"mapping": {}},
+            user=self.user,
+        )
+        data = {
+            "name": "duplicate-user-eval",
+            "template_id": str(self.eval_template.id),
+            "dataset_id": str(self.dataset.id),
+            "config": {"mapping": {}},
+        }
+
+        response = self.client.post(
+            "/model-hub/eval-user-template/create/",
+            data,
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            UserEvalMetric.objects.filter(
+                name=data["name"], dataset=self.dataset, deleted=False
+            ).count()
+            == 1
+        )
 
     def test_create_user_eval_template_missing_template_id(self):
         """Create fails when template_id is missing."""

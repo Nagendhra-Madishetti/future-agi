@@ -364,7 +364,9 @@ class TestUserListAPIView:
 
     def test_list_users_with_status_filter(self, auth_client):
         """Can filter users by status."""
-        response = auth_client.get("/accounts/user/list/", {"filter_status": ["Active"]})
+        response = auth_client.get(
+            "/accounts/user/list/", {"filter_status": ["Active"]}
+        )
         assert response.status_code == status.HTTP_200_OK
 
     def test_list_users_with_role_filter(self, auth_client):
@@ -391,9 +393,7 @@ class TestUserListAPIView:
 class TestUserRoleUpdateAPIView:
     """Tests for POST /accounts/user/role/update/ endpoint."""
 
-    def test_update_role_rejects_unknown_request_fields(
-        self, auth_client, member_user
-    ):
+    def test_update_role_rejects_unknown_request_fields(self, auth_client, member_user):
         response = auth_client.post(
             "/accounts/user/role/update/",
             {
@@ -897,6 +897,27 @@ class TestManageTeamViewGet:
         )
         assert response.status_code == status.HTTP_200_OK
 
+    def test_get_team_member_by_id_filters_to_member(
+        self, auth_client, member_user, workspace
+    ):
+        """Member detail alias returns only the requested accessible member."""
+        response = auth_client.get(
+            f"/accounts/team/users/{member_user.id}/",
+            {"workspace_id": str(workspace.id)},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        result = response.json().get("result", {})
+        assert result["total"] == 1
+        assert len(result["results"]) == 1
+        assert result["results"][0]["id"] == str(member_user.id)
+
+    def test_get_team_member_by_id_not_found(self, auth_client):
+        """Member detail alias does not fall back to returning the full team."""
+        response = auth_client.get(
+            "/accounts/team/users/00000000-0000-0000-0000-000000000000/"
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
 
 @pytest.mark.integration
 @pytest.mark.api
@@ -1009,11 +1030,37 @@ class TestManageTeamViewPost:
             status.HTTP_201_CREATED,
         ]
 
+    def test_member_specific_create_route_rejected_before_mutation(
+        self, auth_client, member_user
+    ):
+        """Generated member POST alias should not create users while ignoring member_id."""
+        email = "member-specific-create@futureagi.com"
+        response = auth_client.post(
+            f"/accounts/team/users/{member_user.id}/",
+            {
+                "members": [
+                    {
+                        "email": email,
+                        "name": "Member Specific Create",
+                        "organization_role": OrganizationRoles.MEMBER,
+                    }
+                ]
+            },
+            format="json",
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not User.objects.filter(email=email).exists()
+
 
 @pytest.mark.integration
 @pytest.mark.api
 class TestManageTeamViewDelete:
     """Tests for DELETE /accounts/team/users/<member_id>/ endpoint."""
+
+    def test_delete_collection_missing_member_id(self, auth_client):
+        """Collection delete route fails closed instead of mutating broadly."""
+        response = auth_client.delete("/accounts/team/users/")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_delete_team_member_as_owner(self, auth_client, member_user):
         """Owner can delete team members."""

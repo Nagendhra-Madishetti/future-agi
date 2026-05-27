@@ -7,7 +7,10 @@ from model_hub.models.choices import EvalTemplateType, OwnerChoices
 
 class EvalTemplateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=50)
-    owner = serializers.CharField(max_length=50, default=OwnerChoices.SYSTEM.value)
+    owner = serializers.ChoiceField(
+        choices=OwnerChoices.get_choices(),
+        default=OwnerChoices.USER.value,
+    )
     config = serializers.JSONField()  # JSONField is used for dictionary-like objects
     eval_tags = serializers.ListField(
         child=serializers.CharField(

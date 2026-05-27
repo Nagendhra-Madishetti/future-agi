@@ -2,28 +2,25 @@ import traceback
 import uuid
 
 import structlog
-from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from accounts.models import Organization
-
-logger = structlog.get_logger(__name__)
 from model_hub.models.choices import CellStatus, SourceChoices, StatusType
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
 from model_hub.serializers.contracts import (
     MODEL_HUB_ERROR_RESPONSES,
 )
-from model_hub.serializers.develop_dataset_contracts import (
-    SyntheticDatasetConfigResponseSerializer,
-    SyntheticDatasetCreateStartedResponseSerializer,
-    SyntheticDatasetUpdateResponseSerializer,
-)
 from model_hub.serializers.develop_dataset import (
     DatasetSerializer,
     SyntheticDatasetConfigSerializer,
     SyntheticDatasetCreationSerializer,
+)
+from model_hub.serializers.develop_dataset_contracts import (
+    SyntheticDatasetConfigResponseSerializer,
+    SyntheticDatasetCreateStartedResponseSerializer,
+    SyntheticDatasetUpdateResponseSerializer,
 )
 from model_hub.tasks.develop_dataset import (
     create_synthetic_dataset,
@@ -36,16 +33,49 @@ from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.parse_errors import parse_serialized_errors
+from tfc.constants.api_calls import APICallStatusChoices, APICallTypeChoices
 try:
-    from ee.usage.models.usage import APICallStatusChoices, APICallTypeChoices
-except ImportError:
-    APICallStatusChoices = None
-    APICallTypeChoices = None
-try:
-    from ee.usage.utils.usage_entries import ROW_LIMIT_REACHED_MESSAGE, log_and_deduct_cost_for_resource_request
+    from ee.usage.utils.usage_entries import (
+        ROW_LIMIT_REACHED_MESSAGE,
+        log_and_deduct_cost_for_resource_request,
+    )
 except ImportError:
     ROW_LIMIT_REACHED_MESSAGE = None
     log_and_deduct_cost_for_resource_request = None
+
+logger = structlog.get_logger(__name__)
+
+
+def _request_organization(request):
+    return getattr(request, "organization", None) or request.user.organization
+
+
+def _request_workspace_filter(request, field_name="workspace"):
+    workspace = getattr(request, "workspace", None)
+    if not workspace:
+        return Q()
+
+    if getattr(workspace, "is_default", False):
+        return (
+            Q(**{field_name: workspace})
+            | Q(
+                **{
+                    f"{field_name}__is_default": True,
+                    f"{field_name}__organization_id": workspace.organization_id,
+                }
+            )
+            | Q(**{f"{field_name}__isnull": True})
+        )
+
+    return Q(**{field_name: workspace})
+
+
+def _request_dataset_queryset(request):
+    return Dataset.objects.filter(
+        _request_workspace_filter(request),
+        organization=_request_organization(request),
+        deleted=False,
+    )
 
 
 class CreateSyntheticDataset(APIView):
@@ -72,43 +102,28 @@ class CreateSyntheticDataset(APIView):
                 org = (
                     getattr(request, "organization", None) or request.user.organization
                 )
-                feat_check = Entitlements.check_feature(
-                    str(org.id), "has_synthetic_data"
-                )
-                if not feat_check.allowed:
-                    return self._gm.forbidden_response(feat_check.reason)
+                if Entitlements is not None:
+                    feat_check = Entitlements.check_feature(
+                        str(org.id), "has_synthetic_data"
+                    )
+                    if not feat_check.allowed:
+                        return self._gm.forbidden_response(feat_check.reason)
             except ImportError:
                 pass
 
-            call_log_row_entry = log_and_deduct_cost_for_resource_request(
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-                api_call_type=APICallTypeChoices.DATASET_ADD.value,
-                workspace=request.workspace,
-            )
-            if (
-                call_log_row_entry is None
-                or call_log_row_entry.status
-                == APICallStatusChoices.RESOURCE_LIMIT.value
-            ):
-                return self._gm.too_many_requests(
-                    get_error_message("DATASET_CREATE_LIMIT_REACHED")
-                )
-            call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
-            call_log_row_entry.save()
-
             validated_data = request.validated_data
             dataset_name = validated_data["dataset"]["name"]
-            organization = (
-                getattr(request, "organization", None) or request.user.organization
-            )
+            organization = _request_organization(request)
 
-            if Dataset.objects.filter(
-                name=dataset_name,
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-                deleted=False,
-            ).exists():
+            # SyntheticDataAgent requires the ee module.
+            try:
+                from ee.agenthub.synthetic_data_agent.synthetic_data_agent import SyntheticDataAgent  # noqa: F401
+            except ImportError:
+                return self._gm.forbidden_response(
+                    "Synthetic data generation is not available on your plan."
+                )
+
+            if _request_dataset_queryset(request).filter(name=dataset_name).exists():
                 return self._gm.bad_request(get_error_message("DATASET_EXIST_IN_ORG"))
 
             # if len(set(validated_data['columns']) != len(validated_data['columns'])):
@@ -120,20 +135,38 @@ class CreateSyntheticDataset(APIView):
             if validated_data["num_rows"] < 10:
                 return self._gm.bad_request(get_error_message("10_ROWS_REQUIRED"))
 
+            if log_and_deduct_cost_for_resource_request is not None:
+                call_log_row_entry = log_and_deduct_cost_for_resource_request(
+                    organization=organization,
+                    api_call_type=APICallTypeChoices.DATASET_ADD.value,
+                    workspace=request.workspace,
+                )
+                if (
+                    call_log_row_entry is None
+                    or call_log_row_entry.status
+                    == APICallStatusChoices.RESOURCE_LIMIT.value
+                ):
+                    return self._gm.too_many_requests(
+                        get_error_message("DATASET_CREATE_LIMIT_REACHED")
+                    )
+                call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
+                call_log_row_entry.save()
+
             # ------------------- Added Row Check -------------------
-            call_log_row = log_and_deduct_cost_for_resource_request(
-                organization,
-                api_call_type=APICallTypeChoices.ROW_ADD.value,
-                config={"total_rows": validated_data["num_rows"]},
-                workspace=request.workspace,
-            )
-            if (
-                call_log_row is None
-                or call_log_row.status == APICallStatusChoices.RESOURCE_LIMIT.value
-            ):
-                return self._gm.too_many_requests(ROW_LIMIT_REACHED_MESSAGE)
-            call_log_row.status = APICallStatusChoices.SUCCESS.value
-            call_log_row.save()
+            if log_and_deduct_cost_for_resource_request is not None:
+                call_log_row = log_and_deduct_cost_for_resource_request(
+                    organization,
+                    api_call_type=APICallTypeChoices.ROW_ADD.value,
+                    config={"total_rows": validated_data["num_rows"]},
+                    workspace=request.workspace,
+                )
+                if (
+                    call_log_row is None
+                    or call_log_row.status == APICallStatusChoices.RESOURCE_LIMIT.value
+                ):
+                    return self._gm.too_many_requests(ROW_LIMIT_REACHED_MESSAGE)
+                call_log_row.status = APICallStatusChoices.SUCCESS.value
+                call_log_row.save()
             # dataset = Dataset.objects.create(name=dataset_name)
             dataset_serializer = DatasetSerializer(
                 data={
@@ -147,7 +180,9 @@ class CreateSyntheticDataset(APIView):
 
             if dataset_serializer.is_valid():
                 try:
-                    dataset = dataset_serializer.save()
+                    dataset = dataset_serializer.save(
+                        workspace=getattr(request, "workspace", None)
+                    )
 
                     # Store the validated_data for future editing
                     config_data = validated_data.copy()
@@ -252,14 +287,9 @@ class GetSyntheticDatasetConfigView(APIView):
     )
     def get(self, request, dataset_id, *args, **kwargs):
         try:
-            # Get dataset and verify it exists and belongs to user's organization
-            dataset = get_object_or_404(
-                Dataset,
-                id=dataset_id,
-                deleted=False,
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-            )
+            dataset = _request_dataset_queryset(request).filter(id=dataset_id).first()
+            if not dataset:
+                return self._gm.not_found(get_error_message("DATASET_NOT_FOUND"))
 
             # Check if this is a synthetic dataset (has synthetic_dataset_config)
             if not dataset.synthetic_dataset_config:
@@ -295,17 +325,19 @@ class UpdateSyntheticDatasetConfigView(APIView):
     )
     def put(self, request, dataset_id, *args, **kwargs):
         try:
-            # Initialize task manager
-            task_manager = SyntheticTaskManager()
+            validated_data = request.validated_data
 
-            # Get dataset and verify it exists and belongs to user's organization
-            dataset = get_object_or_404(
-                Dataset,
-                id=dataset_id,
-                deleted=False,
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-            )
+            if len({col["name"] for col in validated_data["columns"]}) != len(
+                validated_data["columns"]
+            ):
+                return self._gm.bad_request(get_error_message("DUPLICATE_COLUMN_NAME"))
+
+            if validated_data["num_rows"] < 10:
+                return self._gm.bad_request(get_error_message("10_ROWS_REQUIRED"))
+
+            dataset = _request_dataset_queryset(request).filter(id=dataset_id).first()
+            if not dataset:
+                return self._gm.not_found(get_error_message("DATASET_NOT_FOUND"))
 
             # Check if this is a synthetic dataset (has synthetic_dataset_config)
             if not dataset.synthetic_dataset_config:
@@ -313,7 +345,7 @@ class UpdateSyntheticDatasetConfigView(APIView):
                     get_error_message("NOT_A_SYNTHETIC_DATASET")
                 )
 
-            validated_data = request.validated_data
+            task_manager = SyntheticTaskManager()
 
             if validated_data.get("regenerate"):
                 # Add regenerate flag when regenerate is true
@@ -390,43 +422,34 @@ class UpdateSyntheticDatasetConfigView(APIView):
                 # Remove regenerate flag when regenerate is false or not present
                 task_manager.operation_regenerate_key(str(dataset_id), "remove")
 
-            # Check for duplicate column names
-            if len({col["name"] for col in validated_data["columns"]}) != len(
-                validated_data["columns"]
+            new_dataset_name = validated_data["dataset"]["name"]
+            if (
+                new_dataset_name != dataset.name
+                and _request_dataset_queryset(request)
+                .filter(name=new_dataset_name)
+                .exclude(id=dataset.id)
+                .exists()
             ):
-                return self._gm.bad_request(get_error_message("DUPLICATE_COLUMN_NAME"))
-
-            # Check minimum rows requirement
-            if validated_data["num_rows"] < 10:
-                return self._gm.bad_request(get_error_message("10_ROWS_REQUIRED"))
+                return self._gm.bad_request(get_error_message("DATASET_EXIST_IN_ORG"))
 
             # Check row limit
-            call_log_row = log_and_deduct_cost_for_resource_request(
-                getattr(request, "organization", None) or request.user.organization,
-                api_call_type=APICallTypeChoices.ROW_ADD.value,
-                config={"total_rows": validated_data["num_rows"]},
-                workspace=request.workspace,
-            )
-            if (
-                call_log_row is None
-                or call_log_row.status == APICallStatusChoices.RESOURCE_LIMIT.value
-            ):
-                return self._gm.too_many_requests(ROW_LIMIT_REACHED_MESSAGE)
-            call_log_row.status = APICallStatusChoices.SUCCESS.value
-            call_log_row.save()
+            if log_and_deduct_cost_for_resource_request is not None:
+                call_log_row = log_and_deduct_cost_for_resource_request(
+                    _request_organization(request),
+                    api_call_type=APICallTypeChoices.ROW_ADD.value,
+                    config={"total_rows": validated_data["num_rows"]},
+                    workspace=request.workspace,
+                )
+                if (
+                    call_log_row is None
+                    or call_log_row.status == APICallStatusChoices.RESOURCE_LIMIT.value
+                ):
+                    return self._gm.too_many_requests(ROW_LIMIT_REACHED_MESSAGE)
+                call_log_row.status = APICallStatusChoices.SUCCESS.value
+                call_log_row.save()
 
             # Update the dataset name if it changed
-            new_dataset_name = validated_data["dataset"]["name"]
             if new_dataset_name != dataset.name:
-                if Dataset.objects.filter(
-                    name=new_dataset_name,
-                    deleted=False,
-                    organization=getattr(request, "organization", None)
-                    or request.user.organization,
-                ).exists():
-                    return self._gm.bad_request(
-                        get_error_message("DATASET_EXIST_IN_ORG")
-                    )
                 dataset.name = new_dataset_name
                 dataset.save()
 

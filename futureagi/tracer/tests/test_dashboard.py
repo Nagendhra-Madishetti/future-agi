@@ -10,14 +10,13 @@ Covers:
 - Query execution (mocked ClickHouse)
 """
 
-import uuid
-from datetime import date, datetime, timedelta
 import json
-from urllib.parse import urlencode
+import uuid
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlencode
 
 import pytest
-from django.conf import settings as django_settings
 
 from accounts.models.workspace import Workspace
 from model_hub.models.ai_model import AIModel
@@ -25,16 +24,23 @@ from tracer.models.dashboard import Dashboard, DashboardWidget
 from tracer.models.project import Project
 from tracer.serializers.dashboard import (
     DashboardCreateUpdateSerializer,
-    DashboardDetailSerializer,
-    DashboardSerializer,
+    DashboardQuerySerializer,
     DashboardWidgetSerializer,
 )
-from tracer.views.dashboard import DashboardViewSet, _normalize_dashboard_query_filters
 from tracer.services.clickhouse.query_builders.dashboard import (
     AGGREGATIONS,
+    FILTER_OPERATORS,
+    GRANULARITY_TO_CH,
+    PRESET_RANGES,
     SYSTEM_METRICS,
     DashboardQueryBuilder,
+    _coerce_filter_value,
+    _generate_time_buckets,
 )
+from tracer.services.clickhouse.query_builders.dashboard_base import (
+    DashboardQueryBuilderBase,
+)
+from tracer.views.dashboard import DashboardViewSet, _normalize_dashboard_query_filters
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -265,6 +271,88 @@ class TestDashboardWidgetCRUD:
         assert data["name"] == "Updated Widget"
 
     @pytest.mark.django_db
+    def test_put_widget_replaces_fields(
+        self, auth_client, dashboard, dashboard_widget, sample_query_config
+    ):
+        response = auth_client.put(
+            f"/tracer/dashboard/{dashboard.id}/widgets/{dashboard_widget.id}/",
+            {
+                "name": "Fully Updated Widget",
+                "description": "Full update description",
+                "position": 2,
+                "width": 7,
+                "height": 6,
+                "query_config": sample_query_config,
+                "chart_config": {"chart_type": "bar", "show_legend": False},
+            },
+            format="json",
+        )
+        assert response.status_code == 200
+        data = response.json()["result"]
+        assert data["name"] == "Fully Updated Widget"
+        assert data["description"] == "Full update description"
+        assert data["position"] == 2
+        assert data["width"] == 7
+        assert data["height"] == 6
+        assert data["query_config"]["metrics"][0]["name"] == "latency"
+        assert data["chart_config"]["chart_type"] == "bar"
+
+        dashboard_widget.refresh_from_db()
+        assert dashboard_widget.name == "Fully Updated Widget"
+        assert dashboard_widget.query_config["metrics"][0]["name"] == "latency"
+        assert dashboard_widget.chart_config["chart_type"] == "bar"
+
+    @pytest.mark.django_db
+    def test_put_widget_wrong_dashboard_not_found(
+        self, auth_client, dashboard, dashboard_widget, user
+    ):
+        other_dashboard = Dashboard.objects.create(
+            workspace=dashboard.workspace,
+            name="Other Dashboard",
+            description="Other",
+            created_by=user,
+            updated_by=user,
+        )
+        response = auth_client.put(
+            f"/tracer/dashboard/{other_dashboard.id}/widgets/{dashboard_widget.id}/",
+            {
+                "name": "Should Not Mutate",
+                "position": 1,
+                "width": 6,
+                "height": 4,
+                "query_config": {},
+                "chart_config": {},
+            },
+            format="json",
+        )
+        assert response.status_code == 404
+        dashboard_widget.refresh_from_db()
+        assert dashboard_widget.name == "Latency Chart"
+
+    @pytest.mark.django_db
+    def test_put_widget_under_deleted_dashboard_not_found(
+        self, auth_client, dashboard, dashboard_widget
+    ):
+        dashboard.deleted = True
+        dashboard.save(update_fields=["deleted"])
+
+        response = auth_client.put(
+            f"/tracer/dashboard/{dashboard.id}/widgets/{dashboard_widget.id}/",
+            {
+                "name": "Should Not Mutate",
+                "position": 1,
+                "width": 6,
+                "height": 4,
+                "query_config": {},
+                "chart_config": {},
+            },
+            format="json",
+        )
+        assert response.status_code == 404
+        dashboard_widget.refresh_from_db()
+        assert dashboard_widget.name == "Latency Chart"
+
+    @pytest.mark.django_db
     def test_delete_widget(self, auth_client, dashboard, dashboard_widget):
         response = auth_client.delete(
             f"/tracer/dashboard/{dashboard.id}/widgets/{dashboard_widget.id}/"
@@ -310,9 +398,7 @@ class TestMetricsEndpoint:
         metric_names = [m["name"] for m in data["metrics"]]
         assert "latency" in metric_names
         assert "cost" in metric_names
-        span_duration = next(
-            m for m in data["metrics"] if m["name"] == "latency_ms"
-        )
+        span_duration = next(m for m in data["metrics"] if m["name"] == "latency_ms")
         assert span_duration["display_name"] == "Duration"
         assert span_duration["source"] == "spans"
         assert span_duration["type"] == "number"
@@ -2385,20 +2471,6 @@ class TestFrontendPayloadSimulation:
 # Security and Edge Case Tests
 # ===========================================================================
 
-from tracer.serializers.dashboard import DashboardQuerySerializer
-from tracer.services.clickhouse.query_builders.dashboard import (
-    FILTER_OPERATORS,
-    GRANULARITY_TO_CH,
-    METRIC_UNITS,
-    PRESET_RANGES,
-    _coerce_filter_value,
-    _generate_time_buckets,
-    _sanitize_attr_key,
-)
-from tracer.services.clickhouse.query_builders.dashboard_base import (
-    DashboardQueryBuilderBase,
-)
-
 
 class TestQueryBuilderSecurity:
     """Security tests for DashboardQueryBuilder to prevent injection and misuse."""
@@ -2928,13 +3000,12 @@ class TestDashboardQueryBuilderBase:
             "metrics": [],
             "breakdowns": [],
         }
-        from datetime import timezone as _tz
 
         base = DashboardQueryBuilderBase(config)
         # Buckets must use UTC-aware ISO format to match _build_series_data output
         all_buckets = [
-            datetime(2025, 1, 1, tzinfo=_tz.utc).isoformat(),
-            datetime(2025, 1, 2, tzinfo=_tz.utc).isoformat(),
+            datetime(2025, 1, 1, tzinfo=UTC).isoformat(),
+            datetime(2025, 1, 2, tzinfo=UTC).isoformat(),
         ]
         metric_info = {"id": "latency", "name": "latency", "aggregation": "avg"}
         rows = [

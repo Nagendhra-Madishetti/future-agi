@@ -46,12 +46,7 @@ from tfc.utils.api_contracts import validated_request
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tfc.utils.parse_errors import parse_serialized_errors
-
-try:
-    from ee.usage.models.usage import APICallStatusChoices, APICallTypeChoices
-except ImportError:
-    APICallStatusChoices = None
-    APICallTypeChoices = None
+from tfc.constants.api_calls import APICallStatusChoices, APICallTypeChoices
 try:
     from ee.usage.utils.usage_entries import (
         ROW_LIMIT_REACHED_MESSAGE,
@@ -166,23 +161,6 @@ class CreateDatasetFromHuggingFaceView(CreateAPIView):
     def post(self, request, *args, **kwargs):
         try:
             data = request.validated_data
-            call_log_row_entry = log_and_deduct_cost_for_resource_request(
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-                api_call_type=APICallTypeChoices.DATASET_ADD.value,
-                workspace=request.workspace,
-            )
-            if (
-                call_log_row_entry is None
-                or call_log_row_entry.status
-                == APICallStatusChoices.RESOURCE_LIMIT.value
-            ):
-                return self._gm.too_many_requests(
-                    get_error_message("DATASET_CREATE_LIMIT_REACHED")
-                )
-            call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
-            call_log_row_entry.save()
-
             new_dataset_name = data.get("name")
             model_type = data.get("model_type")
             num_rows = data.get("num_rows")
@@ -193,22 +171,6 @@ class CreateDatasetFromHuggingFaceView(CreateAPIView):
 
             if not dataset_name:
                 return self._gm.bad_request(get_error_message("DATASET_NAME_MISSING"))
-
-            from model_hub.validators.dataset_validators import (
-                validate_dataset_name_unique,
-            )
-
-            try:
-                validate_dataset_name_unique(
-                    new_dataset_name,
-                    getattr(request, "organization", None) or request.user.organization,
-                )
-            except Exception as validation_err:
-                return self._gm.bad_request(str(validation_err.detail[0]))
-
-            if num_rows:
-                if int(num_rows) < 0:
-                    return self._gm.bad_request(get_error_message("ROWS_NOT_POSITIVE"))
 
             try:
                 file_name = dataset_name.replace(
@@ -221,10 +183,22 @@ class CreateDatasetFromHuggingFaceView(CreateAPIView):
                     get_error_message("FAILED_TO_LOAD_DATASET_FROM_HUGGINGFACE")
                 )
 
-            # Creating Dataset
+            from model_hub.validators.dataset_validators import (
+                validate_dataset_name_unique,
+            )
+
             organization = (
                 getattr(request, "organization", None) or request.user.organization
             )
+            try:
+                validate_dataset_name_unique(new_dataset_name, organization)
+            except Exception as validation_err:
+                return self._gm.bad_request(str(validation_err.detail[0]))
+
+            if num_rows:
+                if int(num_rows) < 0:
+                    return self._gm.bad_request(get_error_message("ROWS_NOT_POSITIVE"))
+
             dataset_id = uuid.uuid4()
             dataset_serializer = DatasetSerializer(
                 data={
@@ -244,20 +218,21 @@ class CreateDatasetFromHuggingFaceView(CreateAPIView):
                     rows_in_dataset = (
                         int(num_rows) if num_rows else int(dataset_info.get("num_rows"))
                     )
-                    call_log_row = log_and_deduct_cost_for_resource_request(
-                        organization,
-                        api_call_type=APICallTypeChoices.ROW_ADD.value,
-                        config={"total_rows": rows_in_dataset},
-                        workspace=request.workspace,
-                    )
-                    if (
-                        call_log_row is None
-                        or call_log_row.status
-                        == APICallStatusChoices.RESOURCE_LIMIT.value
-                    ):
-                        return self._gm.too_many_requests(ROW_LIMIT_REACHED_MESSAGE)
-                    call_log_row.status = APICallStatusChoices.SUCCESS.value
-                    call_log_row.save()
+                    if log_and_deduct_cost_for_resource_request is not None:
+                        call_log_row = log_and_deduct_cost_for_resource_request(
+                            organization,
+                            api_call_type=APICallTypeChoices.ROW_ADD.value,
+                            config={"total_rows": rows_in_dataset},
+                            workspace=request.workspace,
+                        )
+                        if (
+                            call_log_row is None
+                            or call_log_row.status
+                            == APICallStatusChoices.RESOURCE_LIMIT.value
+                        ):
+                            return self._gm.too_many_requests(ROW_LIMIT_REACHED_MESSAGE)
+                        call_log_row.status = APICallStatusChoices.SUCCESS.value
+                        call_log_row.save()
 
                     try:
                         first_row = load_hf_dataset_with_retries(
@@ -283,6 +258,23 @@ class CreateDatasetFromHuggingFaceView(CreateAPIView):
                         return self._gm.bad_request(
                             get_error_message("FAILED_TO_PREVIEW_DATASET")
                         )
+                    if log_and_deduct_cost_for_resource_request is not None:
+                        call_log_row_entry = log_and_deduct_cost_for_resource_request(
+                            organization=organization,
+                            api_call_type=APICallTypeChoices.DATASET_ADD.value,
+                            workspace=request.workspace,
+                        )
+                        if (
+                            call_log_row_entry is None
+                            or call_log_row_entry.status
+                            == APICallStatusChoices.RESOURCE_LIMIT.value
+                        ):
+                            return self._gm.too_many_requests(
+                                get_error_message("DATASET_CREATE_LIMIT_REACHED")
+                            )
+                        call_log_row_entry.status = APICallStatusChoices.SUCCESS.value
+                        call_log_row_entry.save()
+
                     columns_to_create = []
                     column_order = []
                     column_config_updates = {}
@@ -319,7 +311,9 @@ class CreateDatasetFromHuggingFaceView(CreateAPIView):
                             )
 
                     with transaction.atomic():
-                        dataset = dataset_serializer.save()
+                        dataset = dataset_serializer.save(
+                            workspace=getattr(request, "workspace", None)
+                        )
                         for column in columns_to_create:
                             column.dataset = dataset
                         # Bulk create columns in the database

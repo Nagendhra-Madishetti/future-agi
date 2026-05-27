@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import process from "node:process";
 import { promisify } from "node:util";
@@ -98,6 +99,230 @@ export const annotationQueueJourneys = [
     },
   },
   {
+    id: "AQ-API-030",
+    title:
+      "Queue create entitlement gate, workspace scope, labels, and creator roles",
+    tags: ["annotation", "mutating", "db-audit", "create"],
+    async run({
+      client,
+      cleanup,
+      user,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      const userId = assertCurrentUserResolved(user);
+      const namePrefix = `api journey queue create ${runId}`;
+      const queueName = `${namePrefix} main`;
+      const labelName = `${namePrefix} label`;
+
+      const missingNameStatus = await expectHttpStatus(
+        () =>
+          client.post(apiPath("/model-hub/annotation-queues/"), {
+            description: "Missing name validation coverage.",
+          }),
+        400,
+      );
+
+      const otherLabelFixture = await insertOtherWorkspaceQueueLabelFixtureDb({
+        namePrefix,
+        organizationId,
+        userId,
+      });
+      cleanup.defer("delete other-workspace queue label fixture", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+      const crossWorkspaceLabelStatus = await expectHttpStatus(
+        () =>
+          client.post(apiPath("/model-hub/annotation-queues/"), {
+            name: `${namePrefix} cross workspace label`,
+            label_ids: [otherLabelFixture.label_id],
+          }),
+        400,
+      );
+
+      let queue;
+      let createMode = "api";
+      try {
+        queue = await client.post(apiPath("/model-hub/annotation-queues/"), {
+          name: queueName,
+          description: "Disposable queue for API journey create coverage.",
+          instructions: "Verify labels and creator roles.",
+          annotations_required: 1,
+          reservation_timeout_minutes: 45,
+          requires_review: false,
+          auto_assign: false,
+        });
+      } catch (error) {
+        if (error.status !== 402) throw error;
+        createMode = "db_seeded_after_create_entitlement";
+        evidence.push({
+          create_entitlement_status: error.status,
+          create_entitlement_body: error.body,
+        });
+        queue = await insertAnnotationQueueCreateFixtureDb({
+          queueName,
+          organizationId,
+          workspaceId,
+          userId,
+        });
+      }
+      assert(queue?.id, "Queue create/seed did not produce a queue id.");
+      cleanup.defer("hard-delete queue create fixture", () =>
+        hardDeleteQueueIfPresent(client, queue.id, queueName),
+      );
+
+      const labelResponse = await client.post(
+        apiPath("/model-hub/annotations-labels/"),
+        {
+          name: labelName,
+          type: "text",
+          description: "Disposable label for queue create coverage.",
+          settings: {
+            placeholder: "Queue create coverage",
+            min_length: 0,
+            max_length: 500,
+          },
+          allow_notes: true,
+        },
+      );
+      const label = labelResponse?.id
+        ? labelResponse
+        : await findAnnotationLabelByName(client, labelName);
+      assert(label?.id, "Could not resolve created queue label by name.");
+      cleanup.defer("delete queue create label", () =>
+        client.delete(
+          apiPath("/model-hub/annotations-labels/{id}/", { id: label.id }),
+        ),
+      );
+
+      let requiredLabelDenied = false;
+      let addedLabel;
+      try {
+        addedLabel = await client.post(
+          apiPath("/model-hub/annotation-queues/{id}/add-label/", {
+            id: queue.id,
+          }),
+          { label_id: label.id, required: true },
+        );
+      } catch (error) {
+        if (error.status !== 402) throw error;
+        requiredLabelDenied = true;
+        evidence.push({
+          required_label_entitlement_status: error.status,
+          required_label_entitlement_body: error.body,
+        });
+        addedLabel = await client.post(
+          apiPath("/model-hub/annotation-queues/{id}/add-label/", {
+            id: queue.id,
+          }),
+          { label_id: label.id, required: false },
+        );
+      }
+      assert(
+        addedLabel?.label?.id === label.id,
+        "Add-label response did not return the created label.",
+      );
+
+      const detail = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }),
+      );
+      assert(
+        detail?.id === queue.id,
+        "Queue detail did not reload created queue.",
+      );
+      assert(
+        detail.name === queueName &&
+          detail.description ===
+            "Disposable queue for API journey create coverage." &&
+          detail.instructions === "Verify labels and creator roles.",
+        `Queue detail did not preserve create fields: ${JSON.stringify(detail)}.`,
+      );
+      const creator = findQueueAnnotator(detail, userId);
+      assert(
+        creator &&
+          creator.role === "manager" &&
+          sameJsonValue(asArray(creator.roles), [
+            "manager",
+            "reviewer",
+            "annotator",
+          ]),
+        `Queue detail did not expose creator full roles: ${JSON.stringify(creator)}.`,
+      );
+      assert(
+        asArray(detail.viewer_roles).includes("manager") &&
+          asArray(detail.viewer_roles).includes("reviewer") &&
+          asArray(detail.viewer_roles).includes("annotator"),
+        `Queue detail viewer_roles did not include full creator access: ${JSON.stringify(
+          detail.viewer_roles,
+        )}.`,
+      );
+      assert(
+        asArray(detail.labels).some(
+          (queueLabel) => String(queueLabel.label_id) === String(label.id),
+        ),
+        "Queue detail did not include the attached label.",
+      );
+
+      const searched = asArray(
+        await client.get(apiPath("/model-hub/annotation-queues/"), {
+          query: { search: queueName, include_counts: true },
+        }),
+      );
+      const searchedQueue = searched.find((row) => row.id === queue.id);
+      assert(
+        searchedQueue &&
+          Number(searchedQueue.label_count || 0) >= 1 &&
+          Number(searchedQueue.annotator_count || 0) >= 1,
+        `Queue list/search did not include counts for the created queue: ${JSON.stringify(
+          searched,
+        )}.`,
+      );
+
+      const dbAudit = await loadQueueCreateDbAudit({
+        queueId: queue.id,
+        userId,
+        labelId: label.id,
+      });
+      assert(
+        String(dbAudit.organization_id) === String(organizationId) &&
+          String(dbAudit.workspace_id) === String(workspaceId),
+        `Queue DB scope mismatch: ${JSON.stringify(dbAudit)}.`,
+      );
+      assert(
+        dbAudit.creator_member?.role === "manager" &&
+          sameJsonValue(asArray(dbAudit.creator_member?.roles), [
+            "manager",
+            "reviewer",
+            "annotator",
+          ]),
+        `Creator DB membership mismatch: ${JSON.stringify(dbAudit)}.`,
+      );
+      assert(
+        Number(dbAudit.active_label_count) === 1 &&
+          Number(dbAudit.label_binding_count) === 1 &&
+          Number(dbAudit.active_member_count) === 1,
+        `Queue DB label/member counts mismatch: ${JSON.stringify(dbAudit)}.`,
+      );
+
+      evidence.push({
+        queue_create_mode: createMode,
+        queue_id: queue.id,
+        queue_name: queueName,
+        label_id: label.id,
+        missing_name_status: missingNameStatus,
+        cross_workspace_label_status: crossWorkspaceLabelStatus,
+        required_label_denied: requiredLabelDenied,
+        active_label_count: dbAudit.active_label_count,
+        active_member_count: dbAudit.active_member_count,
+        creator_roles: dbAudit.creator_member?.roles,
+        workspace_id: dbAudit.workspace_id,
+      });
+    },
+  },
+  {
     id: "AQ-API-002",
     title:
       "Queue item read paths, annotate detail, annotations, discussion, next item",
@@ -188,7 +413,15 @@ export const annotationQueueJourneys = [
     id: "AQ-API-003",
     title: "Bulk assignment updates assigned-to-me list and DB state",
     tags: ["annotation", "mutating", "assignment", "db-audit"],
-    async run({ client, cleanup, user, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      user,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
       const userId = assertCurrentUserResolved(user);
       const sample = await resolveTraceAndSpanSample(client);
@@ -199,10 +432,17 @@ export const annotationQueueJourneys = [
         sample.projectId,
         evidence,
       );
-      await ensureExplicitQueueMember(client, queue, userId, cleanup, evidence, {
-        reason: "assignment coverage",
-        roles: ["manager", "reviewer", "annotator"],
-      });
+      await ensureExplicitQueueMember(
+        client,
+        queue,
+        userId,
+        cleanup,
+        evidence,
+        {
+          reason: "assignment coverage",
+          roles: ["manager", "reviewer", "annotator"],
+        },
+      );
 
       const itemPayloads = [
         {
@@ -228,7 +468,10 @@ export const annotationQueueJourneys = [
           queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
           payload,
         );
-        assert(created?.id, "Assignment journey queue item create returned no id.");
+        assert(
+          created?.id,
+          "Assignment journey queue item create returned no id.",
+        );
         createdItems.push({ ...created, expected: payload });
         cleanup.defer(`delete assignment queue item ${created.id}`, () =>
           deleteQueueItemIfPresent(client, queue.id, created.id),
@@ -418,7 +661,15 @@ export const annotationQueueJourneys = [
     title:
       "Discussion comment, wide emoji reaction, resolve, and reopen lifecycle",
     tags: ["annotation", "mutating", "comments", "db-audit"],
-    async run({ client, cleanup, user, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      user,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
       const userId = assertCurrentUserResolved(user);
       const sample = await resolveTraceAndSpanSample(client);
@@ -429,9 +680,16 @@ export const annotationQueueJourneys = [
         sample.projectId,
         evidence,
       );
-      await ensureExplicitQueueMember(client, queue, userId, cleanup, evidence, {
-        reason: "discussion mention coverage",
-      });
+      await ensureExplicitQueueMember(
+        client,
+        queue,
+        userId,
+        cleanup,
+        evidence,
+        {
+          reason: "discussion mention coverage",
+        },
+      );
       const beforeItems = asArray(
         await client.get(
           queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
@@ -730,7 +988,14 @@ export const annotationQueueJourneys = [
     id: "AQ-API-029",
     title: "Queue member multi-role update persists and restores",
     tags: ["annotation", "mutating", "members", "db-audit"],
-    async run({ client, cleanup, user, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      user,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
       const userId = assertCurrentUserResolved(user);
       const queue = await resolveMemberRoleQueue(client, evidence);
@@ -1251,9 +1516,2237 @@ export const annotationQueueJourneys = [
     },
   },
   {
+    id: "AQ-API-032",
+    title: "Queue plan-limit count recovery after hard delete and retry",
+    tags: ["annotation", "mutating", "limits", "db-audit", "create"],
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      const namePrefix = `api journey queue limit ${runId}`;
+      const firstQueueName = `${namePrefix} first`;
+      const retryQueueName = `${namePrefix} retry`;
+      cleanup.defer("hard-delete queue limit DB fixtures", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+
+      const before = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+
+      let firstQueue;
+      try {
+        firstQueue = await createPlanLimitProbeQueue(client, firstQueueName);
+      } catch (error) {
+        if (error.status !== 402) throw error;
+        const bodyText = JSON.stringify(error.body || {});
+        assert(
+          bodyText.includes("ENTITLEMENT_LIMIT") ||
+            bodyText.includes("annotation queues limit"),
+          `Queue create limit error did not expose entitlement details: ${bodyText}.`,
+        );
+        const afterBlockedCreate = await loadQueueLimitDbAudit({
+          organizationId,
+          workspaceId,
+          namePrefix,
+        });
+        assert(
+          Number(afterBlockedCreate.matching_total_count) === 0,
+          `Blocked queue create still left rows: ${JSON.stringify(
+            afterBlockedCreate,
+          )}.`,
+        );
+        evidence.push({
+          create_mode: "entitlement_limit_observed",
+          create_status: error.status,
+          create_error: error.body,
+          before_org_active_count: before.org_active_count,
+          before_workspace_active_count: before.workspace_active_count,
+          after_blocked_org_active_count: afterBlockedCreate.org_active_count,
+        });
+        return;
+      }
+
+      assert(firstQueue?.id, "First queue limit probe create returned no id.");
+      cleanup.defer("hard-delete first queue limit probe", () =>
+        hardDeleteQueueIfPresent(client, firstQueue.id, firstQueueName),
+      );
+
+      const afterFirstCreate = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(before, afterFirstCreate, 1, "first create");
+
+      await hardDeleteQueueIfPresent(client, firstQueue.id, firstQueueName);
+      const missingFirstStatus = await expectHttpStatus(
+        () =>
+          client.get(
+            apiPath("/model-hub/annotation-queues/{id}/", {
+              id: firstQueue.id,
+            }),
+          ),
+        404,
+      );
+
+      const afterFirstDelete = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(before, afterFirstDelete, 0, "first hard delete");
+
+      const retryQueue = await createPlanLimitProbeQueue(
+        client,
+        retryQueueName,
+      );
+      assert(retryQueue?.id, "Retry queue limit probe create returned no id.");
+      cleanup.defer("hard-delete retry queue limit probe", () =>
+        hardDeleteQueueIfPresent(client, retryQueue.id, retryQueueName),
+      );
+
+      const afterRetryCreate = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(before, afterRetryCreate, 1, "retry create");
+
+      await hardDeleteQueueIfPresent(client, retryQueue.id, retryQueueName);
+      const finalAudit = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(before, finalAudit, 0, "final cleanup");
+
+      evidence.push({
+        create_mode: "api_create_delete_retry",
+        first_queue_id: firstQueue.id,
+        retry_queue_id: retryQueue.id,
+        before_org_active_count: before.org_active_count,
+        after_first_create_org_active_count: afterFirstCreate.org_active_count,
+        after_first_delete_org_active_count: afterFirstDelete.org_active_count,
+        after_retry_create_org_active_count: afterRetryCreate.org_active_count,
+        final_org_active_count: finalAudit.org_active_count,
+        before_workspace_active_count: before.workspace_active_count,
+        final_workspace_active_count: finalAudit.workspace_active_count,
+        missing_first_status: missingFirstStatus,
+        final_matching_total_count: finalAudit.matching_total_count,
+      });
+    },
+  },
+  {
+    id: "MUR-API-001",
+    title: "Creator all-role annotate/review mode separation",
+    tags: ["annotation", "mutating", "multi-user", "review", "db-audit"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      runId,
+      user,
+      workspaceId,
+    }) {
+      requireMutations();
+      const creatorId = assertCurrentUserResolved(user);
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (!altToken) {
+        skip(
+          "Set API_JOURNEY_ALT_ACCESS_TOKEN for a second workspace annotator to run multi-role mode coverage.",
+        );
+      }
+      const altClient = createApiClient({
+        apiBase,
+        accessToken: altToken,
+        organizationId,
+        workspaceId,
+      });
+      const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+      const altUserId = currentUserId(altUser);
+      assert(altUserId, "Alternate annotator user id could not be resolved.");
+      if (String(altUserId) === String(creatorId)) {
+        skip("Alternate token resolved to the creator user.");
+      }
+
+      const sample = await resolveTraceAndSpanSample(client);
+      const namePrefix = `api journey multi role ${runId}`;
+      const queueName = `${namePrefix} queue`;
+      const labelName = `${namePrefix} text label`;
+      cleanup.defer("hard-delete multi-role DB fixtures", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+
+      const labelResponse = await client.post(
+        apiPath("/model-hub/annotations-labels/"),
+        {
+          name: labelName,
+          type: "text",
+          description: "Disposable label for multi-role mode coverage.",
+          settings: {
+            placeholder: "Multi-role coverage",
+            min_length: 0,
+            max_length: 500,
+          },
+          allow_notes: true,
+        },
+      );
+      const label = labelResponse?.id
+        ? labelResponse
+        : await findAnnotationLabelByName(client, labelName);
+      assert(label?.id, "Could not resolve created multi-role label.");
+      cleanup.defer("delete multi-role label", () =>
+        deleteAnnotationLabelIfPresent(client, label.id),
+      );
+
+      let queue;
+      let reviewWorkflowMode = "enabled";
+      try {
+        queue = await client.post(apiPath("/model-hub/annotation-queues/"), {
+          name: queueName,
+          description: "Disposable queue for multi-role coverage.",
+          instructions: "Verify creator annotate and review modes.",
+          annotations_required: 1,
+          reservation_timeout_minutes: 30,
+          requires_review: true,
+          auto_assign: false,
+          label_ids: [label.id],
+          annotator_ids: [creatorId, altUserId],
+          annotator_roles: {
+            [String(creatorId)]: ["manager", "reviewer", "annotator"],
+            [String(altUserId)]: ["annotator"],
+          },
+        });
+      } catch (error) {
+        if (error.status === 402 || error.status === 403) {
+          reviewWorkflowMode = "entitlement_blocked";
+          evidence.push({
+            review_workflow_entitlement_status: error.status,
+            review_workflow_entitlement_body: error.body,
+          });
+          queue = await client.post(apiPath("/model-hub/annotation-queues/"), {
+            name: queueName,
+            description: "Disposable queue for multi-role coverage.",
+            instructions: "Verify creator annotate and review-mode reads.",
+            annotations_required: 1,
+            reservation_timeout_minutes: 30,
+            requires_review: false,
+            auto_assign: false,
+            label_ids: [label.id],
+            annotator_ids: [creatorId, altUserId],
+            annotator_roles: {
+              [String(creatorId)]: ["manager", "reviewer", "annotator"],
+              [String(altUserId)]: ["annotator"],
+            },
+          });
+        } else {
+          throw error;
+        }
+      }
+      assert(queue?.id, "Multi-role queue create returned no id.");
+      cleanup.defer("hard-delete multi-role queue", () =>
+        hardDeleteQueueIfPresent(client, queue.id, queueName),
+      );
+
+      await restoreQueueStatusIfNeeded(client, queue.id, "active");
+      const reviewWorkflowEnabled = reviewWorkflowMode === "enabled";
+
+      const creatorQueueDetail = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }),
+      );
+      const creatorMember = asArray(creatorQueueDetail.annotators).find(
+        (annotator) => String(annotator.user_id) === String(creatorId),
+      );
+      const altMember = asArray(creatorQueueDetail.annotators).find(
+        (annotator) => String(annotator.user_id) === String(altUserId),
+      );
+      assert(
+        asArray(creatorQueueDetail.viewer_roles).includes("manager") &&
+          asArray(creatorQueueDetail.viewer_roles).includes("reviewer") &&
+          asArray(creatorQueueDetail.viewer_roles).includes("annotator") &&
+          sameJsonValue(asArray(creatorMember?.roles), [
+            "manager",
+            "reviewer",
+            "annotator",
+          ]) &&
+          sameJsonValue(asArray(altMember?.roles), ["annotator"]),
+        `Multi-role queue detail exposed wrong memberships: ${JSON.stringify(
+          creatorQueueDetail,
+        )}.`,
+      );
+
+      const altQueueDetail = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }),
+      );
+      assert(
+        sameJsonValue(asArray(altQueueDetail.viewer_roles), ["annotator"]),
+        `Alternate user should only see annotator role: ${JSON.stringify(
+          altQueueDetail.viewer_roles,
+        )}.`,
+      );
+
+      const creatorItem = await client.post(
+        queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
+        {
+          source_type: "trace",
+          source_id: sample.traceId,
+          status: "pending",
+          priority: 4,
+          order: 8101,
+          metadata: { api_journey: runId, stage: "multi-role-creator" },
+        },
+      );
+      const altItem = await client.post(
+        queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
+        {
+          source_type: "observation_span",
+          source_id: sample.spanId,
+          status: "pending",
+          priority: 4,
+          order: 8102,
+          metadata: { api_journey: runId, stage: "multi-role-alt" },
+        },
+      );
+      assert(
+        creatorItem?.id && altItem?.id,
+        "Multi-role item create returned no ids.",
+      );
+      cleanup.defer("delete multi-role creator item", () =>
+        deleteQueueItemIfPresent(client, queue.id, creatorItem.id),
+      );
+      cleanup.defer("delete multi-role alternate item", () =>
+        deleteQueueItemIfPresent(client, queue.id, altItem.id),
+      );
+
+      await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/assign/",
+          queue.id,
+        ),
+        {
+          item_ids: [creatorItem.id],
+          user_ids: [creatorId],
+          action: "set",
+        },
+      );
+      await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/assign/",
+          queue.id,
+        ),
+        {
+          item_ids: [altItem.id],
+          user_ids: [altUserId],
+          action: "set",
+        },
+      );
+
+      const creatorAnnotatePath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/annotate-detail/",
+        queue.id,
+        { id: creatorItem.id },
+      );
+      const creatorSubmitPath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/annotations/submit/",
+        queue.id,
+        { id: creatorItem.id },
+      );
+      const creatorCompletePath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/complete/",
+        queue.id,
+        { id: creatorItem.id },
+      );
+      const creatorReviewPath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/review/",
+        queue.id,
+        { id: creatorItem.id },
+      );
+      const creatorValue = { text: `creator all-role value ${runId}` };
+      await client.post(creatorSubmitPath, {
+        annotations: [
+          {
+            label_id: label.id,
+            value: creatorValue,
+            notes: `creator all-role note ${runId}`,
+          },
+        ],
+      });
+      await client.post(creatorCompletePath, {
+        exclude: [creatorItem.id, altItem.id],
+      });
+
+      const creatorOwnDetail = await client.get(creatorAnnotatePath, {
+        query: { include_completed: true },
+      });
+      assert(
+        creatorOwnDetail.item?.status ===
+          (reviewWorkflowEnabled ? "in_progress" : "completed") &&
+          (reviewWorkflowEnabled
+            ? creatorOwnDetail.item?.review_status === "pending_review"
+            : !creatorOwnDetail.item?.review_status) &&
+          asArray(creatorOwnDetail.annotations).some(
+            (score) =>
+              String(score.annotator) === String(creatorId) &&
+              sameJsonValue(score.value, creatorValue),
+          ),
+        `Creator annotate mode did not keep own pending-review draft: ${JSON.stringify(
+          creatorOwnDetail,
+        )}.`,
+      );
+      const creatorReviewDetail = await client.get(creatorAnnotatePath, {
+        query: reviewWorkflowEnabled
+          ? { review_status: "pending_review", include_completed: true }
+          : {
+              view_mode: "review",
+              include_completed: true,
+              include_all_annotations: true,
+            },
+      });
+      assert(
+        asArray(creatorReviewDetail.annotations).some(
+          (score) => String(score.annotator) === String(creatorId),
+        ),
+        "Creator review mode could not open the mode-test item.",
+      );
+      let selfReviewStatus = null;
+      if (reviewWorkflowEnabled) {
+        const selfReview = await expectHttpError(
+          () => client.post(creatorReviewPath, { action: "approve" }),
+          403,
+          "cannot review your own annotation",
+        );
+        selfReviewStatus = selfReview.status;
+      }
+
+      const altAnnotatePath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/annotate-detail/",
+        queue.id,
+        { id: altItem.id },
+      );
+      const altSubmitPath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/annotations/submit/",
+        queue.id,
+        { id: altItem.id },
+      );
+      const altCompletePath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/complete/",
+        queue.id,
+        { id: altItem.id },
+      );
+      const altReviewPath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/review/",
+        queue.id,
+        { id: altItem.id },
+      );
+      const altValue = { text: `alternate annotator value ${runId}` };
+      await altClient.get(altAnnotatePath, {
+        query: { include_completed: true },
+      });
+      await altClient.post(altSubmitPath, {
+        annotations: [
+          {
+            label_id: label.id,
+            value: altValue,
+            notes: `alternate annotator note ${runId}`,
+          },
+        ],
+      });
+      await altClient.post(altCompletePath, {
+        exclude: [creatorItem.id, altItem.id],
+      });
+
+      let reviewNextItemId = null;
+      let reviewCommentResult = null;
+      let finalAltDetail;
+      if (reviewWorkflowEnabled) {
+        const reviewNext = await client.get(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/items/next-item/",
+            queue.id,
+          ),
+          { query: { view_mode: "review", review_status: "pending_review" } },
+        );
+        assert(
+          String(reviewNext.item?.id) === String(altItem.id),
+          `Review navigation did not choose the non-self pending-review item: ${JSON.stringify(
+            reviewNext,
+          )}.`,
+        );
+        reviewNextItemId = reviewNext.item?.id || null;
+
+        const pendingReviewItems = asArray(
+          await client.get(
+            queuePath(
+              "/model-hub/annotation-queues/{queue_id}/items/",
+              queue.id,
+            ),
+            { query: { review_status: "pending_review", limit: 100 } },
+          ),
+        );
+        assert(
+          pendingReviewItems.some(
+            (item) => String(item.id) === String(creatorItem.id),
+          ) &&
+            pendingReviewItems.some(
+              (item) => String(item.id) === String(altItem.id),
+            ),
+          `Pending-review list did not expose both mode-test items: ${JSON.stringify(
+            pendingReviewItems,
+          )}.`,
+        );
+      }
+
+      const altReviewDetail = await client.get(altAnnotatePath, {
+        query: reviewWorkflowEnabled
+          ? { view_mode: "review", review_status: "pending_review" }
+          : {
+              view_mode: "review",
+              include_completed: true,
+              include_all_annotations: true,
+            },
+      });
+      assert(
+        (reviewWorkflowEnabled
+          ? altReviewDetail.item?.review_status === "pending_review"
+          : altReviewDetail.item?.status === "completed") &&
+          asArray(altReviewDetail.annotations).some(
+            (score) =>
+              String(score.annotator) === String(altUserId) &&
+              sameJsonValue(score.value, altValue),
+          ),
+        "Creator review mode did not load alternate annotator submission.",
+      );
+
+      if (reviewWorkflowEnabled) {
+        const approveNote = `all-role reviewer approved ${runId}`;
+        const approved = await client.post(altReviewPath, {
+          action: "approve",
+          notes: approveNote,
+        });
+        assert(
+          approved.action === "approve" &&
+            asArray(approved.review_comments).some(
+              (comment) =>
+                comment.action === "approve" && comment.comment === approveNote,
+            ),
+          `Approve response did not include reviewer approval comment: ${JSON.stringify(
+            approved,
+          )}.`,
+        );
+        finalAltDetail = await client.get(altAnnotatePath, {
+          query: { include_completed: true, include_all_annotations: true },
+        });
+        assert(
+          finalAltDetail.item?.status === "completed" &&
+            finalAltDetail.item?.review_status === "approved",
+          `Approved alternate item did not reload as completed/approved: ${JSON.stringify(
+            finalAltDetail.item,
+          )}.`,
+        );
+      } else {
+        const commentText = `all-role review-mode comment ${runId}`;
+        const reviewComment = await client.post(altReviewPath, {
+          action: "comment",
+          notes: commentText,
+        });
+        assert(
+          reviewComment.action === "comment" &&
+            asArray(reviewComment.review_comments).some(
+              (comment) =>
+                comment.action === "comment" && comment.comment === commentText,
+            ),
+          `Review-mode comment did not persist on non-review queue: ${JSON.stringify(
+            reviewComment,
+          )}.`,
+        );
+        reviewCommentResult = "comment_saved";
+        finalAltDetail = await client.get(altAnnotatePath, {
+          query: { include_completed: true, include_all_annotations: true },
+        });
+        assert(
+          finalAltDetail.item?.status === "completed" &&
+            !finalAltDetail.item?.review_status,
+          `Non-review alternate item did not stay completed without review status: ${JSON.stringify(
+            finalAltDetail.item,
+          )}.`,
+        );
+      }
+
+      const queueAudit = await loadQueueStatusDbAudit(queue.id);
+      const creatorMemberAudit = await loadQueueMemberDbAudit(
+        queue.id,
+        creatorId,
+      );
+      const altMemberAudit = await loadQueueMemberDbAudit(queue.id, altUserId);
+      const metricsAudit = await loadQueueMetricsDbAudit(queue.id, creatorId);
+      const creatorItemAudit = await loadQueueItemDbAudit(creatorItem.id);
+      const altItemAudit = await loadQueueItemDbAudit(altItem.id);
+      assert(
+        queueAudit.requires_review === reviewWorkflowEnabled &&
+          String(queueAudit.organization_id) === String(organizationId) &&
+          String(queueAudit.workspace_id) === String(workspaceId) &&
+          sameJsonValue(asArray(creatorMemberAudit.member?.roles), [
+            "manager",
+            "reviewer",
+            "annotator",
+          ]) &&
+          sameJsonValue(asArray(altMemberAudit.member?.roles), ["annotator"]),
+        `Multi-role DB membership audit mismatch: ${JSON.stringify({
+          queueAudit,
+          creatorMemberAudit,
+          altMemberAudit,
+        })}.`,
+      );
+      const scoreRows = asArray(metricsAudit.scores);
+      assert(
+        scoreRows.some(
+          (score) =>
+            String(score.queue_item_id) === String(creatorItem.id) &&
+            String(score.annotator_id) === String(creatorId) &&
+            sameJsonValue(score.value, creatorValue),
+        ) &&
+          scoreRows.some(
+            (score) =>
+              String(score.queue_item_id) === String(altItem.id) &&
+              String(score.annotator_id) === String(altUserId) &&
+              sameJsonValue(score.value, altValue),
+          ) &&
+          creatorItemAudit.status ===
+            (reviewWorkflowEnabled ? "in_progress" : "completed") &&
+          altItemAudit.status === "completed" &&
+          Number(creatorItemAudit.active_scores) === 1 &&
+          Number(altItemAudit.active_scores) === 1 &&
+          Number(altItemAudit.active_review_comments) >= 1,
+        `Multi-role DB item/score audit mismatch: ${JSON.stringify({
+          metricsAudit,
+          creatorItemAudit,
+          altItemAudit,
+        })}.`,
+      );
+
+      evidence.push({
+        queue_id: queue.id,
+        label_id: label.id,
+        creator_id: creatorId,
+        alt_annotator_id: altUserId,
+        creator_roles: creatorMemberAudit.member?.roles,
+        alt_roles: altMemberAudit.member?.roles,
+        review_workflow_mode: reviewWorkflowMode,
+        creator_item_id: creatorItem.id,
+        alt_item_id: altItem.id,
+        creator_self_review_status: selfReviewStatus,
+        review_comment_result: reviewCommentResult,
+        review_next_item_id: reviewNextItemId,
+        final_alt_status: finalAltDetail.item?.status,
+        final_alt_review_status: finalAltDetail.item?.review_status,
+        db_score_count: scoreRows.length,
+        alt_review_comment_count: altItemAudit.active_review_comments,
+      });
+    },
+  },
+  {
+    id: "MUR-API-002",
+    title: "Bulk assignment refreshes annotator and reviewer queues",
+    tags: ["annotation", "mutating", "multi-user", "assignment", "review"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      runId,
+      user,
+      workspaceId,
+    }) {
+      requireMutations();
+      const managerId = assertCurrentUserResolved(user);
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (!altToken) {
+        skip(
+          "Set API_JOURNEY_ALT_ACCESS_TOKEN for a second workspace annotator to run multi-user assignment refresh coverage.",
+        );
+      }
+      const altClient = createApiClient({
+        apiBase,
+        accessToken: altToken,
+        organizationId,
+        workspaceId,
+      });
+      const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+      const altUserId = currentUserId(altUser);
+      assert(altUserId, "Alternate annotator user id could not be resolved.");
+      if (String(altUserId) === String(managerId)) {
+        skip("Alternate token resolved to the manager user.");
+      }
+
+      const sample = await resolveTraceAndSpanSample(client);
+      const queue = await resolveReviewQueueWithAnnotator(
+        client,
+        altUserId,
+        evidence,
+      );
+      const queueId = queue.id;
+
+      const altQueueDetail = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/", { id: queueId }),
+      );
+      assert(
+        asArray(altQueueDetail.viewer_roles).includes("annotator"),
+        `Alternate user must have annotator visibility before assignment: ${JSON.stringify(
+          altQueueDetail.viewer_roles,
+        )}.`,
+      );
+
+      const itemPayload = {
+        source_type: "observation_span",
+        source_id: sample.spanId,
+        status: "pending",
+        priority: 5,
+        order: 8201,
+        metadata: { api_journey: runId, stage: "multi-user-bulk-assign" },
+      };
+      const item = await client.post(
+        queuePath("/model-hub/annotation-queues/{queue_id}/items/", queueId),
+        itemPayload,
+      );
+      assert(item?.id, "Multi-user assignment item create returned no id.");
+      cleanup.defer("delete multi-user assignment queue item", () =>
+        deleteQueueItemIfPresent(client, queueId, item.id),
+      );
+
+      const assigned = await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/assign/",
+          queueId,
+        ),
+        {
+          item_ids: [item.id],
+          user_ids: [altUserId],
+          action: "set",
+        },
+      );
+      assert(
+        Number(assigned.assigned) === 1,
+        `Multi-user assign returned wrong count: ${JSON.stringify(assigned)}.`,
+      );
+      cleanup.defer("clear multi-user assignment item assignment", () =>
+        client.post(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/items/assign/",
+            queueId,
+          ),
+          {
+            item_ids: [item.id],
+            user_ids: [],
+            action: "set",
+          },
+        ),
+      );
+
+      const altAssignedItems = asArray(
+        await altClient.get(
+          queuePath("/model-hub/annotation-queues/{queue_id}/items/", queueId),
+          {
+            query: {
+              assigned_to: "me",
+              status: ["pending", "in_progress", "completed", "skipped"],
+              limit: 500,
+              ordering: "-created_at",
+            },
+          },
+        ),
+      );
+      assert(
+        altAssignedItems.some((row) => String(row.id) === String(item.id)),
+        "Alternate assigned-to-me list did not include the manager-assigned item immediately.",
+      );
+
+      const managerItems = asArray(
+        await client.get(
+          queuePath("/model-hub/annotation-queues/{queue_id}/items/", queueId),
+          {
+            query: {
+              status: ["pending", "in_progress", "completed", "skipped"],
+              source_type: ["observation_span"],
+              limit: 500,
+              ordering: "-created_at",
+            },
+          },
+        ),
+      );
+      const managerListItem = managerItems.find(
+        (row) => String(row.id) === String(item.id),
+      );
+      assert(
+        managerListItem &&
+          String(managerListItem.assigned_to || "") === String(altUserId),
+        `Manager item list did not refresh with alternate assignment: ${JSON.stringify(
+          managerListItem,
+        )}.`,
+      );
+
+      const itemDetail = await client.get(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/",
+          queueId,
+          { id: item.id },
+        ),
+      );
+      assert(
+        String(itemDetail.assigned_to || "") === String(altUserId) &&
+          asArray(itemDetail.assigned_users).some(
+            (assignedUser) => String(assignedUser.id) === String(altUserId),
+          ),
+        `Assigned item detail did not include alternate annotator: ${JSON.stringify(
+          itemDetail,
+        )}.`,
+      );
+
+      const progressAfterAssign = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/progress/", {
+          id: queueId,
+        }),
+      );
+      const altStatsAfterAssign = asArray(
+        progressAfterAssign.annotator_stats,
+      ).find((stats) => String(stats.user_id) === String(altUserId));
+      assert(
+        Number(altStatsAfterAssign?.pending || 0) >= 1,
+        `Manager progress did not count alternate pending assignment: ${JSON.stringify(
+          progressAfterAssign,
+        )}.`,
+      );
+
+      const altProgressAfterAssign = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/progress/", {
+          id: queueId,
+        }),
+      );
+      assert(
+        Number(altProgressAfterAssign.user_progress?.pending || 0) >= 1,
+        `Alternate progress did not count its assigned pending item: ${JSON.stringify(
+          altProgressAfterAssign,
+        )}.`,
+      );
+
+      const assignedDbAudit = await loadQueueItemDbAudit(item.id);
+      assertQueueItemDbState(assignedDbAudit, {
+        queueId,
+        organizationId,
+        workspaceId,
+        sourceType: itemPayload.source_type,
+        sourceId: itemPayload.source_id,
+        status: "pending",
+        priority: itemPayload.priority,
+        order: itemPayload.order,
+        metadataStage: itemPayload.metadata.stage,
+        deleted: false,
+      });
+      assert(
+        String(assignedDbAudit.assigned_to_id || "") === String(altUserId) &&
+          Number(assignedDbAudit.active_assignments) === 1 &&
+          asArray(assignedDbAudit.assignment_user_ids).some(
+            (assignedUserId) => String(assignedUserId) === String(altUserId),
+          ),
+        `Assigned DB state did not include alternate annotator: ${JSON.stringify(
+          assignedDbAudit,
+        )}.`,
+      );
+
+      const annotatePath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/annotate-detail/",
+        queueId,
+        { id: item.id },
+      );
+      const submitPath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/annotations/submit/",
+        queueId,
+        { id: item.id },
+      );
+      const completePath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/complete/",
+        queueId,
+        { id: item.id },
+      );
+
+      const altDetail = await altClient.get(annotatePath, {
+        query: { include_completed: true, include_all_annotations: true },
+      });
+      assert(
+        altDetail?.item?.id === item.id,
+        "Alternate annotator could not open the manager-assigned item.",
+      );
+      const labels = asArray(altDetail.labels).filter((label) =>
+        labelId(label),
+      );
+      const requiredLabels = labels.filter((label) => label.required);
+      const labelsToSubmit = requiredLabels.length ? requiredLabels : labels;
+      assert(
+        labelsToSubmit.length > 0,
+        "Assigned review item did not expose labels to submit.",
+      );
+
+      const submittedValues = new Map();
+      const annotations = labelsToSubmit.map((label, index) => {
+        const value = reviewAnnotationValue(label, runId, `assigned-${index}`);
+        submittedValues.set(String(labelId(label)), value);
+        return {
+          label_id: labelId(label),
+          value,
+          notes: label.allow_notes ? `assigned label note ${runId}` : "",
+        };
+      });
+      const submitted = await altClient.post(submitPath, {
+        annotations,
+        item_notes: `assigned item note ${runId}`,
+      });
+      assert(
+        Number(submitted.submitted || 0) === annotations.length,
+        `Alternate assignment submission count mismatch: ${JSON.stringify(
+          submitted,
+        )}.`,
+      );
+      const completed = await altClient.post(completePath, {
+        exclude: [item.id],
+      });
+      assert(
+        completed.completed_item_id === item.id,
+        "Alternate complete did not echo the manager-assigned item id.",
+      );
+
+      const altAssignedAfterSubmit = asArray(
+        await altClient.get(
+          queuePath("/model-hub/annotation-queues/{queue_id}/items/", queueId),
+          {
+            query: {
+              assigned_to: "me",
+              status: ["pending", "in_progress", "completed", "skipped"],
+              limit: 500,
+              ordering: "-created_at",
+            },
+          },
+        ),
+      );
+      const altAfterSubmitItem = altAssignedAfterSubmit.find(
+        (row) => String(row.id) === String(item.id),
+      );
+      assert(
+        altAfterSubmitItem &&
+          altAfterSubmitItem.review_status === "pending_review",
+        `Alternate assigned-to-me list did not refresh to pending_review after submit: ${JSON.stringify(
+          altAfterSubmitItem,
+        )}.`,
+      );
+
+      const reviewItems = asArray(
+        await client.get(
+          queuePath("/model-hub/annotation-queues/{queue_id}/items/", queueId),
+          {
+            query: {
+              review_status: "pending_review",
+              limit: 500,
+              ordering: "-created_at",
+            },
+          },
+        ),
+      );
+      assert(
+        reviewItems.some((row) => String(row.id) === String(item.id)),
+        "Manager/reviewer pending-review list did not include the submitted assignment.",
+      );
+
+      const reviewerDetail = await client.get(annotatePath, {
+        query: {
+          view_mode: "review",
+          review_status: "pending_review",
+          include_all_annotations: true,
+        },
+      });
+      assert(
+        reviewerDetail.item?.review_status === "pending_review" &&
+          asArray(reviewerDetail.annotations).some(
+            (score) =>
+              String(score.annotator) === String(altUserId) &&
+              submittedValues.has(String(score.label_id)) &&
+              sameJsonValue(
+                score.value,
+                submittedValues.get(String(score.label_id)),
+              ),
+          ),
+        "Manager/reviewer detail did not reload alternate submitted score.",
+      );
+
+      const progressAfterSubmit = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/progress/", {
+          id: queueId,
+        }),
+      );
+      const altStatsAfterSubmit = asArray(
+        progressAfterSubmit.annotator_stats,
+      ).find((stats) => String(stats.user_id) === String(altUserId));
+      assert(
+        Number(altStatsAfterSubmit?.in_review || 0) >= 1 &&
+          Number(altStatsAfterSubmit?.annotations_count || 0) >=
+            annotations.length,
+        `Manager progress did not move alternate assignment into review: ${JSON.stringify(
+          progressAfterSubmit,
+        )}.`,
+      );
+
+      const altProgressAfterSubmit = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/progress/", {
+          id: queueId,
+        }),
+      );
+      assert(
+        Number(altProgressAfterSubmit.user_progress?.in_review || 0) >= 1 &&
+          Number(altProgressAfterSubmit.user_progress?.completed || 0) >= 1,
+        `Alternate progress did not reflect submitted pending-review work: ${JSON.stringify(
+          altProgressAfterSubmit,
+        )}.`,
+      );
+
+      const metricsAudit = await loadQueueMetricsDbAudit(queueId, altUserId);
+      const dbItem = asArray(metricsAudit.items).find(
+        (row) => String(row.id) === String(item.id),
+      );
+      const dbAssignments = asArray(metricsAudit.assignments).filter(
+        (row) => String(row.queue_item_id) === String(item.id),
+      );
+      const dbScores = asArray(metricsAudit.scores).filter(
+        (score) => String(score.queue_item_id) === String(item.id),
+      );
+      assert(
+        dbItem?.status === "in_progress" &&
+          dbItem.review_status === "pending_review" &&
+          String(dbItem.assigned_to || "") === String(altUserId) &&
+          dbAssignments.length === 1 &&
+          String(dbAssignments[0].user_id) === String(altUserId) &&
+          dbScores.length === annotations.length &&
+          dbScores.every(
+            (score) =>
+              String(score.annotator_id) === String(altUserId) &&
+              submittedValues.has(String(score.label_id)) &&
+              sameJsonValue(
+                score.value,
+                submittedValues.get(String(score.label_id)),
+              ),
+          ),
+        `Multi-user assignment DB metrics mismatch: ${JSON.stringify({
+          dbItem,
+          dbAssignments,
+          dbScores,
+        })}.`,
+      );
+
+      evidence.push({
+        queue_id: queueId,
+        queue_name: queue.name,
+        item_id: item.id,
+        manager_id: managerId,
+        annotator_id: altUserId,
+        assigned_response_count: assigned.assigned,
+        assigned_to_me_before_submit: altAssignedItems.filter(
+          (row) => String(row.id) === String(item.id),
+        ).length,
+        manager_list_refreshed: Boolean(managerListItem),
+        labels_submitted: annotations.length,
+        review_list_item_count: reviewItems.filter(
+          (row) => String(row.id) === String(item.id),
+        ).length,
+        final_item_status: dbItem.status,
+        final_review_status: dbItem.review_status,
+        db_assignment_count: dbAssignments.length,
+        db_score_count: dbScores.length,
+        alt_pending_after_assign: altProgressAfterAssign.user_progress?.pending,
+        alt_completed_after_submit:
+          altProgressAfterSubmit.user_progress?.completed,
+        alt_in_review_after_submit:
+          altProgressAfterSubmit.user_progress?.in_review,
+      });
+    },
+  },
+  {
+    id: "MUR-API-003",
+    title: "Mentioned member discussion read/reply lifecycle",
+    tags: ["annotation", "mutating", "multi-user", "comments", "db-audit"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      runId,
+      user,
+      workspaceId,
+    }) {
+      requireMutations();
+      const managerId = assertCurrentUserResolved(user);
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (!altToken) {
+        skip(
+          "Set API_JOURNEY_ALT_ACCESS_TOKEN for a second workspace member to run mention collaboration coverage.",
+        );
+      }
+      const altClient = createApiClient({
+        apiBase,
+        accessToken: altToken,
+        organizationId,
+        workspaceId,
+      });
+      const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+      const altUserId = currentUserId(altUser);
+      const altEmail = currentUserEmail(altUser);
+      assert(altUserId, "Mentioned alternate user id could not be resolved.");
+      if (String(altUserId) === String(managerId)) {
+        skip("Alternate token resolved to the manager user.");
+      }
+
+      const sample = await resolveTraceAndSpanSample(client);
+      const queue = await resolveManagerQueueWithoutSource(
+        client,
+        "trace",
+        sample.traceId,
+        sample.projectId,
+        evidence,
+      );
+      await ensureExplicitQueueMember(
+        client,
+        queue,
+        managerId,
+        cleanup,
+        evidence,
+        {
+          reason: "multi-user mention manager coverage",
+          roles: ["manager", "reviewer", "annotator"],
+        },
+      );
+      await ensureTemporaryAnnotatorMember(
+        client,
+        queue,
+        altUserId,
+        cleanup,
+        evidence,
+      );
+      const altQueueDetail = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }),
+      );
+      assert(
+        asArray(altQueueDetail.viewer_roles).includes("annotator"),
+        `Alternate user must be a queue member to read mentions: ${JSON.stringify(
+          altQueueDetail.viewer_roles,
+        )}.`,
+      );
+
+      const itemPayload = {
+        source_type: "trace",
+        source_id: sample.traceId,
+        status: "pending",
+        priority: 4,
+        order: 8301,
+        metadata: { api_journey: runId, stage: "multi-user-mention" },
+      };
+      const item = await client.post(
+        queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
+        itemPayload,
+      );
+      assert(
+        item?.id,
+        "Mention journey direct queue item create returned no id.",
+      );
+      cleanup.defer("delete multi-user mention queue item", () =>
+        deleteQueueItemIfPresent(client, queue.id, item.id),
+      );
+
+      const marker = `api-journey-mention ${runId}`;
+      const rootText = `${marker} root for @${altEmail || "alt-user"}`;
+      const discussionPath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/",
+        queue.id,
+        { id: item.id },
+      );
+      const created = await client.post(discussionPath, {
+        comment: rootText,
+        mentioned_user_ids: [
+          String(altUserId),
+          ...(altEmail ? [`@${String(altEmail).toUpperCase()}`] : []),
+        ],
+      });
+      const commentId = created?.comment?.id;
+      const threadId = created?.thread?.id || created?.comment?.thread;
+      assert(commentId, "Mention create did not return comment.id.");
+      assert(threadId, "Mention create did not return thread.id.");
+      assert(
+        asArray(created.comment?.mentioned_users).some(
+          (mentioned) => String(mentioned.id) === String(altUserId),
+        ),
+        `Mention create did not preserve alternate user mention: ${JSON.stringify(
+          created.comment?.mentioned_users,
+        )}.`,
+      );
+
+      const altRead = await altClient.get(discussionPath);
+      assert(
+        asArray(altRead.review_threads).some(
+          (thread) => String(thread.id) === String(threadId),
+        ) &&
+          asArray(altRead.review_comments).some(
+            (comment) =>
+              String(comment.id) === String(commentId) &&
+              asArray(comment.mentioned_users).some(
+                (mentioned) => String(mentioned.id) === String(altUserId),
+              ),
+          ),
+        "Mentioned alternate user could not read the thread and explicit mention.",
+      );
+
+      const altSearch = await altClient.get(discussionPath, {
+        query: { search: marker },
+      });
+      assert(
+        asArray(altSearch.review_comments).some(
+          (comment) => String(comment.id) === String(commentId),
+        ),
+        "Mentioned alternate user search did not find the root mention.",
+      );
+
+      const replyText = `${marker} alternate reply`;
+      const altReply = await altClient.post(discussionPath, {
+        comment: replyText,
+        thread_id: threadId,
+      });
+      const replyId = altReply?.comment?.id;
+      assert(replyId, "Mentioned alternate reply did not return comment.id.");
+      assert(
+        String(
+          altReply.comment?.reviewer?.id || altReply.comment?.reviewer_id,
+        ) === String(altUserId),
+        `Mentioned alternate reply was not attributed to the alternate user: ${JSON.stringify(
+          altReply.comment,
+        )}.`,
+      );
+
+      const altReacted = await altClient.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/comments/{comment_id}/reaction/",
+          queue.id,
+          { id: item.id, comment_id: commentId },
+        ),
+        { emoji: "\u{1F44D}" },
+      );
+      const reactedComment =
+        altReacted.comment ||
+        asArray(altReacted.review_comments).find(
+          (row) => String(row.id) === String(commentId),
+        );
+      const reactions = Array.isArray(reactedComment?.reactions)
+        ? reactedComment.reactions
+        : Object.entries(reactedComment?.reactions || {}).map(
+            ([emoji, userIds]) => ({
+              emoji,
+              user_ids: Array.isArray(userIds) ? userIds : [],
+            }),
+          );
+      assert(
+        reactions.some(
+          (reaction) =>
+            reaction.emoji === "\u{1F44D}" &&
+            asArray(reaction.user_ids).some(
+              (userId) => String(userId) === String(altUserId),
+            ),
+        ),
+        "Alternate reaction payload did not contain the alternate user.",
+      );
+
+      const managerSearch = await client.get(discussionPath, {
+        query: { search: marker },
+      });
+      assert(
+        asArray(managerSearch.review_comments).some(
+          (comment) => String(comment.id) === String(commentId),
+        ) &&
+          asArray(managerSearch.review_comments).some(
+            (comment) => String(comment.id) === String(replyId),
+          ),
+        "Manager search did not return both root and alternate reply comments.",
+      );
+
+      const resolved = await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/{thread_id}/resolve/",
+          queue.id,
+          { id: item.id, thread_id: threadId },
+        ),
+        { comment: `${marker} manager resolve` },
+      );
+      const resolvedThread =
+        resolved.thread ||
+        asArray(resolved.review_threads).find(
+          (thread) => String(thread.id) === String(threadId),
+        );
+      assert(
+        resolvedThread?.status === "resolved",
+        "Manager resolve did not mark mentioned thread resolved.",
+      );
+      const resolveCommentId = resolved?.comment?.id || null;
+
+      const reopened = await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/{thread_id}/reopen/",
+          queue.id,
+          { id: item.id, thread_id: threadId },
+        ),
+        { comment: `${marker} manager reopen` },
+      );
+      const reopenedThread =
+        reopened.thread ||
+        asArray(reopened.review_threads).find(
+          (thread) => String(thread.id) === String(threadId),
+        );
+      assert(
+        reopenedThread?.status === "reopened",
+        "Manager reopen did not mark mentioned thread reopened.",
+      );
+      const reopenCommentId = reopened?.comment?.id || null;
+
+      const altReload = await altClient.get(discussionPath);
+      assert(
+        asArray(altReload.review_threads).some(
+          (thread) =>
+            String(thread.id) === String(threadId) &&
+            thread.status === "reopened",
+        ) &&
+          asArray(altReload.review_comments).some(
+            (comment) => String(comment.id) === String(replyId),
+          ),
+        "Mentioned alternate user could not reload the reopened thread and reply.",
+      );
+
+      const activeDbAudit = await loadDiscussionDbAudit(threadId);
+      assertDiscussionDbState(activeDbAudit, {
+        queueItemId: item.id,
+        organizationId,
+        workspaceId,
+        threadStatus: "reopened",
+        expectedDeleted: false,
+        rootCommentId: commentId,
+        replyCommentId: replyId,
+        resolveCommentId,
+        reopenCommentId,
+        userId: altUserId,
+        emoji: "\u{1F44D}",
+      });
+      const rootDbComment = asArray(activeDbAudit.comments).find(
+        (comment) => String(comment.id) === String(commentId),
+      );
+      const replyDbComment = asArray(activeDbAudit.comments).find(
+        (comment) => String(comment.id) === String(replyId),
+      );
+      assert(
+        String(rootDbComment?.reviewer_id) === String(managerId) &&
+          String(replyDbComment?.reviewer_id) === String(altUserId),
+        `Mention DB audit attribution mismatch: ${JSON.stringify(
+          activeDbAudit.comments,
+        )}.`,
+      );
+
+      await deleteQueueItemIfPresent(client, queue.id, item.id);
+      const cleanupDbAudit = await loadDiscussionDbAudit(threadId);
+      assertDiscussionDbState(cleanupDbAudit, {
+        queueItemId: item.id,
+        organizationId,
+        workspaceId,
+        threadStatus: "reopened",
+        expectedDeleted: true,
+        rootCommentId: commentId,
+        replyCommentId: replyId,
+        resolveCommentId,
+        reopenCommentId,
+        userId: altUserId,
+        emoji: "\u{1F44D}",
+      });
+
+      evidence.push({
+        queue_id: queue.id,
+        queue_name: queue.name,
+        item_id: item.id,
+        trace_id: sample.traceId,
+        manager_id: managerId,
+        mentioned_user_id: altUserId,
+        root_comment_id: commentId,
+        reply_comment_id: replyId,
+        thread_id: threadId,
+        resolve_comment_id: resolveCommentId,
+        reopen_comment_id: reopenCommentId,
+        alt_search_matches: asArray(altSearch.review_comments).length,
+        manager_search_matches: asArray(managerSearch.review_comments).length,
+        db_comment_count: activeDbAudit.comments.length,
+        cleanup_deleted_thread: cleanupDbAudit.thread.deleted,
+      });
+    },
+  },
+  {
+    id: "MUR-API-004",
+    title: "Legacy queue role backfill preserves member access",
+    tags: ["annotation", "mutating", "multi-user", "migration", "db-audit"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      runId,
+      user,
+      workspaceId,
+    }) {
+      requireMutations();
+      const backendContainer = await requireBackendContainerForJourney();
+      const creatorId = assertCurrentUserResolved(user);
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (!altToken) {
+        skip(
+          "Set API_JOURNEY_ALT_ACCESS_TOKEN for a second workspace member to run legacy role backfill coverage.",
+        );
+      }
+      const altClient = createApiClient({
+        apiBase,
+        accessToken: altToken,
+        organizationId,
+        workspaceId,
+      });
+      const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+      const reviewerId = currentUserId(altUser);
+      assert(reviewerId, "Legacy role alternate user id could not be resolved.");
+      if (String(reviewerId) === String(creatorId)) {
+        skip("Alternate token resolved to the creator user.");
+      }
+
+      const namePrefix = `api journey legacy roles ${runId}`;
+      cleanup.defer("hard-delete legacy role DB fixtures", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+
+      const preflight = await loadLegacyRoleBackfillPreflightDb(namePrefix);
+      const fixtures = await insertLegacyQueueRoleFixturesDb({
+        namePrefix,
+        organizationId,
+        workspaceId,
+        creatorId,
+        reviewerId,
+      });
+      assert(
+        fixtures?.legacy_queue_id && fixtures?.missing_creator_queue_id,
+        `Legacy role fixture insert returned no queue ids: ${JSON.stringify(
+          fixtures,
+        )}.`,
+      );
+
+      const beforeAudit = await loadLegacyRoleFixtureAuditDb({
+        namePrefix,
+        creatorId,
+        reviewerId,
+      });
+      const legacyCreatorBefore = findLegacyRoleAuditMember(
+        beforeAudit,
+        fixtures.legacy_queue_id,
+        creatorId,
+      );
+      const legacyReviewerBefore = findLegacyRoleAuditMember(
+        beforeAudit,
+        fixtures.legacy_queue_id,
+        reviewerId,
+      );
+      assert(
+        legacyCreatorBefore?.role === "manager" &&
+          sameJsonValue(asArray(legacyCreatorBefore.roles), []) &&
+          legacyReviewerBefore?.role === "reviewer" &&
+          sameJsonValue(asArray(legacyReviewerBefore.roles), []) &&
+          Number(beforeAudit.missing_creator_membership_count) === 1,
+        `Legacy fixture did not start in pre-backfill shape: ${JSON.stringify(
+          beforeAudit,
+        )}.`,
+      );
+
+      const creatorLegacyBeforeDetail = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.legacy_queue_id,
+        }),
+      );
+      const reviewerLegacyBeforeDetail = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.legacy_queue_id,
+        }),
+      );
+      const creatorMemberBefore = asArray(
+        creatorLegacyBeforeDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(creatorId));
+      const reviewerMemberBefore = asArray(
+        reviewerLegacyBeforeDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(reviewerId));
+      assert(
+        sameJsonValue(asArray(creatorMemberBefore?.roles), ["manager"]) &&
+          asArray(reviewerLegacyBeforeDetail.viewer_roles).includes("reviewer") &&
+          sameJsonValue(asArray(reviewerMemberBefore?.roles), ["reviewer"]),
+        `Legacy fallback API roles did not preserve pre-backfill access: ${JSON.stringify(
+          {
+            creatorMemberBefore,
+            reviewerViewerRoles: reviewerLegacyBeforeDetail.viewer_roles,
+            reviewerMemberBefore,
+          },
+        )}.`,
+      );
+
+      const dryRun = await runBackendManageCommand(
+        backendContainer,
+        "backfill_annotation_queue_roles",
+        ["--dry-run"],
+      );
+      const dryRunSummary = parseAnnotationQueueRoleBackfillSummary(
+        dryRun.stdout,
+      );
+      assert(
+        dryRunSummary.dryRun &&
+          dryRunSummary.updated >= 2 &&
+          dryRunSummary.created >= 1,
+        `Legacy role dry-run summary did not include fixture rows: ${dryRun.stdout}`,
+      );
+
+      const afterDryRunAudit = await loadLegacyRoleFixtureAuditDb({
+        namePrefix,
+        creatorId,
+        reviewerId,
+      });
+      assert(
+        sameJsonValue(
+          asArray(
+            findLegacyRoleAuditMember(
+              afterDryRunAudit,
+              fixtures.legacy_queue_id,
+              creatorId,
+            )?.roles,
+          ),
+          [],
+        ) &&
+          Number(afterDryRunAudit.missing_creator_membership_count) === 1,
+        `Legacy role dry-run mutated fixture rows: ${JSON.stringify(
+          afterDryRunAudit,
+        )}.`,
+      );
+
+      const backfill = await runBackendManageCommand(
+        backendContainer,
+        "backfill_annotation_queue_roles",
+      );
+      const backfillSummary = parseAnnotationQueueRoleBackfillSummary(
+        backfill.stdout,
+      );
+      assert(
+        !backfillSummary.dryRun &&
+          backfillSummary.updated >= 2 &&
+          backfillSummary.created >= 1,
+        `Legacy role backfill summary did not include fixture rows: ${backfill.stdout}`,
+      );
+
+      const afterAudit = await loadLegacyRoleFixtureAuditDb({
+        namePrefix,
+        creatorId,
+        reviewerId,
+      });
+      const legacyCreatorAfter = findLegacyRoleAuditMember(
+        afterAudit,
+        fixtures.legacy_queue_id,
+        creatorId,
+      );
+      const legacyReviewerAfter = findLegacyRoleAuditMember(
+        afterAudit,
+        fixtures.legacy_queue_id,
+        reviewerId,
+      );
+      const missingCreatorAfter = findLegacyRoleAuditMember(
+        afterAudit,
+        fixtures.missing_creator_queue_id,
+        creatorId,
+      );
+      assert(
+        sameJsonValue(asArray(legacyCreatorAfter?.roles), [
+          "manager",
+          "reviewer",
+          "annotator",
+        ]) &&
+          legacyCreatorAfter?.role === "manager" &&
+          sameJsonValue(asArray(legacyReviewerAfter?.roles), ["reviewer"]) &&
+          legacyReviewerAfter?.role === "reviewer" &&
+          sameJsonValue(asArray(missingCreatorAfter?.roles), [
+            "manager",
+            "reviewer",
+            "annotator",
+          ]) &&
+          Number(afterAudit.missing_creator_membership_count) === 0,
+        `Legacy role backfill DB audit mismatch: ${JSON.stringify(afterAudit)}.`,
+      );
+
+      const creatorLegacyAfterDetail = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.legacy_queue_id,
+        }),
+      );
+      const reviewerLegacyAfterDetail = await altClient.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.legacy_queue_id,
+        }),
+      );
+      const missingCreatorAfterDetail = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: fixtures.missing_creator_queue_id,
+        }),
+      );
+      const creatorMemberAfter = asArray(
+        creatorLegacyAfterDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(creatorId));
+      const reviewerMemberAfter = asArray(
+        reviewerLegacyAfterDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(reviewerId));
+      const missingCreatorMemberAfter = asArray(
+        missingCreatorAfterDetail.annotators,
+      ).find((annotator) => String(annotator.user_id) === String(creatorId));
+      assert(
+        sameJsonValue(asArray(creatorMemberAfter?.roles), [
+          "manager",
+          "reviewer",
+          "annotator",
+        ]) &&
+          sameJsonValue(asArray(missingCreatorMemberAfter?.roles), [
+            "manager",
+            "reviewer",
+            "annotator",
+          ]) &&
+          asArray(reviewerLegacyAfterDetail.viewer_roles).includes("reviewer") &&
+          sameJsonValue(asArray(reviewerMemberAfter?.roles), ["reviewer"]),
+        `Legacy role backfill API readback mismatch: ${JSON.stringify({
+          creatorMemberAfter,
+          missingCreatorMemberAfter,
+          reviewerViewerRoles: reviewerLegacyAfterDetail.viewer_roles,
+          reviewerMemberAfter,
+        })}.`,
+      );
+
+      const cleanupResult = await deleteQueueCreateFixturesDb(namePrefix);
+      const residue = await loadLegacyRoleFixtureResidueDb(namePrefix);
+      assert(
+        Number(cleanupResult.deleted_queues) === 2 &&
+          Number(cleanupResult.deleted_queue_members) === 3 &&
+          Number(residue.matching_queue_count) === 0 &&
+          Number(residue.matching_member_count) === 0,
+        `Legacy role fixture cleanup left residue: ${JSON.stringify({
+          cleanupResult,
+          residue,
+        })}.`,
+      );
+
+      evidence.push({
+        backend_container: backendContainer,
+        legacy_queue_id: fixtures.legacy_queue_id,
+        missing_creator_queue_id: fixtures.missing_creator_queue_id,
+        creator_id: creatorId,
+        reviewer_id: reviewerId,
+        preexisting_stale_memberships: preflight.stale_membership_count,
+        preexisting_missing_creator_memberships:
+          preflight.missing_creator_membership_count,
+        dry_run_updated: dryRunSummary.updated,
+        dry_run_created: dryRunSummary.created,
+        backfill_updated: backfillSummary.updated,
+        backfill_created: backfillSummary.created,
+        creator_roles_after: legacyCreatorAfter.roles,
+        reviewer_roles_after: legacyReviewerAfter.roles,
+        missing_creator_roles_after: missingCreatorAfter.roles,
+        cleanup_deleted_queues: cleanupResult.deleted_queues,
+        cleanup_deleted_members: cleanupResult.deleted_queue_members,
+      });
+    },
+  },
+  {
+    id: "MUR-API-005",
+    title: "Multi-user queue create respects queue pricing limits",
+    tags: ["annotation", "mutating", "multi-user", "limits", "db-audit"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      runId,
+      user,
+      workspaceId,
+    }) {
+      requireMutations();
+      const backendContainer = await requireBackendContainerForJourney();
+      const creatorId = assertCurrentUserResolved(user);
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (!altToken) {
+        skip(
+          "Set API_JOURNEY_ALT_ACCESS_TOKEN for a second workspace member to run multi-user queue limit coverage.",
+        );
+      }
+      const altClient = createApiClient({
+        apiBase,
+        accessToken: altToken,
+        organizationId,
+        workspaceId,
+      });
+      const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+      const altUserId = currentUserId(altUser);
+      assert(altUserId, "Queue limit alternate user id could not be resolved.");
+      if (String(altUserId) === String(creatorId)) {
+        skip("Alternate token resolved to the creator user.");
+      }
+
+      const namePrefix = `api journey multi user limit ${runId}`;
+      let temporaryOverrideId = "";
+      cleanup.defer("clear temporary queue limit entitlement override", () =>
+        clearTemporaryQueueLimitOverride({
+          backendContainer,
+          organizationId,
+          overrideId: temporaryOverrideId,
+        }),
+      );
+      cleanup.defer("hard-delete multi-user limit DB fixtures", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+
+      const before = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      const pricingMode = await loadBackendQueuePricingMode(backendContainer);
+      const payloadFor = (name) => ({
+        name,
+        description: "Disposable queue for multi-user queue limit coverage.",
+        instructions: "Verify pricing limits do not leave member residue.",
+        annotations_required: 1,
+        reservation_timeout_minutes: 30,
+        requires_review: false,
+        auto_assign: false,
+        annotator_ids: [creatorId, altUserId],
+        annotator_roles: {
+          [String(creatorId)]: ["manager", "reviewer", "annotator"],
+          [String(altUserId)]: ["annotator"],
+        },
+      });
+
+      const capacityQueueName = `${namePrefix} capacity holder`;
+      const blockedQueueName = `${namePrefix} blocked`;
+      const retryQueueName = `${namePrefix} retry`;
+
+      if (pricingMode.is_oss) {
+        const firstQueue = await client.post(
+          apiPath("/model-hub/annotation-queues/"),
+          payloadFor(capacityQueueName),
+        );
+        const secondQueue = await client.post(
+          apiPath("/model-hub/annotation-queues/"),
+          payloadFor(blockedQueueName),
+        );
+        assert(firstQueue?.id && secondQueue?.id, "OSS queue creates returned no id.");
+        assertQueueDetailRoles(
+          firstQueue,
+          {
+            [creatorId]: ["manager", "reviewer", "annotator"],
+            [altUserId]: ["annotator"],
+          },
+          "OSS first create response",
+        );
+        assertQueueDetailRoles(
+          secondQueue,
+          {
+            [creatorId]: ["manager", "reviewer", "annotator"],
+            [altUserId]: ["annotator"],
+          },
+          "OSS second create response",
+        );
+
+        const afterOssCreates = await loadQueueLimitDbAudit({
+          organizationId,
+          workspaceId,
+          namePrefix,
+        });
+        assertQueueCountDelta(before, afterOssCreates, 2, "OSS multi-user creates");
+        assert(
+          Number(afterOssCreates.matching_active_member_count) === 4,
+          `OSS multi-user creates did not persist four memberships: ${JSON.stringify(
+            afterOssCreates,
+          )}.`,
+        );
+
+        await hardDeleteQueueIfPresent(client, firstQueue.id, capacityQueueName);
+        await hardDeleteQueueIfPresent(client, secondQueue.id, blockedQueueName);
+        const finalAudit = await loadQueueLimitDbAudit({
+          organizationId,
+          workspaceId,
+          namePrefix,
+        });
+        assertQueueCountDelta(before, finalAudit, 0, "OSS multi-user cleanup");
+
+        evidence.push({
+          backend_container: backendContainer,
+          pricing_mode: pricingMode.mode,
+          is_oss: pricingMode.is_oss,
+          first_queue_id: firstQueue.id,
+          second_queue_id: secondQueue.id,
+          before_org_active_count: before.org_active_count,
+          after_create_org_active_count: afterOssCreates.org_active_count,
+          final_org_active_count: finalAudit.org_active_count,
+          final_matching_total_count: finalAudit.matching_total_count,
+        });
+        return;
+      }
+
+      const temporaryLimit = Number(before.org_active_count) + 1;
+      const override = await setTemporaryQueueLimitOverride({
+        backendContainer,
+        organizationId,
+        limit: temporaryLimit,
+      });
+      assert(
+        override?.limit === temporaryLimit && override?.override_id,
+        `Temporary queue limit override did not return expected data: ${JSON.stringify(
+          override,
+        )}.`,
+      );
+      temporaryOverrideId = override.override_id;
+
+      const capacityQueue = await client.post(
+        apiPath("/model-hub/annotation-queues/"),
+        payloadFor(capacityQueueName),
+      );
+      assert(capacityQueue?.id, "Capacity queue create returned no id.");
+      assertQueueDetailRoles(
+        capacityQueue,
+        {
+          [creatorId]: ["manager", "reviewer", "annotator"],
+          [altUserId]: ["annotator"],
+        },
+        "capacity create response",
+      );
+
+      const afterCapacityCreate = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(
+        before,
+        afterCapacityCreate,
+        1,
+        "multi-user capacity create",
+      );
+      assert(
+        Number(afterCapacityCreate.matching_active_member_count) === 2,
+        `Capacity queue did not create exactly two active memberships: ${JSON.stringify(
+          afterCapacityCreate,
+        )}.`,
+      );
+
+      const blocked = await expectHttpError(
+        () =>
+          client.post(
+            apiPath("/model-hub/annotation-queues/"),
+            payloadFor(blockedQueueName),
+          ),
+        402,
+        "ENTITLEMENT_LIMIT",
+      );
+      const afterBlockedCreate = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assert(
+        Number(afterBlockedCreate.matching_active_count) === 1 &&
+          Number(afterBlockedCreate.matching_total_count) === 1 &&
+          Number(afterBlockedCreate.matching_active_member_count) === 2,
+        `Blocked multi-user create left unexpected queue/member rows: ${JSON.stringify(
+          afterBlockedCreate,
+        )}.`,
+      );
+
+      await hardDeleteQueueIfPresent(
+        client,
+        capacityQueue.id,
+        capacityQueueName,
+      );
+      const afterCapacityDelete = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(
+        before,
+        afterCapacityDelete,
+        0,
+        "multi-user capacity hard delete",
+      );
+
+      const retryQueue = await client.post(
+        apiPath("/model-hub/annotation-queues/"),
+        payloadFor(retryQueueName),
+      );
+      assert(retryQueue?.id, "Retry queue create returned no id.");
+      const retryDetail = await client.get(
+        apiPath("/model-hub/annotation-queues/{id}/", {
+          id: retryQueue.id,
+        }),
+      );
+      assertQueueDetailRoles(
+        retryDetail,
+        {
+          [creatorId]: ["manager", "reviewer", "annotator"],
+          [altUserId]: ["annotator"],
+        },
+        "retry queue detail",
+      );
+
+      const afterRetryCreate = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(
+        before,
+        afterRetryCreate,
+        1,
+        "multi-user retry create",
+      );
+      assert(
+        Number(afterRetryCreate.matching_active_member_count) === 2,
+        `Retry queue did not create exactly two active memberships: ${JSON.stringify(
+          afterRetryCreate,
+        )}.`,
+      );
+
+      await hardDeleteQueueIfPresent(client, retryQueue.id, retryQueueName);
+      const finalAudit = await loadQueueLimitDbAudit({
+        organizationId,
+        workspaceId,
+        namePrefix,
+      });
+      assertQueueCountDelta(before, finalAudit, 0, "multi-user final cleanup");
+
+      const clearOverride = await clearTemporaryQueueLimitOverride({
+        backendContainer,
+        organizationId,
+        overrideId: temporaryOverrideId,
+      });
+      temporaryOverrideId = "";
+      evidence.push({
+        backend_container: backendContainer,
+        pricing_mode: pricingMode.mode,
+        is_oss: pricingMode.is_oss,
+        override_id: override.override_id,
+        override_plan: override.plan,
+        temporary_limit: temporaryLimit,
+        before_org_active_count: before.org_active_count,
+        capacity_queue_id: capacityQueue.id,
+        blocked_status: blocked.status,
+        blocked_error: blocked.body,
+        retry_queue_id: retryQueue.id,
+        final_org_active_count: finalAudit.org_active_count,
+        final_matching_total_count: finalAudit.matching_total_count,
+        clear_override_deleted: clearOverride.deleted,
+      });
+    },
+  },
+  {
+    id: "AQ-API-031",
+    title:
+      "Annotation history, raw scores, value history, and item notes reload",
+    tags: ["annotation", "mutating", "history", "db-audit"],
+    async run({
+      client,
+      cleanup,
+      user,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      const userId = assertCurrentUserResolved(user);
+      const sample = await resolveTraceAndSpanSample(client);
+      const namePrefix = `api journey history ${runId}`;
+      const queueName = `${namePrefix} queue`;
+      const labelName = `${namePrefix} text label`;
+      cleanup.defer("hard-delete annotation history DB fixtures", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+
+      const labelResponse = await client.post(
+        apiPath("/model-hub/annotations-labels/"),
+        {
+          name: labelName,
+          type: "text",
+          description: "Disposable label for annotation history coverage.",
+          settings: {
+            placeholder: "History coverage",
+            min_length: 0,
+            max_length: 500,
+          },
+          allow_notes: true,
+        },
+      );
+      const label = labelResponse?.id
+        ? labelResponse
+        : await findAnnotationLabelByName(client, labelName);
+      assert(label?.id, "Could not resolve created history label.");
+      cleanup.defer("delete annotation history label", () =>
+        deleteAnnotationLabelIfPresent(client, label.id),
+      );
+
+      let queue;
+      let queueCreateMode = "api";
+      try {
+        queue = await client.post(apiPath("/model-hub/annotation-queues/"), {
+          name: queueName,
+          description: "Disposable queue for annotation history coverage.",
+          instructions: "Submit repeated values and verify history readback.",
+          annotations_required: 1,
+          reservation_timeout_minutes: 30,
+          requires_review: false,
+          auto_assign: false,
+        });
+      } catch (error) {
+        if (error.status !== 402) throw error;
+        queueCreateMode = "db_seeded_after_create_entitlement";
+        evidence.push({
+          create_entitlement_status: error.status,
+          create_entitlement_body: error.body,
+        });
+        queue = await insertAnnotationQueueCreateFixtureDb({
+          queueName,
+          organizationId,
+          workspaceId,
+          userId,
+        });
+      }
+      assert(queue?.id, "Annotation history queue create returned no id.");
+      cleanup.defer("hard-delete annotation history queue", () =>
+        hardDeleteQueueIfPresent(client, queue.id, queueName),
+      );
+
+      await restoreQueueStatusIfNeeded(client, queue.id, "active");
+
+      await client.post(
+        apiPath("/model-hub/annotation-queues/{id}/add-label/", {
+          id: queue.id,
+        }),
+        { label_id: label.id, required: false },
+      );
+
+      const item = await client.post(
+        queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
+        {
+          source_type: "trace",
+          source_id: sample.traceId,
+          status: "pending",
+          priority: 3,
+          order: 7301,
+          metadata: { api_journey: runId, stage: "history" },
+        },
+      );
+      assert(item?.id, "Annotation history queue item create returned no id.");
+      cleanup.defer("delete annotation history queue item", () =>
+        deleteQueueItemIfPresent(client, queue.id, item.id),
+      );
+
+      const values = [
+        { text: `history first ${runId}` },
+        { text: `history second ${runId}` },
+        { text: `history final ${runId}` },
+      ];
+      const labelNotes = [
+        `history label note one ${runId}`,
+        `history label note two ${runId}`,
+        `history label note final ${runId}`,
+      ];
+      const itemNotes = [
+        `history item note one ${runId}`,
+        `history item note two ${runId}`,
+        `history item note final ${runId}`,
+      ];
+
+      for (let index = 0; index < values.length; index += 1) {
+        const submitted = await client.post(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/items/{id}/annotations/submit/",
+            queue.id,
+            { id: item.id },
+          ),
+          {
+            annotations: [
+              {
+                label_id: label.id,
+                value: values[index],
+                notes: labelNotes[index],
+              },
+            ],
+            item_notes: itemNotes[index],
+          },
+        );
+        assert(
+          Number(submitted.submitted) === 1,
+          `History submit ${index + 1} did not save one score: ${JSON.stringify(
+            submitted,
+          )}.`,
+        );
+      }
+
+      const completed = await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/complete/",
+          queue.id,
+          { id: item.id },
+        ),
+        { exclude: [item.id] },
+      );
+      assert(
+        completed.completed_item_id === item.id,
+        `Complete response did not echo item id: ${JSON.stringify(completed)}.`,
+      );
+
+      const history = asArray(
+        await client.get(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/items/{id}/annotations/",
+            queue.id,
+            { id: item.id },
+          ),
+        ),
+      );
+      assert(
+        history.length === 1,
+        `History returned ${history.length} scores.`,
+      );
+      const rawScore = history[0];
+      assert(
+        String(rawScore.label_id) === String(label.id) &&
+          String(rawScore.annotator) === String(userId) &&
+          sameJsonValue(rawScore.value, values[2]) &&
+          rawScore.notes === labelNotes[2] &&
+          rawScore.score_source === "human",
+        `Raw score history had wrong current value: ${JSON.stringify(rawScore)}.`,
+      );
+      assert(
+        sameJsonValue(
+          asArray(rawScore.value_history).map((entry) => entry.value),
+          [values[0], values[1]],
+        ) && asArray(rawScore.value_history).every((entry) => entry.at),
+        `Raw score value_history did not preserve previous values with timestamps: ${JSON.stringify(
+          rawScore.value_history,
+        )}.`,
+      );
+
+      const detail = await client.get(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/annotate-detail/",
+          queue.id,
+          { id: item.id },
+        ),
+        { query: { include_completed: true, include_all_annotations: true } },
+      );
+      assert(
+        detail.item?.status === "completed" &&
+          String(detail.existing_notes || "") === itemNotes[2],
+        `Annotate detail did not reload completed item notes: ${JSON.stringify(
+          detail,
+        )}.`,
+      );
+      const detailScore = asArray(detail.annotations).find(
+        (score) => String(score.id) === String(rawScore.id),
+      );
+      assert(
+        detailScore &&
+          sameJsonValue(detailScore.value, values[2]) &&
+          sameJsonValue(
+            asArray(detailScore.value_history).map((entry) => entry.value),
+            [values[0], values[1]],
+          ),
+        `Annotate detail did not reload raw score history: ${JSON.stringify(
+          detail.annotations,
+        )}.`,
+      );
+
+      const completedItems = asArray(
+        await client.get(
+          queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
+          { query: { status: "completed", limit: 100 } },
+        ),
+      );
+      assert(
+        completedItems.some((row) => String(row.id) === String(item.id)),
+        `Completed item list did not expose completed history item: ${JSON.stringify(
+          completedItems,
+        )}.`,
+      );
+
+      const dbAudit = await loadAnnotationHistoryDbAudit({
+        queueId: queue.id,
+        itemId: item.id,
+        labelId: label.id,
+        scoreId: rawScore.id,
+        userId,
+      });
+      assert(
+        String(dbAudit.queue?.organization_id) === String(organizationId) &&
+          String(dbAudit.queue?.workspace_id) === String(workspaceId) &&
+          String(dbAudit.item?.status) === "completed",
+        `Annotation history DB scope/status mismatch: ${JSON.stringify(dbAudit)}.`,
+      );
+      assert(
+        Number(dbAudit.score_count) === 1 &&
+          sameJsonValue(dbAudit.score?.value, values[2]) &&
+          sameJsonValue(
+            asArray(dbAudit.score?.value_history).map((entry) => entry.value),
+            [values[0], values[1]],
+          ) &&
+          dbAudit.score?.notes === labelNotes[2] &&
+          dbAudit.item_note?.notes === itemNotes[2],
+        `Annotation history DB value mismatch: ${JSON.stringify(dbAudit)}.`,
+      );
+
+      evidence.push({
+        queue_create_mode: queueCreateMode,
+        queue_id: queue.id,
+        item_id: item.id,
+        label_id: label.id,
+        score_id: rawScore.id,
+        history_rows: history.length,
+        value_history_count: asArray(rawScore.value_history).length,
+        final_item_status: dbAudit.item?.status,
+        final_item_note: dbAudit.item_note?.notes,
+      });
+    },
+  },
+  {
     id: "AQ-API-020",
     title: "Voice call trace add to queue explicit and filter-mode readback",
-    tags: ["annotation", "observe", "voice", "mutating", "add-items", "data-roundtrip"],
+    tags: [
+      "annotation",
+      "observe",
+      "voice",
+      "mutating",
+      "add-items",
+      "data-roundtrip",
+    ],
     async run({ client, cleanup, evidence }) {
       requireMutations();
       const voice = await resolveObserveVoiceCallSource(client, evidence);
@@ -1416,7 +3909,8 @@ export const annotationQueueJourneys = [
           (item) =>
             String(item.id) === String(filterItemId) &&
             item.source_type === "trace" &&
-            String(item.source_preview?.project_id) === String(voice.project.id),
+            String(item.source_preview?.project_id) ===
+              String(voice.project.id),
         ),
         "Voice trace filter-mode item was not visible through source_type-filtered list.",
       );
@@ -1439,7 +3933,14 @@ export const annotationQueueJourneys = [
   {
     id: "AQ-API-021",
     title: "Observe trace, span, and session filter-mode add parity",
-    tags: ["annotation", "observe", "mutating", "add-items", "filter-mode", "data-roundtrip"],
+    tags: [
+      "annotation",
+      "observe",
+      "mutating",
+      "add-items",
+      "filter-mode",
+      "data-roundtrip",
+    ],
     async run({ client, cleanup, evidence }) {
       requireMutations();
       const sample = await resolveTraceAndSpanSample(client);
@@ -1466,7 +3967,11 @@ export const annotationQueueJourneys = [
           sourceType: "trace_session",
           sourceId: session.sessionId,
           projectId: session.project.id,
-          filter: canonicalTextFilter("session_id", "equals", session.sessionId),
+          filter: canonicalTextFilter(
+            "session_id",
+            "equals",
+            session.sessionId,
+          ),
           listSourceTypes: ["trace_session"],
         },
       ];
@@ -1496,7 +4001,8 @@ export const annotationQueueJourneys = [
           payload,
         );
         assert(
-          Number(added?.added) === 1 && Number(added?.total_matching || 0) === 1,
+          Number(added?.added) === 1 &&
+            Number(added?.total_matching || 0) === 1,
           `${spec.key} filter-mode add returned unexpected result: ${JSON.stringify(
             added,
           )}.`,
@@ -1537,7 +4043,10 @@ export const annotationQueueJourneys = [
 
         const listedItems = asArray(
           await client.get(
-            queuePath("/model-hub/annotation-queues/{queue_id}/items/", queue.id),
+            queuePath(
+              "/model-hub/annotation-queues/{queue_id}/items/",
+              queue.id,
+            ),
             {
               query: {
                 limit: 100,
@@ -1591,30 +4100,45 @@ export const annotationQueueJourneys = [
   },
   {
     id: "AQ-API-022",
-    title: "Import annotations writes scoped scores and updates without duplicates",
+    title:
+      "Import annotations writes scoped scores and updates without duplicates",
     tags: ["annotation", "mutating", "import", "scores", "data-roundtrip"],
-    async run({ client, cleanup, runId, user, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      user,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
       const userId = assertCurrentUserResolved(user);
       const sample = await resolveTraceAndSpanSample(client);
       const labelName = `api journey import text ${runId}`;
-      const label = await client.post(apiPath("/model-hub/annotations-labels/"), {
-        name: labelName,
-        type: "text",
-        description: "Disposable label for queue import journey.",
-        settings: {
-          placeholder: "Queue import journey",
-          min_length: 0,
-          max_length: 500,
+      const label = await client.post(
+        apiPath("/model-hub/annotations-labels/"),
+        {
+          name: labelName,
+          type: "text",
+          description: "Disposable label for queue import journey.",
+          settings: {
+            placeholder: "Queue import journey",
+            min_length: 0,
+            max_length: 500,
+          },
+          allow_notes: true,
         },
-        allow_notes: true,
-      });
+      );
       const createdLabel = label?.id
         ? label
         : label?.label?.id
           ? label.label
           : await findAnnotationLabelByName(client, labelName);
-      assert(createdLabel?.id, "Import journey label create did not return id.");
+      assert(
+        createdLabel?.id,
+        "Import journey label create did not return id.",
+      );
       cleanup.defer("delete import journey label", () =>
         deleteAnnotationLabelIfPresent(client, createdLabel.id),
       );
@@ -1849,8 +4373,22 @@ export const annotationQueueJourneys = [
   {
     id: "AQ-API-023",
     title: "Default queue source lookup and direct score annotation round-trip",
-    tags: ["annotation", "mutating", "default-queue", "scores", "data-roundtrip"],
-    async run({ client, cleanup, runId, user, organizationId, workspaceId, evidence }) {
+    tags: [
+      "annotation",
+      "mutating",
+      "default-queue",
+      "scores",
+      "data-roundtrip",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      user,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
       const userId = assertCurrentUserResolved(user);
       const seedSample = await resolveTraceAndSpanSample(client);
@@ -1866,23 +4404,30 @@ export const annotationQueueJourneys = [
       assert(defaultQueue?.id, "Default queue lookup did not return queue id.");
 
       const labelName = `api journey default queue direct ${runId}`;
-      const label = await client.post(apiPath("/model-hub/annotations-labels/"), {
-        name: labelName,
-        type: "text",
-        description: "Disposable label for default queue direct score journey.",
-        settings: {
-          placeholder: "Default queue direct score journey",
-          min_length: 0,
-          max_length: 500,
+      const label = await client.post(
+        apiPath("/model-hub/annotations-labels/"),
+        {
+          name: labelName,
+          type: "text",
+          description:
+            "Disposable label for default queue direct score journey.",
+          settings: {
+            placeholder: "Default queue direct score journey",
+            min_length: 0,
+            max_length: 500,
+          },
+          allow_notes: true,
         },
-        allow_notes: true,
-      });
+      );
       const createdLabel = label?.id
         ? label
         : label?.label?.id
           ? label.label
           : await findAnnotationLabelByName(client, labelName);
-      assert(createdLabel?.id, "Default queue journey label create did not return id.");
+      assert(
+        createdLabel?.id,
+        "Default queue journey label create did not return id.",
+      );
       cleanup.defer("delete default queue direct label", () =>
         deleteAnnotationLabelIfPresent(client, createdLabel.id),
       );
@@ -1959,7 +4504,10 @@ export const annotationQueueJourneys = [
       );
       const createdScore = createdScores[0];
       const queueItemId = createdScore.queue_item || createdScore.queue_item_id;
-      assert(queueItemId, "Default queue direct score did not attach to a queue item.");
+      assert(
+        queueItemId,
+        "Default queue direct score did not attach to a queue item.",
+      );
       assert(
         createdScore.source_type === "trace" &&
           String(createdScore.source_id) === String(sample.traceId) &&
@@ -1991,7 +4539,10 @@ export const annotationQueueJourneys = [
         "Default queue item did not preserve trace source identity.",
       );
       assert(
-        sameJsonValue(afterEntry.existing_scores?.[createdLabel.id], scoreValue),
+        sameJsonValue(
+          afterEntry.existing_scores?.[createdLabel.id],
+          scoreValue,
+        ),
         "Default queue source lookup did not prefill the saved direct score value.",
       );
       assert(
@@ -2135,9 +4686,8 @@ export const annotationQueueJourneys = [
         progress_skipped: progress.skipped,
         analytics_total: analytics.total,
         analytics_status_breakdown: analytics.status_breakdown,
-        analytics_label_count: Object.keys(
-          analytics.label_distribution || {},
-        ).length,
+        analytics_label_count: Object.keys(analytics.label_distribution || {})
+          .length,
         agreement_status: agreementStatus,
         agreement_overall: expectedAgreement?.overall_agreement ?? null,
         organization_id: organizationId,
@@ -2314,7 +4864,14 @@ export const annotationQueueJourneys = [
     id: "AQ-API-027",
     title: "Queue full update preserves settings and bindings in database",
     tags: ["annotation", "mutating", "queue", "db-audit"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
       const queue = await resolveManagerQueue(client, evidence);
       const originalPayload = buildQueuePutPayload(queue);
@@ -2398,7 +4955,14 @@ export const annotationQueueJourneys = [
     id: "AQ-API-028",
     title: "Queue item direct create, full update, partial update, and cleanup",
     tags: ["annotation", "mutating", "items", "db-audit"],
-    async run({ client, cleanup, runId, organizationId, workspaceId, evidence }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
       requireMutations();
       const sample = await resolveTraceAndSpanSample(client);
       const queue = await resolveManagerQueueWithoutSource(
@@ -2654,7 +5218,14 @@ export const annotationQueueJourneys = [
     id: "AQ-API-007",
     title: "Automation rule CRUD and preview uses canonical filter shape",
     tags: ["annotation", "mutating", "automation", "db-audit"],
-    async run({ client, cleanup, runId, evidence, organizationId, workspaceId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const queue = await resolveManagerQueue(client, evidence);
       const rule = await client.post(
@@ -3040,6 +5611,329 @@ export const annotationQueueJourneys = [
         preview_matched: preview.matched,
         evaluate_added: evaluated.added,
         duplicate_run_status: duplicateStatus,
+      });
+    },
+  },
+  {
+    id: "AQ-API-033",
+    title: "Scheduled automation rule guardrails persist without queue mutation",
+    tags: ["annotation", "mutating", "automation", "schedule", "db-audit"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+      user,
+    }) {
+      requireMutations();
+      const userId = assertCurrentUserResolved(user);
+      const namePrefix = `api journey automation schedule ${runId}`;
+      const queueName = `${namePrefix} queue`;
+      cleanup.defer("hard-delete automation schedule DB fixtures", () =>
+        deleteQueueCreateFixturesDb(namePrefix),
+      );
+
+      let queue;
+      let createMode = "api";
+      try {
+        queue = await client.post(apiPath("/model-hub/annotation-queues/"), {
+          name: queueName,
+          description:
+            "Disposable queue for scheduled automation rule guardrail coverage.",
+          instructions: "Verify scheduled automation persistence.",
+          annotations_required: 1,
+          reservation_timeout_minutes: 30,
+          requires_review: false,
+          auto_assign: false,
+        });
+      } catch (error) {
+        if (error.status !== 402) throw error;
+        createMode = "db_seeded_after_create_entitlement";
+        evidence.push({
+          create_entitlement_status: error.status,
+          create_entitlement_body: error.body,
+        });
+        queue = await insertAnnotationQueueCreateFixtureDb({
+          queueName,
+          organizationId,
+          workspaceId,
+          userId,
+        });
+      }
+      assert(queue?.id, "Automation schedule queue create/seed returned no id.");
+      cleanup.defer("hard-delete automation schedule queue", () =>
+        hardDeleteQueueIfPresent(client, queue.id, queueName),
+      );
+
+      const noMatchFilter = [
+        {
+          column_id: "status",
+          filter_config: {
+            filter_type: "text",
+            filter_op: "equals",
+            filter_value: `api-journey-no-match-${runId}`,
+          },
+        },
+      ];
+      const scheduledRule = await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+          queue.id,
+        ),
+        {
+          name: `${namePrefix} daily rule`,
+          source_type: "trace",
+          conditions: {
+            operator: "and",
+            filter: noMatchFilter,
+          },
+          enabled: true,
+          trigger_frequency: "daily",
+        },
+      );
+      assert(scheduledRule?.id, "Scheduled automation rule create returned no id.");
+      cleanup.defer("delete scheduled automation rule", () =>
+        deleteAutomationRuleIfPresent(client, queue.id, scheduledRule.id),
+      );
+      assert(
+        scheduledRule.trigger_frequency === "daily" &&
+          Number(scheduledRule.trigger_count) === 0 &&
+          scheduledRule.last_triggered_at == null,
+        `Scheduled rule response had wrong frequency/counters: ${JSON.stringify(
+          scheduledRule,
+        )}.`,
+      );
+
+      const scheduledDb = await loadAutomationRuleDbAudit(scheduledRule.id);
+      assertAutomationRuleDbState(scheduledDb, {
+        name: `${namePrefix} daily rule`,
+        queueId: queue.id,
+        organizationId,
+        workspaceId,
+        sourceType: "trace",
+        enabled: true,
+        triggerFrequency: "daily",
+        firstFilterColumn: "status",
+        deleted: false,
+      });
+      assert(
+        Number(scheduledDb.trigger_count) === 0 &&
+          scheduledDb.last_triggered_at == null,
+        `Scheduled rule DB counters should be untouched before manual run: ${JSON.stringify(
+          scheduledDb,
+        )}.`,
+      );
+
+      const detail = await client.get(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/",
+          queue.id,
+          { id: scheduledRule.id },
+        ),
+      );
+      assert(
+        detail?.trigger_frequency === "daily" &&
+          detail?.conditions?.filter?.[0]?.filter_config?.filter_value ===
+            `api-journey-no-match-${runId}`,
+        `Scheduled rule detail did not round-trip canonical filter: ${JSON.stringify(
+          detail,
+        )}.`,
+      );
+
+      const list = asArray(
+        await client.get(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+            queue.id,
+          ),
+        ),
+      );
+      assert(
+        list.some((row) => String(row.id) === String(scheduledRule.id)),
+        "Scheduled rule list did not include the created rule.",
+      );
+
+      const preview = await client.get(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/preview/",
+          queue.id,
+          { id: scheduledRule.id },
+        ),
+      );
+      assert(
+        Number(preview.matched) === 0 && Number(preview.added) === 0,
+        `Scheduled rule no-match preview should not mutate queue items: ${JSON.stringify(
+          preview,
+        )}.`,
+      );
+
+      const bothShapesStatus = await expectHttpStatus(
+        () =>
+          client.post(
+            queuePath(
+              "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+              queue.id,
+            ),
+            {
+              name: `${namePrefix} invalid both shapes`,
+              source_type: "trace",
+              conditions: {
+                filter: noMatchFilter,
+                rules: [
+                  { field: "trace_id", op: "equals", value: randomUUID() },
+                ],
+              },
+              enabled: true,
+              trigger_frequency: "hourly",
+            },
+          ),
+        400,
+      );
+      const legacyFiltersStatus = await expectHttpStatus(
+        () =>
+          client.post(
+            queuePath(
+              "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+              queue.id,
+            ),
+            {
+              name: `${namePrefix} invalid filters key`,
+              source_type: "trace",
+              conditions: { filters: noMatchFilter },
+              enabled: true,
+              trigger_frequency: "weekly",
+            },
+          ),
+        400,
+      );
+      const invalidLegacyFieldStatus = await expectHttpStatus(
+        () =>
+          client.post(
+            queuePath(
+              "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+              queue.id,
+            ),
+            {
+              name: `${namePrefix} invalid legacy field`,
+              source_type: "trace",
+              conditions: {
+                rules: [
+                  {
+                    field: "totally_made_up_column",
+                    op: "equals",
+                    value: "x",
+                  },
+                ],
+              },
+              enabled: true,
+              trigger_frequency: "monthly",
+            },
+          ),
+        400,
+      );
+
+      let altGuard = { status: "skipped_no_alt_token" };
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (altToken) {
+        const altClient = createApiClient({
+          apiBase,
+          accessToken: altToken,
+          organizationId,
+          workspaceId,
+        });
+        const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+        const altUserId = currentUserId(altUser);
+        if (altUserId && String(altUserId) !== String(userId)) {
+          altGuard = {
+            user_id: altUserId,
+            create_status: await expectHttpStatus(
+              () =>
+                altClient.post(
+                  queuePath(
+                    "/model-hub/annotation-queues/{queue_id}/automation-rules/",
+                    queue.id,
+                  ),
+                  {
+                    name: `${namePrefix} alt forbidden`,
+                    source_type: "trace",
+                    conditions: { filter: noMatchFilter },
+                    enabled: true,
+                    trigger_frequency: "daily",
+                  },
+                ),
+              403,
+            ),
+            preview_status: await expectHttpStatus(
+              () =>
+                altClient.get(
+                  queuePath(
+                    "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/preview/",
+                    queue.id,
+                    { id: scheduledRule.id },
+                  ),
+                ),
+              403,
+            ),
+            evaluate_status: await expectHttpStatus(
+              () =>
+                altClient.post(
+                  queuePath(
+                    "/model-hub/annotation-queues/{queue_id}/automation-rules/{id}/evaluate/",
+                    queue.id,
+                    { id: scheduledRule.id },
+                  ),
+                ),
+              403,
+            ),
+          };
+        } else {
+          altGuard = { status: "skipped_same_alt_user" };
+        }
+      }
+
+      await deleteAutomationRuleIfPresent(client, queue.id, scheduledRule.id);
+      const deletedDb = await loadAutomationRuleDbAudit(scheduledRule.id);
+      assertAutomationRuleDbState(deletedDb, {
+        name: `${namePrefix} daily rule`,
+        queueId: queue.id,
+        organizationId,
+        workspaceId,
+        sourceType: "trace",
+        enabled: true,
+        triggerFrequency: "daily",
+        firstFilterColumn: "status",
+        deleted: true,
+      });
+
+      await hardDeleteQueueIfPresent(client, queue.id, queueName);
+      const finalResidue = await loadAutomationScheduleResidueDbAudit(namePrefix);
+      assert(
+        Number(finalResidue.matching_queues) === 0 &&
+          Number(finalResidue.matching_rules) === 0 &&
+          Number(finalResidue.matching_active_rules) === 0,
+        `Automation schedule cleanup left DB residue: ${JSON.stringify(
+          finalResidue,
+        )}.`,
+      );
+
+      evidence.push({
+        create_mode: createMode,
+        queue_id: queue.id,
+        rule_id: scheduledRule.id,
+        trigger_frequency: scheduledRule.trigger_frequency,
+        preview_matched: preview.matched,
+        preview_added: preview.added,
+        invalid_both_shapes_status: bothShapesStatus,
+        invalid_filters_status: legacyFiltersStatus,
+        invalid_legacy_field_status: invalidLegacyFieldStatus,
+        alt_guard: altGuard,
+        db_trigger_count: scheduledDb.trigger_count,
+        db_last_triggered_at: scheduledDb.last_triggered_at,
+        db_deleted_at: deletedDb.deleted_at,
+        final_residue: finalResidue,
       });
     },
   },
@@ -5626,18 +8520,24 @@ async function ensureExplicitQueueMember(
   )
     ? originalAnnotatorIds
     : [...originalAnnotatorIds, userId];
-  await client.patch(apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }), {
-    annotator_ids: patchedAnnotatorIds,
-    annotator_roles: {
-      ...originalRoles,
-      [String(userId)]: roles,
+  await client.patch(
+    apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }),
+    {
+      annotator_ids: patchedAnnotatorIds,
+      annotator_roles: {
+        ...originalRoles,
+        [String(userId)]: roles,
+      },
     },
-  });
+  );
   cleanup.defer("restore explicit queue membership", () =>
-    client.patch(apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }), {
-      annotator_ids: originalAnnotatorIds,
-      annotator_roles: originalRoles,
-    }),
+    client.patch(
+      apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }),
+      {
+        annotator_ids: originalAnnotatorIds,
+        annotator_roles: originalRoles,
+      },
+    ),
   );
   evidence.push({
     explicit_queue_membership: currentMember ? "roles-updated" : "added",
@@ -5647,7 +8547,9 @@ async function ensureExplicitQueueMember(
     roles,
     reason,
   });
-  return client.get(apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }));
+  return client.get(
+    apiPath("/model-hub/annotation-queues/{id}/", { id: queue.id }),
+  );
 }
 
 function buildQueueAnnotatorRoleMap(annotators) {
@@ -5669,10 +8571,13 @@ function findQueueAnnotator(queueDetail, userId) {
 }
 
 async function restoreQueueAnnotators(client, queueId, annotatorIds, roles) {
-  return client.patch(apiPath("/model-hub/annotation-queues/{id}/", { id: queueId }), {
-    annotator_ids: annotatorIds,
-    annotator_roles: roles,
-  });
+  return client.patch(
+    apiPath("/model-hub/annotation-queues/{id}/", { id: queueId }),
+    {
+      annotator_ids: annotatorIds,
+      annotator_roles: roles,
+    },
+  );
 }
 
 async function resolveManagerQueueWithoutSource(
@@ -5773,7 +8678,7 @@ async function resolveMemberRoleQueue(client, evidence) {
     );
     const roles = asArray(detail.viewer_roles);
     if (!roles.includes("manager")) continue;
-    if (Boolean(detail.auto_assign)) continue;
+    if (detail.auto_assign) continue;
     const queueItems = asArray(
       await client.get(
         queuePath("/model-hub/annotation-queues/{queue_id}/items/", detail.id),
@@ -6007,7 +8912,12 @@ async function resolveStatusTransitionQueue(client, evidence) {
   return queue;
 }
 
-async function resolveMetricsQueue(client, organizationId, workspaceId, evidence) {
+async function resolveMetricsQueue(
+  client,
+  organizationId,
+  workspaceId,
+  evidence,
+) {
   const configuredQueueId = process.env.ANNOTATION_METRICS_QUEUE_ID;
   if (configuredQueueId) {
     const queue = await client.get(
@@ -6600,6 +9510,29 @@ select coalesce(
   return audit;
 }
 
+async function loadAutomationScheduleResidueDbAudit(namePrefix) {
+  const sql = `
+with matching_queues as (
+  select id
+  from model_hub_annotationqueue
+  where name like ${sqlString(`${namePrefix}%`)}
+),
+matching_rules as (
+  select id, deleted
+  from model_hub_automationrule
+  where name like ${sqlString(`${namePrefix}%`)}
+     or queue_id in (select id from matching_queues)
+)
+select json_build_object(
+  'matching_queues', (select count(*)::int from matching_queues),
+  'matching_rules', (select count(*)::int from matching_rules),
+  'matching_active_rules',
+    (select count(*)::int from matching_rules where deleted = false)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
 async function loadDiscussionDbAudit(threadId) {
   const sql = `
 with thread as (
@@ -6685,7 +9618,9 @@ function assertDiscussionDbState(dbAudit, expected) {
     `Discussion thread deleted flag mismatch: ${JSON.stringify(thread)}.`,
   );
 
-  const byId = new Map(comments.map((comment) => [String(comment.id), comment]));
+  const byId = new Map(
+    comments.map((comment) => [String(comment.id), comment]),
+  );
   const root = byId.get(String(expected.rootCommentId));
   const reply = byId.get(String(expected.replyCommentId));
   const resolve = expected.resolveCommentId
@@ -6694,7 +9629,10 @@ function assertDiscussionDbState(dbAudit, expected) {
   const reopen = expected.reopenCommentId
     ? byId.get(String(expected.reopenCommentId))
     : comments.find((comment) => comment.action === "reopen");
-  assert(root && reply && resolve && reopen, "Discussion DB audit missed rows.");
+  assert(
+    root && reply && resolve && reopen,
+    "Discussion DB audit missed rows.",
+  );
   for (const comment of [root, reply, resolve, reopen]) {
     assert(
       String(comment.queue_item_id) === String(expected.queueItemId) &&
@@ -6724,7 +9662,9 @@ function assertDiscussionDbState(dbAudit, expected) {
     ? root.reactions[expected.emoji]
     : [];
   assert(
-    reactionUserIds.some((userId) => String(userId) === String(expected.userId)),
+    reactionUserIds.some(
+      (userId) => String(userId) === String(expected.userId),
+    ),
     `Discussion reaction not persisted: ${JSON.stringify(root.reactions)}.`,
   );
 }
@@ -6995,6 +9935,1052 @@ async function restoreQueueStatusIfNeeded(client, queueId, expectedStatus) {
   );
 }
 
+async function insertAnnotationQueueCreateFixtureDb({
+  queueName,
+  organizationId,
+  workspaceId,
+  userId,
+}) {
+  const queueId = randomUUID();
+  const memberId = randomUUID();
+  const roles = ["manager", "reviewer", "annotator"];
+  const sql = `
+WITH inserted_queue AS (
+  INSERT INTO model_hub_annotationqueue (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    description,
+    instructions,
+    status,
+    assignment_strategy,
+    annotations_required,
+    reservation_timeout_minutes,
+    requires_review,
+    created_by_id,
+    organization_id,
+    workspace_id,
+    project_id,
+    is_default,
+    dataset_id,
+    agent_definition_id,
+    auto_assign
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(queueId, "queueId")},
+    ${sqlString(queueName)},
+    ${sqlString("Disposable queue for API journey create coverage.")},
+    ${sqlString("Verify labels and creator roles.")},
+    'active',
+    'manual',
+    1,
+    45,
+    false,
+    ${sqlUuid(userId, "userId")},
+    ${sqlUuid(organizationId, "organizationId")},
+    ${sqlUuid(workspaceId, "workspaceId")},
+    NULL,
+    false,
+    NULL,
+    NULL,
+    false
+  )
+  RETURNING id::text, name, status
+),
+inserted_member AS (
+  INSERT INTO model_hub_annotationqueueannotator (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    role,
+    roles,
+    queue_id,
+    user_id
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(memberId, "memberId")},
+    'manager',
+    ${sqlJson(roles)},
+    ${sqlUuid(queueId, "queueId")},
+    ${sqlUuid(userId, "userId")}
+  )
+  RETURNING id::text, role, roles
+)
+SELECT json_build_object(
+  'id', (SELECT id FROM inserted_queue),
+  'name', (SELECT name FROM inserted_queue),
+  'status', (SELECT status FROM inserted_queue),
+  'seeded_member_id', (SELECT id FROM inserted_member)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function insertOtherWorkspaceQueueLabelFixtureDb({
+  namePrefix,
+  organizationId,
+  userId,
+}) {
+  const workspaceId = randomUUID();
+  const labelId = randomUUID();
+  const workspaceName = `${namePrefix} other label workspace`;
+  const labelName = `${namePrefix} other workspace label`;
+  const sql = `
+WITH inserted_workspace AS (
+  INSERT INTO accounts_workspace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    display_name,
+    description,
+    is_active,
+    is_default,
+    created_by_id,
+    organization_id
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(workspaceId, "workspaceId")},
+    ${sqlString(workspaceName)},
+    ${sqlString(workspaceName)},
+    ${sqlString("Temporary workspace for annotation queue create coverage.")},
+    true,
+    false,
+    ${sqlUuid(userId, "userId")},
+    ${sqlUuid(organizationId, "organizationId")}
+  )
+  RETURNING id::text, name
+),
+inserted_label AS (
+  INSERT INTO model_hub_annotationslabels (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    type,
+    settings,
+    organization_id,
+    description,
+    project_id,
+    workspace_id,
+    metadata,
+    allow_notes
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(labelId, "labelId")},
+    ${sqlString(labelName)},
+    'text',
+    '{}'::jsonb,
+    ${sqlUuid(organizationId, "organizationId")},
+    ${sqlString("Other-workspace label for queue create validation.")},
+    NULL,
+    ${sqlUuid(workspaceId, "workspaceId")},
+    '{}'::jsonb,
+    false
+  )
+  RETURNING id::text, name, workspace_id::text
+)
+SELECT json_build_object(
+  'workspace_id', (SELECT id FROM inserted_workspace),
+  'workspace_name', (SELECT name FROM inserted_workspace),
+  'label_id', (SELECT id FROM inserted_label),
+  'label_name', (SELECT name FROM inserted_label),
+  'label_workspace_id', (SELECT workspace_id FROM inserted_label)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadQueueCreateDbAudit({ queueId, userId, labelId }) {
+  const sql = `
+WITH queue AS (
+  SELECT
+    q.id::text AS id,
+    q.name,
+    q.description,
+    q.instructions,
+    q.status,
+    q.organization_id::text AS organization_id,
+    q.workspace_id::text AS workspace_id,
+    q.created_by_id::text AS created_by_id,
+    q.deleted,
+    (
+      SELECT count(*)::int
+      FROM model_hub_annotationqueuelabel ql
+      WHERE ql.queue_id = q.id AND ql.deleted = false
+    ) AS active_label_count,
+    (
+      SELECT count(*)::int
+      FROM model_hub_annotationqueueannotator qa
+      WHERE qa.queue_id = q.id AND qa.deleted = false
+    ) AS active_member_count
+  FROM model_hub_annotationqueue q
+  WHERE q.id = ${sqlUuid(queueId, "queueId")}
+),
+creator_member AS (
+  SELECT id::text, role, roles, deleted
+  FROM model_hub_annotationqueueannotator
+  WHERE
+    queue_id = ${sqlUuid(queueId, "queueId")}
+    AND user_id = ${sqlUuid(userId, "userId")}
+    AND deleted = false
+  ORDER BY updated_at DESC
+  LIMIT 1
+),
+label_binding AS (
+  SELECT count(*)::int AS binding_count
+  FROM model_hub_annotationqueuelabel
+  WHERE
+    queue_id = ${sqlUuid(queueId, "queueId")}
+    AND label_id = ${sqlUuid(labelId, "labelId")}
+    AND deleted = false
+)
+SELECT coalesce(
+  (
+    SELECT json_build_object(
+      'id', queue.id,
+      'name', queue.name,
+      'description', queue.description,
+      'instructions', queue.instructions,
+      'status', queue.status,
+      'organization_id', queue.organization_id,
+      'workspace_id', queue.workspace_id,
+      'created_by_id', queue.created_by_id,
+      'deleted', queue.deleted,
+      'active_label_count', queue.active_label_count,
+      'active_member_count', queue.active_member_count,
+      'label_binding_count', (SELECT binding_count FROM label_binding),
+      'creator_member', coalesce((SELECT row_to_json(creator_member) FROM creator_member), '{}'::json)
+    )
+    FROM queue
+  ),
+  '{}'::json
+)::text;
+`;
+  const audit = await runPostgresJson(sql);
+  assert(audit?.id, `Queue ${queueId} was not found in create DB audit.`);
+  return audit;
+}
+
+async function loadQueueLimitDbAudit({
+  organizationId,
+  workspaceId,
+  namePrefix,
+}) {
+  const sql = `
+WITH org_queues AS (
+  SELECT
+    id::text,
+    name,
+    workspace_id::text,
+    deleted
+  FROM model_hub_annotationqueue
+  WHERE organization_id = ${sqlUuid(organizationId, "organizationId")}
+),
+matching AS (
+  SELECT *
+  FROM org_queues
+  WHERE name LIKE ${sqlString(`${namePrefix}%`)}
+)
+SELECT json_build_object(
+  'org_active_count',
+    (SELECT count(*)::int FROM org_queues WHERE deleted = false),
+  'workspace_active_count',
+    (
+      SELECT count(*)::int
+      FROM org_queues
+      WHERE
+        deleted = false
+        AND workspace_id = ${sqlUuid(workspaceId, "workspaceId")}::text
+    ),
+  'other_workspace_active_count',
+    (
+      SELECT count(*)::int
+      FROM org_queues
+      WHERE
+        deleted = false
+        AND (
+          workspace_id IS NULL
+          OR workspace_id <> ${sqlUuid(workspaceId, "workspaceId")}::text
+        )
+    ),
+  'matching_active_count',
+    (SELECT count(*)::int FROM matching WHERE deleted = false),
+  'matching_total_count',
+    (SELECT count(*)::int FROM matching),
+  'matching_active_member_count',
+    (
+      SELECT count(*)::int
+      FROM model_hub_annotationqueueannotator member
+      WHERE
+        member.deleted = false
+        AND member.queue_id IN (SELECT id::uuid FROM matching WHERE deleted = false)
+    ),
+  'matching_total_member_count',
+    (
+      SELECT count(*)::int
+      FROM model_hub_annotationqueueannotator member
+      WHERE member.queue_id IN (SELECT id::uuid FROM matching)
+    ),
+  'matching_names',
+    coalesce((SELECT json_agg(name ORDER BY name) FROM matching), '[]'::json)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function createPlanLimitProbeQueue(client, queueName) {
+  return client.post(apiPath("/model-hub/annotation-queues/"), {
+    name: queueName,
+    description:
+      "Disposable queue for plan-limit create/delete/retry coverage.",
+    instructions: "Verify queue capacity recovers after hard delete.",
+    annotations_required: 1,
+    reservation_timeout_minutes: 30,
+    requires_review: false,
+    auto_assign: false,
+  });
+}
+
+function assertQueueCountDelta(before, current, expectedDelta, label) {
+  const expectedOrgCount = Number(before.org_active_count) + expectedDelta;
+  const expectedWorkspaceCount =
+    Number(before.workspace_active_count) + expectedDelta;
+  assert(
+    Number(current.org_active_count) === expectedOrgCount &&
+      Number(current.workspace_active_count) === expectedWorkspaceCount &&
+      Number(current.matching_active_count) === expectedDelta &&
+      Number(current.matching_total_count) === expectedDelta,
+    `Queue limit DB audit mismatch after ${label}: before=${JSON.stringify(
+      before,
+    )}, current=${JSON.stringify(current)}, expected_delta=${expectedDelta}.`,
+  );
+}
+
+function assertQueueDetailRoles(detail, expectedRolesByUserId, label) {
+  const annotators = asArray(detail?.annotators);
+  for (const [userId, expectedRoles] of Object.entries(expectedRolesByUserId)) {
+    const member = annotators.find(
+      (annotator) => String(annotator.user_id) === String(userId),
+    );
+    assert(
+      sameJsonValue(asArray(member?.roles), expectedRoles),
+      `${label} exposed wrong roles for ${userId}: ${JSON.stringify({
+        expectedRoles,
+        member,
+        detail,
+      })}.`,
+    );
+  }
+}
+
+async function loadAnnotationHistoryDbAudit({
+  queueId,
+  itemId,
+  labelId,
+  scoreId,
+  userId,
+}) {
+  const sql = `
+WITH queue AS (
+  SELECT
+    id::text,
+    organization_id::text,
+    workspace_id::text,
+    status,
+    deleted
+  FROM model_hub_annotationqueue
+  WHERE id = ${sqlUuid(queueId, "queueId")}
+),
+item AS (
+  SELECT
+    id::text,
+    queue_id::text,
+    organization_id::text,
+    workspace_id::text,
+    status,
+    source_type,
+    trace_id::text,
+    deleted
+  FROM model_hub_queueitem
+  WHERE id = ${sqlUuid(itemId, "itemId")}
+),
+score_rows AS (
+  SELECT
+    id::text,
+    source_type,
+    trace_id::text,
+    label_id::text,
+    annotator_id::text,
+    queue_item_id::text,
+    organization_id::text,
+    workspace_id::text,
+    value,
+    value_history,
+    score_source,
+    notes,
+    deleted
+  FROM model_hub_score
+  WHERE
+    id = ${sqlUuid(scoreId, "scoreId")}
+    AND queue_item_id = ${sqlUuid(itemId, "itemId")}
+    AND label_id = ${sqlUuid(labelId, "labelId")}
+    AND annotator_id = ${sqlUuid(userId, "userId")}
+    AND deleted = false
+),
+item_note AS (
+  SELECT
+    id::text,
+    queue_item_id::text,
+    annotator_id::text,
+    organization_id::text,
+    workspace_id::text,
+    notes,
+    deleted
+  FROM model_hub_queueitemnote
+  WHERE
+    queue_item_id = ${sqlUuid(itemId, "itemId")}
+    AND annotator_id = ${sqlUuid(userId, "userId")}
+    AND deleted = false
+  ORDER BY updated_at DESC
+  LIMIT 1
+)
+SELECT json_build_object(
+  'queue', coalesce((SELECT row_to_json(queue) FROM queue), '{}'::json),
+  'item', coalesce((SELECT row_to_json(item) FROM item), '{}'::json),
+  'score', coalesce((SELECT row_to_json(score_rows) FROM score_rows), '{}'::json),
+  'item_note', coalesce((SELECT row_to_json(item_note) FROM item_note), '{}'::json),
+  'score_count', (SELECT count(*)::int FROM score_rows),
+  'active_item_note_count', (SELECT count(*)::int FROM item_note)
+)::text;
+`;
+  const audit = await runPostgresJson(sql);
+  assert(
+    Number(audit?.score_count || 0) > 0,
+    `Score ${scoreId} was not found in annotation history DB audit.`,
+  );
+  return audit;
+}
+
+async function deleteQueueCreateFixturesDb(namePrefix) {
+  const sql = `
+WITH matching_queues AS (
+  SELECT id FROM model_hub_annotationqueue WHERE name LIKE ${sqlString(`${namePrefix}%`)}
+),
+matching_labels AS (
+  SELECT id FROM model_hub_annotationslabels WHERE name LIKE ${sqlString(`${namePrefix}%`)}
+),
+matching_queue_items AS (
+  SELECT id FROM model_hub_queueitem WHERE queue_id IN (SELECT id FROM matching_queues)
+),
+matching_automation_rules AS (
+  SELECT id
+  FROM model_hub_automationrule
+  WHERE name LIKE ${sqlString(`${namePrefix}%`)}
+     OR queue_id IN (SELECT id FROM matching_queues)
+),
+deleted_scores AS (
+  DELETE FROM model_hub_score
+  WHERE queue_item_id IN (SELECT id FROM matching_queue_items)
+     OR label_id IN (SELECT id FROM matching_labels)
+  RETURNING id
+),
+deleted_item_notes AS (
+  DELETE FROM model_hub_queueitemnote
+  WHERE queue_item_id IN (SELECT id FROM matching_queue_items)
+  RETURNING id
+),
+deleted_queue_item_assignments AS (
+  DELETE FROM model_hub_queueitemassignment
+  WHERE queue_item_id IN (SELECT id FROM matching_queue_items)
+  RETURNING id
+),
+deleted_queue_items AS (
+  DELETE FROM model_hub_queueitem
+  WHERE id IN (SELECT id FROM matching_queue_items)
+  RETURNING id
+),
+deleted_queue_labels AS (
+  DELETE FROM model_hub_annotationqueuelabel
+  WHERE queue_id IN (SELECT id FROM matching_queues)
+     OR label_id IN (SELECT id FROM matching_labels)
+  RETURNING id
+),
+deleted_queue_members AS (
+  DELETE FROM model_hub_annotationqueueannotator
+  WHERE queue_id IN (SELECT id FROM matching_queues)
+  RETURNING id
+),
+deleted_automation_rules AS (
+  DELETE FROM model_hub_automationrule
+  WHERE id IN (SELECT id FROM matching_automation_rules)
+  RETURNING id
+),
+deleted_queues AS (
+  DELETE FROM model_hub_annotationqueue
+  WHERE id IN (SELECT id FROM matching_queues)
+  RETURNING id
+),
+deleted_labels AS (
+  DELETE FROM model_hub_annotationslabels
+  WHERE id IN (SELECT id FROM matching_labels)
+  RETURNING id
+),
+deleted_workspaces AS (
+  DELETE FROM accounts_workspace
+  WHERE name LIKE ${sqlString(`${namePrefix}% other label workspace%`)}
+  RETURNING id
+)
+SELECT json_build_object(
+  'deleted_scores', (SELECT count(*) FROM deleted_scores),
+  'deleted_item_notes', (SELECT count(*) FROM deleted_item_notes),
+  'deleted_queue_item_assignments', (SELECT count(*) FROM deleted_queue_item_assignments),
+  'deleted_queue_items', (SELECT count(*) FROM deleted_queue_items),
+  'deleted_queue_labels', (SELECT count(*) FROM deleted_queue_labels),
+  'deleted_queue_members', (SELECT count(*) FROM deleted_queue_members),
+  'deleted_automation_rules', (SELECT count(*) FROM deleted_automation_rules),
+  'deleted_queues', (SELECT count(*) FROM deleted_queues),
+  'deleted_labels', (SELECT count(*) FROM deleted_labels),
+  'deleted_workspaces', (SELECT count(*) FROM deleted_workspaces)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function insertLegacyQueueRoleFixturesDb({
+  namePrefix,
+  organizationId,
+  workspaceId,
+  creatorId,
+  reviewerId,
+}) {
+  const legacyQueueId = randomUUID();
+  const missingCreatorQueueId = randomUUID();
+  const creatorMemberId = randomUUID();
+  const reviewerMemberId = randomUUID();
+  const legacyQueueName = `${namePrefix} legacy member queue`;
+  const missingCreatorQueueName = `${namePrefix} missing creator queue`;
+  const sql = `
+WITH inserted_queues AS (
+  INSERT INTO model_hub_annotationqueue (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    description,
+    instructions,
+    status,
+    assignment_strategy,
+    annotations_required,
+    reservation_timeout_minutes,
+    requires_review,
+    created_by_id,
+    organization_id,
+    workspace_id,
+    project_id,
+    is_default,
+    dataset_id,
+    agent_definition_id,
+    auto_assign
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(legacyQueueId, "legacyQueueId")},
+      ${sqlString(legacyQueueName)},
+      ${sqlString("Disposable legacy-role queue for API journey coverage.")},
+      ${sqlString("Verify legacy single-role membership backfill.")},
+      'active',
+      'manual',
+      1,
+      30,
+      false,
+      ${sqlUuid(creatorId, "creatorId")},
+      ${sqlUuid(organizationId, "organizationId")},
+      ${sqlUuid(workspaceId, "workspaceId")},
+      NULL,
+      false,
+      NULL,
+      NULL,
+      false
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(missingCreatorQueueId, "missingCreatorQueueId")},
+      ${sqlString(missingCreatorQueueName)},
+      ${sqlString("Disposable missing-creator membership queue.")},
+      ${sqlString("Verify creator membership creation during backfill.")},
+      'active',
+      'manual',
+      1,
+      30,
+      false,
+      ${sqlUuid(creatorId, "creatorId")},
+      ${sqlUuid(organizationId, "organizationId")},
+      ${sqlUuid(workspaceId, "workspaceId")},
+      NULL,
+      false,
+      NULL,
+      NULL,
+      false
+    )
+  RETURNING id::text, name
+),
+inserted_members AS (
+  INSERT INTO model_hub_annotationqueueannotator (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    role,
+    roles,
+    queue_id,
+    user_id
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(creatorMemberId, "creatorMemberId")},
+      'manager',
+      ${sqlJson([])},
+      ${sqlUuid(legacyQueueId, "legacyQueueId")},
+      ${sqlUuid(creatorId, "creatorId")}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(reviewerMemberId, "reviewerMemberId")},
+      'reviewer',
+      ${sqlJson([])},
+      ${sqlUuid(legacyQueueId, "legacyQueueId")},
+      ${sqlUuid(reviewerId, "reviewerId")}
+    )
+  RETURNING id::text, queue_id::text, user_id::text, role, roles
+)
+SELECT json_build_object(
+  'legacy_queue_id', ${sqlString(legacyQueueId)},
+  'missing_creator_queue_id', ${sqlString(missingCreatorQueueId)},
+  'legacy_queue_name', ${sqlString(legacyQueueName)},
+  'missing_creator_queue_name', ${sqlString(missingCreatorQueueName)},
+  'inserted_queue_count', (SELECT count(*) FROM inserted_queues),
+  'inserted_member_count', (SELECT count(*) FROM inserted_members)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyRoleBackfillPreflightDb(namePrefix) {
+  const sql = `
+WITH memberships AS (
+  SELECT
+    a.id,
+    a.role,
+    COALESCE(a.roles::jsonb, '[]'::jsonb) AS roles,
+    a.user_id,
+    q.created_by_id,
+    q.name
+  FROM model_hub_annotationqueueannotator a
+  JOIN model_hub_annotationqueue q ON q.id = a.queue_id
+  WHERE q.name NOT LIKE ${sqlString(`${namePrefix}%`)}
+),
+missing_creator_memberships AS (
+  SELECT q.id
+  FROM model_hub_annotationqueue q
+  WHERE
+    q.deleted = false
+    AND q.created_by_id IS NOT NULL
+    AND q.name NOT LIKE ${sqlString(`${namePrefix}%`)}
+    AND NOT EXISTS (
+      SELECT 1
+      FROM model_hub_annotationqueueannotator a
+      WHERE
+        a.queue_id = q.id
+        AND a.user_id = q.created_by_id
+        AND a.deleted = false
+    )
+)
+SELECT json_build_object(
+  'stale_membership_count',
+    (
+      SELECT count(*)
+      FROM memberships
+      WHERE
+        roles = '[]'::jsonb
+        OR (
+          created_by_id = user_id
+          AND NOT (
+            roles ? 'manager'
+            AND roles ? 'reviewer'
+            AND roles ? 'annotator'
+          )
+        )
+        OR (
+          roles <> '[]'::jsonb
+          AND role <> CASE
+            WHEN roles ? 'manager' THEN 'manager'
+            WHEN roles ? 'reviewer' THEN 'reviewer'
+            WHEN roles ? 'annotator' THEN 'annotator'
+            ELSE role
+          END
+        )
+    ),
+  'missing_creator_membership_count',
+    (SELECT count(*) FROM missing_creator_memberships)
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyRoleFixtureAuditDb({
+  namePrefix,
+  creatorId,
+  reviewerId,
+}) {
+  const sql = `
+WITH matching_queues AS (
+  SELECT
+    q.id,
+    q.id::text AS id_text,
+    q.name,
+    q.created_by_id,
+    q.created_by_id::text AS created_by_id_text,
+    q.organization_id::text AS organization_id,
+    q.workspace_id::text AS workspace_id,
+    q.deleted
+  FROM model_hub_annotationqueue q
+  WHERE q.name LIKE ${sqlString(`${namePrefix}%`)}
+),
+matching_members AS (
+  SELECT
+    a.id::text AS id,
+    a.queue_id::text AS queue_id,
+    a.user_id::text AS user_id,
+    a.role,
+    a.roles,
+    a.deleted
+  FROM model_hub_annotationqueueannotator a
+  WHERE a.queue_id IN (SELECT id FROM matching_queues)
+)
+SELECT json_build_object(
+  'queues',
+    COALESCE(
+      (
+        SELECT json_agg(
+          json_build_object(
+            'id', id_text,
+            'name', name,
+            'created_by_id', created_by_id_text,
+            'organization_id', organization_id,
+            'workspace_id', workspace_id,
+            'deleted', deleted
+          )
+          ORDER BY name
+        )
+        FROM matching_queues
+      ),
+      '[]'::json
+    ),
+  'members',
+    COALESCE(
+      (
+        SELECT json_agg(
+          json_build_object(
+            'id', id,
+            'queue_id', queue_id,
+            'user_id', user_id,
+            'role', role,
+            'roles', roles,
+            'deleted', deleted
+          )
+          ORDER BY queue_id, user_id
+        )
+        FROM matching_members
+      ),
+      '[]'::json
+    ),
+  'creator_member_count',
+    (
+      SELECT count(*)
+      FROM matching_members
+      WHERE user_id = ${sqlString(creatorId)} AND deleted = false
+    ),
+  'reviewer_member_count',
+    (
+      SELECT count(*)
+      FROM matching_members
+      WHERE user_id = ${sqlString(reviewerId)} AND deleted = false
+    ),
+  'missing_creator_membership_count',
+    (
+      SELECT count(*)
+      FROM matching_queues q
+      WHERE
+        q.created_by_id = ${sqlUuid(creatorId, "creatorId")}
+        AND NOT EXISTS (
+          SELECT 1
+          FROM matching_members m
+          WHERE
+            m.queue_id = q.id_text
+            AND m.user_id = ${sqlString(creatorId)}
+            AND m.deleted = false
+        )
+    )
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadLegacyRoleFixtureResidueDb(namePrefix) {
+  const sql = `
+WITH matching_queues AS (
+  SELECT id FROM model_hub_annotationqueue WHERE name LIKE ${sqlString(`${namePrefix}%`)}
+)
+SELECT json_build_object(
+  'matching_queue_count', (SELECT count(*) FROM matching_queues),
+  'matching_member_count',
+    (
+      SELECT count(*)
+      FROM model_hub_annotationqueueannotator
+      WHERE queue_id IN (SELECT id FROM matching_queues)
+    )
+)::text;
+`;
+  return runPostgresJson(sql);
+}
+
+function findLegacyRoleAuditMember(audit, queueId, userId) {
+  return asArray(audit?.members).find(
+    (member) =>
+      String(member.queue_id) === String(queueId) &&
+      String(member.user_id) === String(userId) &&
+      member.deleted === false,
+  );
+}
+
+async function requireBackendContainerForJourney() {
+  const container =
+    process.env.API_JOURNEY_BACKEND_CONTAINER || "futureagi-ws2-backend-1";
+  try {
+    await execFileAsync("docker", ["exec", container, "true"]);
+  } catch {
+    skip(
+      `Set API_JOURNEY_BACKEND_CONTAINER to a running backend container for management-command coverage; ${container} is unavailable.`,
+    );
+  }
+  return container;
+}
+
+async function runBackendManageCommand(container, commandName, args = []) {
+  const manageArgs = [commandName, ...args].map(shellQuote).join(" ");
+  const command = [
+    "cd /app/backend",
+    `UV_PROJECT_ENVIRONMENT=/tmp/ws2-pytest-venv UV_LINK_MODE=copy uv run python manage.py ${manageArgs}`,
+  ].join(" && ");
+  try {
+    return await execFileAsync("docker", ["exec", container, "sh", "-lc", command], {
+      maxBuffer: 20 * 1024 * 1024,
+    });
+  } catch (error) {
+    throw new Error(
+      `Backend manage.py ${commandName} failed: ${String(
+        error.stderr || error.stdout || error.message,
+      ).slice(0, 2000)}`,
+    );
+  }
+}
+
+async function runBackendShellScript(container, script) {
+  const command = [
+    "cd /app/backend",
+    `UV_PROJECT_ENVIRONMENT=/tmp/ws2-pytest-venv UV_LINK_MODE=copy uv run python manage.py shell -c ${shellQuote(
+      script,
+    )}`,
+  ].join(" && ");
+  try {
+    return await execFileAsync("docker", ["exec", container, "sh", "-lc", command], {
+      maxBuffer: 20 * 1024 * 1024,
+    });
+  } catch (error) {
+    throw new Error(
+      `Backend shell script failed: ${String(
+        error.stderr || error.stdout || error.message,
+      ).slice(0, 2000)}`,
+    );
+  }
+}
+
+async function runBackendShellJson(container, script) {
+  const marker = "API_JOURNEY_JSON=";
+  const { stdout } = await runBackendShellScript(container, script);
+  const line = String(stdout || "")
+    .split(/\r?\n/)
+    .find((candidate) => candidate.startsWith(marker));
+  assert(line, `Backend shell script returned no ${marker} line: ${stdout}`);
+  return JSON.parse(line.slice(marker.length));
+}
+
+async function loadBackendQueuePricingMode(backendContainer) {
+  const script = `
+import json
+
+from tfc.ee_gating import is_oss
+
+mode = "unknown"
+try:
+    from ee.usage.deployment import DeploymentMode
+
+    mode = DeploymentMode.get_mode()
+except Exception as exc:
+    mode = f"unknown:{type(exc).__name__}"
+print("API_JOURNEY_JSON=" + json.dumps({"is_oss": is_oss(), "mode": mode}))
+`;
+  return runBackendShellJson(backendContainer, script);
+}
+
+async function setTemporaryQueueLimitOverride({
+  backendContainer,
+  organizationId,
+  limit,
+}) {
+  const script = `
+import json
+
+from ee.usage.models.usage import OrganizationSubscription, PlanEntitlement
+from ee.usage.services.entitlements import Entitlements
+from model_hub.models.annotation_queues import AnnotationQueue
+
+org_id = ${JSON.stringify(organizationId)}
+feature = "queues"
+limit = ${Number(limit)}
+existing_active = list(
+    PlanEntitlement.objects.filter(
+        organization_id=org_id,
+        feature=feature,
+    ).values("id", "plan", "value_int", "value_bool")
+)
+if existing_active:
+    raise RuntimeError(f"Active queue entitlement override already exists: {existing_active}")
+plan = (
+    OrganizationSubscription.objects.filter(organization_id=org_id)
+    .values_list("plan", flat=True)
+    .first()
+    or "free"
+)
+override, created = PlanEntitlement.all_objects.update_or_create(
+    organization_id=org_id,
+    feature=feature,
+    plan=plan,
+    defaults={
+        "value_int": limit,
+        "value_bool": None,
+        "deleted": False,
+        "deleted_at": None,
+    },
+)
+Entitlements.invalidate_cache(org_id, feature)
+current_count = AnnotationQueue.no_workspace_objects.filter(
+    organization_id=org_id,
+).count()
+print(
+    "API_JOURNEY_JSON="
+    + json.dumps(
+        {
+            "override_id": str(override.id),
+            "created": created,
+            "plan": plan,
+            "limit": limit,
+            "current_count": current_count,
+        }
+    )
+)
+`;
+  return runBackendShellJson(backendContainer, script);
+}
+
+async function clearTemporaryQueueLimitOverride({
+  backendContainer,
+  organizationId,
+  overrideId,
+}) {
+  if (!overrideId) return { deleted: 0, skipped: true };
+  const script = `
+import json
+
+from ee.usage.models.usage import PlanEntitlement
+from ee.usage.services.entitlements import Entitlements
+
+org_id = ${JSON.stringify(organizationId)}
+override_id = ${JSON.stringify(overrideId)}
+feature = "queues"
+deleted, _ = PlanEntitlement.all_objects.filter(
+    id=override_id,
+    organization_id=org_id,
+    feature=feature,
+).delete()
+Entitlements.invalidate_cache(org_id, feature)
+print("API_JOURNEY_JSON=" + json.dumps({"deleted": deleted}))
+`;
+  return runBackendShellJson(backendContainer, script);
+}
+
+function parseAnnotationQueueRoleBackfillSummary(output) {
+  const match = String(output || "").match(
+    /(?:DRY RUN:\s*)?Annotation queue role backfill complete:\s*(\d+)\s+memberships updated,\s*(\d+)\s+creator memberships created/i,
+  );
+  assert(
+    match,
+    `Could not parse annotation queue role backfill summary: ${output}`,
+  );
+  return {
+    dryRun: /DRY RUN:/i.test(output),
+    updated: Number(match[1]),
+    created: Number(match[2]),
+  };
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
+}
+
 async function runPostgresJson(sql) {
   const container = process.env.API_JOURNEY_DB_CONTAINER || "ws2-postgres";
   const user = process.env.API_JOURNEY_DB_USER || "user";
@@ -7012,6 +10998,14 @@ async function runPostgresJson(sql) {
 function sqlUuid(value, label) {
   assert(isUuid(value), `${label} must be a UUID for DB audit SQL.`);
   return `'${value}'::uuid`;
+}
+
+function sqlString(value) {
+  return `'${String(value ?? "").replaceAll("'", "''")}'`;
+}
+
+function sqlJson(value) {
+  return `${sqlString(JSON.stringify(value ?? null))}::jsonb`;
 }
 
 function expectedProgressFromDb(dbAudit, userId) {
@@ -7111,7 +11105,9 @@ function expectedProgressFromDb(dbAudit, userId) {
       in_review: userInReview,
       skipped: Number(userStatusCounts.get("skipped") || 0),
       progress_pct:
-        userItems.length > 0 ? round1((userCompleted / userItems.length) * 100) : 0,
+        userItems.length > 0
+          ? round1((userCompleted / userItems.length) * 100)
+          : 0,
     },
   };
 }
@@ -7141,7 +11137,9 @@ function expectedAnalyticsFromDb(dbAudit) {
       statusBreakdown.needs_changes += 1;
     } else if (item.status === "in_progress") {
       statusBreakdown.in_review += 1;
-    } else if (Object.prototype.hasOwnProperty.call(statusBreakdown, item.status)) {
+    } else if (
+      Object.prototype.hasOwnProperty.call(statusBreakdown, item.status)
+    ) {
       statusBreakdown[item.status] += 1;
     } else {
       statusBreakdown.pending += 1;
@@ -7172,11 +11170,12 @@ function expectedAnalyticsFromDb(dbAudit) {
       user_id: annotatorId,
       name: rows[0]?.annotator_name || null,
       completed: rows.length,
-      last_active: rows
-        .map((row) => row.created_at)
-        .filter(Boolean)
-        .sort()
-        .at(-1) || null,
+      last_active:
+        rows
+          .map((row) => row.created_at)
+          .filter(Boolean)
+          .sort()
+          .at(-1) || null,
     }))
     .sort(
       (left, right) =>
@@ -7246,7 +11245,9 @@ function expectedAgreementFromDb(dbAudit) {
     for (const entries of itemLabelMap.values()) {
       if (entries[0]?.label_id !== labelIdValue || entries.length < 2) continue;
       totalCount += 1;
-      const values = entries.map((entry) => normalizeAgreementValue(entry.value));
+      const values = entries.map((entry) =>
+        normalizeAgreementValue(entry.value),
+      );
       if (new Set(values).size === 1) {
         agreeCount += 1;
       } else {
@@ -7294,7 +11295,10 @@ function assertExportFieldsCatalogMatches(payload, dbAudit) {
   const fields = asArray(payload.fields);
   const defaultMapping = asArray(payload.default_mapping);
   assert(fields.length > 0, "Export fields returned no fields.");
-  assert(defaultMapping.length > 0, "Export fields returned no default_mapping.");
+  assert(
+    defaultMapping.length > 0,
+    "Export fields returned no default_mapping.",
+  );
 
   const fieldsById = new Map(fields.map((field) => [String(field.id), field]));
   assert(
@@ -7302,7 +11306,9 @@ function assertExportFieldsCatalogMatches(payload, dbAudit) {
     "Export fields contained duplicate field ids.",
   );
   const columnKeys = fields.map((field) =>
-    String(field.column || "").trim().toLowerCase(),
+    String(field.column || "")
+      .trim()
+      .toLowerCase(),
   );
   assert(
     new Set(columnKeys).size === columnKeys.length,
@@ -7319,8 +11325,14 @@ function assertExportFieldsCatalogMatches(payload, dbAudit) {
     "Export fields default_mapping did not match fields marked default=true.",
   );
   for (const mapping of defaultMapping) {
-    assert(fieldsById.has(String(mapping.field)), `Default mapping field ${mapping.field} missing.`);
-    assert(mapping.enabled === true, "Default mapping must mark fields enabled.");
+    assert(
+      fieldsById.has(String(mapping.field)),
+      `Default mapping field ${mapping.field} missing.`,
+    );
+    assert(
+      mapping.enabled === true,
+      "Default mapping must mark fields enabled.",
+    );
     assert(
       typeof mapping.column === "string" && mapping.column.length > 0,
       "Default mapping column must be a non-empty string.",
@@ -7341,7 +11353,10 @@ function assertExportFieldsCatalogMatches(payload, dbAudit) {
     "item_notes",
   ];
   for (const fieldId of requiredBaseFields) {
-    assert(fieldsById.has(fieldId), `Export fields missing base field ${fieldId}.`);
+    assert(
+      fieldsById.has(fieldId),
+      `Export fields missing base field ${fieldId}.`,
+    );
   }
 
   const annotationsRequired = Math.max(
@@ -7551,7 +11566,10 @@ function assertAnalyticsMatches(actual, expected) {
     `Analytics total_completed expected ${expected.throughput.total_completed}, saw ${actual.throughput?.total_completed}.`,
   );
   assert(
-    nearlyEqual(actual.throughput?.avg_per_day, expected.throughput.avg_per_day),
+    nearlyEqual(
+      actual.throughput?.avg_per_day,
+      expected.throughput.avg_per_day,
+    ),
     `Analytics avg_per_day expected ${expected.throughput.avg_per_day}, saw ${actual.throughput?.avg_per_day}.`,
   );
   assertJsonEqual(
@@ -7590,7 +11608,10 @@ function assertAgreementMatches(actual, expected) {
         actualLabel.agreement_pct,
         expectedLabel.agreement_pct,
       ) &&
-        nullableNearlyEqual(actualLabel.cohens_kappa, expectedLabel.cohens_kappa),
+        nullableNearlyEqual(
+          actualLabel.cohens_kappa,
+          expectedLabel.cohens_kappa,
+        ),
       `Agreement label ${labelIdValue} metrics expected ${JSON.stringify(
         expectedLabel,
       )}, saw ${JSON.stringify(actualLabel)}.`,
@@ -7615,7 +11636,13 @@ function assertAgreementMatches(actual, expected) {
   );
 }
 
-function assertMetricRowsMatch(actualRows, expectedRows, keySpec, numericFields, label) {
+function assertMetricRowsMatch(
+  actualRows,
+  expectedRows,
+  keySpec,
+  numericFields,
+  label,
+) {
   const keyFn =
     typeof keySpec === "function" ? keySpec : (row) => String(row?.[keySpec]);
   const actualByKey = new Map(actualRows.map((row) => [keyFn(row), row]));
@@ -7642,7 +11669,11 @@ function assertMetricRowsMatch(actualRows, expectedRows, keySpec, numericFields,
 function assertLabelDistributionMatches(actual, expected) {
   const actualKeys = Object.keys(actual).sort();
   const expectedKeys = Object.keys(expected).sort();
-  assertJsonEqual(actualKeys, expectedKeys, "Analytics label_distribution labels");
+  assertJsonEqual(
+    actualKeys,
+    expectedKeys,
+    "Analytics label_distribution labels",
+  );
   for (const labelIdValue of expectedKeys) {
     assert(
       actual[labelIdValue]?.name === expected[labelIdValue].name &&
@@ -7697,7 +11728,10 @@ function groupBy(rows, keyFn) {
 
 function countComparableItemLabels(scores) {
   return Array.from(
-    groupBy(asArray(scores), (score) => `${score.queue_item_id}::${score.label_id}`),
+    groupBy(
+      asArray(scores),
+      (score) => `${score.queue_item_id}::${score.label_id}`,
+    ),
   ).filter(([, rows]) => rows.length >= 2).length;
 }
 
@@ -7780,7 +11814,10 @@ function normalizeAgreementValue(value) {
       ])
       .sort(([left], [right]) => left.localeCompare(right));
     return `[${entries
-      .map(([key, entryValue]) => `(${pythonRepr(key)}, ${pythonRepr(entryValue)})`)
+      .map(
+        ([key, entryValue]) =>
+          `(${pythonRepr(key)}, ${pythonRepr(entryValue)})`,
+      )
       .join(", ")}]`;
   }
   if (typeof value === "boolean") return value ? "True" : "False";
@@ -7799,7 +11836,9 @@ function pythonRepr(value) {
   if (Array.isArray(value)) return `[${value.map(pythonRepr).join(", ")}]`;
   if (typeof value === "object") {
     return `{${Object.entries(value)
-      .map(([key, entryValue]) => `${pythonRepr(key)}: ${pythonRepr(entryValue)}`)
+      .map(
+        ([key, entryValue]) => `${pythonRepr(key)}: ${pythonRepr(entryValue)}`,
+      )
       .join(", ")}}`;
   }
   return String(value);
@@ -7818,7 +11857,12 @@ function nearlyEqual(left, right, epsilon = 0.0001) {
 }
 
 function nullableNearlyEqual(left, right, epsilon = 0.0001) {
-  if (left === null || left === undefined || right === null || right === undefined) {
+  if (
+    left === null ||
+    left === undefined ||
+    right === null ||
+    right === undefined
+  ) {
     return left === right;
   }
   return nearlyEqual(left, right, epsilon);
@@ -7836,7 +11880,12 @@ async function findQueueEntryForSource(client, queueId, sourceType, sourceId) {
   return entries.find((entry) => String(entry?.queue?.id) === String(queueId));
 }
 
-async function findDefaultQueueEntryForSource(client, queueId, sourceType, sourceId) {
+async function findDefaultQueueEntryForSource(
+  client,
+  queueId,
+  sourceType,
+  sourceId,
+) {
   const entries = asArray(
     await client.get(apiPath("/model-hub/annotation-queues/for-source/"), {
       query: {
@@ -7868,7 +11917,11 @@ async function resolveDefaultQueueForDirectTraceAnnotation(
   );
 
   for (const candidate of queues) {
-    if (!candidate?.id || candidate.status !== "active" || !candidate.is_default) {
+    if (
+      !candidate?.id ||
+      candidate.status !== "active" ||
+      !candidate.is_default
+    ) {
       continue;
     }
     const detail = await client.get(
@@ -7986,7 +12039,12 @@ async function firstTraceSourceForDefaultQueue(
   return fallback;
 }
 
-async function resolveDefaultQueueTraceSource(client, queueId, seedSample, evidence) {
+async function resolveDefaultQueueTraceSource(
+  client,
+  queueId,
+  seedSample,
+  evidence,
+) {
   const candidates = [];
   const seen = new Set();
   const pushCandidate = (candidate) => {
@@ -8162,9 +12220,12 @@ async function resolveObserveVoiceCallSource(client, evidence) {
     for (const call of baseRows) {
       const traceId = call.trace_id;
       if (!traceId) continue;
-      const detail = await client.get(apiPath("/tracer/trace/voice_call_detail/"), {
-        query: { trace_id: traceId },
-      });
+      const detail = await client.get(
+        apiPath("/tracer/trace/voice_call_detail/"),
+        {
+          query: { trace_id: traceId },
+        },
+      );
       const rootSpan = findVoiceRootConversationSpan(detail?.observation_span);
       if (!rootSpan?.id) continue;
 
@@ -8193,7 +12254,8 @@ function findVoiceRootConversationSpan(spans) {
   const rows = asArray(spans);
   return (
     rows.find(
-      (span) => !span?.parent_span_id && span?.observation_type === "conversation",
+      (span) =>
+        !span?.parent_span_id && span?.observation_type === "conversation",
     ) ||
     rows.find((span) => !span?.parent_span_id) ||
     rows[0]
@@ -8559,6 +12621,7 @@ function labelId(label) {
 function reviewAnnotationValue(label, runId, suffix) {
   const type = String(label?.type || "").toLowerCase();
   if (type.includes("text")) return `review ${suffix} ${runId}`;
+  if (type.includes("thumb")) return { value: "up" };
   return annotationValueForLabel(label);
 }
 
@@ -8566,7 +12629,9 @@ function revisedReviewAnnotationValue(label, originalValue, runId) {
   const type = String(label?.type || "").toLowerCase();
   const settings = label?.settings || {};
   if (type.includes("text")) return `review revised ${runId}`;
-  if (type.includes("thumb")) return !Boolean(originalValue);
+  if (type.includes("thumb")) {
+    return { value: originalValue?.value === "up" ? "down" : "up" };
+  }
   if (type.includes("numeric") || type.includes("number")) {
     const max = Number.isFinite(Number(settings.max))
       ? Number(settings.max)
