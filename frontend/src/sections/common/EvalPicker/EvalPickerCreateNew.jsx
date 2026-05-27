@@ -23,6 +23,7 @@ import React, {
 import { useWatch } from "react-hook-form";
 import Iconify from "src/components/iconify";
 import { ShowComponent } from "src/components/show/ShowComponent";
+import CustomTooltip from "src/components/tooltip/CustomTooltip";
 import ResizablePanels from "src/components/resizablePanels/ResizablePanels";
 import TaskFilterBar from "src/sections/tasks/components/TaskFilterBar";
 import { buildApiFilterArray } from "src/sections/tasks/components/TaskLivePreview";
@@ -622,10 +623,16 @@ const EvalPickerCreateNew = ({ onBack, onSave }) => {
   // `source === "composite"` means this drawer was opened from a composite's
   // child picker with no dataset bound — there's no variable mapping to
   // complete here, so don't gate saving on `sourceReady`.
+  const needsTemplateVariable =
+    evalType !== "code" &&
+    !hasDataInjection &&
+    !/\{\{\s*[^{}]+?\s*\}\}/.test(instructions);
+
   const canSave = isComposite
     ? !!name.trim() && selectedChildren.length > 0
     : name.trim() &&
       (evalType === "code" ? code.trim() : instructions.trim()) &&
+      !needsTemplateVariable &&
       (source === "composite" || sourceReady || hasDataInjection);
 
   // Variables from instructions
@@ -1282,40 +1289,63 @@ const EvalPickerCreateNew = ({ onBack, onSave }) => {
         <ShowComponent
           condition={!hasDataInjection }
         >
-          <Button
-            variant="outlined"
+          <CustomTooltip
+            show={needsTemplateVariable}
+            title="Instructions must contain at least one template variable (e.g. {{input}})"
+            arrow
             size="small"
-            onClick={handleTestEvaluation}
-            disabled={
-              isTesting ||
-              (!sourceReady && !hasDataInjection) ||
-              !draftId ||
-              isComposite ||
-              source === "workbench"
-            }
-            startIcon={
-              isTesting ? (
-                <CircularProgress size={14} />
-              ) : (
-                <Iconify icon="mdi:play-circle-outline" width={16} />
-              )
-            }
-            sx={{ textTransform: "none" }}
+            type="black"
+            placement="top"
           >
-            {isTesting ? "Testing..." : "Test Evaluation"}
-          </Button>
+            <span>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleTestEvaluation}
+                disabled={
+                  isTesting ||
+                  needsTemplateVariable ||
+                  (!sourceReady && !hasDataInjection) ||
+                  !draftId ||
+                  isComposite ||
+                  source === "workbench"
+                }
+                startIcon={
+                  isTesting ? (
+                    <CircularProgress size={14} />
+                  ) : (
+                    <Iconify icon="mdi:play-circle-outline" width={16} />
+                  )
+                }
+                sx={{ textTransform: "none" }}
+              >
+                {isTesting ? "Testing..." : "Test Evaluation"}
+              </Button>
+            </span>
+          </CustomTooltip>
         </ShowComponent>
 
-        <LoadingButton
-          variant="contained"
+        <CustomTooltip
+          show={needsTemplateVariable}
+          title="Instructions must contain at least one template variable (e.g. {{input}})"
+          arrow
           size="small"
-          loading={isSaving}
-          disabled={!canSave}
-          onClick={isComposite ? handleSaveAndAddComposite : handleSaveAndAdd}
-          sx={{ textTransform: "none" }}
+          type="black"
+          placement="top"
         >
-          {isComposite ? "Create & Configure" : "Save & Add Evaluation"}
-        </LoadingButton>
+          <span>
+            <LoadingButton
+              variant="contained"
+              size="small"
+              loading={isSaving}
+              disabled={!canSave}
+              onClick={isComposite ? handleSaveAndAddComposite : handleSaveAndAdd}
+              sx={{ textTransform: "none" }}
+            >
+              {isComposite ? "Create & Configure" : "Save & Add Evaluation"}
+            </LoadingButton>
+          </span>
+        </CustomTooltip>
       </Box>
     </Box>
   );
