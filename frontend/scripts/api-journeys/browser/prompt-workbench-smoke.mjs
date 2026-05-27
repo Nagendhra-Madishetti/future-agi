@@ -320,6 +320,9 @@ async function main() {
       evidence.db_run_metadata_count = Number(runAudit.metadata_count);
       evidence.db_run_is_draft = runAudit.is_draft;
       evidence.websocket_statuses = uniqueValues(promptSocketStatuses);
+      evidence.run_output_transport = evidence.websocket_statuses.length
+        ? "prompt_stream_websocket"
+        : "http_run_status_poll_fallback";
     } else {
       evidence.ui_run_output_skipped =
         "Set API_JOURNEY_PROMPT_UI_RUN=1 when the local websocket server is available.";
