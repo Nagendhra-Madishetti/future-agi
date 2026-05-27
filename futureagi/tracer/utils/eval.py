@@ -19,7 +19,12 @@ from tfc.constants.api_calls import APICallStatusChoices
 from tfc.temporal import temporal_activity
 from tracer.models.custom_eval_config import CustomEvalConfig, EvalOutputType
 from tracer.models.eval_task import EvalTask
-from tracer.models.observation_span import EvalLogger, EvalTargetType, ObservationSpan
+from tracer.models.observation_span import (
+    EvalLogger,
+    EvalTargetType,
+    ObservationSpan,
+    ObservationType,
+)
 from tracer.models.trace import Trace
 from tracer.models.trace_session import TraceSession
 from tracer.utils.helper import FieldConfig, get_default_trace_config
@@ -502,7 +507,10 @@ def _process_mapping(
         # from raw_log at API time (messages.<n>.*, started_at, …) but
         # never persists as flat span_attributes. Gated on observation_type
         # so non-voice spans are unaffected. See _walk_raw_log.
-        if resolved_value is _MISSING and span.observation_type == "conversation":
+        if (
+            resolved_value is _MISSING
+            and span.observation_type == ObservationType.CONVERSATION
+        ):
             raw_log = span_attrs.get("raw_log")
             if isinstance(raw_log, dict):
                 walked = _walk_raw_log(raw_log, attribute)

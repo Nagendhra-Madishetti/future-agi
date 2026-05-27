@@ -108,6 +108,7 @@ def test_missing_attribute_raises(_span_with_attrs, missing_eval_template_id):
 # ───────────────────────────────────────────────────────────────────────────
 
 
+from tracer.models.observation_span import ObservationType  # noqa: E402
 from tracer.utils.eval import (  # noqa: E402
     _MISSING,
     _to_camel_case,
@@ -148,7 +149,7 @@ _VAPI_RAW_LOG = {
 def voice_span(_span_with_attrs):
     """A conversation root span carrying the vapi raw_log payload."""
     span = _span_with_attrs({"raw_log": _VAPI_RAW_LOG})
-    span.observation_type = "conversation"
+    span.observation_type = ObservationType.CONVERSATION
     span.save(update_fields=["observation_type"])
     return span
 
@@ -323,7 +324,7 @@ def test_voice_fallback_not_reached_when_literal_resolves(
     span = _span_with_attrs(
         {"call.duration": 42, "raw_log": {"messages": [{"role": "decoy"}]}}
     )
-    span.observation_type = "conversation"
+    span.observation_type = ObservationType.CONVERSATION
     span.save(update_fields=["observation_type"])
     out = _process_mapping(
         {"v": "call.duration"}, span, eval_template_id=missing_eval_template_id
