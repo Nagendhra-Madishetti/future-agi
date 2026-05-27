@@ -256,6 +256,549 @@ export interface AcceptInvitationRequestApi {
   repeat_password: string;
 }
 
+export type ActivationStateResponseApiGoal = typeof ActivationStateResponseApiGoal[keyof typeof ActivationStateResponseApiGoal];
+
+
+export const ActivationStateResponseApiGoal = {
+  improve_prompts: 'improve_prompts',
+  build_ai_agent: 'build_ai_agent',
+  monitor_production_ai_app: 'monitor_production_ai_app',
+  control_model_traffic: 'control_model_traffic',
+  evaluate_quality: 'evaluate_quality',
+  connect_voice_ai_agent: 'connect_voice_ai_agent',
+  explore_sample_data: 'explore_sample_data',
+} as const;
+
+export type ActivationStateResponseApiPrimaryPath = typeof ActivationStateResponseApiPrimaryPath[keyof typeof ActivationStateResponseApiPrimaryPath];
+
+
+export const ActivationStateResponseApiPrimaryPath = {
+  prompt: 'prompt',
+  agent: 'agent',
+  observe: 'observe',
+  gateway: 'gateway',
+  voice: 'voice',
+  evals: 'evals',
+  dashboards: 'dashboards',
+  sample: 'sample',
+} as const;
+
+export type ActivationStateResponseApiStage = typeof ActivationStateResponseApiStage[keyof typeof ActivationStateResponseApiStage];
+
+
+export const ActivationStateResponseApiStage = {
+  feature_disabled: 'feature_disabled',
+  workspace_missing: 'workspace_missing',
+  permission_limited: 'permission_limited',
+  choose_goal: 'choose_goal',
+  selected_path_unavailable: 'selected_path_unavailable',
+  activated: 'activated',
+  daily_review: 'daily_review',
+  start_prompt: 'start_prompt',
+  run_prompt_test: 'run_prompt_test',
+  save_prompt_version: 'save_prompt_version',
+  compare_prompt_versions: 'compare_prompt_versions',
+  prompt_next_loop: 'prompt_next_loop',
+  create_agent: 'create_agent',
+  run_agent_scenario: 'run_agent_scenario',
+  review_agent_trace: 'review_agent_trace',
+  save_agent_eval: 'save_agent_eval',
+  agent_create_eval: 'agent_create_eval',
+  connect_observability: 'connect_observability',
+  waiting_for_first_trace: 'waiting_for_first_trace',
+  waiting_for_first_trace_sample_available: 'waiting_for_first_trace_sample_available',
+  review_first_trace: 'review_first_trace',
+  create_trace_evaluator: 'create_trace_evaluator',
+  create_trace_dashboard: 'create_trace_dashboard',
+  create_trace_alert: 'create_trace_alert',
+  configure_gateway_provider: 'configure_gateway_provider',
+  create_gateway_key: 'create_gateway_key',
+  run_gateway_request: 'run_gateway_request',
+  review_gateway_log: 'review_gateway_log',
+  fix_gateway_failure: 'fix_gateway_failure',
+  add_gateway_policy: 'add_gateway_policy',
+  create_voice_agent: 'create_voice_agent',
+  run_voice_test_call: 'run_voice_test_call',
+  review_voice_call: 'review_voice_call',
+  add_voice_success_criteria: 'add_voice_success_criteria',
+  voice_monitor_calls: 'voice_monitor_calls',
+  create_eval_dataset: 'create_eval_dataset',
+  add_eval_scorer: 'add_eval_scorer',
+  run_eval: 'run_eval',
+  review_eval_failures: 'review_eval_failures',
+  eval_next_loop: 'eval_next_loop',
+  open_sample_project: 'open_sample_project',
+  review_sample_signal: 'review_sample_signal',
+  connect_real_data: 'connect_real_data',
+} as const;
+
+export type ActivationStateResponseApiHomeMode = typeof ActivationStateResponseApiHomeMode[keyof typeof ActivationStateResponseApiHomeMode];
+
+
+export const ActivationStateResponseApiHomeMode = {
+  first_run: 'first_run',
+  daily_quality: 'daily_quality',
+  fallback: 'fallback',
+} as const;
+
+export type ActivationActionApiKind = typeof ActivationActionApiKind[keyof typeof ActivationActionApiKind];
+
+
+export const ActivationActionApiKind = {
+  choose_goal: 'choose_goal',
+  setup: 'setup',
+  send_signal: 'send_signal',
+  review: 'review',
+  improve: 'improve',
+  sample_project: 'sample_project',
+  request_access: 'request_access',
+  fallback: 'fallback',
+  daily_quality: 'daily_quality',
+  adjacent_loop: 'adjacent_loop',
+} as const;
+
+export type ActivationAnalyticsApiTargetPath = typeof ActivationAnalyticsApiTargetPath[keyof typeof ActivationAnalyticsApiTargetPath];
+
+
+export const ActivationAnalyticsApiTargetPath = {
+  prompt: 'prompt',
+  agent: 'agent',
+  observe: 'observe',
+  gateway: 'gateway',
+  voice: 'voice',
+  evals: 'evals',
+  dashboards: 'dashboards',
+  sample: 'sample',
+} as const;
+
+export interface ActivationAnalyticsApi {
+  /** @minLength 1 */
+  event_name: string;
+  source?: string;
+  target_path?: ActivationAnalyticsApiTargetPath;
+}
+
+export interface ActivationActionApi {
+  /** @minLength 1 */
+  id: string;
+  kind: ActivationActionApiKind;
+  /** @minLength 1 */
+  title: string;
+  /** @minLength 1 */
+  description: string;
+  href: string;
+  /** @minLength 1 */
+  cta_label: string;
+  /** @minimum 1 */
+  estimated_minutes?: number;
+  priority: number;
+  blocked: boolean;
+  blocked_reason?: string;
+  requires_permission?: string;
+  completion_event?: string;
+  is_sample?: boolean;
+  route_available: boolean;
+  /** @minLength 1 */
+  fallback_href: string;
+  analytics: ActivationAnalyticsApi;
+}
+
+export type ActivationProgressApiBuild = typeof ActivationProgressApiBuild[keyof typeof ActivationProgressApiBuild];
+
+
+export const ActivationProgressApiBuild = {
+  not_started: 'not_started',
+  available: 'available',
+  selected: 'selected',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  complete: 'complete',
+  sample_only: 'sample_only',
+} as const;
+
+export type ActivationProgressApiTest = typeof ActivationProgressApiTest[keyof typeof ActivationProgressApiTest];
+
+
+export const ActivationProgressApiTest = {
+  not_started: 'not_started',
+  available: 'available',
+  selected: 'selected',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  complete: 'complete',
+  sample_only: 'sample_only',
+} as const;
+
+export type ActivationProgressApiObserve = typeof ActivationProgressApiObserve[keyof typeof ActivationProgressApiObserve];
+
+
+export const ActivationProgressApiObserve = {
+  not_started: 'not_started',
+  available: 'available',
+  selected: 'selected',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  complete: 'complete',
+  sample_only: 'sample_only',
+} as const;
+
+export type ActivationProgressApiShip = typeof ActivationProgressApiShip[keyof typeof ActivationProgressApiShip];
+
+
+export const ActivationProgressApiShip = {
+  not_started: 'not_started',
+  available: 'available',
+  selected: 'selected',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  complete: 'complete',
+  sample_only: 'sample_only',
+} as const;
+
+export type ActivationProgressApiImprove = typeof ActivationProgressApiImprove[keyof typeof ActivationProgressApiImprove];
+
+
+export const ActivationProgressApiImprove = {
+  not_started: 'not_started',
+  available: 'available',
+  selected: 'selected',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  complete: 'complete',
+  sample_only: 'sample_only',
+} as const;
+
+export interface ActivationProgressApi {
+  build: ActivationProgressApiBuild;
+  test: ActivationProgressApiTest;
+  observe: ActivationProgressApiObserve;
+  ship: ActivationProgressApiShip;
+  improve: ActivationProgressApiImprove;
+}
+
+export interface ActivationSignalsApi {
+  /** @minimum 0 */
+  provider_keys?: number;
+  /** @minimum 0 */
+  datasets?: number;
+  /** @minimum 0 */
+  evals?: number;
+  /** @minimum 0 */
+  eval_runs?: number;
+  /** @minimum 0 */
+  prompt_templates?: number;
+  /** @minimum 0 */
+  prompt_versions?: number;
+  /** @minimum 0 */
+  prompt_comparisons?: number;
+  /** @minimum 0 */
+  agents?: number;
+  /** @minimum 0 */
+  agent_prototype_runs?: number;
+  /** @minimum 0 */
+  observe_projects?: number;
+  /** @minimum 0 */
+  traces?: number;
+  /** @minimum 0 */
+  trace_reviews?: number;
+  /** @minimum 0 */
+  gateway_keys?: number;
+  /** @minimum 0 */
+  gateway_requests?: number;
+  /** @minimum 0 */
+  gateway_policies?: number;
+  /** @minimum 0 */
+  voice_agents?: number;
+  /** @minimum 0 */
+  voice_simulations?: number;
+  /** @minimum 0 */
+  voice_calls?: number;
+  /** @minimum 0 */
+  voice_reviews?: number;
+  /** @minimum 0 */
+  team_invites?: number;
+  /** @minimum 0 */
+  dashboards?: number;
+  /** @minimum 0 */
+  alerts?: number;
+  first_trace_id?: string;
+  first_observe_id?: string;
+}
+
+export type AvailablePathApiId = typeof AvailablePathApiId[keyof typeof AvailablePathApiId];
+
+
+export const AvailablePathApiId = {
+  prompt: 'prompt',
+  agent: 'agent',
+  observe: 'observe',
+  gateway: 'gateway',
+  voice: 'voice',
+  evals: 'evals',
+  dashboards: 'dashboards',
+  sample: 'sample',
+} as const;
+
+export type AvailablePathApiStatus = typeof AvailablePathApiStatus[keyof typeof AvailablePathApiStatus];
+
+
+export const AvailablePathApiStatus = {
+  available: 'available',
+  selected: 'selected',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  complete: 'complete',
+  sample_only: 'sample_only',
+  hidden: 'hidden',
+} as const;
+
+export interface AvailablePathApi {
+  id: AvailablePathApiId;
+  /** @minLength 1 */
+  label: string;
+  /** @minLength 1 */
+  description: string;
+  status: AvailablePathApiStatus;
+  /** @minLength 1 */
+  href: string;
+  is_available: boolean;
+  blocked_reason?: string;
+  requires_permission?: string;
+  first_action_id?: string;
+}
+
+export type SampleProjectStateApiStatus = typeof SampleProjectStateApiStatus[keyof typeof SampleProjectStateApiStatus];
+
+
+export const SampleProjectStateApiStatus = {
+  unavailable: 'unavailable',
+  available: 'available',
+  creating: 'creating',
+  ready: 'ready',
+  partial: 'partial',
+  hidden: 'hidden',
+  stale_manifest: 'stale_manifest',
+  repair_required: 'repair_required',
+} as const;
+
+export interface SampleProjectStateApi {
+  available: boolean;
+  created: boolean;
+  status: SampleProjectStateApiStatus;
+  href: string;
+  version: string;
+  is_hidden: boolean;
+  hidden_reason?: string;
+  entry_routes: string[];
+  missing_artifacts: string[];
+  last_opened_at?: string;
+}
+
+export type LifecycleEligibilityApiSuppressionReason = typeof LifecycleEligibilityApiSuppressionReason[keyof typeof LifecycleEligibilityApiSuppressionReason];
+
+
+export const LifecycleEligibilityApiSuppressionReason = {
+  activated: 'activated',
+  target_event_complete: 'target_event_complete',
+  frequency_cap: 'frequency_cap',
+  workspace_suppressed: 'workspace_suppressed',
+  user_unsubscribed: 'user_unsubscribed',
+  sample_hidden: 'sample_hidden',
+  route_unavailable: 'route_unavailable',
+  permission_limited: 'permission_limited',
+  feature_disabled: 'feature_disabled',
+  recent_goal_change: 'recent_goal_change',
+  manual_pause: 'manual_pause',
+} as const;
+
+export interface LifecycleEligibilityApi {
+  eligible: boolean;
+  suppressed: boolean;
+  suppression_reason?: LifecycleEligibilityApiSuppressionReason;
+  next_email_key?: string;
+  next_email_after?: string;
+  digest_eligible: boolean;
+  last_email_sent_at?: string;
+  /** @minimum 0 */
+  frequency_cap_remaining: number;
+  dry_run_only?: boolean;
+}
+
+export interface ActivationPermissionsApi {
+  role: string;
+  can_read: boolean;
+  can_write: boolean;
+  can_manage_workspace: boolean;
+  missing_permissions: string[];
+  request_access_href?: string;
+  permission_limited: boolean;
+}
+
+export interface RouteAvailabilityApi { [key: string]: unknown }
+
+export type ActivationEmailContextApiTargetStage = typeof ActivationEmailContextApiTargetStage[keyof typeof ActivationEmailContextApiTargetStage];
+
+
+export const ActivationEmailContextApiTargetStage = {
+  feature_disabled: 'feature_disabled',
+  workspace_missing: 'workspace_missing',
+  permission_limited: 'permission_limited',
+  choose_goal: 'choose_goal',
+  selected_path_unavailable: 'selected_path_unavailable',
+  activated: 'activated',
+  daily_review: 'daily_review',
+  start_prompt: 'start_prompt',
+  run_prompt_test: 'run_prompt_test',
+  save_prompt_version: 'save_prompt_version',
+  compare_prompt_versions: 'compare_prompt_versions',
+  prompt_next_loop: 'prompt_next_loop',
+  create_agent: 'create_agent',
+  run_agent_scenario: 'run_agent_scenario',
+  review_agent_trace: 'review_agent_trace',
+  save_agent_eval: 'save_agent_eval',
+  agent_create_eval: 'agent_create_eval',
+  connect_observability: 'connect_observability',
+  waiting_for_first_trace: 'waiting_for_first_trace',
+  waiting_for_first_trace_sample_available: 'waiting_for_first_trace_sample_available',
+  review_first_trace: 'review_first_trace',
+  create_trace_evaluator: 'create_trace_evaluator',
+  create_trace_dashboard: 'create_trace_dashboard',
+  create_trace_alert: 'create_trace_alert',
+  configure_gateway_provider: 'configure_gateway_provider',
+  create_gateway_key: 'create_gateway_key',
+  run_gateway_request: 'run_gateway_request',
+  review_gateway_log: 'review_gateway_log',
+  fix_gateway_failure: 'fix_gateway_failure',
+  add_gateway_policy: 'add_gateway_policy',
+  create_voice_agent: 'create_voice_agent',
+  run_voice_test_call: 'run_voice_test_call',
+  review_voice_call: 'review_voice_call',
+  add_voice_success_criteria: 'add_voice_success_criteria',
+  voice_monitor_calls: 'voice_monitor_calls',
+  create_eval_dataset: 'create_eval_dataset',
+  add_eval_scorer: 'add_eval_scorer',
+  run_eval: 'run_eval',
+  review_eval_failures: 'review_eval_failures',
+  eval_next_loop: 'eval_next_loop',
+  open_sample_project: 'open_sample_project',
+  review_sample_signal: 'review_sample_signal',
+  connect_real_data: 'connect_real_data',
+} as const;
+
+export type ActivationEmailContextApiContextStatus = typeof ActivationEmailContextApiContextStatus[keyof typeof ActivationEmailContextApiContextStatus];
+
+
+export const ActivationEmailContextApiContextStatus = {
+  current: 'current',
+  stale: 'stale',
+  expired: 'expired',
+  invalid: 'invalid',
+  complete: 'complete',
+  route_unavailable: 'route_unavailable',
+} as const;
+
+export interface ActivationEmailContextApi {
+  /** @minLength 1 */
+  campaign_key: string;
+  /** @minLength 1 */
+  email_key: string;
+  target_stage: ActivationEmailContextApiTargetStage;
+  /** @minLength 1 */
+  target_event: string;
+  /** @minLength 1 */
+  target_route: string;
+  context_status: ActivationEmailContextApiContextStatus;
+  stale_reason?: string;
+  /** @minLength 1 */
+  resolved_href: string;
+}
+
+export type ActivationMeaningfulEventApiPath = typeof ActivationMeaningfulEventApiPath[keyof typeof ActivationMeaningfulEventApiPath];
+
+
+export const ActivationMeaningfulEventApiPath = {
+  prompt: 'prompt',
+  agent: 'agent',
+  observe: 'observe',
+  gateway: 'gateway',
+  voice: 'voice',
+  evals: 'evals',
+  dashboards: 'dashboards',
+  sample: 'sample',
+} as const;
+
+export type ActivationMeaningfulEventApiMetadata = {[key: string]: string};
+
+export interface ActivationMeaningfulEventApi {
+  /** @minLength 1 */
+  name: string;
+  occurred_at: string;
+  is_sample?: boolean;
+  path?: ActivationMeaningfulEventApiPath;
+  metadata?: ActivationMeaningfulEventApiMetadata;
+}
+
+export interface ActivationDiagnosticsSuppressedActionApi {
+  /** @minLength 1 */
+  id: string;
+  /** @minLength 1 */
+  reason: string;
+}
+
+export interface ActivationDiagnosticsApi {
+  /** @minLength 1 */
+  resolver_version: string;
+  /** @minLength 1 */
+  decision_reason: string;
+  /** @minLength 1 */
+  matched_rule: string;
+  candidate_actions: string[];
+  suppressed_actions: ActivationDiagnosticsSuppressedActionApi[];
+  evaluated_at: string;
+}
+
+export type ActivationStateResponseApiFeatureFlags = {[key: string]: boolean};
+
+export interface ActivationStateResponseApi {
+  /** @minLength 1 */
+  schema_version: string;
+  /** @minLength 1 */
+  request_id: string;
+  server_time: string;
+  /** @minLength 1 */
+  workspace_id: string;
+  /** @minLength 1 */
+  organization_id: string;
+  /** @minLength 1 */
+  user_id: string;
+  goal: ActivationStateResponseApiGoal;
+  persona: string;
+  primary_path: ActivationStateResponseApiPrimaryPath;
+  stage: ActivationStateResponseApiStage;
+  home_mode: ActivationStateResponseApiHomeMode;
+  is_activated: boolean;
+  activated_at: string;
+  recommended_action: ActivationActionApi;
+  fallback_action: ActivationActionApi;
+  progress: ActivationProgressApi;
+  signals: ActivationSignalsApi;
+  available_paths: AvailablePathApi[];
+  sample_project: SampleProjectStateApi;
+  email_eligibility: LifecycleEligibilityApi;
+  permissions: ActivationPermissionsApi;
+  feature_flags: ActivationStateResponseApiFeatureFlags;
+  route_availability: RouteAvailabilityApi;
+  email_context: ActivationEmailContextApi;
+  last_meaningful_event: ActivationMeaningfulEventApi;
+  diagnostics: ActivationDiagnosticsApi;
+  warnings: string[];
+}
+
+export interface ActivationStateApiResponseApi {
+  status?: boolean;
+  result: ActivationStateResponseApi;
+}
+
 export interface AccountOrganizationDetailApi {
   id: string;
   created_at?: string;
@@ -567,6 +1110,98 @@ export interface UserOnboardingSaveResultApi {
 export interface UserOnboardingSaveResponseApi {
   status: boolean;
   result: UserOnboardingSaveResultApi;
+}
+
+export type ActivationGoalRequestApiReason = typeof ActivationGoalRequestApiReason[keyof typeof ActivationGoalRequestApiReason];
+
+
+export const ActivationGoalRequestApiReason = {
+  first_selection: 'first_selection',
+  path_change: 'path_change',
+  email_link: 'email_link',
+  manual_switch: 'manual_switch',
+} as const;
+
+export type ActivationGoalRequestApiExpectedStage = typeof ActivationGoalRequestApiExpectedStage[keyof typeof ActivationGoalRequestApiExpectedStage];
+
+
+export const ActivationGoalRequestApiExpectedStage = {
+  feature_disabled: 'feature_disabled',
+  workspace_missing: 'workspace_missing',
+  permission_limited: 'permission_limited',
+  choose_goal: 'choose_goal',
+  selected_path_unavailable: 'selected_path_unavailable',
+  activated: 'activated',
+  daily_review: 'daily_review',
+  start_prompt: 'start_prompt',
+  run_prompt_test: 'run_prompt_test',
+  save_prompt_version: 'save_prompt_version',
+  compare_prompt_versions: 'compare_prompt_versions',
+  prompt_next_loop: 'prompt_next_loop',
+  create_agent: 'create_agent',
+  run_agent_scenario: 'run_agent_scenario',
+  review_agent_trace: 'review_agent_trace',
+  save_agent_eval: 'save_agent_eval',
+  agent_create_eval: 'agent_create_eval',
+  connect_observability: 'connect_observability',
+  waiting_for_first_trace: 'waiting_for_first_trace',
+  waiting_for_first_trace_sample_available: 'waiting_for_first_trace_sample_available',
+  review_first_trace: 'review_first_trace',
+  create_trace_evaluator: 'create_trace_evaluator',
+  create_trace_dashboard: 'create_trace_dashboard',
+  create_trace_alert: 'create_trace_alert',
+  configure_gateway_provider: 'configure_gateway_provider',
+  create_gateway_key: 'create_gateway_key',
+  run_gateway_request: 'run_gateway_request',
+  review_gateway_log: 'review_gateway_log',
+  fix_gateway_failure: 'fix_gateway_failure',
+  add_gateway_policy: 'add_gateway_policy',
+  create_voice_agent: 'create_voice_agent',
+  run_voice_test_call: 'run_voice_test_call',
+  review_voice_call: 'review_voice_call',
+  add_voice_success_criteria: 'add_voice_success_criteria',
+  voice_monitor_calls: 'voice_monitor_calls',
+  create_eval_dataset: 'create_eval_dataset',
+  add_eval_scorer: 'add_eval_scorer',
+  run_eval: 'run_eval',
+  review_eval_failures: 'review_eval_failures',
+  eval_next_loop: 'eval_next_loop',
+  open_sample_project: 'open_sample_project',
+  review_sample_signal: 'review_sample_signal',
+  connect_real_data: 'connect_real_data',
+} as const;
+
+export interface ActivationGoalRequestApi {
+  /** @minLength 1 */
+  goal: string;
+  primary_path?: string;
+  persona?: string;
+  source?: string;
+  campaign_key?: string;
+  reason?: ActivationGoalRequestApiReason;
+  expected_stage?: ActivationGoalRequestApiExpectedStage;
+  known_goal_id?: string;
+}
+
+export type ActivationGoalConflictResultApiErrorCode = typeof ActivationGoalConflictResultApiErrorCode[keyof typeof ActivationGoalConflictResultApiErrorCode];
+
+
+export const ActivationGoalConflictResultApiErrorCode = {
+  ONBOARDING_GOAL_CONFLICT: 'ONBOARDING_GOAL_CONFLICT',
+} as const;
+
+export interface ActivationGoalConflictResultApi {
+  error_code: ActivationGoalConflictResultApiErrorCode;
+  /** @minLength 1 */
+  reason: string;
+  /** @minLength 1 */
+  current_goal_id: string;
+  activation_state: ActivationStateResponseApi;
+}
+
+export interface ActivationGoalConflictResponseApi {
+  status?: boolean;
+  result: ActivationGoalConflictResultApi;
 }
 
 export interface OrgTwoFactorPolicyResponseApi {
@@ -6607,6 +7242,7 @@ export interface AnnotationsLabelsApi {
   readonly created_at?: string;
   readonly trace_annotations_count?: number;
   readonly annotation_count?: number;
+  readonly archived?: boolean;
 }
 
 export interface AnnotationLabelRestoreResponseApi {
@@ -8759,6 +9395,9 @@ export type DatasetTableMetadataApiStatus = { [key: string]: unknown };
 export interface DatasetTableMetadataApi {
   /** @minLength 1 */
   dataset_name: string;
+  experiment_id?: string;
+  /** @minLength 1 */
+  experiment_name?: string;
   total_rows?: number;
   total_pages?: number;
   error_messages?: string[];
@@ -9247,6 +9886,14 @@ export interface EvalSummaryTemplateDeleteResponseApi {
   result: EvalSummaryTemplateDeleteResponseResultApi;
 }
 
+export type EvalTemplateApiOwner = typeof EvalTemplateApiOwner[keyof typeof EvalTemplateApiOwner];
+
+
+export const EvalTemplateApiOwner = {
+  system: 'system',
+  user: 'user',
+} as const;
+
 export type EvalTemplateApiConfig = { [key: string]: unknown };
 
 export interface EvalTemplateApi {
@@ -9255,11 +9902,7 @@ export interface EvalTemplateApi {
      * @maxLength 50
      */
   name: string;
-  /**
-     * @minLength 1
-     * @maxLength 50
-     */
-  owner?: string;
+  owner?: EvalTemplateApiOwner;
   config: EvalTemplateApiConfig;
   eval_tags?: string[];
 }
@@ -9394,6 +10037,8 @@ export const CompositeEvalCreateRequestApiAggregationFunction = {
 
 export type CompositeEvalCreateRequestApiChildWeights = { [key: string]: unknown };
 
+export type CompositeEvalCreateRequestApiChildPinnedVersions = { [key: string]: unknown };
+
 export type CompositeEvalCreateRequestApiCompositeChildAxis = typeof CompositeEvalCreateRequestApiCompositeChildAxis[keyof typeof CompositeEvalCreateRequestApiCompositeChildAxis];
 
 
@@ -9417,6 +10062,7 @@ export interface CompositeEvalCreateRequestApi {
   aggregation_enabled?: boolean;
   aggregation_function?: CompositeEvalCreateRequestApiAggregationFunction;
   child_weights?: CompositeEvalCreateRequestApiChildWeights;
+  child_pinned_versions?: CompositeEvalCreateRequestApiChildPinnedVersions;
   composite_child_axis?: CompositeEvalCreateRequestApiCompositeChildAxis;
 }
 
@@ -9614,10 +10260,28 @@ export const EvalListFiltersApiEvalTypeItem = {
   agent: 'agent',
 } as const;
 
+export type EvalListFiltersApiEvalTypeNotItem = typeof EvalListFiltersApiEvalTypeNotItem[keyof typeof EvalListFiltersApiEvalTypeNotItem];
+
+
+export const EvalListFiltersApiEvalTypeNotItem = {
+  llm: 'llm',
+  code: 'code',
+  agent: 'agent',
+} as const;
+
 export type EvalListFiltersApiOutputTypeItem = typeof EvalListFiltersApiOutputTypeItem[keyof typeof EvalListFiltersApiOutputTypeItem];
 
 
 export const EvalListFiltersApiOutputTypeItem = {
+  pass_fail: 'pass_fail',
+  percentage: 'percentage',
+  deterministic: 'deterministic',
+} as const;
+
+export type EvalListFiltersApiOutputTypeNotItem = typeof EvalListFiltersApiOutputTypeNotItem[keyof typeof EvalListFiltersApiOutputTypeNotItem];
+
+
+export const EvalListFiltersApiOutputTypeNotItem = {
   pass_fail: 'pass_fail',
   percentage: 'percentage',
   deterministic: 'deterministic',
@@ -9631,13 +10295,27 @@ export const EvalListFiltersApiTemplateTypeItem = {
   composite: 'composite',
 } as const;
 
+export type EvalListFiltersApiTemplateTypeNotItem = typeof EvalListFiltersApiTemplateTypeNotItem[keyof typeof EvalListFiltersApiTemplateTypeNotItem];
+
+
+export const EvalListFiltersApiTemplateTypeNotItem = {
+  single: 'single',
+  composite: 'composite',
+} as const;
+
 export interface EvalListFiltersApi {
   eval_type?: EvalListFiltersApiEvalTypeItem[];
+  eval_type_not?: EvalListFiltersApiEvalTypeNotItem[];
   output_type?: EvalListFiltersApiOutputTypeItem[];
+  output_type_not?: EvalListFiltersApiOutputTypeNotItem[];
   template_type?: EvalListFiltersApiTemplateTypeItem[];
+  template_type_not?: EvalListFiltersApiTemplateTypeNotItem[];
   tags?: string[];
+  tags_not?: string[];
   created_by?: string[];
+  created_by_not?: string[];
   names?: string[];
+  names_not?: string[];
 }
 
 export interface EvalListRequestApi {
@@ -9728,6 +10406,8 @@ export const CompositeEvalUpdateRequestApiAggregationFunction = {
 
 export type CompositeEvalUpdateRequestApiChildWeights = { [key: string]: unknown };
 
+export type CompositeEvalUpdateRequestApiChildPinnedVersions = { [key: string]: unknown };
+
 export type CompositeEvalUpdateRequestApiCompositeChildAxis = typeof CompositeEvalUpdateRequestApiCompositeChildAxis[keyof typeof CompositeEvalUpdateRequestApiCompositeChildAxis];
 
 
@@ -9751,6 +10431,7 @@ export interface CompositeEvalUpdateRequestApi {
   aggregation_function?: CompositeEvalUpdateRequestApiAggregationFunction;
   child_template_ids?: string[];
   child_weights?: CompositeEvalUpdateRequestApiChildWeights;
+  child_pinned_versions?: CompositeEvalUpdateRequestApiChildPinnedVersions;
   composite_child_axis?: CompositeEvalUpdateRequestApiCompositeChildAxis;
 }
 
@@ -13822,10 +14503,6 @@ export interface AgentDefinitionResponseApi {
   readonly knowledge_base?: string;
   /** Organization this agent definition belongs to */
   readonly organization?: string;
-  /**
-     * API key for the agent
-     * @minLength 1
-     */
   readonly api_key?: string;
   readonly observability_provider?: string;
   readonly created_at?: string;
@@ -16019,7 +16696,10 @@ export interface CallExecutionDetailApi {
   /** Call summary from the service */
   call_summary?: string;
   readonly recordings?: string;
+  readonly test_execution_id?: string;
   readonly scenario_id?: string;
+  readonly scenario_graph?: string;
+  readonly scenario_graph_id?: string;
   readonly avg_agent_latency?: number;
   /**
      * Average agent latency in milliseconds (time taken by agent to respond after user's pause)
@@ -18383,8 +19063,12 @@ export type EvalTaskApiFilters = {
   date_range?: string[];
   /** Lower-bound ISO timestamp for legacy task filters. */
   created_at?: string;
-  /** Trace session id to constrain the task. */
-  session_id?: string;
+  /** Trace session id(s) to constrain the task. */
+  session_id?: string[];
+  /** Trace id(s) to constrain linked-source tasks. */
+  trace_id?: string[];
+  /** Observation span id(s) to constrain linked-source tasks. */
+  span_id?: string[];
   /** Observation span type(s), for example llm, tool, or chain. */
   observation_type?: string[];
   span_attributes_filters?: EvalTaskApiFiltersSpanAttributesFiltersItem[];
@@ -18455,6 +19139,127 @@ export interface EvalTaskApi {
   evals: string[];
   failed_spans?: EvalTaskApiFailedSpans;
   readonly progress?: string;
+}
+
+export interface EvalTaskDeleteRequestApi {
+  eval_task_ids: string[];
+}
+
+export interface EvalTaskMessageResultApi {
+  /** @minLength 1 */
+  message: string;
+}
+
+export interface EvalTaskMessageResponseApi {
+  status?: boolean;
+  result: EvalTaskMessageResultApi;
+}
+
+export type EditEvalTaskApiFiltersSpanAttributesFiltersItemFilterConfig = {
+  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
+  filter_type: string;
+  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
+  filter_op: string;
+  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
+  filter_value?: unknown;
+  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
+  col_type?: string;
+};
+
+export type EditEvalTaskApiFiltersSpanAttributesFiltersItem = {
+  /** Column or attribute id to filter on. */
+  column_id: string;
+  /** Optional UI label for chips and saved views. */
+  display_name?: string;
+  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
+  source?: string;
+  /** Optional metric output type metadata used by eval and annotation filters. */
+  output_type?: string;
+  filter_config: EditEvalTaskApiFiltersSpanAttributesFiltersItemFilterConfig;
+};
+
+export type EditEvalTaskApiFilters = {
+  /** Project scope for the evaluation task. */
+  project_id?: string;
+  /**
+     * Inclusive start/end ISO timestamps.
+     * @minItems 2
+     * @maxItems 2
+     */
+  date_range?: string[];
+  /** Lower-bound ISO timestamp for legacy task filters. */
+  created_at?: string;
+  /** Trace session id(s) to constrain the task. */
+  session_id?: string[];
+  /** Trace id(s) to constrain linked-source tasks. */
+  trace_id?: string[];
+  /** Observation span id(s) to constrain linked-source tasks. */
+  span_id?: string[];
+  /** Observation span type(s), for example llm, tool, or chain. */
+  observation_type?: string[];
+  span_attributes_filters?: EditEvalTaskApiFiltersSpanAttributesFiltersItem[];
+};
+
+export type EditEvalTaskApiRunType = typeof EditEvalTaskApiRunType[keyof typeof EditEvalTaskApiRunType];
+
+
+export const EditEvalTaskApiRunType = {
+  continuous: 'continuous',
+  historical: 'historical',
+} as const;
+
+export type EditEvalTaskApiRowType = typeof EditEvalTaskApiRowType[keyof typeof EditEvalTaskApiRowType];
+
+
+export const EditEvalTaskApiRowType = {
+  spans: 'spans',
+  traces: 'traces',
+  sessions: 'sessions',
+  voiceCalls: 'voiceCalls',
+} as const;
+
+export type EditEvalTaskApiStatus = typeof EditEvalTaskApiStatus[keyof typeof EditEvalTaskApiStatus];
+
+
+export const EditEvalTaskApiStatus = {
+  pending: 'pending',
+  running: 'running',
+  completed: 'completed',
+  failed: 'failed',
+  paused: 'paused',
+  deleted: 'deleted',
+} as const;
+
+export type EditEvalTaskApiEditType = typeof EditEvalTaskApiEditType[keyof typeof EditEvalTaskApiEditType];
+
+
+export const EditEvalTaskApiEditType = {
+  edit_rerun: 'edit_rerun',
+  fresh_run: 'fresh_run',
+} as const;
+
+export interface EditEvalTaskApi {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  name?: string;
+  filters?: EditEvalTaskApiFilters;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  sampling_rate?: number;
+  /**
+     * @minimum 1
+     * @maximum 1000000
+     */
+  spans_limit?: number;
+  run_type?: EditEvalTaskApiRunType;
+  row_type?: EditEvalTaskApiRowType;
+  status?: EditEvalTaskApiStatus;
+  evals?: string[];
+  edit_type: EditEvalTaskApiEditType;
 }
 
 export interface LinearTeamApi {
@@ -18605,6 +19410,7 @@ export interface FeedUpdateBodyApi {
 export interface CreateLinearIssueApi {
   /** @minLength 1 */
   team_id: string;
+  trace_id?: string;
   title?: string;
   description?: string;
   priority?: number;
@@ -20406,6 +21212,13 @@ export interface UserAlertMonitorApi {
   created_by?: string;
 }
 
+export interface UserAlertBulkMuteRequestApi {
+  ids?: string[];
+  is_mute?: boolean;
+  select_all?: boolean;
+  exclude_ids?: string[];
+}
+
 export interface UserAlertMonitorDuplicateApi {
   id: string;
   /**
@@ -21919,6 +22732,65 @@ export interface StripeWebhookLegacyResponseApi {
   result?: StripeWebhookResultApi;
 }
 
+export type AccountsActivationStateListParams = {
+source?: string;
+campaign_key?: string;
+email_key?: string;
+target_stage?: AccountsActivationStateListTargetStage;
+target_event?: string;
+target_route?: string;
+debug?: boolean;
+};
+
+export type AccountsActivationStateListTargetStage = typeof AccountsActivationStateListTargetStage[keyof typeof AccountsActivationStateListTargetStage];
+
+
+export const AccountsActivationStateListTargetStage = {
+  feature_disabled: 'feature_disabled',
+  workspace_missing: 'workspace_missing',
+  permission_limited: 'permission_limited',
+  choose_goal: 'choose_goal',
+  selected_path_unavailable: 'selected_path_unavailable',
+  activated: 'activated',
+  daily_review: 'daily_review',
+  start_prompt: 'start_prompt',
+  run_prompt_test: 'run_prompt_test',
+  save_prompt_version: 'save_prompt_version',
+  compare_prompt_versions: 'compare_prompt_versions',
+  prompt_next_loop: 'prompt_next_loop',
+  create_agent: 'create_agent',
+  run_agent_scenario: 'run_agent_scenario',
+  review_agent_trace: 'review_agent_trace',
+  save_agent_eval: 'save_agent_eval',
+  agent_create_eval: 'agent_create_eval',
+  connect_observability: 'connect_observability',
+  waiting_for_first_trace: 'waiting_for_first_trace',
+  waiting_for_first_trace_sample_available: 'waiting_for_first_trace_sample_available',
+  review_first_trace: 'review_first_trace',
+  create_trace_evaluator: 'create_trace_evaluator',
+  create_trace_dashboard: 'create_trace_dashboard',
+  create_trace_alert: 'create_trace_alert',
+  configure_gateway_provider: 'configure_gateway_provider',
+  create_gateway_key: 'create_gateway_key',
+  run_gateway_request: 'run_gateway_request',
+  review_gateway_log: 'review_gateway_log',
+  fix_gateway_failure: 'fix_gateway_failure',
+  add_gateway_policy: 'add_gateway_policy',
+  create_voice_agent: 'create_voice_agent',
+  run_voice_test_call: 'run_voice_test_call',
+  review_voice_call: 'review_voice_call',
+  add_voice_success_criteria: 'add_voice_success_criteria',
+  voice_monitor_calls: 'voice_monitor_calls',
+  create_eval_dataset: 'create_eval_dataset',
+  add_eval_scorer: 'add_eval_scorer',
+  run_eval: 'run_eval',
+  review_eval_failures: 'review_eval_failures',
+  eval_next_loop: 'eval_next_loop',
+  open_sample_project: 'open_sample_project',
+  review_sample_signal: 'review_sample_signal',
+  connect_real_data: 'connect_real_data',
+} as const;
+
 export type AccountsAwsMarketplaceLaunchSoftwareCreateBody = {
   'x-amzn-marketplace-token': string;
   'x-amzn-marketplace-product-id'?: string;
@@ -23020,6 +23892,7 @@ type?: ModelHubAnnotationsLabelsListType;
 search?: string;
 include_usage_count?: boolean;
 include_archived?: boolean;
+archived?: boolean;
 };
 
 export type ModelHubAnnotationsLabelsListType = typeof ModelHubAnnotationsLabelsListType[keyof typeof ModelHubAnnotationsLabelsListType];
@@ -24607,13 +25480,6 @@ page?: number;
 limit?: number;
 };
 
-export type TracerEvalTaskList200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: EvalTaskApi[];
-};
-
 export type TracerEvalTaskGetEvalDetailsParams = {
 /**
  * A page number within the paginated result set.
@@ -24623,13 +25489,6 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type TracerEvalTaskGetEvalDetails200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: EvalTaskApi[];
 };
 
 export type TracerEvalTaskGetEvalTaskLogsParams = {
@@ -24643,13 +25502,6 @@ page?: number;
 limit?: number;
 };
 
-export type TracerEvalTaskGetEvalTaskLogs200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: EvalTaskApi[];
-};
-
 export type TracerEvalTaskGetUsageParams = {
 /**
  * A page number within the paginated result set.
@@ -24659,13 +25511,6 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type TracerEvalTaskGetUsage200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: EvalTaskApi[];
 };
 
 export type TracerEvalTaskListEvalTasksParams = {
@@ -25781,13 +26626,6 @@ page?: number;
 limit?: number;
 };
 
-export type TracerUserAlertsList200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: UserAlertMonitorApi[];
-};
-
 export type TracerUserAlertsListMonitorsParams = {
 /**
  * A page number within the paginated result set.
@@ -25797,13 +26635,6 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type TracerUserAlertsListMonitors200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: UserAlertMonitorApi[];
 };
 
 export type TracerUserAlertsMetricOptionsParams = {

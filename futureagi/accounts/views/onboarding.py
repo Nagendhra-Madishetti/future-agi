@@ -1,6 +1,5 @@
 import structlog
 from django.core.exceptions import ValidationError
-from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -8,9 +7,10 @@ from rest_framework.views import APIView
 
 from accounts.serializers.contracts import ACCOUNTS_ERROR_RESPONSES
 from accounts.serializers.onboarding import (
+    ActivationGoalConflictResponseSerializer,
     ActivationGoalRequestSerializer,
+    ActivationStateApiResponseSerializer,
     ActivationStateQuerySerializer,
-    ActivationStateResponseSerializer,
 )
 from accounts.services.onboarding.activation_state import (
     resolve_activation_state_for_request,
@@ -20,6 +20,7 @@ from accounts.services.onboarding.goals import (
     OnboardingGoalConflict,
     save_onboarding_goal,
 )
+from tfc.utils.api_contracts import validated_request
 from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
@@ -29,21 +30,15 @@ class ActivationStateView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
+    @validated_request(
         query_serializer=ActivationStateQuerySerializer,
-        responses={200: ActivationStateResponseSerializer, **ACCOUNTS_ERROR_RESPONSES},
+        responses={
+            200: ActivationStateApiResponseSerializer,
+            **ACCOUNTS_ERROR_RESPONSES,
+        },
     )
     def get(self, request):
         try:
-            query_keys = set(ActivationStateQuerySerializer().fields)
-            query_data = {
-                key: value
-                for key, value in request.query_params.items()
-                if key in query_keys
-            }
-            query_serializer = ActivationStateQuerySerializer(data=query_data)
-            query_serializer.is_valid(raise_exception=True)
-
             payload = resolve_activation_state_for_request(request)
             return self._gm.success_response(payload)
         except Exception as exc:
@@ -66,9 +61,14 @@ class OnboardingGoalView(APIView):
     permission_classes = [IsAuthenticated]
     _gm = GeneralMethods()
 
-    @swagger_auto_schema(
-        request_body=ActivationGoalRequestSerializer,
-        responses={200: ActivationStateResponseSerializer, **ACCOUNTS_ERROR_RESPONSES},
+    @validated_request(
+        request_serializer=ActivationGoalRequestSerializer,
+        responses={
+            200: ActivationStateApiResponseSerializer,
+            409: ActivationGoalConflictResponseSerializer,
+            **ACCOUNTS_ERROR_RESPONSES,
+        },
+        strict_request_validation=False,
     )
     def post(self, request):
         serializer = ActivationGoalRequestSerializer(data=request.data)

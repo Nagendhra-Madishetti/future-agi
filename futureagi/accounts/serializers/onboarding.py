@@ -493,6 +493,23 @@ class ActivationGoalResultSerializer(serializers.Serializer):
     activation_state = ActivationStateResponseSerializer()
 
 
+class ActivationStateApiResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = ActivationStateResponseSerializer()
+
+
+class ActivationGoalConflictResultSerializer(serializers.Serializer):
+    error_code = serializers.ChoiceField(choices=choices(("ONBOARDING_GOAL_CONFLICT",)))
+    reason = serializers.CharField()
+    current_goal_id = serializers.CharField(allow_null=True)
+    activation_state = ActivationStateResponseSerializer()
+
+
+class ActivationGoalConflictResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=False)
+    result = ActivationGoalConflictResultSerializer()
+
+
 class SampleProjectRequestSerializer(serializers.Serializer):
     path = serializers.CharField()
     manifest_id = serializers.CharField()

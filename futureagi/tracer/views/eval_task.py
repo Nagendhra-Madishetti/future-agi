@@ -14,6 +14,27 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
 from model_hub.models.evals_metric import EvalTemplate
+from tfc.utils.api_contracts import validated_request
+from tfc.utils.api_serializers import EmptyRequestSerializer
+from tfc.utils.base_viewset import BaseModelViewSetMixin
+from tfc.utils.general_methods import GeneralMethods
+from tfc.utils.pagination import ExtendedPageNumberPagination
+from tracer.models.custom_eval_config import CustomEvalConfig
+from tracer.models.eval_task import EvalTask, EvalTaskLogger, EvalTaskStatus, RunType
+from tracer.models.observation_span import EvalLogger, ObservationSpan
+from tracer.models.project import Project
+from tracer.serializers.eval_task import (
+    EditEvalTaskSerializer,
+    EvalTaskDeleteRequestSerializer,
+    EvalTaskListQuerySerializer,
+    EvalTaskListWithProjectNameQuerySerializer,
+    EvalTaskMessageResponseSerializer,
+    EvalTaskSerializer,
+    PaginationQuerySerializer,
+)
+from tracer.utils.eval_tasks import parsing_evaltask_filters, run_for_processed_spans
+from tracer.utils.filters import FilterEngine
+from tracer.utils.helper import get_default_eval_task_config
 
 
 class _RegexpReplace(Func):
@@ -240,24 +261,6 @@ def _compute_span_aggregation(base_qs):
 
 
 logger = structlog.get_logger(__name__)
-from tfc.utils.base_viewset import BaseModelViewSetMixin
-from tfc.utils.api_contracts import validated_request
-from tfc.utils.general_methods import GeneralMethods
-from tfc.utils.pagination import ExtendedPageNumberPagination
-from tracer.models.custom_eval_config import CustomEvalConfig
-from tracer.models.eval_task import EvalTask, EvalTaskLogger, EvalTaskStatus, RunType
-from tracer.models.observation_span import EvalLogger, ObservationSpan
-from tracer.models.project import Project
-from tracer.serializers.eval_task import (
-    EditEvalTaskSerializer,
-    EvalTaskListQuerySerializer,
-    EvalTaskListWithProjectNameQuerySerializer,
-    EvalTaskSerializer,
-    PaginationQuerySerializer,
-)
-from tracer.utils.eval_tasks import parsing_evaltask_filters, run_for_processed_spans
-from tracer.utils.filters import FilterEngine
-from tracer.utils.helper import get_default_eval_task_config
 
 
 class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
@@ -350,8 +353,8 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
                 Project.objects.all()
             )
         if "evals" in fields:
-            fields["evals"].queryset = (
-                self._scope_custom_eval_config_queryset(CustomEvalConfig.objects.all())
+            fields["evals"].queryset = self._scope_custom_eval_config_queryset(
+                CustomEvalConfig.objects.all()
             )
         return serializer
 
@@ -388,15 +391,22 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
         )
         instance.delete()
 
+    @validated_request(
+        request_serializer=EvalTaskSerializer,
+        strict_request_validation=False,
+    )
     def create(self, request, *args, **kwargs):
         try:
             data = request.data
             data["status"] = EvalTaskStatus.PENDING
             filters = data.get("filters", {})
             project_id = data.get("project")
-            if project_id and not self._scope_project_queryset(
-                Project.objects.all()
-            ).filter(id=project_id).exists():
+            if (
+                project_id
+                and not self._scope_project_queryset(Project.objects.all())
+                .filter(id=project_id)
+                .exists()
+            ):
                 return self._gm.bad_request("Project not found")
             if project_id:
                 filters["project_id"] = project_id
@@ -411,8 +421,7 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             )
             if invalid_eval_ids:
                 return self._gm.bad_request(
-                    "Eval configs not found for project: "
-                    + ", ".join(invalid_eval_ids)
+                    "Eval configs not found for project: " + ", ".join(invalid_eval_ids)
                 )
             eval_task = serializer.save()
 
@@ -421,6 +430,21 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
         except Exception as e:
             traceback.print_exc()
             return self._gm.bad_request(str(e))
+
+    @validated_request(
+        request_serializer=EvalTaskSerializer,
+        strict_request_validation=False,
+    )
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @validated_request(
+        request_serializer=EvalTaskSerializer,
+        strict_request_validation=False,
+        partial_request_validation=True,
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
 
     @action(detail=False, methods=["get"], pagination_class=None)
     @validated_request(query_serializer=EvalTaskListQuerySerializer)
@@ -689,7 +713,7 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
                 return self._gm.bad_request("eval_task_id is required")
 
             try:
-                eval_task = self._scope_eval_task_queryset(EvalTask.objects).get(
+                self._scope_eval_task_queryset(EvalTask.objects).only("id").get(
                     id=eval_task_id,
                 )
             except EvalTask.DoesNotExist:
@@ -1089,6 +1113,10 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             )
             return self._gm.bad_request(str(e))
 
+    @validated_request(
+        request_serializer=EvalTaskDeleteRequestSerializer,
+        strict_request_validation=False,
+    )
     @action(detail=False, methods=["post"])
     def mark_eval_tasks_deleted(self, request, *args, **kwargs):
         try:
@@ -1136,6 +1164,11 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             traceback.print_exc()
             return self._gm.bad_request(str(e))
 
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
+        responses={200: EvalTaskMessageResponseSerializer},
+        strict_request_validation=False,
+    )
     @action(detail=False, methods=["post"])
     def pause_eval_task(self, request, *args, **kwargs):
         try:
@@ -1167,6 +1200,11 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             traceback.print_exc()
             return self._gm.bad_request(str(e))
 
+    @validated_request(
+        request_serializer=EmptyRequestSerializer,
+        responses={200: EvalTaskMessageResponseSerializer},
+        strict_request_validation=False,
+    )
     @action(detail=False, methods=["post"])
     def unpause_eval_task(self, request, *args, **kwargs):
         try:
@@ -1286,6 +1324,10 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             traceback.print_exc()
             return self._gm.bad_request(f"error fetching the traces list {str(e)}")
 
+    @validated_request(
+        request_serializer=EditEvalTaskSerializer,
+        strict_request_validation=False,
+    )
     @action(detail=False, methods=["patch"])
     def update_eval_task(self, request, *args, **kwargs):
         """
@@ -1661,11 +1703,9 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             if not eval_id:
                 return self._gm.bad_request("eval_id is required")
 
-            queryset = (
-                self._scope_eval_task_queryset(
-                    EvalTask.objects.select_related("project").prefetch_related("evals")
-                ).get(id=eval_id)
-            )
+            queryset = self._scope_eval_task_queryset(
+                EvalTask.objects.select_related("project").prefetch_related("evals")
+            ).get(id=eval_id)
 
             # Build rich eval objects so the frontend can render eval cards
             # with name, mapping, model, template info — not just bare UUIDs.

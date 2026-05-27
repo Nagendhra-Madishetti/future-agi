@@ -257,6 +257,10 @@ export const endpoints = {
   getStarted: {
     getTabs: apiPath("/accounts/first-checks/"),
   },
+  onboarding: {
+    activationState: apiPath("/accounts/activation-state/"),
+    goal: apiPath("/accounts/onboarding/goal/"),
+  },
   overview: {
     dashboardSummary: apiPath("/model-hub/overview/"),
   },
