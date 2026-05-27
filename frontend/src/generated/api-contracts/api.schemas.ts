@@ -24026,6 +24026,13 @@ export interface UsageBillingOverviewResponseApi {
   result: UsageBillingOverviewResultApi;
 }
 
+export interface UsageBudgetThresholdApi {
+  percent: number;
+  enabled?: boolean;
+  /** @minLength 1 */
+  severity?: string;
+}
+
 export interface UsageBudgetApi {
   id: number;
   /** @minLength 1 */
@@ -24040,6 +24047,7 @@ export interface UsageBudgetApi {
   /** @minLength 1 */
   last_triggered_period?: string;
   last_triggered_at?: string;
+  thresholds?: UsageBudgetThresholdApi[];
   created_at?: string;
 }
 
@@ -24070,6 +24078,7 @@ export interface UsageBudgetMutationRequestApi {
   action?: UsageBudgetMutationRequestApiAction;
   notify_emails?: string[];
   notify_slack_webhook?: string;
+  thresholds?: UsageBudgetThresholdApi[];
   is_active?: boolean;
 }
 
@@ -24083,6 +24092,7 @@ export interface UsageBudgetMutationResultApi {
   threshold_value: string;
   /** @minLength 1 */
   action: string;
+  thresholds?: UsageBudgetThresholdApi[];
   is_active?: boolean;
 }
 

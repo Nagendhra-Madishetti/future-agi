@@ -49606,6 +49606,7 @@ export const UsageV2BillingOverviewListResponse = zod.object({
 
 
 
+
 export const UsageV2BudgetsListResponse = zod.object({
   "status": zod.boolean(),
   "result": zod.object({
@@ -49619,6 +49620,11 @@ export const UsageV2BudgetsListResponse = zod.object({
   "is_active": zod.boolean().optional(),
   "last_triggered_period": zod.string().min(1).optional(),
   "last_triggered_at": zod.string().datetime({"offset":true}).optional(),
+  "thresholds": zod.array(zod.object({
+  "percent": zod.number(),
+  "enabled": zod.boolean().optional(),
+  "severity": zod.string().min(1).optional()
+})).optional(),
   "created_at": zod.string().datetime({"offset":true}).optional()
 }))
 })
@@ -49633,6 +49639,7 @@ export const UsageV2BudgetsListResponse = zod.object({
 
 
 
+
 export const UsageV2BudgetsCreateBody = zod.object({
   "name": zod.string().min(1).optional(),
   "scope": zod.string().min(1).optional(),
@@ -49640,8 +49647,14 @@ export const UsageV2BudgetsCreateBody = zod.object({
   "action": zod.enum(['notify', 'warn', 'pause']).optional(),
   "notify_emails": zod.array(zod.string().email().min(1)).optional(),
   "notify_slack_webhook": zod.string().url().optional(),
+  "thresholds": zod.array(zod.object({
+  "percent": zod.number(),
+  "enabled": zod.boolean().optional(),
+  "severity": zod.string().min(1).optional()
+})).optional(),
   "is_active": zod.boolean().optional()
 })
+
 
 
 
@@ -49657,6 +49670,11 @@ export const UsageV2BudgetsCreateResponse = zod.object({
   "scope": zod.string().min(1).optional(),
   "threshold_value": zod.string().min(1),
   "action": zod.string().min(1),
+  "thresholds": zod.array(zod.object({
+  "percent": zod.number(),
+  "enabled": zod.boolean().optional(),
+  "severity": zod.string().min(1).optional()
+})).optional(),
   "is_active": zod.boolean().optional()
 })
 })
@@ -49674,6 +49692,7 @@ export const UsageV2BudgetsUpdateParams = zod.object({
 
 
 
+
 export const UsageV2BudgetsUpdateBody = zod.object({
   "name": zod.string().min(1).optional(),
   "scope": zod.string().min(1).optional(),
@@ -49681,8 +49700,14 @@ export const UsageV2BudgetsUpdateBody = zod.object({
   "action": zod.enum(['notify', 'warn', 'pause']).optional(),
   "notify_emails": zod.array(zod.string().email().min(1)).optional(),
   "notify_slack_webhook": zod.string().url().optional(),
+  "thresholds": zod.array(zod.object({
+  "percent": zod.number(),
+  "enabled": zod.boolean().optional(),
+  "severity": zod.string().min(1).optional()
+})).optional(),
   "is_active": zod.boolean().optional()
 })
+
 
 
 
@@ -49698,6 +49723,11 @@ export const UsageV2BudgetsUpdateResponse = zod.object({
   "scope": zod.string().min(1).optional(),
   "threshold_value": zod.string().min(1),
   "action": zod.string().min(1),
+  "thresholds": zod.array(zod.object({
+  "percent": zod.number(),
+  "enabled": zod.boolean().optional(),
+  "severity": zod.string().min(1).optional()
+})).optional(),
   "is_active": zod.boolean().optional()
 })
 })

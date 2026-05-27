@@ -72758,6 +72758,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "format": "uri",
           "x-nullable": true
         },
+        "thresholds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageBudgetThreshold"
+          }
+        },
         "is_active": {
           "title": "Is active",
           "type": "boolean"
@@ -90624,6 +90630,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "UsageBudgetThreshold": {
+      "required": [
+        "percent"
+      ],
+      "type": "object",
+      "properties": {
+        "percent": {
+          "title": "Percent",
+          "type": "integer"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "UsageBudgetMutationResult": {
       "required": [
         "id",
@@ -90656,6 +90683,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Action",
           "type": "string",
           "minLength": 1
+        },
+        "thresholds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageBudgetThreshold"
+          }
         },
         "is_active": {
           "title": "Is active",
@@ -101275,6 +101308,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "format": "date-time",
           "x-nullable": true
+        },
+        "thresholds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UsageBudgetThreshold"
+          }
         },
         "created_at": {
           "title": "Created at",
