@@ -13,7 +13,31 @@ def _available_if(flag, href, reason="feature_disabled"):
     return route_entry(href, is_available=bool(flag), reason=reason)
 
 
-def resolve_route_availability(*, context, flags, signals):
+def _sample_route(flags, sample_project):
+    if not flags.get("onboarding_sample_project"):
+        return _available_if(False, "/dashboard/home?sample=true")
+    if not sample_project:
+        return route_entry("/dashboard/home?sample=true")
+    if sample_project.get("is_hidden"):
+        return route_entry(
+            sample_project.get("href") or "/dashboard/home?sample=true",
+            is_available=False,
+            reason=sample_project.get("blocked_reason") or "sample_hidden",
+        )
+    if not sample_project.get("available"):
+        return route_entry(
+            sample_project.get("href") or "/dashboard/home?sample=true",
+            is_available=False,
+            reason=sample_project.get("blocked_reason") or "sample_artifact_missing",
+        )
+    return route_entry(
+        sample_project.get("entry_route")
+        or sample_project.get("href")
+        or "/dashboard/home?sample=true"
+    )
+
+
+def resolve_route_availability(*, context, flags, signals, sample_project=None):
     can_write = context.permissions["can_write"]
     first_observe_id = signals.first_observe_id
     first_trace_id = signals.first_trace_id
@@ -53,10 +77,7 @@ def resolve_route_availability(*, context, flags, signals):
             else "/dashboard/observe",
             is_available=True,
         ),
-        "sample_trace": _available_if(
-            flags.get("onboarding_sample_project"),
-            "/dashboard/home?sample=true",
-        ),
+        "sample_trace": _sample_route(flags, sample_project),
         "support": route_entry("/dashboard/get-started?support=true"),
         "daily_quality_home": _available_if(
             flags.get("onboarding_daily_quality_home"),
@@ -67,7 +88,14 @@ def resolve_route_availability(*, context, flags, signals):
     for path in PRODUCT_PATHS:
         routes[f"path_{path}"] = route_entry(
             f"/dashboard/home?path={path}",
-            is_available=path in {"observe", "sample"},
-            reason="route_not_implemented",
+            is_available=path in {"observe", "sample"}
+            and not (
+                path == "sample" and sample_project and sample_project["is_hidden"]
+            ),
+            reason=(
+                sample_project.get("blocked_reason") or "sample_hidden"
+                if path == "sample" and sample_project and sample_project["is_hidden"]
+                else "route_not_implemented"
+            ),
         )
     return routes

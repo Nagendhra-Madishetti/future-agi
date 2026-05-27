@@ -465,7 +465,8 @@ export const accountsActivationEventsCreateResponseResultActivationStateSignalsA
 export const accountsActivationEventsCreateResponseResultActivationStateAvailableGoalsItemDisabledDefault = false;
 
 
-
+export const accountsActivationEventsCreateResponseResultActivationStateSampleProjectLabelDefault = `Sample`;
+export const accountsActivationEventsCreateResponseResultActivationStateSampleProjectIsRepairableDefault = false;
 
 export const accountsActivationEventsCreateResponseResultActivationStateEmailEligibilityFrequencyCapRemainingMin = 0;
 
@@ -489,7 +490,7 @@ export const AccountsActivationEventsCreateResponse = zod.object({
   "status": zod.boolean().default(accountsActivationEventsCreateResponseStatusDefault),
   "result": zod.object({
   "event_id": zod.string().min(1),
-  "event_name": zod.enum(['onboarding_transition_viewed', 'onboarding_home_viewed', 'onboarding_goal_selected', 'onboarding_goal_changed', 'onboarding_recommended_action_viewed', 'onboarding_recommended_action_clicked', 'onboarding_path_card_clicked', 'onboarding_blocked_state_viewed', 'onboarding_diagnostics_opened', 'onboarding_sample_project_opened', 'onboarding_fallback_action_clicked', 'sample_signal_viewed', 'sample_to_real_setup_clicked', 'first_quality_loop_completed', 'daily_quality_home_viewed', 'daily_quality_top_change_reviewed', 'daily_quality_item_reviewed', 'daily_quality_action_created', 'daily_quality_action_opened', 'daily_quality_action_assigned', 'daily_quality_action_completed', 'daily_quality_action_dismissed', 'daily_quality_no_signal_viewed', 'weekly_quality_review_opened', 'weekly_quality_action_assigned', 'weekly_quality_action_completed', 'weekly_quality_review_completed', 'reactivation_reason_clicked', 'observe_project_created', 'trace_ingested', 'trace_reviewed', 'trace_detail_opened', 'team_member_invited', 'trace_failure_detected']),
+  "event_name": zod.enum(['onboarding_transition_viewed', 'onboarding_home_viewed', 'onboarding_goal_selected', 'onboarding_goal_changed', 'onboarding_recommended_action_viewed', 'onboarding_recommended_action_clicked', 'onboarding_path_card_clicked', 'onboarding_blocked_state_viewed', 'onboarding_diagnostics_opened', 'onboarding_sample_project_opened', 'onboarding_fallback_action_clicked', 'sample_trace_available', 'sample_signal_viewed', 'sample_to_real_setup_clicked', 'first_quality_loop_completed', 'daily_quality_home_viewed', 'daily_quality_top_change_reviewed', 'daily_quality_item_reviewed', 'daily_quality_action_created', 'daily_quality_action_opened', 'daily_quality_action_assigned', 'daily_quality_action_completed', 'daily_quality_action_dismissed', 'daily_quality_no_signal_viewed', 'weekly_quality_review_opened', 'weekly_quality_action_assigned', 'weekly_quality_action_completed', 'weekly_quality_review_completed', 'reactivation_reason_clicked', 'observe_project_created', 'trace_ingested', 'trace_reviewed', 'trace_detail_opened', 'team_member_invited', 'trace_failure_detected']),
   "activation_state": zod.object({
   "schema_version": zod.string().min(1),
   "request_id": zod.string().min(1),
@@ -610,9 +611,22 @@ export const AccountsActivationEventsCreateResponse = zod.object({
   "sample_project": zod.object({
   "available": zod.boolean(),
   "created": zod.boolean(),
-  "status": zod.enum(['unavailable', 'available', 'creating', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required']),
+  "status": zod.enum(['not_created', 'unavailable', 'available', 'creating', 'ready_for_observe', 'partially_ready', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required', 'repair_failed']),
   "href": zod.string(),
   "version": zod.string(),
+  "manifest_id": zod.string().optional(),
+  "manifest_version": zod.string().optional(),
+  "label": zod.string().default(accountsActivationEventsCreateResponseResultActivationStateSampleProjectLabelDefault),
+  "entry_route": zod.string().optional(),
+  "is_repairable": zod.boolean().default(accountsActivationEventsCreateResponseResultActivationStateSampleProjectIsRepairableDefault),
+  "blocked_reason": zod.string().optional(),
+  "artifact_refs": zod.object({
+
+}).passthrough().optional(),
+  "health": zod.object({
+
+}).passthrough().optional(),
+  "real_setup_href": zod.string().optional(),
   "is_hidden": zod.boolean(),
   "hidden_reason": zod.string().optional(),
   "entry_routes": zod.array(zod.string().min(1)),
@@ -782,7 +796,8 @@ export const accountsActivationStateListResponseResultSignalsAlertsMin = 0;
 export const accountsActivationStateListResponseResultAvailableGoalsItemDisabledDefault = false;
 
 
-
+export const accountsActivationStateListResponseResultSampleProjectLabelDefault = `Sample`;
+export const accountsActivationStateListResponseResultSampleProjectIsRepairableDefault = false;
 
 export const accountsActivationStateListResponseResultEmailEligibilityFrequencyCapRemainingMin = 0;
 
@@ -924,9 +939,22 @@ export const AccountsActivationStateListResponse = zod.object({
   "sample_project": zod.object({
   "available": zod.boolean(),
   "created": zod.boolean(),
-  "status": zod.enum(['unavailable', 'available', 'creating', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required']),
+  "status": zod.enum(['not_created', 'unavailable', 'available', 'creating', 'ready_for_observe', 'partially_ready', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required', 'repair_failed']),
   "href": zod.string(),
   "version": zod.string(),
+  "manifest_id": zod.string().optional(),
+  "manifest_version": zod.string().optional(),
+  "label": zod.string().default(accountsActivationStateListResponseResultSampleProjectLabelDefault),
+  "entry_route": zod.string().optional(),
+  "is_repairable": zod.boolean().default(accountsActivationStateListResponseResultSampleProjectIsRepairableDefault),
+  "blocked_reason": zod.string().optional(),
+  "artifact_refs": zod.object({
+
+}).passthrough().optional(),
+  "health": zod.object({
+
+}).passthrough().optional(),
+  "real_setup_href": zod.string().optional(),
   "is_hidden": zod.boolean(),
   "hidden_reason": zod.string().optional(),
   "entry_routes": zod.array(zod.string().min(1)),
@@ -1549,7 +1577,8 @@ export const accountsOnboardingGoalCreateResponseResultSignalsAlertsMin = 0;
 export const accountsOnboardingGoalCreateResponseResultAvailableGoalsItemDisabledDefault = false;
 
 
-
+export const accountsOnboardingGoalCreateResponseResultSampleProjectLabelDefault = `Sample`;
+export const accountsOnboardingGoalCreateResponseResultSampleProjectIsRepairableDefault = false;
 
 export const accountsOnboardingGoalCreateResponseResultEmailEligibilityFrequencyCapRemainingMin = 0;
 
@@ -1691,9 +1720,22 @@ export const AccountsOnboardingGoalCreateResponse = zod.object({
   "sample_project": zod.object({
   "available": zod.boolean(),
   "created": zod.boolean(),
-  "status": zod.enum(['unavailable', 'available', 'creating', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required']),
+  "status": zod.enum(['not_created', 'unavailable', 'available', 'creating', 'ready_for_observe', 'partially_ready', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required', 'repair_failed']),
   "href": zod.string(),
   "version": zod.string(),
+  "manifest_id": zod.string().optional(),
+  "manifest_version": zod.string().optional(),
+  "label": zod.string().default(accountsOnboardingGoalCreateResponseResultSampleProjectLabelDefault),
+  "entry_route": zod.string().optional(),
+  "is_repairable": zod.boolean().default(accountsOnboardingGoalCreateResponseResultSampleProjectIsRepairableDefault),
+  "blocked_reason": zod.string().optional(),
+  "artifact_refs": zod.object({
+
+}).passthrough().optional(),
+  "health": zod.object({
+
+}).passthrough().optional(),
+  "real_setup_href": zod.string().optional(),
   "is_hidden": zod.boolean(),
   "hidden_reason": zod.string().optional(),
   "entry_routes": zod.array(zod.string().min(1)),
@@ -2517,6 +2559,720 @@ export const AccountsResendInvitationEmailsCreateResponseItem = zod.object({
   "error": zod.string().min(1).optional()
 })
 export const AccountsResendInvitationEmailsCreateResponse = zod.array(AccountsResendInvitationEmailsCreateResponseItem)
+
+
+export const accountsSampleProjectCreateBodyPathDefault = `observe`;
+
+export const accountsSampleProjectCreateBodyOpenAfterCreateDefault = false;
+
+export const AccountsSampleProjectCreateBody = zod.object({
+  "path": zod.string().min(1).default(accountsSampleProjectCreateBodyPathDefault),
+  "manifest_id": zod.string().optional(),
+  "manifest_version": zod.string().optional(),
+  "source": zod.string().optional(),
+  "reason": zod.string().optional(),
+  "open_after_create": zod.boolean().default(accountsSampleProjectCreateBodyOpenAfterCreateDefault)
+})
+
+export const accountsSampleProjectCreateResponseStatusDefault = true;
+export const accountsSampleProjectCreateResponseResultSampleProjectLabelDefault = `Sample`;
+export const accountsSampleProjectCreateResponseResultSampleProjectIsRepairableDefault = false;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export const accountsSampleProjectCreateResponseResultActivationStateRecommendedActionIsSampleDefault = false;
+
+
+
+
+
+
+export const accountsSampleProjectCreateResponseResultActivationStateFallbackActionIsSampleDefault = false;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsProviderKeysDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsProviderKeysMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsDatasetsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsDatasetsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsEvalsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsEvalsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsEvalRunsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsEvalRunsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsPromptTemplatesDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsPromptTemplatesMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsPromptVersionsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsPromptVersionsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsPromptComparisonsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsPromptComparisonsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsAgentsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsAgentsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsAgentPrototypeRunsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsAgentPrototypeRunsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsObserveProjectsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsObserveProjectsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsTracesDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsTracesMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsTraceReviewsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsTraceReviewsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayKeysDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayKeysMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayRequestsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayRequestsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayPoliciesDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayPoliciesMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceAgentsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceAgentsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceSimulationsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceSimulationsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceCallsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceCallsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceReviewsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceReviewsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsTeamInvitesDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsTeamInvitesMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsDashboardsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsDashboardsMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsAlertsDefault = 0;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsAlertsMin = 0;
+
+
+
+
+
+export const accountsSampleProjectCreateResponseResultActivationStateAvailableGoalsItemDisabledDefault = false;
+
+
+export const accountsSampleProjectCreateResponseResultActivationStateSampleProjectLabelDefault = `Sample`;
+export const accountsSampleProjectCreateResponseResultActivationStateSampleProjectIsRepairableDefault = false;
+
+export const accountsSampleProjectCreateResponseResultActivationStateEmailEligibilityFrequencyCapRemainingMin = 0;
+
+export const accountsSampleProjectCreateResponseResultActivationStateEmailEligibilityDryRunOnlyDefault = true;
+
+
+
+
+
+
+export const accountsSampleProjectCreateResponseResultActivationStateLastMeaningfulEventIsSampleDefault = false;
+
+
+
+
+
+
+
+
+export const AccountsSampleProjectCreateResponse = zod.object({
+  "status": zod.boolean().default(accountsSampleProjectCreateResponseStatusDefault),
+  "result": zod.object({
+  "sample_project": zod.object({
+  "available": zod.boolean(),
+  "created": zod.boolean(),
+  "status": zod.enum(['not_created', 'unavailable', 'available', 'creating', 'ready_for_observe', 'partially_ready', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required', 'repair_failed']),
+  "href": zod.string(),
+  "version": zod.string(),
+  "manifest_id": zod.string().optional(),
+  "manifest_version": zod.string().optional(),
+  "label": zod.string().default(accountsSampleProjectCreateResponseResultSampleProjectLabelDefault),
+  "entry_route": zod.string().optional(),
+  "is_repairable": zod.boolean().default(accountsSampleProjectCreateResponseResultSampleProjectIsRepairableDefault),
+  "blocked_reason": zod.string().optional(),
+  "artifact_refs": zod.object({
+
+}).passthrough().optional(),
+  "health": zod.object({
+
+}).passthrough().optional(),
+  "real_setup_href": zod.string().optional(),
+  "is_hidden": zod.boolean(),
+  "hidden_reason": zod.string().optional(),
+  "entry_routes": zod.array(zod.string().min(1)),
+  "missing_artifacts": zod.array(zod.string().min(1)),
+  "last_opened_at": zod.string().datetime({"offset":true}).optional()
+}),
+  "activation_state": zod.object({
+  "schema_version": zod.string().min(1),
+  "request_id": zod.string().min(1),
+  "server_time": zod.string().datetime({"offset":true}),
+  "workspace_id": zod.string().min(1),
+  "organization_id": zod.string().min(1),
+  "user_id": zod.string().min(1),
+  "goal": zod.enum(['monitor_production_ai_app', 'improve_prompts', 'build_ai_agent', 'control_model_traffic', 'evaluate_quality', 'connect_voice_ai_agent', 'explore_sample_data']),
+  "persona": zod.string(),
+  "primary_path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']),
+  "stage": zod.enum(['feature_disabled', 'workspace_missing', 'permission_limited', 'choose_goal', 'selected_path_unavailable', 'activated', 'daily_review', 'connect_observability', 'waiting_for_first_trace', 'waiting_for_first_trace_sample_available', 'review_first_trace', 'create_trace_evaluator', 'review_sample_signal', 'start_prompt', 'run_prompt_test', 'save_prompt_version', 'compare_prompt_versions', 'prompt_next_loop', 'create_agent', 'run_agent_scenario', 'review_agent_trace', 'save_agent_eval', 'agent_create_eval', 'create_trace_dashboard', 'create_trace_alert', 'configure_gateway_provider', 'create_gateway_key', 'run_gateway_request', 'review_gateway_log', 'fix_gateway_failure', 'add_gateway_policy', 'create_voice_agent', 'run_voice_test_call', 'review_voice_call', 'add_voice_success_criteria', 'voice_monitor_calls', 'create_eval_dataset', 'add_eval_scorer', 'run_eval', 'review_eval_failures', 'eval_next_loop', 'open_sample_project', 'connect_real_data']),
+  "stage_copy": zod.object({
+  "eyebrow": zod.string().min(1),
+  "title": zod.string().min(1),
+  "description": zod.string().min(1)
+}).optional(),
+  "home_mode": zod.enum(['first_run', 'daily_quality', 'fallback']),
+  "is_activated": zod.boolean(),
+  "activated_at": zod.string().datetime({"offset":true}),
+  "recommended_action": zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['choose_goal', 'setup', 'send_signal', 'review', 'improve', 'sample_project', 'request_access', 'fallback', 'daily_quality', 'adjacent_loop']),
+  "title": zod.string().min(1),
+  "description": zod.string().min(1),
+  "href": zod.string(),
+  "cta_label": zod.string().min(1),
+  "estimated_minutes": zod.number().min(1).optional(),
+  "priority": zod.number(),
+  "blocked": zod.boolean(),
+  "blocked_reason": zod.string().optional(),
+  "requires_permission": zod.string().optional(),
+  "completion_event": zod.string().optional(),
+  "is_sample": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateRecommendedActionIsSampleDefault),
+  "route_available": zod.boolean(),
+  "fallback_href": zod.string().min(1),
+  "analytics": zod.object({
+  "event_name": zod.string().min(1),
+  "source": zod.string().optional(),
+  "target_path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']).optional()
+})
+}),
+  "fallback_action": zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['choose_goal', 'setup', 'send_signal', 'review', 'improve', 'sample_project', 'request_access', 'fallback', 'daily_quality', 'adjacent_loop']),
+  "title": zod.string().min(1),
+  "description": zod.string().min(1),
+  "href": zod.string(),
+  "cta_label": zod.string().min(1),
+  "estimated_minutes": zod.number().min(1).optional(),
+  "priority": zod.number(),
+  "blocked": zod.boolean(),
+  "blocked_reason": zod.string().optional(),
+  "requires_permission": zod.string().optional(),
+  "completion_event": zod.string().optional(),
+  "is_sample": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateFallbackActionIsSampleDefault),
+  "route_available": zod.boolean(),
+  "fallback_href": zod.string().min(1),
+  "analytics": zod.object({
+  "event_name": zod.string().min(1),
+  "source": zod.string().optional(),
+  "target_path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']).optional()
+})
+}),
+  "progress": zod.object({
+  "build": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only']),
+  "test": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only']),
+  "observe": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only']),
+  "ship": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only']),
+  "improve": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only'])
+}),
+  "signals": zod.object({
+  "provider_keys": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsProviderKeysMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsProviderKeysDefault),
+  "datasets": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsDatasetsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsDatasetsDefault),
+  "evals": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsEvalsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsEvalsDefault),
+  "eval_runs": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsEvalRunsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsEvalRunsDefault),
+  "prompt_templates": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsPromptTemplatesMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsPromptTemplatesDefault),
+  "prompt_versions": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsPromptVersionsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsPromptVersionsDefault),
+  "prompt_comparisons": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsPromptComparisonsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsPromptComparisonsDefault),
+  "agents": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsAgentsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsAgentsDefault),
+  "agent_prototype_runs": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsAgentPrototypeRunsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsAgentPrototypeRunsDefault),
+  "observe_projects": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsObserveProjectsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsObserveProjectsDefault),
+  "traces": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsTracesMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsTracesDefault),
+  "trace_reviews": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsTraceReviewsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsTraceReviewsDefault),
+  "gateway_keys": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayKeysMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayKeysDefault),
+  "gateway_requests": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayRequestsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayRequestsDefault),
+  "gateway_policies": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayPoliciesMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsGatewayPoliciesDefault),
+  "voice_agents": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceAgentsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceAgentsDefault),
+  "voice_simulations": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceSimulationsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceSimulationsDefault),
+  "voice_calls": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceCallsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceCallsDefault),
+  "voice_reviews": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceReviewsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsVoiceReviewsDefault),
+  "team_invites": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsTeamInvitesMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsTeamInvitesDefault),
+  "dashboards": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsDashboardsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsDashboardsDefault),
+  "alerts": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsAlertsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsAlertsDefault),
+  "first_trace_id": zod.string().optional(),
+  "first_observe_id": zod.string().optional()
+}),
+  "available_goals": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "goal": zod.enum(['monitor_production_ai_app', 'improve_prompts', 'build_ai_agent', 'control_model_traffic', 'evaluate_quality', 'connect_voice_ai_agent', 'explore_sample_data']),
+  "primary_path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']),
+  "label": zod.string().min(1),
+  "description": zod.string().min(1),
+  "estimated_minutes": zod.number().min(1).optional(),
+  "disabled": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateAvailableGoalsItemDisabledDefault),
+  "disabled_reason": zod.string().optional()
+})).optional(),
+  "available_paths": zod.array(zod.object({
+  "id": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']),
+  "label": zod.string().min(1),
+  "description": zod.string().min(1),
+  "status": zod.enum(['available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only', 'hidden']),
+  "href": zod.string().min(1),
+  "is_available": zod.boolean(),
+  "blocked_reason": zod.string().optional(),
+  "requires_permission": zod.string().optional(),
+  "first_action_id": zod.string().optional()
+})),
+  "sample_project": zod.object({
+  "available": zod.boolean(),
+  "created": zod.boolean(),
+  "status": zod.enum(['not_created', 'unavailable', 'available', 'creating', 'ready_for_observe', 'partially_ready', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required', 'repair_failed']),
+  "href": zod.string(),
+  "version": zod.string(),
+  "manifest_id": zod.string().optional(),
+  "manifest_version": zod.string().optional(),
+  "label": zod.string().default(accountsSampleProjectCreateResponseResultActivationStateSampleProjectLabelDefault),
+  "entry_route": zod.string().optional(),
+  "is_repairable": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateSampleProjectIsRepairableDefault),
+  "blocked_reason": zod.string().optional(),
+  "artifact_refs": zod.object({
+
+}).passthrough().optional(),
+  "health": zod.object({
+
+}).passthrough().optional(),
+  "real_setup_href": zod.string().optional(),
+  "is_hidden": zod.boolean(),
+  "hidden_reason": zod.string().optional(),
+  "entry_routes": zod.array(zod.string().min(1)),
+  "missing_artifacts": zod.array(zod.string().min(1)),
+  "last_opened_at": zod.string().datetime({"offset":true}).optional()
+}),
+  "email_eligibility": zod.object({
+  "eligible": zod.boolean(),
+  "suppressed": zod.boolean(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'frequency_cap', 'workspace_suppressed', 'user_unsubscribed', 'sample_hidden', 'route_unavailable', 'permission_limited', 'feature_disabled', 'recent_goal_change', 'manual_pause']).optional(),
+  "next_email_key": zod.string().optional(),
+  "next_email_after": zod.string().datetime({"offset":true}).optional(),
+  "digest_eligible": zod.boolean(),
+  "last_email_sent_at": zod.string().datetime({"offset":true}).optional(),
+  "frequency_cap_remaining": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateEmailEligibilityFrequencyCapRemainingMin),
+  "dry_run_only": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateEmailEligibilityDryRunOnlyDefault)
+}),
+  "permissions": zod.object({
+  "role": zod.string(),
+  "can_read": zod.boolean(),
+  "can_write": zod.boolean(),
+  "can_manage_workspace": zod.boolean(),
+  "missing_permissions": zod.array(zod.string().min(1)),
+  "request_access_href": zod.string().optional(),
+  "permission_limited": zod.boolean()
+}),
+  "feature_flags": zod.record(zod.string(), zod.boolean()),
+  "route_availability": zod.object({
+
+}).passthrough(),
+  "email_context": zod.object({
+  "campaign_key": zod.string().min(1),
+  "email_key": zod.string().min(1),
+  "target_stage": zod.enum(['feature_disabled', 'workspace_missing', 'permission_limited', 'choose_goal', 'selected_path_unavailable', 'activated', 'daily_review', 'connect_observability', 'waiting_for_first_trace', 'waiting_for_first_trace_sample_available', 'review_first_trace', 'create_trace_evaluator', 'review_sample_signal', 'start_prompt', 'run_prompt_test', 'save_prompt_version', 'compare_prompt_versions', 'prompt_next_loop', 'create_agent', 'run_agent_scenario', 'review_agent_trace', 'save_agent_eval', 'agent_create_eval', 'create_trace_dashboard', 'create_trace_alert', 'configure_gateway_provider', 'create_gateway_key', 'run_gateway_request', 'review_gateway_log', 'fix_gateway_failure', 'add_gateway_policy', 'create_voice_agent', 'run_voice_test_call', 'review_voice_call', 'add_voice_success_criteria', 'voice_monitor_calls', 'create_eval_dataset', 'add_eval_scorer', 'run_eval', 'review_eval_failures', 'eval_next_loop', 'open_sample_project', 'connect_real_data']),
+  "target_event": zod.string().min(1),
+  "target_route": zod.string().min(1),
+  "context_status": zod.enum(['current', 'stale', 'expired', 'invalid', 'complete', 'route_unavailable']),
+  "stale_reason": zod.string().optional(),
+  "resolved_href": zod.string().min(1)
+}),
+  "last_meaningful_event": zod.object({
+  "name": zod.string().min(1),
+  "occurred_at": zod.string().datetime({"offset":true}),
+  "is_sample": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateLastMeaningfulEventIsSampleDefault),
+  "path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']).optional(),
+  "metadata": zod.record(zod.string(), zod.string()).optional()
+}),
+  "diagnostics": zod.object({
+  "resolver_version": zod.string().min(1),
+  "decision_reason": zod.string().min(1),
+  "matched_rule": zod.string().min(1),
+  "candidate_actions": zod.array(zod.string().min(1)),
+  "suppressed_actions": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "reason": zod.string().min(1)
+})),
+  "evaluated_at": zod.string().datetime({"offset":true})
+}),
+  "warnings": zod.array(zod.string().min(1))
+})
+})
+})
+
+
+export const AccountsSampleProjectHideCreateBody = zod.object({
+  "source": zod.string().optional(),
+  "reason": zod.string().optional()
+})
+
+export const accountsSampleProjectHideCreateResponseStatusDefault = true;
+export const accountsSampleProjectHideCreateResponseResultSampleProjectLabelDefault = `Sample`;
+export const accountsSampleProjectHideCreateResponseResultSampleProjectIsRepairableDefault = false;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateRecommendedActionIsSampleDefault = false;
+
+
+
+
+
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateFallbackActionIsSampleDefault = false;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsProviderKeysDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsProviderKeysMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsDatasetsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsDatasetsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsEvalsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsEvalsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsEvalRunsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsEvalRunsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptTemplatesDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptTemplatesMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptVersionsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptVersionsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptComparisonsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptComparisonsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsAgentsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsAgentsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsAgentPrototypeRunsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsAgentPrototypeRunsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsObserveProjectsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsObserveProjectsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsTracesDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsTracesMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsTraceReviewsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsTraceReviewsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayKeysDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayKeysMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayRequestsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayRequestsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayPoliciesDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayPoliciesMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceAgentsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceAgentsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceSimulationsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceSimulationsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceCallsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceCallsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceReviewsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceReviewsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsTeamInvitesDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsTeamInvitesMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsDashboardsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsDashboardsMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsAlertsDefault = 0;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsAlertsMin = 0;
+
+
+
+
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateAvailableGoalsItemDisabledDefault = false;
+
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateSampleProjectLabelDefault = `Sample`;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSampleProjectIsRepairableDefault = false;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateEmailEligibilityFrequencyCapRemainingMin = 0;
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateEmailEligibilityDryRunOnlyDefault = true;
+
+
+
+
+
+
+export const accountsSampleProjectHideCreateResponseResultActivationStateLastMeaningfulEventIsSampleDefault = false;
+
+
+
+
+
+
+
+
+export const AccountsSampleProjectHideCreateResponse = zod.object({
+  "status": zod.boolean().default(accountsSampleProjectHideCreateResponseStatusDefault),
+  "result": zod.object({
+  "sample_project": zod.object({
+  "available": zod.boolean(),
+  "created": zod.boolean(),
+  "status": zod.enum(['not_created', 'unavailable', 'available', 'creating', 'ready_for_observe', 'partially_ready', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required', 'repair_failed']),
+  "href": zod.string(),
+  "version": zod.string(),
+  "manifest_id": zod.string().optional(),
+  "manifest_version": zod.string().optional(),
+  "label": zod.string().default(accountsSampleProjectHideCreateResponseResultSampleProjectLabelDefault),
+  "entry_route": zod.string().optional(),
+  "is_repairable": zod.boolean().default(accountsSampleProjectHideCreateResponseResultSampleProjectIsRepairableDefault),
+  "blocked_reason": zod.string().optional(),
+  "artifact_refs": zod.object({
+
+}).passthrough().optional(),
+  "health": zod.object({
+
+}).passthrough().optional(),
+  "real_setup_href": zod.string().optional(),
+  "is_hidden": zod.boolean(),
+  "hidden_reason": zod.string().optional(),
+  "entry_routes": zod.array(zod.string().min(1)),
+  "missing_artifacts": zod.array(zod.string().min(1)),
+  "last_opened_at": zod.string().datetime({"offset":true}).optional()
+}),
+  "activation_state": zod.object({
+  "schema_version": zod.string().min(1),
+  "request_id": zod.string().min(1),
+  "server_time": zod.string().datetime({"offset":true}),
+  "workspace_id": zod.string().min(1),
+  "organization_id": zod.string().min(1),
+  "user_id": zod.string().min(1),
+  "goal": zod.enum(['monitor_production_ai_app', 'improve_prompts', 'build_ai_agent', 'control_model_traffic', 'evaluate_quality', 'connect_voice_ai_agent', 'explore_sample_data']),
+  "persona": zod.string(),
+  "primary_path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']),
+  "stage": zod.enum(['feature_disabled', 'workspace_missing', 'permission_limited', 'choose_goal', 'selected_path_unavailable', 'activated', 'daily_review', 'connect_observability', 'waiting_for_first_trace', 'waiting_for_first_trace_sample_available', 'review_first_trace', 'create_trace_evaluator', 'review_sample_signal', 'start_prompt', 'run_prompt_test', 'save_prompt_version', 'compare_prompt_versions', 'prompt_next_loop', 'create_agent', 'run_agent_scenario', 'review_agent_trace', 'save_agent_eval', 'agent_create_eval', 'create_trace_dashboard', 'create_trace_alert', 'configure_gateway_provider', 'create_gateway_key', 'run_gateway_request', 'review_gateway_log', 'fix_gateway_failure', 'add_gateway_policy', 'create_voice_agent', 'run_voice_test_call', 'review_voice_call', 'add_voice_success_criteria', 'voice_monitor_calls', 'create_eval_dataset', 'add_eval_scorer', 'run_eval', 'review_eval_failures', 'eval_next_loop', 'open_sample_project', 'connect_real_data']),
+  "stage_copy": zod.object({
+  "eyebrow": zod.string().min(1),
+  "title": zod.string().min(1),
+  "description": zod.string().min(1)
+}).optional(),
+  "home_mode": zod.enum(['first_run', 'daily_quality', 'fallback']),
+  "is_activated": zod.boolean(),
+  "activated_at": zod.string().datetime({"offset":true}),
+  "recommended_action": zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['choose_goal', 'setup', 'send_signal', 'review', 'improve', 'sample_project', 'request_access', 'fallback', 'daily_quality', 'adjacent_loop']),
+  "title": zod.string().min(1),
+  "description": zod.string().min(1),
+  "href": zod.string(),
+  "cta_label": zod.string().min(1),
+  "estimated_minutes": zod.number().min(1).optional(),
+  "priority": zod.number(),
+  "blocked": zod.boolean(),
+  "blocked_reason": zod.string().optional(),
+  "requires_permission": zod.string().optional(),
+  "completion_event": zod.string().optional(),
+  "is_sample": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateRecommendedActionIsSampleDefault),
+  "route_available": zod.boolean(),
+  "fallback_href": zod.string().min(1),
+  "analytics": zod.object({
+  "event_name": zod.string().min(1),
+  "source": zod.string().optional(),
+  "target_path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']).optional()
+})
+}),
+  "fallback_action": zod.object({
+  "id": zod.string().min(1),
+  "kind": zod.enum(['choose_goal', 'setup', 'send_signal', 'review', 'improve', 'sample_project', 'request_access', 'fallback', 'daily_quality', 'adjacent_loop']),
+  "title": zod.string().min(1),
+  "description": zod.string().min(1),
+  "href": zod.string(),
+  "cta_label": zod.string().min(1),
+  "estimated_minutes": zod.number().min(1).optional(),
+  "priority": zod.number(),
+  "blocked": zod.boolean(),
+  "blocked_reason": zod.string().optional(),
+  "requires_permission": zod.string().optional(),
+  "completion_event": zod.string().optional(),
+  "is_sample": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateFallbackActionIsSampleDefault),
+  "route_available": zod.boolean(),
+  "fallback_href": zod.string().min(1),
+  "analytics": zod.object({
+  "event_name": zod.string().min(1),
+  "source": zod.string().optional(),
+  "target_path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']).optional()
+})
+}),
+  "progress": zod.object({
+  "build": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only']),
+  "test": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only']),
+  "observe": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only']),
+  "ship": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only']),
+  "improve": zod.enum(['not_started', 'available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only'])
+}),
+  "signals": zod.object({
+  "provider_keys": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsProviderKeysMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsProviderKeysDefault),
+  "datasets": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsDatasetsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsDatasetsDefault),
+  "evals": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsEvalsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsEvalsDefault),
+  "eval_runs": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsEvalRunsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsEvalRunsDefault),
+  "prompt_templates": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptTemplatesMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptTemplatesDefault),
+  "prompt_versions": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptVersionsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptVersionsDefault),
+  "prompt_comparisons": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptComparisonsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsPromptComparisonsDefault),
+  "agents": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsAgentsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsAgentsDefault),
+  "agent_prototype_runs": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsAgentPrototypeRunsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsAgentPrototypeRunsDefault),
+  "observe_projects": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsObserveProjectsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsObserveProjectsDefault),
+  "traces": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsTracesMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsTracesDefault),
+  "trace_reviews": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsTraceReviewsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsTraceReviewsDefault),
+  "gateway_keys": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayKeysMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayKeysDefault),
+  "gateway_requests": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayRequestsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayRequestsDefault),
+  "gateway_policies": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayPoliciesMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsGatewayPoliciesDefault),
+  "voice_agents": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceAgentsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceAgentsDefault),
+  "voice_simulations": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceSimulationsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceSimulationsDefault),
+  "voice_calls": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceCallsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceCallsDefault),
+  "voice_reviews": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceReviewsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsVoiceReviewsDefault),
+  "team_invites": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsTeamInvitesMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsTeamInvitesDefault),
+  "dashboards": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsDashboardsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsDashboardsDefault),
+  "alerts": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsAlertsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsAlertsDefault),
+  "first_trace_id": zod.string().optional(),
+  "first_observe_id": zod.string().optional()
+}),
+  "available_goals": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "goal": zod.enum(['monitor_production_ai_app', 'improve_prompts', 'build_ai_agent', 'control_model_traffic', 'evaluate_quality', 'connect_voice_ai_agent', 'explore_sample_data']),
+  "primary_path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']),
+  "label": zod.string().min(1),
+  "description": zod.string().min(1),
+  "estimated_minutes": zod.number().min(1).optional(),
+  "disabled": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateAvailableGoalsItemDisabledDefault),
+  "disabled_reason": zod.string().optional()
+})).optional(),
+  "available_paths": zod.array(zod.object({
+  "id": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']),
+  "label": zod.string().min(1),
+  "description": zod.string().min(1),
+  "status": zod.enum(['available', 'selected', 'in_progress', 'blocked', 'complete', 'sample_only', 'hidden']),
+  "href": zod.string().min(1),
+  "is_available": zod.boolean(),
+  "blocked_reason": zod.string().optional(),
+  "requires_permission": zod.string().optional(),
+  "first_action_id": zod.string().optional()
+})),
+  "sample_project": zod.object({
+  "available": zod.boolean(),
+  "created": zod.boolean(),
+  "status": zod.enum(['not_created', 'unavailable', 'available', 'creating', 'ready_for_observe', 'partially_ready', 'ready', 'partial', 'hidden', 'stale_manifest', 'repair_required', 'repair_failed']),
+  "href": zod.string(),
+  "version": zod.string(),
+  "manifest_id": zod.string().optional(),
+  "manifest_version": zod.string().optional(),
+  "label": zod.string().default(accountsSampleProjectHideCreateResponseResultActivationStateSampleProjectLabelDefault),
+  "entry_route": zod.string().optional(),
+  "is_repairable": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateSampleProjectIsRepairableDefault),
+  "blocked_reason": zod.string().optional(),
+  "artifact_refs": zod.object({
+
+}).passthrough().optional(),
+  "health": zod.object({
+
+}).passthrough().optional(),
+  "real_setup_href": zod.string().optional(),
+  "is_hidden": zod.boolean(),
+  "hidden_reason": zod.string().optional(),
+  "entry_routes": zod.array(zod.string().min(1)),
+  "missing_artifacts": zod.array(zod.string().min(1)),
+  "last_opened_at": zod.string().datetime({"offset":true}).optional()
+}),
+  "email_eligibility": zod.object({
+  "eligible": zod.boolean(),
+  "suppressed": zod.boolean(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'frequency_cap', 'workspace_suppressed', 'user_unsubscribed', 'sample_hidden', 'route_unavailable', 'permission_limited', 'feature_disabled', 'recent_goal_change', 'manual_pause']).optional(),
+  "next_email_key": zod.string().optional(),
+  "next_email_after": zod.string().datetime({"offset":true}).optional(),
+  "digest_eligible": zod.boolean(),
+  "last_email_sent_at": zod.string().datetime({"offset":true}).optional(),
+  "frequency_cap_remaining": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateEmailEligibilityFrequencyCapRemainingMin),
+  "dry_run_only": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateEmailEligibilityDryRunOnlyDefault)
+}),
+  "permissions": zod.object({
+  "role": zod.string(),
+  "can_read": zod.boolean(),
+  "can_write": zod.boolean(),
+  "can_manage_workspace": zod.boolean(),
+  "missing_permissions": zod.array(zod.string().min(1)),
+  "request_access_href": zod.string().optional(),
+  "permission_limited": zod.boolean()
+}),
+  "feature_flags": zod.record(zod.string(), zod.boolean()),
+  "route_availability": zod.object({
+
+}).passthrough(),
+  "email_context": zod.object({
+  "campaign_key": zod.string().min(1),
+  "email_key": zod.string().min(1),
+  "target_stage": zod.enum(['feature_disabled', 'workspace_missing', 'permission_limited', 'choose_goal', 'selected_path_unavailable', 'activated', 'daily_review', 'connect_observability', 'waiting_for_first_trace', 'waiting_for_first_trace_sample_available', 'review_first_trace', 'create_trace_evaluator', 'review_sample_signal', 'start_prompt', 'run_prompt_test', 'save_prompt_version', 'compare_prompt_versions', 'prompt_next_loop', 'create_agent', 'run_agent_scenario', 'review_agent_trace', 'save_agent_eval', 'agent_create_eval', 'create_trace_dashboard', 'create_trace_alert', 'configure_gateway_provider', 'create_gateway_key', 'run_gateway_request', 'review_gateway_log', 'fix_gateway_failure', 'add_gateway_policy', 'create_voice_agent', 'run_voice_test_call', 'review_voice_call', 'add_voice_success_criteria', 'voice_monitor_calls', 'create_eval_dataset', 'add_eval_scorer', 'run_eval', 'review_eval_failures', 'eval_next_loop', 'open_sample_project', 'connect_real_data']),
+  "target_event": zod.string().min(1),
+  "target_route": zod.string().min(1),
+  "context_status": zod.enum(['current', 'stale', 'expired', 'invalid', 'complete', 'route_unavailable']),
+  "stale_reason": zod.string().optional(),
+  "resolved_href": zod.string().min(1)
+}),
+  "last_meaningful_event": zod.object({
+  "name": zod.string().min(1),
+  "occurred_at": zod.string().datetime({"offset":true}),
+  "is_sample": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateLastMeaningfulEventIsSampleDefault),
+  "path": zod.enum(['prompt', 'agent', 'observe', 'gateway', 'voice', 'evals', 'dashboards', 'sample']).optional(),
+  "metadata": zod.record(zod.string(), zod.string()).optional()
+}),
+  "diagnostics": zod.object({
+  "resolver_version": zod.string().min(1),
+  "decision_reason": zod.string().min(1),
+  "matched_rule": zod.string().min(1),
+  "candidate_actions": zod.array(zod.string().min(1)),
+  "suppressed_actions": zod.array(zod.object({
+  "id": zod.string().min(1),
+  "reason": zod.string().min(1)
+})),
+  "evaluated_at": zod.string().datetime({"offset":true})
+}),
+  "warnings": zod.array(zod.string().min(1))
+})
+})
+})
 
 
 

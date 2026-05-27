@@ -5,7 +5,7 @@
 export const OPENAPI_CONTRACT = Object.freeze({
   "generatedFrom": "api_contracts/openapi/swagger.json",
   "swaggerVersion": "2.0",
-  "endpointCount": 983,
+  "endpointCount": 985,
   "endpoints": {
     "/accounts/2fa/recovery-codes/": {
       "get": {
@@ -2433,6 +2433,74 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "items": {
               "$ref": "#/definitions/AccountsBulkUserMutationItem"
             }
+          },
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "default": {
+            "$ref": "#/definitions/ManagementAPIErrorResponse"
+          }
+        }
+      }
+    },
+    "/accounts/sample-project/": {
+      "post": {
+        "operationId": "accounts_sample-project_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
+        "requestBody": {
+          "$ref": "#/definitions/SampleProjectRequest"
+        },
+        "queryParameters": {},
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SampleProjectApiResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "401": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "403": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/AccountsErrorResponse"
+          },
+          "default": {
+            "$ref": "#/definitions/ManagementAPIErrorResponse"
+          }
+        }
+      }
+    },
+    "/accounts/sample-project/hide/": {
+      "post": {
+        "operationId": "accounts_sample-project_hide_create",
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
+        "requestBody": {
+          "$ref": "#/definitions/SampleProjectHideRequest"
+        },
+        "queryParameters": {},
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/SampleProjectApiResponse"
           },
           "400": {
             "$ref": "#/definitions/AccountsErrorResponse"
@@ -67762,6 +67830,71 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SampleProjectApiResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/SampleProjectResponse"
+        }
+      }
+    },
+    "SampleProjectHideRequest": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string",
+          "x-nullable": true
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "SampleProjectRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string",
+          "default": "observe",
+          "minLength": 1
+        },
+        "manifest_id": {
+          "title": "Manifest id",
+          "type": "string"
+        },
+        "manifest_version": {
+          "title": "Manifest version",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string",
+          "x-nullable": true
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string",
+          "x-nullable": true
+        },
+        "open_after_create": {
+          "title": "Open after create",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
     "SavedViewDetailResponse": {
       "required": [
         "result"
@@ -74864,6 +74997,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "onboarding_diagnostics_opened",
             "onboarding_sample_project_opened",
             "onboarding_fallback_action_clicked",
+            "sample_trace_available",
             "sample_signal_viewed",
             "sample_to_real_setup_clicked",
             "first_quality_loop_completed",
@@ -87851,6 +87985,21 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "SampleProjectResponse": {
+      "required": [
+        "sample_project",
+        "activation_state"
+      ],
+      "type": "object",
+      "properties": {
+        "sample_project": {
+          "$ref": "#/definitions/SampleProjectState"
+        },
+        "activation_state": {
+          "$ref": "#/definitions/ActivationStateResponse"
+        }
+      }
+    },
     "SavedViewDetail": {
       "required": [
         "name",
@@ -91617,14 +91766,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Status",
           "type": "string",
           "enum": [
+            "not_created",
             "unavailable",
             "available",
             "creating",
+            "ready_for_observe",
+            "partially_ready",
             "ready",
             "partial",
             "hidden",
             "stale_manifest",
-            "repair_required"
+            "repair_required",
+            "repair_failed"
           ]
         },
         "href": {
@@ -91634,6 +91787,49 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "version": {
           "title": "Version",
+          "type": "string",
+          "x-nullable": true
+        },
+        "manifest_id": {
+          "title": "Manifest id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "manifest_version": {
+          "title": "Manifest version",
+          "type": "string",
+          "x-nullable": true
+        },
+        "label": {
+          "title": "Label",
+          "type": "string",
+          "default": "Sample"
+        },
+        "entry_route": {
+          "title": "Entry route",
+          "type": "string",
+          "x-nullable": true
+        },
+        "is_repairable": {
+          "title": "Is repairable",
+          "type": "boolean",
+          "default": false
+        },
+        "blocked_reason": {
+          "title": "Blocked reason",
+          "type": "string",
+          "x-nullable": true
+        },
+        "artifact_refs": {
+          "title": "Artifact refs",
+          "type": "object"
+        },
+        "health": {
+          "title": "Health",
+          "type": "object"
+        },
+        "real_setup_href": {
+          "title": "Real setup href",
           "type": "string",
           "x-nullable": true
         },

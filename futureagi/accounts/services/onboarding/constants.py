@@ -46,14 +46,18 @@ PROGRESS_STATES = (
 )
 
 SAMPLE_PROJECT_STATUSES = (
+    "not_created",
     "unavailable",
     "available",
     "creating",
+    "ready_for_observe",
+    "partially_ready",
     "ready",
     "partial",
     "hidden",
     "stale_manifest",
     "repair_required",
+    "repair_failed",
 )
 
 LIFECYCLE_ELIGIBILITY_STATES = (
@@ -89,6 +93,7 @@ ROUTE_UNAVAILABLE_REASONS = (
     "plan_blocked",
     "route_not_implemented",
     "sample_artifact_missing",
+    "sample_hidden",
     "target_event_complete",
     "workspace_missing",
 )

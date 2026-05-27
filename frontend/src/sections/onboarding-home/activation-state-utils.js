@@ -214,23 +214,71 @@ const normalizeSampleProject = (raw = {}) => {
   if (!isInternalHref(href)) {
     throw new Error(`Sample project has external href: ${href}`);
   }
+  const entryRoute = raw.entry_route ?? raw.entryRoute ?? null;
+  if (!isInternalHref(entryRoute)) {
+    throw new Error(`Sample project has external entry route: ${entryRoute}`);
+  }
+  const entryRoutes = Array.isArray(raw.entry_routes)
+    ? raw.entry_routes
+    : raw.entryRoutes || [];
+  entryRoutes.forEach((route) => {
+    if (!isInternalHref(route)) {
+      throw new Error(`Sample project has external entry route: ${route}`);
+    }
+  });
+  const realSetupHref =
+    raw.real_setup_href ?? raw.realSetupHref ?? "/dashboard/observe";
+  if (!isInternalHref(realSetupHref)) {
+    throw new Error(`Sample project has external setup href: ${realSetupHref}`);
+  }
   return {
     available: Boolean(raw.available),
     created: Boolean(raw.created),
-    status: raw.status || "unavailable",
+    status: raw.status || "not_created",
     href,
     version: raw.version ?? null,
+    manifestId: raw.manifest_id ?? raw.manifestId ?? null,
+    manifestVersion: raw.manifest_version ?? raw.manifestVersion ?? null,
+    label: raw.label || "Sample",
+    entryRoute,
+    isRepairable: Boolean(raw.is_repairable ?? raw.isRepairable),
+    blockedReason: raw.blocked_reason ?? raw.blockedReason ?? null,
+    artifactRefs: raw.artifact_refs ?? raw.artifactRefs ?? {},
+    health: raw.health ?? {},
+    realSetupHref,
     isHidden: Boolean(raw.is_hidden ?? raw.isHidden),
     hiddenReason: raw.hidden_reason ?? raw.hiddenReason ?? null,
-    entryRoutes: Array.isArray(raw.entry_routes)
-      ? raw.entry_routes
-      : raw.entryRoutes || [],
+    entryRoutes,
     missingArtifacts: Array.isArray(raw.missing_artifacts)
       ? raw.missing_artifacts
       : raw.missingArtifacts || [],
     lastOpenedAt: raw.last_opened_at ?? raw.lastOpenedAt ?? null,
   };
 };
+
+export const hasSampleRoute = (sampleProject) =>
+  Boolean(
+    sampleProject &&
+      !sampleProject.isHidden &&
+      (sampleProject.entryRoute || sampleProject.entryRoutes?.length),
+  );
+
+export const isSampleHidden = (sampleProject) =>
+  Boolean(sampleProject?.isHidden || sampleProject?.status === "hidden");
+
+export const canOpenSample = (sampleProject) =>
+  Boolean(
+    sampleProject?.available &&
+      !isSampleHidden(sampleProject) &&
+      !["unavailable", "repair_failed"].includes(sampleProject.status),
+  );
+
+export const shouldShowSampleAsPrimary = (state) =>
+  Boolean(
+    state?.primaryPath === "sample" ||
+      (state?.recommendedAction?.blocked &&
+        hasSampleRoute(state.sampleProject)),
+  );
 
 const normalizeEmailEligibility = (raw = {}) => ({
   eligible: Boolean(raw.eligible),

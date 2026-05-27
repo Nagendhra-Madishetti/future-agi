@@ -1,0 +1,133 @@
+schema_version: sample-project-2026-05-27.v1
+
+manifest_id: futureagi_sample_ai_support_workspace
+manifest_version: "2026-05-26.1"
+display_name: Sample AI support workspace
+domain: customer support automation
+sample_label: Sample
+is_sample: true
+release_0_entry_path: observe
+
+defaults:
+  tags:
+    - sample
+    - onboarding
+  span_attributes:
+    futureagi.sample: true
+  resource_attributes:
+    service.name: sample-support-assistant
+  semconv_source: traceai
+
+story:
+  short_title: Support assistant quality review
+  summary: >
+    A refund-policy assistant answered too confidently while policy retrieval
+    was slow and incomplete.
+
+artifacts:
+  observe_project:
+    stable_key: sample_observe_support_assistant
+    display_name: Sample Support Assistant
+    tags:
+      - sample
+      - onboarding
+    metadata:
+      domain: customer support automation
+  trace_session:
+    stable_key: sample_trace_session_refund_flow
+    display_name: Late refund request
+    bookmarked: true
+  sample_trace:
+    stable_key: sample_trace_late_refund_mistake
+    display_name: Late refund request handled too confidently
+    external_id: sample-trace-late-refund-mistake
+    input:
+      request: >
+        I renewed two days late because my card failed. Can I still get the
+        refund?
+    output:
+      answer: You are still eligible for a refund. I can process it now.
+    metadata:
+      safe_summary: >
+        The assistant answered a late refund request without checking the
+        escalation requirement.
+      quality_issue: policy_mismatch
+      latency_ms: 2840
+      estimated_cost_usd: 0.014
+      model: sample-support-model
+    tags:
+      - sample
+      - onboarding
+      - policy_mismatch
+  spans:
+    root:
+      stable_key: sample_span_support_assistant_request
+      name: Sample support assistant request
+      observation_type: agent
+      timing_ms:
+        start: 0
+        end: 2840
+        latency: 2840
+      input:
+        request: >
+          I renewed two days late because my card failed. Can I still get the
+          refund?
+      output:
+        answer: You are still eligible for a refund. I can process it now.
+    retrieval:
+      stable_key: sample_span_policy_retrieval
+      parent: root
+      name: Retrieve refund policy
+      observation_type: retriever
+      timing_ms:
+        start: 120
+        end: 1580
+        latency: 1460
+      input:
+        query: late renewal refund policy
+      output:
+        policy: Late refunds require billing-risk review before approval.
+      metadata:
+        policy_section: refunds_late_renewal
+        quality_issue: slow_retrieval
+    model_response:
+      stable_key: sample_span_refund_response
+      parent: root
+      name: Draft support response
+      observation_type: llm
+      timing_ms:
+        start: 1640
+        end: 2620
+        latency: 980
+      model: sample-support-model
+      prompt_tokens: 1180
+      completion_tokens: 220
+      total_tokens: 1400
+      cost: 0.014
+      input:
+        policy_context: Late refunds require review.
+      output:
+        answer: You are still eligible for a refund.
+    evaluator:
+      stable_key: sample_span_policy_coverage_check
+      parent: root
+      name: Policy coverage check
+      observation_type: evaluator
+      timing_ms:
+        start: 2640
+        end: 2840
+        latency: 200
+      input:
+        criterion: Mentions billing-risk review requirement
+      output:
+        result: needs_review
+      metadata:
+        missing_requirement: billing_risk_review
+
+optional_paths:
+  prompt: not_available_in_release_0
+  agent: not_available_in_release_0
+  gateway: not_available_in_release_0
+  voice: route_decision_pending
+  evals: not_available_in_release_0
+  dashboard: not_available_in_release_0

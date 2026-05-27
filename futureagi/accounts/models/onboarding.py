@@ -126,3 +126,97 @@ class OnboardingGoal(BaseModel):
 
     def __str__(self):
         return f"{self.goal} for {self.workspace_id}"
+
+
+class OnboardingSampleProject(BaseModel):
+    STATUS_NOT_CREATED = "not_created"
+    STATUS_CREATING = "creating"
+    STATUS_READY_FOR_OBSERVE = "ready_for_observe"
+    STATUS_PARTIALLY_READY = "partially_ready"
+    STATUS_READY = "ready"
+    STATUS_HIDDEN = "hidden"
+    STATUS_UNAVAILABLE = "unavailable"
+    STATUS_REPAIR_FAILED = "repair_failed"
+
+    STATUS_CHOICES = (
+        (STATUS_NOT_CREATED, STATUS_NOT_CREATED),
+        (STATUS_CREATING, STATUS_CREATING),
+        (STATUS_READY_FOR_OBSERVE, STATUS_READY_FOR_OBSERVE),
+        (STATUS_PARTIALLY_READY, STATUS_PARTIALLY_READY),
+        (STATUS_READY, STATUS_READY),
+        (STATUS_HIDDEN, STATUS_HIDDEN),
+        (STATUS_UNAVAILABLE, STATUS_UNAVAILABLE),
+        (STATUS_REPAIR_FAILED, STATUS_REPAIR_FAILED),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "accounts.Organization",
+        on_delete=models.CASCADE,
+        related_name="onboarding_sample_projects",
+    )
+    workspace = models.ForeignKey(
+        "accounts.Workspace",
+        on_delete=models.CASCADE,
+        related_name="onboarding_sample_projects",
+    )
+    first_opened_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="first_opened_onboarding_sample_projects",
+    )
+    last_opened_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="last_opened_onboarding_sample_projects",
+    )
+    manifest_id = models.CharField(max_length=96)
+    manifest_version = models.CharField(max_length=32)
+    status = models.CharField(
+        max_length=32,
+        choices=STATUS_CHOICES,
+        default=STATUS_NOT_CREATED,
+        db_index=True,
+    )
+    artifact_refs = models.JSONField(default=dict, blank=True)
+    missing_artifacts = models.JSONField(default=list, blank=True)
+    health = models.JSONField(default=dict, blank=True)
+    idempotency_key = models.CharField(max_length=180, db_index=True)
+    repair_attempts = models.PositiveIntegerField(default=0)
+    last_repair_attempt_at = models.DateTimeField(null=True, blank=True)
+    last_opened_at = models.DateTimeField(null=True, blank=True)
+    hidden_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "accounts_onboarding_sample_project"
+        ordering = ("-last_opened_at", "-updated_at")
+        indexes = [
+            models.Index(
+                fields=["organization", "workspace", "manifest_id"],
+                name="onb_sample_org_ws_manifest",
+            ),
+            models.Index(fields=["workspace", "status"], name="onb_sample_ws_status"),
+            models.Index(
+                fields=["workspace", "hidden_at"], name="onb_sample_ws_hidden"
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workspace", "manifest_id", "manifest_version"],
+                condition=models.Q(deleted=False),
+                name="onb_sample_unique_manifest",
+            ),
+            models.UniqueConstraint(
+                fields=["idempotency_key"],
+                condition=models.Q(deleted=False),
+                name="onb_sample_unique_idempotency",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.manifest_id}:{self.manifest_version} for {self.workspace_id}"

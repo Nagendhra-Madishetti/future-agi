@@ -5,7 +5,7 @@
 export const API_SURFACE_CONTRACT = Object.freeze({
   "generatedFrom": "api_contracts/openapi/swagger.json",
   "swaggerVersion": "2.0",
-  "endpointCount": 983,
+  "endpointCount": 985,
   "groups": {
     "accounts": {
       "/accounts/2fa/recovery-codes/": [
@@ -193,6 +193,12 @@ export const API_SURFACE_CONTRACT = Object.freeze({
         "post"
       ],
       "/accounts/resend-invitation-emails/": [
+        "post"
+      ],
+      "/accounts/sample-project/": [
+        "post"
+      ],
+      "/accounts/sample-project/hide/": [
         "post"
       ],
       "/accounts/signup/": [
@@ -3538,6 +3544,12 @@ export const API_SURFACE_PATHS = Object.freeze({
     "post"
   ],
   "/accounts/resend-invitation-emails/": [
+    "post"
+  ],
+  "/accounts/sample-project/": [
+    "post"
+  ],
+  "/accounts/sample-project/hide/": [
     "post"
   ],
   "/accounts/signup/": [

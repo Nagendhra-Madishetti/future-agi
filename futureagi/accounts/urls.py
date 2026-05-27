@@ -13,6 +13,8 @@ from accounts.views.onboarding import (
     ActivationEventView,
     ActivationStateView,
     OnboardingGoalView,
+    SampleProjectHideView,
+    SampleProjectView,
 )
 from accounts.views.organization_selection import (
     OrganizationSelectionView,
@@ -142,6 +144,12 @@ user_urls = [
         "activation-events/",
         ActivationEventView.as_view(),
         name="activation-events",
+    ),
+    path("sample-project/", SampleProjectView.as_view(), name="sample-project"),
+    path(
+        "sample-project/hide/",
+        SampleProjectHideView.as_view(),
+        name="sample-project-hide",
     ),
     path("onboarding/", user_onboarding, name="user-onboarding"),
     path("onboarding/goal/", OnboardingGoalView.as_view(), name="onboarding-goal"),

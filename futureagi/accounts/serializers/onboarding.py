@@ -184,6 +184,35 @@ class SampleProjectStateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=choices(SAMPLE_PROJECT_STATUSES))
     href = serializers.CharField(allow_blank=True, allow_null=True)
     version = serializers.CharField(allow_blank=True, allow_null=True)
+    manifest_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    manifest_version = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    label = serializers.CharField(required=False, allow_blank=True, default="Sample")
+    entry_route = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    is_repairable = serializers.BooleanField(required=False, default=False)
+    blocked_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    artifact_refs = serializers.JSONField(required=False)
+    health = serializers.JSONField(required=False)
+    real_setup_href = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
     is_hidden = serializers.BooleanField()
     hidden_reason = serializers.CharField(
         required=False,
@@ -199,17 +228,25 @@ class SampleProjectStateSerializer(serializers.Serializer):
         if attrs["created"] and status not in {
             "ready",
             "partial",
+            "partially_ready",
+            "ready_for_observe",
             "stale_manifest",
             "repair_required",
+            "repair_failed",
+            "hidden",
+            "creating",
+            "unavailable",
         }:
             raise serializers.ValidationError(
                 "Created samples must be ready, partial, stale, or repairable."
             )
-        if status == "partial" and not attrs["missing_artifacts"]:
+        if status in {"partial", "partially_ready"} and not (
+            attrs["missing_artifacts"] or attrs["entry_routes"]
+        ):
             raise serializers.ValidationError(
-                "Partial samples must list missing_artifacts."
+                "Partial samples must list missing_artifacts or entry_routes."
             )
-        if status == "ready" and not attrs["entry_routes"]:
+        if status in {"ready", "ready_for_observe"} and not attrs["entry_routes"]:
             raise serializers.ValidationError("Ready samples must list entry_routes.")
         return attrs
 
@@ -627,9 +664,9 @@ class ActivationEventResponseSerializer(serializers.Serializer):
 
 
 class SampleProjectRequestSerializer(serializers.Serializer):
-    path = serializers.CharField()
-    manifest_id = serializers.CharField()
-    manifest_version = serializers.CharField()
+    path = serializers.CharField(default="observe")
+    manifest_id = serializers.CharField(required=False, allow_blank=True)
+    manifest_version = serializers.CharField(required=False, allow_blank=True)
     source = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     reason = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     open_after_create = serializers.BooleanField(default=False)
@@ -638,9 +675,23 @@ class SampleProjectRequestSerializer(serializers.Serializer):
         canonical = canonical_path(value)
         if canonical not in PRODUCT_PATHS:
             raise serializers.ValidationError("Unsupported sample project path.")
+        if canonical != "observe":
+            raise serializers.ValidationError(
+                "Only observe sample project is available."
+            )
         return canonical
+
+
+class SampleProjectHideRequestSerializer(serializers.Serializer):
+    source = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    reason = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class SampleProjectResponseSerializer(serializers.Serializer):
     sample_project = SampleProjectStateSerializer()
     activation_state = ActivationStateResponseSerializer()
+
+
+class SampleProjectApiResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField(default=True)
+    result = SampleProjectResponseSerializer()

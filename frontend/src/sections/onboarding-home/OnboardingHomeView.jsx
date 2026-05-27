@@ -5,11 +5,12 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthContext } from "src/auth/hooks";
 import { useWorkspace } from "src/contexts/WorkspaceContext";
 import { useActivationState } from "./hooks/useActivationState";
 import { useSaveOnboardingGoal } from "./hooks/useSaveOnboardingGoal";
+import { useSampleProject } from "./hooks/useSampleProject";
 import {
   getGoalOptionsForState,
   getStageCopy,
@@ -29,6 +30,7 @@ import OnboardingHomeSkeleton from "./components/OnboardingHomeSkeleton";
 import PathCardGrid from "./components/PathCardGrid";
 import ProductLoopStepper from "./components/ProductLoopStepper";
 import RecommendedActionCard from "./components/RecommendedActionCard";
+import SampleProjectPanel from "./components/SampleProjectPanel";
 import WaitingForSignalPanel from "./components/WaitingForSignalPanel";
 
 function Diagnostics({ state }) {
@@ -79,7 +81,9 @@ export default function OnboardingHomeView() {
     isReady: workspaceReady,
   } = useWorkspace();
   const location = useLocation();
+  const navigate = useNavigate();
   const saveGoal = useSaveOnboardingGoal();
+  const sampleProjectActions = useSampleProject();
   const [selectedGoal, setSelectedGoal] = useState(null);
 
   const searchContext = useMemo(() => {
@@ -204,6 +208,58 @@ export default function OnboardingHomeView() {
     });
   };
 
+  const handleOpenSample = async () => {
+    trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectOpenClicked, {
+      ...trackContext,
+      sample_status: renderedState.sampleProject?.status,
+      manifest_id: renderedState.sampleProject?.manifestId,
+      manifest_version: renderedState.sampleProject?.manifestVersion,
+    });
+    try {
+      const nextState =
+        await sampleProjectActions.openSampleProject.mutateAsync({
+          path: "observe",
+          source: "onboarding_home",
+          reason: renderedState.stage,
+          manifestId: renderedState.sampleProject?.manifestId,
+          manifestVersion: renderedState.sampleProject?.manifestVersion,
+          openAfterCreate: true,
+        });
+      const entryRoute =
+        nextState?.sampleProject?.entryRoute ||
+        nextState?.sampleProject?.entryRoutes?.[0];
+      if (entryRoute) {
+        navigate(entryRoute);
+      }
+      refetch?.();
+    } catch (sampleError) {
+      trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectOpenFailed, {
+        ...trackContext,
+        sample_status: renderedState.sampleProject?.status,
+        reason: sampleError?.message || "unknown_error",
+      });
+    }
+  };
+
+  const handleHideSample = async () => {
+    trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectHideClicked, {
+      ...trackContext,
+      sample_status: renderedState.sampleProject?.status,
+    });
+    await sampleProjectActions.hideSampleProject.mutateAsync({
+      source: "onboarding_home",
+      reason: "user_dismissed",
+    });
+    refetch?.();
+  };
+
+  const handleConnectRealData = () => {
+    trackOnboardingHomeEvent(OnboardingHomeEvents.sampleToRealSetupClicked, {
+      ...trackContext,
+      sample_status: renderedState.sampleProject?.status,
+    });
+  };
+
   const observePanelProps = {
     action: renderedState.recommendedAction,
     fallbackAction: renderedState.fallbackAction,
@@ -246,6 +302,17 @@ export default function OnboardingHomeView() {
         ) : null}
       </>
     ) : null;
+
+  const sampleProject = renderedState.sampleProject;
+  const showSamplePanel =
+    sampleProject?.available &&
+    !sampleProject?.isHidden &&
+    !renderedState.isActivated &&
+    !showGoalPicker &&
+    [
+      "connect_observability",
+      "waiting_for_first_trace_sample_available",
+    ].includes(renderedState.stage);
 
   return (
     <Box
@@ -313,7 +380,25 @@ export default function OnboardingHomeView() {
             />
           </Box>
         ) : observePanel ? (
-          observePanel
+          <Stack spacing={2}>
+            {observePanel}
+            {showSamplePanel ? (
+              <SampleProjectPanel
+                sampleProject={sampleProject}
+                activationStage={renderedState.stage}
+                selectedGoal={renderedState.goal}
+                onOpenSample={handleOpenSample}
+                onHideSample={handleHideSample}
+                onConnectRealData={handleConnectRealData}
+                isOpening={mutationPending(
+                  sampleProjectActions.openSampleProject,
+                )}
+                isHiding={mutationPending(
+                  sampleProjectActions.hideSampleProject,
+                )}
+              />
+            ) : null}
+          </Stack>
         ) : (
           <Box
             sx={{

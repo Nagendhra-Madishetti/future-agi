@@ -86,7 +86,9 @@ def _fallback_for_stage(stage, flags, routes):
     stage_config = configured_stage(stage)
     for flag, action_id in stage_config.get("flagged_fallback_actions", {}).items():
         if flags.get(flag):
-            return configured_activation_action(action_id, routes)
+            candidate = configured_activation_action(action_id, routes)
+            if not candidate["blocked"]:
+                return candidate
     return configured_activation_action(stage_config["fallback_action"], routes)
 
 

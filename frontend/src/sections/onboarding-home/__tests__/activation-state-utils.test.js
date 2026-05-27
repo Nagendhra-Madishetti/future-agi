@@ -5,8 +5,11 @@ import {
 } from "../fixtures/activation-state.fixtures";
 import {
   hasOnePrimaryAction,
+  hasSampleRoute,
   isInternalHref,
+  isSampleHidden,
   makeActivationStateErrorFallback,
+  canOpenSample,
   normalizeActivationState,
   normalizeProductPath,
   validateActivationStateFixture,
@@ -67,6 +70,22 @@ describe("activation-state utilities", () => {
     expect(normalized.recommendedAction.completionEvent).toBe(
       "sample_signal_viewed",
     );
+  });
+
+  it("derives sample project route helpers", () => {
+    const normalized = normalizeActivationState({
+      ...getActivationStateFixture("sampleTraceReady"),
+      sample_project: {
+        ...getActivationStateFixture("sampleTraceReady").sample_project,
+        status: "ready_for_observe",
+        entry_route:
+          "/dashboard/observe/observe-1/trace/trace-1?sample=true&from=onboarding",
+      },
+    });
+
+    expect(hasSampleRoute(normalized.sampleProject)).toBe(true);
+    expect(canOpenSample(normalized.sampleProject)).toBe(true);
+    expect(isSampleHidden(normalized.sampleProject)).toBe(false);
   });
 
   it("normalizes accepted product path aliases", () => {

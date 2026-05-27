@@ -13,6 +13,9 @@ from accounts.serializers.onboarding import (
     ActivationGoalRequestSerializer,
     ActivationStateApiResponseSerializer,
     ActivationStateQuerySerializer,
+    SampleProjectApiResponseSerializer,
+    SampleProjectHideRequestSerializer,
+    SampleProjectRequestSerializer,
 )
 from accounts.services.onboarding.activation_events import (
     build_idempotency_key,
@@ -22,9 +25,14 @@ from accounts.services.onboarding.activation_state import (
     resolve_activation_state_for_request,
 )
 from accounts.services.onboarding.context import resolve_onboarding_context
+from accounts.services.onboarding.feature_flags import get_onboarding_flags
 from accounts.services.onboarding.goals import (
     OnboardingGoalConflict,
     save_onboarding_goal,
+)
+from accounts.services.onboarding.sample_project import (
+    create_or_get_sample_project,
+    hide_sample_project,
 )
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.general_methods import GeneralMethods
@@ -261,4 +269,113 @@ class ActivationEventView(APIView):
             )
             return self._gm.internal_server_error_response(
                 "Failed to record onboarding activation event"
+            )
+
+
+class SampleProjectView(APIView):
+    permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
+
+    @validated_request(
+        request_serializer=SampleProjectRequestSerializer,
+        responses={
+            200: SampleProjectApiResponseSerializer,
+            **ACCOUNTS_ERROR_RESPONSES,
+        },
+        strict_request_validation=False,
+    )
+    def post(self, request):
+        serializer = SampleProjectRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return self._gm.bad_request(serializer.errors)
+
+        try:
+            context = resolve_onboarding_context(request)
+            flags = get_onboarding_flags(
+                user=request.user,
+                organization=context.organization,
+                workspace=context.workspace,
+            )
+            data = serializer.validated_data
+            sample_project = create_or_get_sample_project(
+                request.user,
+                context.organization,
+                context.workspace,
+                source=data.get("source") or "onboarding_home",
+                reason=data.get("reason") or "manual_open",
+                is_enabled=bool(flags.get("onboarding_sample_project")),
+                can_create=context.permissions["can_write"],
+                manifest_id=data.get("manifest_id"),
+                manifest_version=data.get("manifest_version"),
+            )
+            activation_state = resolve_activation_state_for_request(request)
+            return self._gm.success_response(
+                {
+                    "sample_project": sample_project,
+                    "activation_state": activation_state,
+                }
+            )
+        except ValidationError as exc:
+            return _bad_request(self._gm, exc)
+        except Exception as exc:
+            logger.exception(
+                "Onboarding sample project open failed",
+                error=str(exc),
+                user_id=str(getattr(request.user, "id", "")),
+            )
+            return self._gm.internal_server_error_response(
+                "Failed to open sample project"
+            )
+
+
+class SampleProjectHideView(APIView):
+    permission_classes = [IsAuthenticated]
+    _gm = GeneralMethods()
+
+    @validated_request(
+        request_serializer=SampleProjectHideRequestSerializer,
+        responses={
+            200: SampleProjectApiResponseSerializer,
+            **ACCOUNTS_ERROR_RESPONSES,
+        },
+        strict_request_validation=False,
+    )
+    def post(self, request):
+        serializer = SampleProjectHideRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return self._gm.bad_request(serializer.errors)
+
+        try:
+            context = resolve_onboarding_context(request)
+            flags = get_onboarding_flags(
+                user=request.user,
+                organization=context.organization,
+                workspace=context.workspace,
+            )
+            data = serializer.validated_data
+            sample_project = hide_sample_project(
+                request.user,
+                context.organization,
+                context.workspace,
+                source=data.get("source") or "onboarding_home",
+                reason=data.get("reason") or "user_dismissed",
+                is_enabled=bool(flags.get("onboarding_sample_project")),
+            )
+            activation_state = resolve_activation_state_for_request(request)
+            return self._gm.success_response(
+                {
+                    "sample_project": sample_project,
+                    "activation_state": activation_state,
+                }
+            )
+        except ValidationError as exc:
+            return _bad_request(self._gm, exc)
+        except Exception as exc:
+            logger.exception(
+                "Onboarding sample project hide failed",
+                error=str(exc),
+                user_id=str(getattr(request.user, "id", "")),
+            )
+            return self._gm.internal_server_error_response(
+                "Failed to hide sample project"
             )

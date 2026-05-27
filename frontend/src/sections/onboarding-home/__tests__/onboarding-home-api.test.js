@@ -13,11 +13,13 @@ vi.mock("src/utils/axios", () => ({
       activationState: "/accounts/activation-state/",
       activationEvent: "/accounts/activation-events/",
       goal: "/accounts/onboarding/goal/",
+      sampleProject: "/accounts/sample-project/",
+      hideSampleProject: "/accounts/sample-project/hide/",
     },
   },
 }));
 
-import axios from "src/utils/axios";
+import axios, { endpoints } from "src/utils/axios";
 import { getActivationStateFixture } from "../fixtures/activation-state.fixtures";
 import { useActivationState } from "../hooks/useActivationState";
 import {
@@ -225,12 +227,86 @@ describe("onboarding home API", () => {
     );
   });
 
-  it("keeps sample project mutations unavailable until backend endpoints exist", async () => {
+  it("opens and hides sample projects through onboarding endpoints", async () => {
+    axios.post
+      .mockResolvedValueOnce({
+        data: {
+          result: {
+            sample_project: {
+              available: true,
+              created: true,
+              status: "ready_for_observe",
+              href: "/dashboard/observe/observe-1/trace/trace-1?sample=true&from=onboarding",
+              version: "2026-05-26.1",
+              is_hidden: false,
+              hidden_reason: null,
+              entry_routes: [
+                "/dashboard/observe/observe-1/trace/trace-1?sample=true&from=onboarding",
+              ],
+              missing_artifacts: [],
+              last_opened_at: null,
+            },
+            activation_state: getActivationStateFixture(
+              "observeWaitingWithSample",
+            ),
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          result: {
+            sample_project: {
+              available: false,
+              created: true,
+              status: "hidden",
+              href: null,
+              version: "2026-05-26.1",
+              is_hidden: true,
+              hidden_reason: "user_hidden",
+              entry_routes: [],
+              missing_artifacts: [],
+              last_opened_at: null,
+            },
+            activation_state: getActivationStateFixture("sampleUnavailable"),
+          },
+        },
+      });
+
+    const opened = await openSampleProject({
+      path: "observability",
+      source: "onboarding_home",
+      reason: "waiting_for_first_trace",
+      openAfterCreate: true,
+    });
+    const hidden = await hideSampleProject({
+      source: "onboarding_home",
+      reason: "user_dismissed",
+    });
+
+    expect(axios.post).toHaveBeenNthCalledWith(1, "/accounts/sample-project/", {
+      path: "observe",
+      source: "onboarding_home",
+      reason: "waiting_for_first_trace",
+      open_after_create: true,
+    });
+    expect(axios.post).toHaveBeenNthCalledWith(
+      2,
+      "/accounts/sample-project/hide/",
+      {
+        source: "onboarding_home",
+        reason: "user_dismissed",
+      },
+    );
+    expect(opened.stage).toBe("waiting_for_first_trace_sample_available");
+    expect(hidden.sampleProject.status).toBe("unavailable");
+  });
+
+  it("reports missing sample endpoints explicitly", async () => {
+    const original = endpoints.onboarding.sampleProject;
+    endpoints.onboarding.sampleProject = null;
     await expect(openSampleProject()).rejects.toBeInstanceOf(
       OnboardingEndpointUnavailableError,
     );
-    await expect(hideSampleProject()).rejects.toBeInstanceOf(
-      OnboardingEndpointUnavailableError,
-    );
+    endpoints.onboarding.sampleProject = original;
   });
 });

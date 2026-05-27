@@ -6,6 +6,10 @@ export const OnboardingHomeEvents = {
   homeGoalSaveFailed: "onboarding_home_goal_save_failed",
   homeActionClicked: "onboarding_home_action_clicked",
   homePathClicked: "onboarding_home_path_clicked",
+  sampleProjectOpenClicked: "sample_project_open_clicked",
+  sampleProjectOpenFailed: "sample_project_open_failed",
+  sampleProjectHideClicked: "sample_project_hide_clicked",
+  sampleToRealSetupClicked: "sample_to_real_setup_clicked",
 };
 
 const BLOCKED_PROPERTY_KEYS = new Set([

@@ -345,6 +345,7 @@ export const ActivationEventResultApiEventName = {
   onboarding_diagnostics_opened: 'onboarding_diagnostics_opened',
   onboarding_sample_project_opened: 'onboarding_sample_project_opened',
   onboarding_fallback_action_clicked: 'onboarding_fallback_action_clicked',
+  sample_trace_available: 'sample_trace_available',
   sample_signal_viewed: 'sample_signal_viewed',
   sample_to_real_setup_clicked: 'sample_to_real_setup_clicked',
   first_quality_loop_completed: 'first_quality_loop_completed',
@@ -736,15 +737,23 @@ export type SampleProjectStateApiStatus = typeof SampleProjectStateApiStatus[key
 
 
 export const SampleProjectStateApiStatus = {
+  not_created: 'not_created',
   unavailable: 'unavailable',
   available: 'available',
   creating: 'creating',
+  ready_for_observe: 'ready_for_observe',
+  partially_ready: 'partially_ready',
   ready: 'ready',
   partial: 'partial',
   hidden: 'hidden',
   stale_manifest: 'stale_manifest',
   repair_required: 'repair_required',
+  repair_failed: 'repair_failed',
 } as const;
+
+export type SampleProjectStateApiArtifactRefs = { [key: string]: unknown };
+
+export type SampleProjectStateApiHealth = { [key: string]: unknown };
 
 export interface SampleProjectStateApi {
   available: boolean;
@@ -752,6 +761,15 @@ export interface SampleProjectStateApi {
   status: SampleProjectStateApiStatus;
   href: string;
   version: string;
+  manifest_id?: string;
+  manifest_version?: string;
+  label?: string;
+  entry_route?: string;
+  is_repairable?: boolean;
+  blocked_reason?: string;
+  artifact_refs?: SampleProjectStateApiArtifactRefs;
+  health?: SampleProjectStateApiHealth;
+  real_setup_href?: string;
   is_hidden: boolean;
   hidden_reason?: string;
   entry_routes: string[];
@@ -1815,6 +1833,31 @@ export interface AccountsRedisDeleteResultApi {
 export interface AccountsRedisDeleteResponseApi {
   status: boolean;
   result: AccountsRedisDeleteResultApi;
+}
+
+export interface SampleProjectRequestApi {
+  /** @minLength 1 */
+  path?: string;
+  manifest_id?: string;
+  manifest_version?: string;
+  source?: string;
+  reason?: string;
+  open_after_create?: boolean;
+}
+
+export interface SampleProjectResponseApi {
+  sample_project: SampleProjectStateApi;
+  activation_state: ActivationStateResponseApi;
+}
+
+export interface SampleProjectApiResponseApi {
+  status?: boolean;
+  result: SampleProjectResponseApi;
+}
+
+export interface SampleProjectHideRequestApi {
+  source?: string;
+  reason?: string;
 }
 
 export interface SignupRequestApi {

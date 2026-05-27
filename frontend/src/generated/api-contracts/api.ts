@@ -962,6 +962,9 @@ import type {
   Saml2AuthMicrosoftCallbackListParams,
   Saml2AuthMicrosoftReadParams,
   Saml2AuthReadParams,
+  SampleProjectApiResponseApi,
+  SampleProjectHideRequestApi,
+  SampleProjectRequestApi,
   SavedViewDetailResponseApi,
   SavedViewListApi,
   SavedViewListResponseApi,
@@ -6011,6 +6014,138 @@ export const accountsResendInvitationEmailsCreate = async (userIdsRequestApi: Us
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       userIdsRequestApi,)
+  }
+);}
+
+
+
+export type accountsSampleProjectCreateResponse200 = {
+  data: SampleProjectApiResponseApi
+  status: 200
+}
+
+export type accountsSampleProjectCreateResponse400 = {
+  data: AccountsErrorResponseApi
+  status: 400
+}
+
+export type accountsSampleProjectCreateResponse401 = {
+  data: AccountsErrorResponseApi
+  status: 401
+}
+
+export type accountsSampleProjectCreateResponse403 = {
+  data: AccountsErrorResponseApi
+  status: 403
+}
+
+export type accountsSampleProjectCreateResponse404 = {
+  data: AccountsErrorResponseApi
+  status: 404
+}
+
+export type accountsSampleProjectCreateResponse500 = {
+  data: AccountsErrorResponseApi
+  status: 500
+}
+
+export type accountsSampleProjectCreateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 401 | 403 | 404 | 500>
+}
+
+export type accountsSampleProjectCreateResponseSuccess = (accountsSampleProjectCreateResponse200) & {
+  headers: Headers;
+};
+export type accountsSampleProjectCreateResponseError = (accountsSampleProjectCreateResponse400 | accountsSampleProjectCreateResponse401 | accountsSampleProjectCreateResponse403 | accountsSampleProjectCreateResponse404 | accountsSampleProjectCreateResponse500 | accountsSampleProjectCreateResponseDefault) & {
+  headers: Headers;
+};
+
+export type accountsSampleProjectCreateResponse = (accountsSampleProjectCreateResponseSuccess | accountsSampleProjectCreateResponseError)
+
+export const getAccountsSampleProjectCreateUrl = () => {
+
+
+
+
+  return `/accounts/sample-project/`
+}
+
+export const accountsSampleProjectCreate = async (sampleProjectRequestApi: SampleProjectRequestApi, options?: RequestInit): Promise<accountsSampleProjectCreateResponse> => {
+
+  return apiMutator<accountsSampleProjectCreateResponse>(getAccountsSampleProjectCreateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sampleProjectRequestApi,)
+  }
+);}
+
+
+
+export type accountsSampleProjectHideCreateResponse200 = {
+  data: SampleProjectApiResponseApi
+  status: 200
+}
+
+export type accountsSampleProjectHideCreateResponse400 = {
+  data: AccountsErrorResponseApi
+  status: 400
+}
+
+export type accountsSampleProjectHideCreateResponse401 = {
+  data: AccountsErrorResponseApi
+  status: 401
+}
+
+export type accountsSampleProjectHideCreateResponse403 = {
+  data: AccountsErrorResponseApi
+  status: 403
+}
+
+export type accountsSampleProjectHideCreateResponse404 = {
+  data: AccountsErrorResponseApi
+  status: 404
+}
+
+export type accountsSampleProjectHideCreateResponse500 = {
+  data: AccountsErrorResponseApi
+  status: 500
+}
+
+export type accountsSampleProjectHideCreateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 401 | 403 | 404 | 500>
+}
+
+export type accountsSampleProjectHideCreateResponseSuccess = (accountsSampleProjectHideCreateResponse200) & {
+  headers: Headers;
+};
+export type accountsSampleProjectHideCreateResponseError = (accountsSampleProjectHideCreateResponse400 | accountsSampleProjectHideCreateResponse401 | accountsSampleProjectHideCreateResponse403 | accountsSampleProjectHideCreateResponse404 | accountsSampleProjectHideCreateResponse500 | accountsSampleProjectHideCreateResponseDefault) & {
+  headers: Headers;
+};
+
+export type accountsSampleProjectHideCreateResponse = (accountsSampleProjectHideCreateResponseSuccess | accountsSampleProjectHideCreateResponseError)
+
+export const getAccountsSampleProjectHideCreateUrl = () => {
+
+
+
+
+  return `/accounts/sample-project/hide/`
+}
+
+export const accountsSampleProjectHideCreate = async (sampleProjectHideRequestApi: SampleProjectHideRequestApi, options?: RequestInit): Promise<accountsSampleProjectHideCreateResponse> => {
+
+  return apiMutator<accountsSampleProjectHideCreateResponse>(getAccountsSampleProjectHideCreateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      sampleProjectHideRequestApi,)
   }
 );}
 

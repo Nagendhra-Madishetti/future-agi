@@ -125,12 +125,23 @@ export class OnboardingEndpointUnavailableError extends Error {
 
 const sampleEndpoint = (key) => endpoints.onboarding?.[key];
 
+const sampleProjectPayload = (payload = {}) =>
+  compactObject({
+    path:
+      normalizeProductPath(payload.path ?? payload.primaryPath) || "observe",
+    manifest_id: payload.manifestId ?? payload.manifest_id,
+    manifest_version: payload.manifestVersion ?? payload.manifest_version,
+    source: payload.source,
+    reason: payload.reason,
+    open_after_create: payload.openAfterCreate ?? payload.open_after_create,
+  });
+
 export const openSampleProject = async (payload = {}) => {
   const endpoint = sampleEndpoint("sampleProject");
   if (!endpoint) {
     throw new OnboardingEndpointUnavailableError("sampleProject");
   }
-  const response = await axios.post(endpoint, payload);
+  const response = await axios.post(endpoint, sampleProjectPayload(payload));
   return normalizeActivationStatePayload(unwrapPayload(response));
 };
 
@@ -139,6 +150,12 @@ export const hideSampleProject = async (payload = {}) => {
   if (!endpoint) {
     throw new OnboardingEndpointUnavailableError("hideSampleProject");
   }
-  const response = await axios.post(endpoint, payload);
+  const response = await axios.post(
+    endpoint,
+    compactObject({
+      source: payload.source,
+      reason: payload.reason,
+    }),
+  );
   return normalizeActivationStatePayload(unwrapPayload(response));
 };

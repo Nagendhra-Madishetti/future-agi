@@ -760,6 +760,7 @@ activation_events:
     - onboarding_diagnostics_opened
     - onboarding_sample_project_opened
     - onboarding_fallback_action_clicked
+    - sample_trace_available
     - sample_signal_viewed
     - sample_to_real_setup_clicked
     - first_quality_loop_completed

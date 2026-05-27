@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from django.db.models import Q
+
 from accounts.services.onboarding.activation_events import (
     first_quality_loop_completed,
     has_event,
@@ -84,20 +86,32 @@ def _compatibility_checks(user, organization, workspace):
 def _observe_project_queryset(organization, workspace):
     from tracer.models.project import Project
 
-    return Project.no_workspace_objects.filter(
-        organization=organization,
-        workspace=workspace,
-        trace_type="observe",
+    return (
+        Project.no_workspace_objects.filter(
+            organization=organization,
+            workspace=workspace,
+            trace_type="observe",
+        )
+        .exclude(source="sample")
+        .filter(Q(metadata__is_sample__isnull=True) | Q(metadata__is_sample=False))
     )
 
 
 def _trace_queryset(organization, workspace):
     from tracer.models.trace import Trace
 
-    return Trace.no_workspace_objects.filter(
-        project__organization=organization,
-        project__workspace=workspace,
-        project__trace_type="observe",
+    return (
+        Trace.no_workspace_objects.filter(
+            project__organization=organization,
+            project__workspace=workspace,
+            project__trace_type="observe",
+        )
+        .exclude(project__source="sample")
+        .filter(
+            Q(project__metadata__is_sample__isnull=True)
+            | Q(project__metadata__is_sample=False)
+        )
+        .filter(Q(metadata__is_sample__isnull=True) | Q(metadata__is_sample=False))
     )
 
 

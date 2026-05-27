@@ -19,6 +19,7 @@ from accounts.services.onboarding.recommendations import (
     resolve_recommended_action,
 )
 from accounts.services.onboarding.route_availability import resolve_route_availability
+from accounts.services.onboarding.sample_project import get_sample_project_state
 from accounts.services.onboarding.signal_resolver import (
     OnboardingSignals,
     collect_onboarding_signals,
@@ -40,7 +41,7 @@ def _stage_for_context(context, flags, signals):
     return stage
 
 
-def _available_paths(context, flags, routes):
+def _available_paths(context, flags, routes, sample_project):
     selected_path = context.primary_path
     path_ids = ["observe", "sample"]
     if selected_path and selected_path not in path_ids:
@@ -54,7 +55,11 @@ def _available_paths(context, flags, routes):
         status = "available" if is_available else "hidden"
         if path_id == selected_path and is_available:
             status = "selected"
-        elif path_id == "sample" and not flags.get("onboarding_sample_project"):
+        elif path_id == "sample" and (
+            not flags.get("onboarding_sample_project")
+            or sample_project.get("is_hidden")
+            or not sample_project.get("available")
+        ):
             status = "hidden"
             is_available = False
         paths.append(
@@ -71,22 +76,6 @@ def _available_paths(context, flags, routes):
             }
         )
     return paths
-
-
-def _sample_project(flags):
-    enabled = bool(flags.get("onboarding_sample_project"))
-    return {
-        "available": enabled,
-        "created": False,
-        "status": "available" if enabled else "unavailable",
-        "href": "/dashboard/home?sample=true" if enabled else None,
-        "version": "sample-observe-v1" if enabled else None,
-        "is_hidden": not enabled,
-        "hidden_reason": None if enabled else "feature_disabled",
-        "entry_routes": [],
-        "missing_artifacts": [],
-        "last_opened_at": None,
-    }
 
 
 def _email_eligibility(stage, flags, now):
@@ -130,8 +119,24 @@ def _validate_payload(payload):
 
 
 def resolve_activation_state(*, context, flags, signals):
+    sample_project = get_sample_project_state(
+        user=context.user,
+        organization=context.organization,
+        workspace=context.workspace,
+        is_enabled=bool(flags.get("onboarding_sample_project")),
+        can_create=context.permissions["can_write"],
+    )
     stage = _stage_for_context(context, flags, signals)
-    routes = resolve_route_availability(context=context, flags=flags, signals=signals)
+    if stage == "waiting_for_first_trace_sample_available" and not sample_project.get(
+        "available"
+    ):
+        stage = "waiting_for_first_trace"
+    routes = resolve_route_availability(
+        context=context,
+        flags=flags,
+        signals=signals,
+        sample_project=sample_project,
+    )
     recommended_action, fallback_action = resolve_recommended_action(
         context=context,
         flags=flags,
@@ -167,8 +172,8 @@ def resolve_activation_state(*, context, flags, signals):
         "progress": configured_stage_progress(stage),
         "signals": signals.to_payload(),
         "available_goals": configured_goal_options(),
-        "available_paths": _available_paths(context, flags, routes),
-        "sample_project": _sample_project(flags),
+        "available_paths": _available_paths(context, flags, routes, sample_project),
+        "sample_project": sample_project,
         "email_eligibility": _email_eligibility(stage, flags, now),
         "permissions": context.permissions,
         "feature_flags": flags,

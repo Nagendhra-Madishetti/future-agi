@@ -9,6 +9,7 @@ import OnboardingHomeView from "../OnboardingHomeView";
 const mocks = vi.hoisted(() => ({
   useActivationState: vi.fn(),
   useSaveOnboardingGoal: vi.fn(),
+  useSampleProject: vi.fn(),
   useAuthContext: vi.fn(),
   useWorkspace: vi.fn(),
   trackOnboardingHomeEvent: vi.fn(),
@@ -20,6 +21,10 @@ vi.mock("../hooks/useActivationState", () => ({
 
 vi.mock("../hooks/useSaveOnboardingGoal", () => ({
   useSaveOnboardingGoal: () => mocks.useSaveOnboardingGoal(),
+}));
+
+vi.mock("../hooks/useSampleProject", () => ({
+  useSampleProject: () => mocks.useSampleProject(),
 }));
 
 vi.mock("../analytics/onboarding-events", async () => {
@@ -70,6 +75,18 @@ describe("OnboardingHomeView", () => {
       isLoading: false,
       isPending: false,
       mutateAsync: vi.fn(),
+    });
+    mocks.useSampleProject.mockReturnValue({
+      openSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync: vi.fn(),
+      },
+      hideSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync: vi.fn(),
+      },
     });
   });
 
@@ -165,6 +182,47 @@ describe("OnboardingHomeView", () => {
     await userEvent.click(screen.getByRole("button", { name: /check again/i }));
 
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the sample panel from the waiting state", async () => {
+    const mutateAsync = vi
+      .fn()
+      .mockResolvedValue(normalizedFixture("observeWaitingWithSample"));
+    mocks.useSampleProject.mockReturnValue({
+      openSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync,
+      },
+      hideSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync: vi.fn(),
+      },
+    });
+    mocks.useActivationState.mockReturnValue({
+      state: normalizedFixture("observeWaitingWithSample"),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView();
+
+    expect(screen.getByTestId("sample-project-panel")).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: /open sample trace/i }),
+    );
+
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "observe",
+        source: "onboarding_home",
+        reason: "waiting_for_first_trace_sample_available",
+      }),
+    );
   });
 
   it("saves a selected goal through the goal mutation", async () => {

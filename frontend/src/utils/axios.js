@@ -261,6 +261,8 @@ export const endpoints = {
     activationEvent: apiPath("/accounts/activation-events/"),
     activationState: apiPath("/accounts/activation-state/"),
     goal: apiPath("/accounts/onboarding/goal/"),
+    sampleProject: apiPath("/accounts/sample-project/"),
+    hideSampleProject: apiPath("/accounts/sample-project/hide/"),
   },
   overview: {
     dashboardSummary: apiPath("/model-hub/overview/"),

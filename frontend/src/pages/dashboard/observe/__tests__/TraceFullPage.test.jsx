@@ -13,6 +13,9 @@ vi.mock("react-router", () => ({
     observeId: "observe-1",
     traceId: "trace-1",
   }),
+  useLocation: () => ({
+    search: "",
+  }),
 }));
 
 vi.mock("react-helmet-async", () => ({
@@ -42,8 +45,10 @@ describe("TraceFullPage", () => {
         artifactType: "trace",
         artifactId: "trace-1",
         projectId: "observe-1",
+        isSample: false,
         metadata: {
           entry: "trace_full_page",
+          is_sample_route: false,
         },
       }),
     );
