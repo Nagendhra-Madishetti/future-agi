@@ -777,20 +777,92 @@ export interface SampleProjectStateApi {
   last_opened_at?: string;
 }
 
+export type LifecyclePreviewApiStatus = typeof LifecyclePreviewApiStatus[keyof typeof LifecyclePreviewApiStatus];
+
+
+export const LifecyclePreviewApiStatus = {
+  eligible: 'eligible',
+  suppressed: 'suppressed',
+  skipped: 'skipped',
+  error: 'error',
+} as const;
+
+export type LifecyclePreviewApiSuppressionReason = typeof LifecyclePreviewApiSuppressionReason[keyof typeof LifecyclePreviewApiSuppressionReason];
+
+
+export const LifecyclePreviewApiSuppressionReason = {
+  activated: 'activated',
+  target_event_complete: 'target_event_complete',
+  workspace_suppressed: 'workspace_suppressed',
+  user_unsubscribed: 'user_unsubscribed',
+  user_snoozed: 'user_snoozed',
+  sample_hidden: 'sample_hidden',
+  sample_not_allowed: 'sample_not_allowed',
+  route_unavailable: 'route_unavailable',
+  permission_limited: 'permission_limited',
+  feature_disabled: 'feature_disabled',
+  dry_run_flag_off: 'dry_run_flag_off',
+  send_flag_off: 'send_flag_off',
+  frequency_cap: 'frequency_cap',
+  frequency_cap_user_24h: 'frequency_cap_user_24h',
+  frequency_cap_user_7d: 'frequency_cap_user_7d',
+  frequency_cap_workspace_24h: 'frequency_cap_workspace_24h',
+  frequency_cap_campaign_7d: 'frequency_cap_campaign_7d',
+  wait_window_open: 'wait_window_open',
+  recent_goal_change: 'recent_goal_change',
+  recent_same_task_activity: 'recent_same_task_activity',
+  path_changed: 'path_changed',
+  missing_email: 'missing_email',
+  workspace_inactive: 'workspace_inactive',
+  activation_state_error: 'activation_state_error',
+  no_matching_campaign: 'no_matching_campaign',
+  manual_pause: 'manual_pause',
+} as const;
+
+export interface LifecyclePreviewApi {
+  dry_run_enabled: boolean;
+  send_enabled?: boolean;
+  status: LifecyclePreviewApiStatus;
+  next_campaign_key?: string;
+  template_key?: string;
+  eligible_at?: string;
+  suppressed: boolean;
+  suppression_reason?: LifecyclePreviewApiSuppressionReason;
+  target_success_event?: string;
+  target_action_id?: string;
+  target_url?: string;
+  dry_run_only?: boolean;
+}
+
 export type LifecycleEligibilityApiSuppressionReason = typeof LifecycleEligibilityApiSuppressionReason[keyof typeof LifecycleEligibilityApiSuppressionReason];
 
 
 export const LifecycleEligibilityApiSuppressionReason = {
   activated: 'activated',
   target_event_complete: 'target_event_complete',
-  frequency_cap: 'frequency_cap',
   workspace_suppressed: 'workspace_suppressed',
   user_unsubscribed: 'user_unsubscribed',
+  user_snoozed: 'user_snoozed',
   sample_hidden: 'sample_hidden',
+  sample_not_allowed: 'sample_not_allowed',
   route_unavailable: 'route_unavailable',
   permission_limited: 'permission_limited',
   feature_disabled: 'feature_disabled',
+  dry_run_flag_off: 'dry_run_flag_off',
+  send_flag_off: 'send_flag_off',
+  frequency_cap: 'frequency_cap',
+  frequency_cap_user_24h: 'frequency_cap_user_24h',
+  frequency_cap_user_7d: 'frequency_cap_user_7d',
+  frequency_cap_workspace_24h: 'frequency_cap_workspace_24h',
+  frequency_cap_campaign_7d: 'frequency_cap_campaign_7d',
+  wait_window_open: 'wait_window_open',
   recent_goal_change: 'recent_goal_change',
+  recent_same_task_activity: 'recent_same_task_activity',
+  path_changed: 'path_changed',
+  missing_email: 'missing_email',
+  workspace_inactive: 'workspace_inactive',
+  activation_state_error: 'activation_state_error',
+  no_matching_campaign: 'no_matching_campaign',
   manual_pause: 'manual_pause',
 } as const;
 
@@ -969,6 +1041,7 @@ export interface ActivationStateResponseApi {
   available_goals?: AvailableGoalApi[];
   available_paths: AvailablePathApi[];
   sample_project: SampleProjectStateApi;
+  lifecycle?: LifecyclePreviewApi;
   email_eligibility: LifecycleEligibilityApi;
   permissions: ActivationPermissionsApi;
   feature_flags: ActivationStateResponseApiFeatureFlags;

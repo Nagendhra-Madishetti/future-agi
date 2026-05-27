@@ -56,6 +56,7 @@ def test_activation_state_flag_on_returns_full_shape(auth_client, user):
         "signals",
         "available_paths",
         "sample_project",
+        "lifecycle",
         "email_eligibility",
         "permissions",
         "feature_flags",

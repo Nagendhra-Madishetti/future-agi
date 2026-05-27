@@ -1,0 +1,156 @@
+schema_version: onboarding-lifecycle-campaigns-2026-05-27.v1
+
+campaigns:
+  - campaign_key: welcome_choose_goal
+    template_key: welcome_choose_goal_v1
+    template_version: "2026-05-27.1"
+    campaign_group: welcome
+    primary_path: any
+    entry_stages:
+      - choose_goal
+    wait_window_minutes: 15
+    priority: 70
+    target_action_id: choose_onboarding_goal
+    target_success_event: onboarding_goal_selected
+    route_strategy: home_choose_goal
+    dry_run_flag: onboarding_email_welcome_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: no_goal_after_wait
+
+  - campaign_key: welcome_resume_goal
+    template_key: welcome_resume_goal_v1
+    template_version: "2026-05-27.1"
+    campaign_group: welcome
+    primary_path: observe
+    entry_stages:
+      - connect_observability
+    wait_window_minutes: 15
+    priority: 70
+    target_action_id: create_observe_project
+    target_success_event: observe_project_created
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_welcome_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: selected_goal_no_first_action
+
+  - campaign_key: observe_connect_first
+    template_key: observe_connect_first_v1
+    template_version: "2026-05-27.1"
+    campaign_group: recovery
+    primary_path: observe
+    entry_stages:
+      - connect_observability
+    wait_window_minutes: 60
+    priority: 80
+    target_action_id: create_observe_project
+    target_success_event: observe_project_created
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_first_action_recovery_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: observe_no_project_after_wait
+
+  - campaign_key: observe_waiting_for_first_trace
+    template_key: observe_waiting_for_first_trace_v1
+    template_version: "2026-05-27.1"
+    campaign_group: recovery
+    primary_path: observe
+    entry_stages:
+      - waiting_for_first_trace
+      - waiting_for_first_trace_sample_available
+    wait_window_minutes: 240
+    priority: 70
+    target_action_id: send_first_trace
+    target_success_event: trace_ingested
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_first_action_recovery_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: waiting_for_first_trace_after_wait
+
+  - campaign_key: observe_sample_bridge
+    template_key: observe_sample_bridge_v1
+    template_version: "2026-05-27.1"
+    campaign_group: sample
+    primary_path: observe
+    entry_stages:
+      - waiting_for_first_trace
+      - waiting_for_first_trace_sample_available
+    wait_window_minutes: 1440
+    priority: 60
+    target_action_id: open_sample_trace
+    target_success_event: onboarding_sample_project_opened
+    route_strategy: sample_project
+    dry_run_flag: onboarding_email_sample_bridge_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: sample_bridge
+    sample_policy: sample_only
+    owner: product
+    qa_fixture: sample_available_after_long_wait
+
+  - campaign_key: observe_first_trace_ready
+    template_key: observe_first_trace_ready_v1
+    template_version: "2026-05-27.1"
+    campaign_group: first_signal
+    primary_path: observe
+    entry_stages:
+      - review_first_trace
+    wait_window_minutes: 15
+    priority: 90
+    target_action_id: review_first_trace
+    target_success_event: trace_reviewed
+    route_strategy: artifact_deep_link
+    dry_run_flag: onboarding_email_first_signal_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: trace_ready
+
+  - campaign_key: observe_next_loop
+    template_key: observe_next_loop_v1
+    template_version: "2026-05-27.1"
+    campaign_group: next_loop
+    primary_path: observe
+    entry_stages:
+      - create_trace_evaluator
+    wait_window_minutes: 1440
+    priority: 80
+    target_action_id: create_trace_evaluator
+    target_success_event: first_quality_loop_completed
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_next_loop_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: trace_reviewed_next_loop
+
+  - campaign_key: first_loop_complete_next
+    template_key: first_loop_complete_next_v1
+    template_version: "2026-05-27.1"
+    campaign_group: activation_success
+    primary_path: observe
+    entry_stages:
+      - activated
+    wait_window_minutes: 60
+    priority: 50
+    target_action_id: review_daily_quality
+    target_success_event: daily_quality_home_viewed
+    route_strategy: daily_quality
+    dry_run_flag: onboarding_email_daily_digest_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: daily_digest
+    sample_policy: real_only
+    owner: product
+    qa_fixture: first_loop_complete_next

@@ -468,6 +468,8 @@ export const accountsActivationEventsCreateResponseResultActivationStateAvailabl
 export const accountsActivationEventsCreateResponseResultActivationStateSampleProjectLabelDefault = `Sample`;
 export const accountsActivationEventsCreateResponseResultActivationStateSampleProjectIsRepairableDefault = false;
 
+export const accountsActivationEventsCreateResponseResultActivationStateLifecycleSendEnabledDefault = false;
+export const accountsActivationEventsCreateResponseResultActivationStateLifecycleDryRunOnlyDefault = true;
 export const accountsActivationEventsCreateResponseResultActivationStateEmailEligibilityFrequencyCapRemainingMin = 0;
 
 export const accountsActivationEventsCreateResponseResultActivationStateEmailEligibilityDryRunOnlyDefault = true;
@@ -633,10 +635,24 @@ export const AccountsActivationEventsCreateResponse = zod.object({
   "missing_artifacts": zod.array(zod.string().min(1)),
   "last_opened_at": zod.string().datetime({"offset":true}).optional()
 }),
+  "lifecycle": zod.object({
+  "dry_run_enabled": zod.boolean(),
+  "send_enabled": zod.boolean().default(accountsActivationEventsCreateResponseResultActivationStateLifecycleSendEnabledDefault),
+  "status": zod.enum(['eligible', 'suppressed', 'skipped', 'error']),
+  "next_campaign_key": zod.string().optional(),
+  "template_key": zod.string().optional(),
+  "eligible_at": zod.string().datetime({"offset":true}).optional(),
+  "suppressed": zod.boolean(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
+  "target_success_event": zod.string().optional(),
+  "target_action_id": zod.string().optional(),
+  "target_url": zod.string().optional(),
+  "dry_run_only": zod.boolean().default(accountsActivationEventsCreateResponseResultActivationStateLifecycleDryRunOnlyDefault)
+}).optional(),
   "email_eligibility": zod.object({
   "eligible": zod.boolean(),
   "suppressed": zod.boolean(),
-  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'frequency_cap', 'workspace_suppressed', 'user_unsubscribed', 'sample_hidden', 'route_unavailable', 'permission_limited', 'feature_disabled', 'recent_goal_change', 'manual_pause']).optional(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
   "next_email_key": zod.string().optional(),
   "next_email_after": zod.string().datetime({"offset":true}).optional(),
   "digest_eligible": zod.boolean(),
@@ -799,6 +815,8 @@ export const accountsActivationStateListResponseResultAvailableGoalsItemDisabled
 export const accountsActivationStateListResponseResultSampleProjectLabelDefault = `Sample`;
 export const accountsActivationStateListResponseResultSampleProjectIsRepairableDefault = false;
 
+export const accountsActivationStateListResponseResultLifecycleSendEnabledDefault = false;
+export const accountsActivationStateListResponseResultLifecycleDryRunOnlyDefault = true;
 export const accountsActivationStateListResponseResultEmailEligibilityFrequencyCapRemainingMin = 0;
 
 export const accountsActivationStateListResponseResultEmailEligibilityDryRunOnlyDefault = true;
@@ -961,10 +979,24 @@ export const AccountsActivationStateListResponse = zod.object({
   "missing_artifacts": zod.array(zod.string().min(1)),
   "last_opened_at": zod.string().datetime({"offset":true}).optional()
 }),
+  "lifecycle": zod.object({
+  "dry_run_enabled": zod.boolean(),
+  "send_enabled": zod.boolean().default(accountsActivationStateListResponseResultLifecycleSendEnabledDefault),
+  "status": zod.enum(['eligible', 'suppressed', 'skipped', 'error']),
+  "next_campaign_key": zod.string().optional(),
+  "template_key": zod.string().optional(),
+  "eligible_at": zod.string().datetime({"offset":true}).optional(),
+  "suppressed": zod.boolean(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
+  "target_success_event": zod.string().optional(),
+  "target_action_id": zod.string().optional(),
+  "target_url": zod.string().optional(),
+  "dry_run_only": zod.boolean().default(accountsActivationStateListResponseResultLifecycleDryRunOnlyDefault)
+}).optional(),
   "email_eligibility": zod.object({
   "eligible": zod.boolean(),
   "suppressed": zod.boolean(),
-  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'frequency_cap', 'workspace_suppressed', 'user_unsubscribed', 'sample_hidden', 'route_unavailable', 'permission_limited', 'feature_disabled', 'recent_goal_change', 'manual_pause']).optional(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
   "next_email_key": zod.string().optional(),
   "next_email_after": zod.string().datetime({"offset":true}).optional(),
   "digest_eligible": zod.boolean(),
@@ -1580,6 +1612,8 @@ export const accountsOnboardingGoalCreateResponseResultAvailableGoalsItemDisable
 export const accountsOnboardingGoalCreateResponseResultSampleProjectLabelDefault = `Sample`;
 export const accountsOnboardingGoalCreateResponseResultSampleProjectIsRepairableDefault = false;
 
+export const accountsOnboardingGoalCreateResponseResultLifecycleSendEnabledDefault = false;
+export const accountsOnboardingGoalCreateResponseResultLifecycleDryRunOnlyDefault = true;
 export const accountsOnboardingGoalCreateResponseResultEmailEligibilityFrequencyCapRemainingMin = 0;
 
 export const accountsOnboardingGoalCreateResponseResultEmailEligibilityDryRunOnlyDefault = true;
@@ -1742,10 +1776,24 @@ export const AccountsOnboardingGoalCreateResponse = zod.object({
   "missing_artifacts": zod.array(zod.string().min(1)),
   "last_opened_at": zod.string().datetime({"offset":true}).optional()
 }),
+  "lifecycle": zod.object({
+  "dry_run_enabled": zod.boolean(),
+  "send_enabled": zod.boolean().default(accountsOnboardingGoalCreateResponseResultLifecycleSendEnabledDefault),
+  "status": zod.enum(['eligible', 'suppressed', 'skipped', 'error']),
+  "next_campaign_key": zod.string().optional(),
+  "template_key": zod.string().optional(),
+  "eligible_at": zod.string().datetime({"offset":true}).optional(),
+  "suppressed": zod.boolean(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
+  "target_success_event": zod.string().optional(),
+  "target_action_id": zod.string().optional(),
+  "target_url": zod.string().optional(),
+  "dry_run_only": zod.boolean().default(accountsOnboardingGoalCreateResponseResultLifecycleDryRunOnlyDefault)
+}).optional(),
   "email_eligibility": zod.object({
   "eligible": zod.boolean(),
   "suppressed": zod.boolean(),
-  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'frequency_cap', 'workspace_suppressed', 'user_unsubscribed', 'sample_hidden', 'route_unavailable', 'permission_limited', 'feature_disabled', 'recent_goal_change', 'manual_pause']).optional(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
   "next_email_key": zod.string().optional(),
   "next_email_after": zod.string().datetime({"offset":true}).optional(),
   "digest_eligible": zod.boolean(),
@@ -2676,6 +2724,8 @@ export const accountsSampleProjectCreateResponseResultActivationStateAvailableGo
 export const accountsSampleProjectCreateResponseResultActivationStateSampleProjectLabelDefault = `Sample`;
 export const accountsSampleProjectCreateResponseResultActivationStateSampleProjectIsRepairableDefault = false;
 
+export const accountsSampleProjectCreateResponseResultActivationStateLifecycleSendEnabledDefault = false;
+export const accountsSampleProjectCreateResponseResultActivationStateLifecycleDryRunOnlyDefault = true;
 export const accountsSampleProjectCreateResponseResultActivationStateEmailEligibilityFrequencyCapRemainingMin = 0;
 
 export const accountsSampleProjectCreateResponseResultActivationStateEmailEligibilityDryRunOnlyDefault = true;
@@ -2864,10 +2914,24 @@ export const AccountsSampleProjectCreateResponse = zod.object({
   "missing_artifacts": zod.array(zod.string().min(1)),
   "last_opened_at": zod.string().datetime({"offset":true}).optional()
 }),
+  "lifecycle": zod.object({
+  "dry_run_enabled": zod.boolean(),
+  "send_enabled": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateLifecycleSendEnabledDefault),
+  "status": zod.enum(['eligible', 'suppressed', 'skipped', 'error']),
+  "next_campaign_key": zod.string().optional(),
+  "template_key": zod.string().optional(),
+  "eligible_at": zod.string().datetime({"offset":true}).optional(),
+  "suppressed": zod.boolean(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
+  "target_success_event": zod.string().optional(),
+  "target_action_id": zod.string().optional(),
+  "target_url": zod.string().optional(),
+  "dry_run_only": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateLifecycleDryRunOnlyDefault)
+}).optional(),
   "email_eligibility": zod.object({
   "eligible": zod.boolean(),
   "suppressed": zod.boolean(),
-  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'frequency_cap', 'workspace_suppressed', 'user_unsubscribed', 'sample_hidden', 'route_unavailable', 'permission_limited', 'feature_disabled', 'recent_goal_change', 'manual_pause']).optional(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
   "next_email_key": zod.string().optional(),
   "next_email_after": zod.string().datetime({"offset":true}).optional(),
   "digest_eligible": zod.boolean(),
@@ -3029,6 +3093,8 @@ export const accountsSampleProjectHideCreateResponseResultActivationStateAvailab
 export const accountsSampleProjectHideCreateResponseResultActivationStateSampleProjectLabelDefault = `Sample`;
 export const accountsSampleProjectHideCreateResponseResultActivationStateSampleProjectIsRepairableDefault = false;
 
+export const accountsSampleProjectHideCreateResponseResultActivationStateLifecycleSendEnabledDefault = false;
+export const accountsSampleProjectHideCreateResponseResultActivationStateLifecycleDryRunOnlyDefault = true;
 export const accountsSampleProjectHideCreateResponseResultActivationStateEmailEligibilityFrequencyCapRemainingMin = 0;
 
 export const accountsSampleProjectHideCreateResponseResultActivationStateEmailEligibilityDryRunOnlyDefault = true;
@@ -3217,10 +3283,24 @@ export const AccountsSampleProjectHideCreateResponse = zod.object({
   "missing_artifacts": zod.array(zod.string().min(1)),
   "last_opened_at": zod.string().datetime({"offset":true}).optional()
 }),
+  "lifecycle": zod.object({
+  "dry_run_enabled": zod.boolean(),
+  "send_enabled": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateLifecycleSendEnabledDefault),
+  "status": zod.enum(['eligible', 'suppressed', 'skipped', 'error']),
+  "next_campaign_key": zod.string().optional(),
+  "template_key": zod.string().optional(),
+  "eligible_at": zod.string().datetime({"offset":true}).optional(),
+  "suppressed": zod.boolean(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
+  "target_success_event": zod.string().optional(),
+  "target_action_id": zod.string().optional(),
+  "target_url": zod.string().optional(),
+  "dry_run_only": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateLifecycleDryRunOnlyDefault)
+}).optional(),
   "email_eligibility": zod.object({
   "eligible": zod.boolean(),
   "suppressed": zod.boolean(),
-  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'frequency_cap', 'workspace_suppressed', 'user_unsubscribed', 'sample_hidden', 'route_unavailable', 'permission_limited', 'feature_disabled', 'recent_goal_change', 'manual_pause']).optional(),
+  "suppression_reason": zod.enum(['activated', 'target_event_complete', 'workspace_suppressed', 'user_unsubscribed', 'user_snoozed', 'sample_hidden', 'sample_not_allowed', 'route_unavailable', 'permission_limited', 'feature_disabled', 'dry_run_flag_off', 'send_flag_off', 'frequency_cap', 'frequency_cap_user_24h', 'frequency_cap_user_7d', 'frequency_cap_workspace_24h', 'frequency_cap_campaign_7d', 'wait_window_open', 'recent_goal_change', 'recent_same_task_activity', 'path_changed', 'missing_email', 'workspace_inactive', 'activation_state_error', 'no_matching_campaign', 'manual_pause']).optional(),
   "next_email_key": zod.string().optional(),
   "next_email_after": zod.string().datetime({"offset":true}).optional(),
   "digest_eligible": zod.boolean(),

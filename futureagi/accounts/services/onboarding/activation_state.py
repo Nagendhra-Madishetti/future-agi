@@ -14,6 +14,10 @@ from accounts.services.onboarding.flow_config import (
     configured_stage_progress,
     resolve_stage_from_config,
 )
+from accounts.services.onboarding.lifecycle_eligibility import (
+    evaluate_lifecycle_decision,
+    lifecycle_preview_from_decision,
+)
 from accounts.services.onboarding.recommendations import (
     WRITE_STAGES,
     resolve_recommended_action,
@@ -78,7 +82,24 @@ def _available_paths(context, flags, routes, sample_project):
     return paths
 
 
-def _email_eligibility(stage, flags, now):
+def _email_eligibility(stage, flags, now, lifecycle=None):
+    if lifecycle:
+        suppressed = bool(lifecycle["suppressed"])
+        return {
+            "eligible": lifecycle["status"] == "eligible",
+            "suppressed": suppressed,
+            "suppression_reason": (
+                lifecycle["suppression_reason"] if suppressed else None
+            ),
+            "next_email_key": lifecycle["template_key"],
+            "next_email_after": lifecycle["eligible_at"],
+            "digest_eligible": lifecycle.get("next_campaign_key")
+            == "first_loop_complete_next",
+            "last_email_sent_at": None,
+            "frequency_cap_remaining": 0 if suppressed else 1,
+            "dry_run_only": True,
+        }
+
     suppressed = stage in {"feature_disabled", "workspace_missing", "activated"}
     reason = None
     if stage == "feature_disabled":
@@ -98,6 +119,19 @@ def _email_eligibility(stage, flags, now):
         "frequency_cap_remaining": 2,
         "dry_run_only": not bool(flags.get("onboarding_lifecycle_send_enabled")),
     }
+
+
+def _lifecycle_preview(context, flags, payload, now):
+    decision = evaluate_lifecycle_decision(
+        user=context.user,
+        organization=context.organization,
+        workspace=context.workspace,
+        activation_state=payload,
+        flags=flags,
+        now=now,
+        source="activation_state_preview",
+    )
+    return lifecycle_preview_from_decision(decision, flags=flags)
 
 
 def _last_event_payload(event):
@@ -174,7 +208,6 @@ def resolve_activation_state(*, context, flags, signals):
         "available_goals": configured_goal_options(),
         "available_paths": _available_paths(context, flags, routes, sample_project),
         "sample_project": sample_project,
-        "email_eligibility": _email_eligibility(stage, flags, now),
         "permissions": context.permissions,
         "feature_flags": flags,
         "route_availability": routes,
@@ -183,6 +216,9 @@ def resolve_activation_state(*, context, flags, signals):
         "diagnostics": None,
         "warnings": context.warnings,
     }
+    lifecycle = _lifecycle_preview(context, flags, payload, now)
+    payload["lifecycle"] = lifecycle
+    payload["email_eligibility"] = _email_eligibility(stage, flags, now, lifecycle)
     return _validate_payload(payload)
 
 

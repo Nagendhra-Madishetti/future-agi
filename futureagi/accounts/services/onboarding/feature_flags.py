@@ -9,6 +9,12 @@ ONBOARDING_FLAG_NAMES = (
     "onboarding_sample_project",
     "onboarding_daily_quality_home",
     "onboarding_lifecycle_email_dry_run",
+    "onboarding_email_welcome_enabled",
+    "onboarding_email_first_action_recovery_enabled",
+    "onboarding_email_first_signal_enabled",
+    "onboarding_email_next_loop_enabled",
+    "onboarding_email_sample_bridge_enabled",
+    "onboarding_email_daily_digest_enabled",
 )
 
 CONTRACT_FLAG_ALIASES = {

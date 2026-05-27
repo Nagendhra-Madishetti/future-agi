@@ -1,5 +1,6 @@
 import pytest
 
+from accounts.models import OnboardingLifecycleEvaluationLog
 from accounts.services.onboarding.activation_events import record_event
 from accounts.services.onboarding.activation_state import resolve_activation_state
 from accounts.services.onboarding.context import OnboardingContext
@@ -26,6 +27,12 @@ def _flags(**overrides):
         "onboarding_sample_project": False,
         "onboarding_daily_quality_home": False,
         "onboarding_lifecycle_email_dry_run": False,
+        "onboarding_email_welcome_enabled": False,
+        "onboarding_email_first_action_recovery_enabled": False,
+        "onboarding_email_first_signal_enabled": False,
+        "onboarding_email_next_loop_enabled": False,
+        "onboarding_email_sample_bridge_enabled": False,
+        "onboarding_email_daily_digest_enabled": False,
         "onboarding_home_enabled": True,
         "onboarding_observe_mvp_enabled": True,
         "onboarding_sample_project_enabled": False,
@@ -335,3 +342,26 @@ def test_unavailable_goal_returns_selected_path_unavailable(
     )
 
     assert payload["stage"] == "selected_path_unavailable"
+
+
+@pytest.mark.django_db
+def test_activation_state_includes_lifecycle_preview_without_writing_logs(
+    organization,
+    workspace,
+    user,
+):
+    payload = resolve_activation_state(
+        context=_context(user, organization, workspace, goal=None),
+        flags=_flags(
+            onboarding_lifecycle_email_dry_run=True,
+            onboarding_lifecycle_dry_run_enabled=True,
+            onboarding_email_welcome_enabled=True,
+        ),
+        signals=OnboardingSignals(first_checks={}),
+    )
+
+    assert payload["lifecycle"]["dry_run_enabled"] is True
+    assert payload["lifecycle"]["send_enabled"] is False
+    assert payload["lifecycle"]["next_campaign_key"] == "welcome_choose_goal"
+    assert payload["email_eligibility"]["dry_run_only"] is True
+    assert not OnboardingLifecycleEvaluationLog.no_workspace_objects.exists()

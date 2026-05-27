@@ -3,6 +3,8 @@ from accounts.models.aws_marketplace import AWSMarketplaceCustomer
 from accounts.models.onboarding import (
     OnboardingActivationEvent,
     OnboardingGoal,
+    OnboardingLifecycleEvaluationLog,
+    OnboardingLifecyclePreference,
     OnboardingSampleProject,
 )
 from accounts.models.organization import Organization

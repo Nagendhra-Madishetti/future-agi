@@ -75256,6 +75256,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "sample_project": {
           "$ref": "#/definitions/SampleProjectState"
         },
+        "lifecycle": {
+          "$ref": "#/definitions/LifecyclePreview"
+        },
         "email_eligibility": {
           "$ref": "#/definitions/LifecycleEligibility"
         },
@@ -91692,14 +91695,29 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "enum": [
             "activated",
             "target_event_complete",
-            "frequency_cap",
             "workspace_suppressed",
             "user_unsubscribed",
+            "user_snoozed",
             "sample_hidden",
+            "sample_not_allowed",
             "route_unavailable",
             "permission_limited",
             "feature_disabled",
+            "dry_run_flag_off",
+            "send_flag_off",
+            "frequency_cap",
+            "frequency_cap_user_24h",
+            "frequency_cap_user_7d",
+            "frequency_cap_workspace_24h",
+            "frequency_cap_campaign_7d",
+            "wait_window_open",
             "recent_goal_change",
+            "recent_same_task_activity",
+            "path_changed",
+            "missing_email",
+            "workspace_inactive",
+            "activation_state_error",
+            "no_matching_campaign",
             "manual_pause"
           ],
           "x-nullable": true
@@ -91736,6 +91754,109 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "default": true
         }
       }
+    },
+    "LifecyclePreview": {
+      "required": [
+        "dry_run_enabled",
+        "status",
+        "suppressed"
+      ],
+      "type": "object",
+      "properties": {
+        "dry_run_enabled": {
+          "title": "Dry run enabled",
+          "type": "boolean"
+        },
+        "send_enabled": {
+          "title": "Send enabled",
+          "type": "boolean",
+          "default": false
+        },
+        "status": {
+          "title": "Status",
+          "type": "string",
+          "enum": [
+            "eligible",
+            "suppressed",
+            "skipped",
+            "error"
+          ]
+        },
+        "next_campaign_key": {
+          "title": "Next campaign key",
+          "type": "string",
+          "x-nullable": true
+        },
+        "template_key": {
+          "title": "Template key",
+          "type": "string",
+          "x-nullable": true
+        },
+        "eligible_at": {
+          "title": "Eligible at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "suppressed": {
+          "title": "Suppressed",
+          "type": "boolean"
+        },
+        "suppression_reason": {
+          "title": "Suppression reason",
+          "type": "string",
+          "enum": [
+            "activated",
+            "target_event_complete",
+            "workspace_suppressed",
+            "user_unsubscribed",
+            "user_snoozed",
+            "sample_hidden",
+            "sample_not_allowed",
+            "route_unavailable",
+            "permission_limited",
+            "feature_disabled",
+            "dry_run_flag_off",
+            "send_flag_off",
+            "frequency_cap",
+            "frequency_cap_user_24h",
+            "frequency_cap_user_7d",
+            "frequency_cap_workspace_24h",
+            "frequency_cap_campaign_7d",
+            "wait_window_open",
+            "recent_goal_change",
+            "recent_same_task_activity",
+            "path_changed",
+            "missing_email",
+            "workspace_inactive",
+            "activation_state_error",
+            "no_matching_campaign",
+            "manual_pause"
+          ],
+          "x-nullable": true
+        },
+        "target_success_event": {
+          "title": "Target success event",
+          "type": "string",
+          "x-nullable": true
+        },
+        "target_action_id": {
+          "title": "Target action id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "target_url": {
+          "title": "Target url",
+          "type": "string",
+          "x-nullable": true
+        },
+        "dry_run_only": {
+          "title": "Dry run only",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "x-nullable": true
     },
     "RouteAvailability": {
       "type": "object",

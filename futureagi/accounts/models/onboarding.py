@@ -220,3 +220,150 @@ class OnboardingSampleProject(BaseModel):
 
     def __str__(self):
         return f"{self.manifest_id}:{self.manifest_version} for {self.workspace_id}"
+
+
+class OnboardingLifecyclePreference(BaseModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.CASCADE,
+        related_name="onboarding_lifecycle_preferences",
+    )
+    organization = models.ForeignKey(
+        "accounts.Organization",
+        on_delete=models.CASCADE,
+        related_name="onboarding_lifecycle_preferences",
+    )
+    workspace = models.ForeignKey(
+        "accounts.Workspace",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="onboarding_lifecycle_preferences",
+    )
+    onboarding_enabled = models.BooleanField(default=True)
+    first_action_recovery_enabled = models.BooleanField(default=True)
+    sample_bridge_enabled = models.BooleanField(default=True)
+    next_loop_enabled = models.BooleanField(default=True)
+    daily_digest_enabled = models.BooleanField(default=False)
+    reactivation_enabled = models.BooleanField(default=False)
+    snoozed_until = models.DateTimeField(null=True, blank=True, db_index=True)
+    unsubscribed_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "accounts_onboarding_lifecycle_preference"
+        ordering = ("-updated_at", "-created_at")
+        indexes = [
+            models.Index(
+                fields=["user", "organization"],
+                name="onb_life_pref_user_org",
+            ),
+            models.Index(
+                fields=["user", "organization", "workspace"],
+                name="onb_life_pref_user_org_ws",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "organization", "workspace"],
+                condition=models.Q(workspace__isnull=False, deleted=False),
+                name="onb_life_pref_unique_ws",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "organization"],
+                condition=models.Q(workspace__isnull=True, deleted=False),
+                name="onb_life_pref_unique_user",
+            ),
+        ]
+
+    def __str__(self):
+        scope = self.workspace_id or "user"
+        return f"onboarding lifecycle preference {self.user_id}:{scope}"
+
+
+class OnboardingLifecycleEvaluationLog(BaseModel):
+    STATUS_ELIGIBLE = "eligible"
+    STATUS_SUPPRESSED = "suppressed"
+    STATUS_SKIPPED = "skipped"
+    STATUS_ERROR = "error"
+
+    STATUS_CHOICES = (
+        (STATUS_ELIGIBLE, STATUS_ELIGIBLE),
+        (STATUS_SUPPRESSED, STATUS_SUPPRESSED),
+        (STATUS_SKIPPED, STATUS_SKIPPED),
+        (STATUS_ERROR, STATUS_ERROR),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    run_id = models.UUIDField(db_index=True)
+    user = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.CASCADE,
+        related_name="onboarding_lifecycle_evaluations",
+    )
+    organization = models.ForeignKey(
+        "accounts.Organization",
+        on_delete=models.CASCADE,
+        related_name="onboarding_lifecycle_evaluations",
+    )
+    workspace = models.ForeignKey(
+        "accounts.Workspace",
+        on_delete=models.CASCADE,
+        related_name="onboarding_lifecycle_evaluations",
+    )
+    campaign_key = models.CharField(max_length=96, null=True, blank=True)
+    campaign_group = models.CharField(max_length=64, null=True, blank=True)
+    template_key = models.CharField(max_length=96, null=True, blank=True)
+    template_version = models.CharField(max_length=32, null=True, blank=True)
+    activation_stage = models.CharField(max_length=96)
+    primary_path = models.CharField(max_length=32, null=True, blank=True)
+    recommendation_id = models.CharField(max_length=96, null=True, blank=True)
+    target_action_id = models.CharField(max_length=96, null=True, blank=True)
+    target_success_event = models.CharField(max_length=96, null=True, blank=True)
+    target_url = models.TextField(null=True, blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, db_index=True)
+    suppression_reason = models.CharField(max_length=64, null=True, blank=True)
+    suppression_details = models.JSONField(default=dict, blank=True)
+    eligible_at = models.DateTimeField(null=True, blank=True)
+    evaluated_at = models.DateTimeField(default=timezone.now, db_index=True)
+    activation_state_snapshot = models.JSONField(default=dict, blank=True)
+    registry_snapshot = models.JSONField(default=dict, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "accounts_onboarding_lifecycle_evaluation_log"
+        ordering = ("-evaluated_at", "-created_at")
+        indexes = [
+            models.Index(fields=["user", "-evaluated_at"], name="onb_life_user_ts"),
+            models.Index(
+                fields=["workspace", "-evaluated_at"],
+                name="onb_life_ws_ts",
+            ),
+            models.Index(
+                fields=["workspace", "campaign_key", "-evaluated_at"],
+                name="onb_life_ws_campaign_ts",
+            ),
+            models.Index(
+                fields=["workspace", "status", "-evaluated_at"],
+                name="onb_life_ws_status_ts",
+            ),
+            models.Index(
+                fields=["campaign_key", "status", "-evaluated_at"],
+                name="onb_life_campaign_status",
+            ),
+            models.Index(
+                fields=["suppression_reason", "-evaluated_at"],
+                name="onb_life_reason_ts",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run_id", "user", "workspace", "campaign_key"],
+                name="onb_life_unique_run_campaign",
+            )
+        ]
+
+    def __str__(self):
+        campaign = self.campaign_key or "none"
+        return f"{campaign}:{self.status} for {self.workspace_id}"

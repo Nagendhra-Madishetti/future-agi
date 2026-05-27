@@ -7,6 +7,7 @@ from accounts.services.onboarding.constants import (
     AVAILABLE_PATH_STATUSES,
     EMAIL_CONTEXT_STATUSES,
     HOME_MODES,
+    LIFECYCLE_ELIGIBILITY_STATES,
     LIFECYCLE_SUPPRESSION_REASONS,
     ONBOARDING_ACTIVATION_EVENTS,
     ONBOARDING_GOALS,
@@ -278,6 +279,54 @@ class LifecycleEligibilitySerializer(serializers.Serializer):
         return attrs
 
 
+class LifecyclePreviewSerializer(serializers.Serializer):
+    dry_run_enabled = serializers.BooleanField()
+    send_enabled = serializers.BooleanField(default=False)
+    status = serializers.ChoiceField(choices=choices(LIFECYCLE_ELIGIBILITY_STATES))
+    next_campaign_key = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    template_key = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    eligible_at = serializers.DateTimeField(required=False, allow_null=True)
+    suppressed = serializers.BooleanField()
+    suppression_reason = serializers.ChoiceField(
+        choices=choices(LIFECYCLE_SUPPRESSION_REASONS),
+        required=False,
+        allow_null=True,
+    )
+    target_success_event = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    target_action_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    target_url = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    dry_run_only = serializers.BooleanField(default=True)
+
+    def validate(self, attrs):
+        if attrs["suppressed"] and not attrs.get("suppression_reason"):
+            raise serializers.ValidationError(
+                "Suppressed lifecycle decisions must include suppression_reason."
+            )
+        if attrs["send_enabled"]:
+            raise serializers.ValidationError("Lifecycle sends are not enabled.")
+        return attrs
+
+
 class ActivationPermissionsSerializer(serializers.Serializer):
     role = serializers.CharField(allow_blank=True, allow_null=True)
     can_read = serializers.BooleanField()
@@ -398,6 +447,7 @@ class ActivationStateResponseSerializer(serializers.Serializer):
     available_goals = AvailableGoalSerializer(many=True, required=False)
     available_paths = AvailablePathSerializer(many=True)
     sample_project = SampleProjectStateSerializer()
+    lifecycle = LifecyclePreviewSerializer(required=False, allow_null=True)
     email_eligibility = LifecycleEligibilitySerializer()
     permissions = ActivationPermissionsSerializer()
     feature_flags = serializers.DictField(child=serializers.BooleanField())
