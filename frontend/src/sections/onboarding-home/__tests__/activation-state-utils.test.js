@@ -147,6 +147,44 @@ describe("activation-state utilities", () => {
     ).toThrow(/Sample agent state/);
   });
 
+  it("normalizes gateway onboarding state and route modes", () => {
+    const normalized = normalizeActivationState(
+      getActivationStateFixture("gatewayRequestReady"),
+    );
+
+    expect(normalized.primaryPath).toBe("gateway");
+    expect(normalized.stage).toBe("review_gateway_log");
+    expect(normalized.gateway.hasRequest).toBe(true);
+    expect(normalized.gateway.requestId).toBe("request-1");
+    expect(normalized.signals.gatewayRequestId).toBe("request-1");
+    expect(normalized.recommendedAction.href).toContain(
+      "onboarding=review-request",
+    );
+  });
+
+  it("keeps sample gateway requests out of real activation", () => {
+    const normalized = normalizeActivationState(
+      getActivationStateFixture("sampleGatewayRequestReady"),
+    );
+
+    expect(normalized.isActivated).toBe(false);
+    expect(normalized.gateway.hasRequest).toBe(false);
+    expect(normalized.gateway.sampleRequestCount).toBe(1);
+    expect(normalized.signals.gatewaySampleRequestCount).toBe(1);
+
+    const fixture = getActivationStateFixture("gatewayRequestReady");
+    expect(() =>
+      normalizeActivationState({
+        ...fixture,
+        gateway: {
+          ...fixture.gateway,
+          is_sample: true,
+          has_request: true,
+        },
+      }),
+    ).toThrow(/Sample gateway request state/);
+  });
+
   it("normalizes daily quality state and rejects sample signals", () => {
     const normalized = normalizeActivationState(
       getActivationStateFixture("dailyQualityObserveNewSignal"),

@@ -11,6 +11,10 @@ from accounts.services.onboarding.agent_signals import (
     AgentOnboardingSignals,
     collect_agent_onboarding_signals,
 )
+from accounts.services.onboarding.gateway_signals import (
+    GatewayOnboardingSignals,
+    collect_gateway_onboarding_signals,
+)
 from accounts.services.onboarding.prompt_signals import (
     PromptOnboardingSignals,
     collect_prompt_onboarding_signals,
@@ -71,6 +75,50 @@ class OnboardingSignals:
     gateway_keys: int = 0
     gateway_requests: int = 0
     gateway_policies: int = 0
+    gateway_available: bool = False
+    gateway_id: str | None = None
+    gateway_status: str | None = None
+    gateway_public_url: str | None = None
+    gateway_provider_count: int = 0
+    gateway_provider_credential_id: str | None = None
+    gateway_provider_name: str | None = None
+    gateway_provider_health_status: str | None = None
+    gateway_provider_model_count: int = 0
+    gateway_has_provider: bool = False
+    gateway_has_key: bool = False
+    gateway_key_id: str | None = None
+    gateway_key_prefix: str | None = None
+    gateway_key_status: str | None = None
+    gateway_has_request: bool = False
+    gateway_request_log_id: str | None = None
+    gateway_request_id: str | None = None
+    gateway_request_status_code: int | None = None
+    gateway_request_is_error: bool = False
+    gateway_request_error_message: str | None = None
+    gateway_request_provider: str | None = None
+    gateway_request_model: str | None = None
+    gateway_request_resolved_model: str | None = None
+    gateway_request_latency_ms: int | None = None
+    gateway_request_cost: str | None = None
+    gateway_request_cache_hit: bool = False
+    gateway_request_fallback_used: bool = False
+    gateway_request_guardrail_triggered: bool = False
+    gateway_has_review: bool = False
+    gateway_reviewed_at: object | None = None
+    gateway_has_failure_repair: bool = False
+    gateway_has_policy: bool = False
+    gateway_policy_type: str | None = None
+    gateway_policy_id: str | None = None
+    gateway_policy_route: str | None = None
+    gateway_policy_synced: bool = False
+    gateway_is_sample_only: bool = False
+    gateway_sample_request_count: int = 0
+    gateway_permission_limited: bool = False
+    gateway_guard_blocked: bool = False
+    gateway_first_loop_completed: bool = False
+    gateway_signals: GatewayOnboardingSignals = field(
+        default_factory=GatewayOnboardingSignals
+    )
     voice_agents: int = 0
     voice_simulations: int = 0
     voice_calls: int = 0
@@ -132,6 +180,49 @@ class OnboardingSignals:
             "gateway_keys": self.gateway_keys,
             "gateway_requests": self.gateway_requests,
             "gateway_policies": self.gateway_policies,
+            "gateway_available": self.gateway_available,
+            "gateway_id": self.gateway_id,
+            "gateway_status": self.gateway_status,
+            "gateway_public_url": self.gateway_public_url,
+            "gateway_provider_count": self.gateway_provider_count,
+            "gateway_provider_credential_id": self.gateway_provider_credential_id,
+            "gateway_provider_name": self.gateway_provider_name,
+            "gateway_provider_health_status": self.gateway_provider_health_status,
+            "gateway_provider_model_count": self.gateway_provider_model_count,
+            "gateway_has_provider": self.gateway_has_provider,
+            "gateway_has_key": self.gateway_has_key,
+            "gateway_key_id": self.gateway_key_id,
+            "gateway_key_prefix": self.gateway_key_prefix,
+            "gateway_key_status": self.gateway_key_status,
+            "gateway_has_request": self.gateway_has_request,
+            "gateway_request_log_id": self.gateway_request_log_id,
+            "gateway_request_id": self.gateway_request_id,
+            "gateway_request_status_code": self.gateway_request_status_code,
+            "gateway_request_is_error": self.gateway_request_is_error,
+            "gateway_request_error_message": self.gateway_request_error_message,
+            "gateway_request_provider": self.gateway_request_provider,
+            "gateway_request_model": self.gateway_request_model,
+            "gateway_request_resolved_model": self.gateway_request_resolved_model,
+            "gateway_request_latency_ms": self.gateway_request_latency_ms,
+            "gateway_request_cost": self.gateway_request_cost,
+            "gateway_request_cache_hit": self.gateway_request_cache_hit,
+            "gateway_request_fallback_used": self.gateway_request_fallback_used,
+            "gateway_request_guardrail_triggered": (
+                self.gateway_request_guardrail_triggered
+            ),
+            "gateway_has_review": self.gateway_has_review,
+            "gateway_reviewed_at": self.gateway_reviewed_at,
+            "gateway_has_failure_repair": self.gateway_has_failure_repair,
+            "gateway_has_policy": self.gateway_has_policy,
+            "gateway_policy_type": self.gateway_policy_type,
+            "gateway_policy_id": self.gateway_policy_id,
+            "gateway_policy_route": self.gateway_policy_route,
+            "gateway_policy_synced": self.gateway_policy_synced,
+            "gateway_is_sample_only": self.gateway_is_sample_only,
+            "gateway_sample_request_count": self.gateway_sample_request_count,
+            "gateway_permission_limited": self.gateway_permission_limited,
+            "gateway_guard_blocked": self.gateway_guard_blocked,
+            "gateway_first_loop_completed": self.gateway_first_loop_completed,
             "voice_agents": self.voice_agents,
             "voice_simulations": self.voice_simulations,
             "voice_calls": self.voice_calls,
@@ -282,6 +373,11 @@ def collect_onboarding_signals(*, user, organization, workspace):
         organization=organization,
         workspace=workspace,
     )
+    gateway_signals = collect_gateway_onboarding_signals(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+    )
 
     return OnboardingSignals(
         first_checks=first_checks,
@@ -330,6 +426,53 @@ def collect_onboarding_signals(*, user, organization, workspace):
         observe_projects=_as_count(bool(observe_project_ids)),
         traces=_as_count(first_trace is not None),
         trace_reviews=_as_count(trace_reviewed),
+        gateway_keys=gateway_signals.key_count,
+        gateway_requests=gateway_signals.request_count,
+        gateway_policies=gateway_signals.policy_count,
+        gateway_available=gateway_signals.gateway_available,
+        gateway_id=gateway_signals.gateway_id,
+        gateway_status=gateway_signals.gateway_status,
+        gateway_public_url=gateway_signals.gateway_public_url,
+        gateway_provider_count=gateway_signals.provider_count,
+        gateway_provider_credential_id=gateway_signals.provider_credential_id,
+        gateway_provider_name=gateway_signals.provider_name,
+        gateway_provider_health_status=gateway_signals.provider_health_status,
+        gateway_provider_model_count=gateway_signals.provider_model_count,
+        gateway_has_provider=gateway_signals.has_provider,
+        gateway_has_key=gateway_signals.has_key,
+        gateway_key_id=gateway_signals.gateway_key_id,
+        gateway_key_prefix=gateway_signals.key_prefix,
+        gateway_key_status=gateway_signals.key_status,
+        gateway_has_request=gateway_signals.has_request,
+        gateway_request_log_id=gateway_signals.request_log_id,
+        gateway_request_id=gateway_signals.request_id,
+        gateway_request_status_code=gateway_signals.request_status_code,
+        gateway_request_is_error=gateway_signals.request_failed,
+        gateway_request_error_message=gateway_signals.request_error_message,
+        gateway_request_provider=gateway_signals.request_provider,
+        gateway_request_model=gateway_signals.request_model,
+        gateway_request_resolved_model=gateway_signals.request_resolved_model,
+        gateway_request_latency_ms=gateway_signals.request_latency_ms,
+        gateway_request_cost=gateway_signals.request_cost,
+        gateway_request_cache_hit=gateway_signals.request_cache_hit,
+        gateway_request_fallback_used=gateway_signals.request_fallback_used,
+        gateway_request_guardrail_triggered=(
+            gateway_signals.request_guardrail_triggered
+        ),
+        gateway_has_review=gateway_signals.has_review,
+        gateway_reviewed_at=gateway_signals.reviewed_at,
+        gateway_has_failure_repair=gateway_signals.has_failure_repair,
+        gateway_has_policy=gateway_signals.has_policy,
+        gateway_policy_type=gateway_signals.policy_type,
+        gateway_policy_id=gateway_signals.policy_id,
+        gateway_policy_route=gateway_signals.policy_route,
+        gateway_policy_synced=gateway_signals.policy_synced,
+        gateway_is_sample_only=gateway_signals.is_sample_only,
+        gateway_sample_request_count=gateway_signals.sample_request_count,
+        gateway_permission_limited=gateway_signals.permission_limited,
+        gateway_guard_blocked=gateway_signals.guard_blocked,
+        gateway_first_loop_completed=gateway_signals.first_loop_completed,
+        gateway_signals=gateway_signals,
         team_invites=_as_count(first_checks.get("invite")),
         dashboards=_as_count(dashboard_exists),
         alerts=_as_count(alert_exists),

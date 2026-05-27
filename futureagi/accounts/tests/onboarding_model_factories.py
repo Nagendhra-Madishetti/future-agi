@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from django.utils import timezone
 
@@ -9,6 +10,10 @@ from agent_playground.models.choices import (
 from agent_playground.models.graph import Graph
 from agent_playground.models.graph_execution import GraphExecution
 from agent_playground.models.graph_version import GraphVersion
+from agentcc.models import AgentccAPIKey, AgentccOrgConfig, AgentccRequestLog
+from agentcc.models.guardrail_policy import AgentccGuardrailPolicy
+from agentcc.models.provider_credential import AgentccProviderCredential
+from agentcc.models.routing_policy import AgentccRoutingPolicy
 from model_hub.models.ai_model import AIModel
 from model_hub.models.evals_metric import EvalTemplate
 from model_hub.models.run_prompt import (
@@ -275,4 +280,125 @@ def create_simulate_eval_config(*, run_test, organization, workspace, name=None)
         name=name or f"agent-quality-{uuid.uuid4().hex[:8]}",
         eval_template=eval_template,
         run_test=run_test,
+    )
+
+
+def create_gateway_provider(
+    *,
+    organization,
+    workspace=None,
+    provider_name=None,
+    models_list=None,
+    is_active=True,
+):
+    return AgentccProviderCredential.no_workspace_objects.create(
+        organization=organization,
+        workspace=workspace,
+        provider_name=provider_name or f"provider-{uuid.uuid4().hex[:8]}",
+        display_name="Test provider",
+        encrypted_credentials=b"encrypted",
+        models_list=models_list if models_list is not None else ["gpt-4o-mini"],
+        is_active=is_active,
+    )
+
+
+def create_gateway_key(
+    *,
+    organization,
+    workspace=None,
+    user=None,
+    gateway_key_id=None,
+    key_prefix="fagi_",
+    status=AgentccAPIKey.ACTIVE,
+):
+    gateway_key_id = gateway_key_id or f"gw_key_{uuid.uuid4().hex}"
+    return AgentccAPIKey.no_workspace_objects.create(
+        organization=organization,
+        workspace=workspace,
+        user=user,
+        gateway_key_id=gateway_key_id,
+        key_prefix=key_prefix,
+        key_hash=uuid.uuid4().hex,
+        name="Test gateway key",
+        status=status,
+    )
+
+
+def create_gateway_request_log(
+    *,
+    organization,
+    workspace=None,
+    gateway_key=None,
+    request_id=None,
+    status_code=200,
+    is_error=False,
+    started_at=None,
+    metadata=None,
+    fallback_used=False,
+    guardrail_triggered=False,
+):
+    return AgentccRequestLog.no_workspace_objects.create(
+        organization=organization,
+        workspace=workspace,
+        request_id=request_id or f"req_{uuid.uuid4().hex}",
+        model="gpt-4o-mini",
+        provider="openai",
+        resolved_model="gpt-4o-mini",
+        latency_ms=512,
+        started_at=started_at or timezone.now(),
+        input_tokens=12,
+        output_tokens=18,
+        total_tokens=30,
+        cost=Decimal("0.002000"),
+        status_code=status_code,
+        is_error=is_error,
+        error_message="Provider error" if is_error else "",
+        cache_hit=False,
+        fallback_used=fallback_used,
+        guardrail_triggered=guardrail_triggered,
+        api_key_id=gateway_key.gateway_key_id if gateway_key else "",
+        session_id=f"session-{uuid.uuid4().hex[:8]}",
+        routing_strategy="fallback" if fallback_used else "primary",
+        metadata=metadata or {},
+    )
+
+
+def create_gateway_guardrail_policy(*, organization, name=None):
+    return AgentccGuardrailPolicy.no_workspace_objects.create(
+        organization=organization,
+        name=name or f"Guardrail {uuid.uuid4().hex[:8]}",
+        checks=[{"name": "pii", "action": "block"}],
+        is_active=True,
+    )
+
+
+def create_gateway_routing_policy(*, organization, user=None, name=None):
+    return AgentccRoutingPolicy.no_workspace_objects.create(
+        organization=organization,
+        name=name or f"Routing {uuid.uuid4().hex[:8]}",
+        config={"fallbacks": [{"provider": "openai"}]},
+        is_active=True,
+        created_by=user,
+    )
+
+
+def create_gateway_org_config(*, organization, workspace=None, user=None, **config):
+    AgentccOrgConfig.no_workspace_objects.filter(
+        organization=organization,
+        is_active=True,
+    ).update(is_active=False)
+    latest_version = (
+        AgentccOrgConfig.no_workspace_objects.filter(organization=organization)
+        .order_by("-version")
+        .values_list("version", flat=True)
+        .first()
+        or 0
+    )
+    return AgentccOrgConfig.no_workspace_objects.create(
+        organization=organization,
+        workspace=workspace,
+        version=latest_version + 1,
+        is_active=True,
+        created_by=user,
+        **config,
     )

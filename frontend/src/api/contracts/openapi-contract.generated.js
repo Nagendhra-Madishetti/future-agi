@@ -42345,7 +42345,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "agent",
             "graph_execution",
             "test_execution",
-            "call_execution"
+            "call_execution",
+            "gateway",
+            "gateway_provider",
+            "gateway_key",
+            "gateway_request",
+            "gateway_policy",
+            "request_log"
           ],
           "x-nullable": true
         },
@@ -75050,6 +75056,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "agent_scenario_saved_as_eval",
             "agent_eval_created",
             "agent_live_trace_received",
+            "gateway_provider_added",
+            "gateway_key_created",
+            "gateway_test_request_sent",
+            "gateway_request_seen",
+            "gateway_log_opened",
+            "gateway_failure_resolved",
+            "gateway_policy_created",
+            "gateway_dashboard_created",
             "team_member_invited",
             "trace_failure_detected"
           ]
@@ -75292,6 +75306,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "agent": {
           "$ref": "#/definitions/ActivationAgentState"
+        },
+        "gateway": {
+          "$ref": "#/definitions/ActivationGatewayState"
         },
         "lifecycle": {
           "$ref": "#/definitions/LifecyclePreview"
@@ -91392,6 +91409,276 @@ export const OPENAPI_CONTRACT = Object.freeze({
       },
       "x-nullable": true
     },
+    "ActivationGatewayState": {
+      "required": [
+        "gateway_available",
+        "stage"
+      ],
+      "type": "object",
+      "properties": {
+        "gateway_available": {
+          "title": "Gateway available",
+          "type": "boolean"
+        },
+        "gateway_id": {
+          "title": "Gateway id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_status": {
+          "title": "Gateway status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_public_url": {
+          "title": "Gateway public url",
+          "type": "string",
+          "x-nullable": true
+        },
+        "provider_count": {
+          "title": "Provider count",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+        "provider_credential_id": {
+          "title": "Provider credential id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "provider_name": {
+          "title": "Provider name",
+          "type": "string",
+          "x-nullable": true
+        },
+        "provider_health_status": {
+          "title": "Provider health status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "provider_model_count": {
+          "title": "Provider model count",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+        "has_provider": {
+          "title": "Has provider",
+          "type": "boolean",
+          "default": false
+        },
+        "has_key": {
+          "title": "Has key",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_key_id": {
+          "title": "Gateway key id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "key_prefix": {
+          "title": "Key prefix",
+          "type": "string",
+          "x-nullable": true
+        },
+        "key_status": {
+          "title": "Key status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "has_request": {
+          "title": "Has request",
+          "type": "boolean",
+          "default": false
+        },
+        "request_log_id": {
+          "title": "Request log id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "request_id": {
+          "title": "Request id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "request_status_code": {
+          "title": "Request status code",
+          "type": "integer",
+          "x-nullable": true
+        },
+        "request_is_error": {
+          "title": "Request is error",
+          "type": "boolean",
+          "default": false
+        },
+        "request_error_message": {
+          "title": "Request error message",
+          "type": "string",
+          "x-nullable": true
+        },
+        "request_provider": {
+          "title": "Request provider",
+          "type": "string",
+          "x-nullable": true
+        },
+        "request_model": {
+          "title": "Request model",
+          "type": "string",
+          "x-nullable": true
+        },
+        "request_resolved_model": {
+          "title": "Request resolved model",
+          "type": "string",
+          "x-nullable": true
+        },
+        "request_latency_ms": {
+          "title": "Request latency ms",
+          "type": "integer",
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "request_cost": {
+          "title": "Request cost",
+          "type": "string",
+          "x-nullable": true
+        },
+        "request_cache_hit": {
+          "title": "Request cache hit",
+          "type": "boolean",
+          "default": false
+        },
+        "request_fallback_used": {
+          "title": "Request fallback used",
+          "type": "boolean",
+          "default": false
+        },
+        "request_guardrail_triggered": {
+          "title": "Request guardrail triggered",
+          "type": "boolean",
+          "default": false
+        },
+        "has_review": {
+          "title": "Has review",
+          "type": "boolean",
+          "default": false
+        },
+        "reviewed_at": {
+          "title": "Reviewed at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "has_failure_repair": {
+          "title": "Has failure repair",
+          "type": "boolean",
+          "default": false
+        },
+        "has_policy": {
+          "title": "Has policy",
+          "type": "boolean",
+          "default": false
+        },
+        "policy_type": {
+          "title": "Policy type",
+          "type": "string",
+          "x-nullable": true
+        },
+        "policy_id": {
+          "title": "Policy id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "policy_route": {
+          "title": "Policy route",
+          "type": "string",
+          "x-nullable": true
+        },
+        "policy_synced": {
+          "title": "Policy synced",
+          "type": "boolean",
+          "default": false
+        },
+        "is_sample": {
+          "title": "Is sample",
+          "type": "boolean",
+          "default": false
+        },
+        "sample_request_count": {
+          "title": "Sample request count",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+        "permission_limited": {
+          "title": "Permission limited",
+          "type": "boolean",
+          "default": false
+        },
+        "guard_blocked": {
+          "title": "Guard blocked",
+          "type": "boolean",
+          "default": false
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string",
+          "enum": [
+            "feature_disabled",
+            "workspace_missing",
+            "permission_limited",
+            "choose_goal",
+            "selected_path_unavailable",
+            "activated",
+            "daily_review",
+            "connect_observability",
+            "waiting_for_first_trace",
+            "waiting_for_first_trace_sample_available",
+            "review_first_trace",
+            "create_trace_evaluator",
+            "review_sample_signal",
+            "start_prompt",
+            "run_prompt_test",
+            "save_prompt_version",
+            "compare_prompt_versions",
+            "prompt_next_loop",
+            "create_agent",
+            "run_agent_scenario",
+            "review_agent_trace",
+            "save_agent_eval",
+            "agent_create_eval",
+            "create_trace_dashboard",
+            "create_trace_alert",
+            "configure_gateway_provider",
+            "create_gateway_key",
+            "run_gateway_request",
+            "review_gateway_log",
+            "fix_gateway_failure",
+            "add_gateway_policy",
+            "create_voice_agent",
+            "run_voice_test_call",
+            "review_voice_call",
+            "add_voice_success_criteria",
+            "voice_monitor_calls",
+            "create_eval_dataset",
+            "add_eval_scorer",
+            "run_eval",
+            "review_eval_failures",
+            "eval_next_loop",
+            "open_sample_project",
+            "connect_real_data"
+          ]
+        }
+      },
+      "x-nullable": true
+    },
     "ActivationMeaningfulEvent": {
       "required": [
         "name",
@@ -91883,6 +92170,216 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "integer",
           "default": 0,
           "minimum": 0
+        },
+        "gateway_available": {
+          "title": "Gateway available",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_id": {
+          "title": "Gateway id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_status": {
+          "title": "Gateway status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_public_url": {
+          "title": "Gateway public url",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_provider_count": {
+          "title": "Gateway provider count",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+        "gateway_provider_credential_id": {
+          "title": "Gateway provider credential id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_provider_name": {
+          "title": "Gateway provider name",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_provider_health_status": {
+          "title": "Gateway provider health status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_provider_model_count": {
+          "title": "Gateway provider model count",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+        "gateway_has_provider": {
+          "title": "Gateway has provider",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_has_key": {
+          "title": "Gateway has key",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_key_id": {
+          "title": "Gateway key id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_key_prefix": {
+          "title": "Gateway key prefix",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_key_status": {
+          "title": "Gateway key status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_has_request": {
+          "title": "Gateway has request",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_request_log_id": {
+          "title": "Gateway request log id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_request_id": {
+          "title": "Gateway request id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_request_status_code": {
+          "title": "Gateway request status code",
+          "type": "integer",
+          "x-nullable": true
+        },
+        "gateway_request_is_error": {
+          "title": "Gateway request is error",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_request_error_message": {
+          "title": "Gateway request error message",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_request_provider": {
+          "title": "Gateway request provider",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_request_model": {
+          "title": "Gateway request model",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_request_resolved_model": {
+          "title": "Gateway request resolved model",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_request_latency_ms": {
+          "title": "Gateway request latency ms",
+          "type": "integer",
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "gateway_request_cost": {
+          "title": "Gateway request cost",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_request_cache_hit": {
+          "title": "Gateway request cache hit",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_request_fallback_used": {
+          "title": "Gateway request fallback used",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_request_guardrail_triggered": {
+          "title": "Gateway request guardrail triggered",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_has_review": {
+          "title": "Gateway has review",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_reviewed_at": {
+          "title": "Gateway reviewed at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "gateway_has_failure_repair": {
+          "title": "Gateway has failure repair",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_has_policy": {
+          "title": "Gateway has policy",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_policy_type": {
+          "title": "Gateway policy type",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_policy_id": {
+          "title": "Gateway policy id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_policy_route": {
+          "title": "Gateway policy route",
+          "type": "string",
+          "x-nullable": true
+        },
+        "gateway_policy_synced": {
+          "title": "Gateway policy synced",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_is_sample_only": {
+          "title": "Gateway is sample only",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_sample_request_count": {
+          "title": "Gateway sample request count",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+        "gateway_permission_limited": {
+          "title": "Gateway permission limited",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_guard_blocked": {
+          "title": "Gateway guard blocked",
+          "type": "boolean",
+          "default": false
+        },
+        "gateway_first_loop_completed": {
+          "title": "Gateway first loop completed",
+          "type": "boolean",
+          "default": false
         },
         "voice_agents": {
           "title": "Voice agents",

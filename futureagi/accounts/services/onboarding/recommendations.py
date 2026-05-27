@@ -103,6 +103,11 @@ def resolve_recommended_action(*, context, flags, signals, stage, routes):
             configured_activation_action("open_agent_quality", routes),
             configured_activation_action("open_agent_playground", routes),
         )
+    if stage == "activated" and context.primary_path == "gateway":
+        return (
+            configured_activation_action("open_gateway_logs", routes),
+            configured_activation_action("open_gateway_overview", routes),
+        )
     fallback = _fallback_for_stage(stage, flags, routes)
     action_id = configured_stage(stage)["recommended_action"]
     action = configured_activation_action(action_id, routes)

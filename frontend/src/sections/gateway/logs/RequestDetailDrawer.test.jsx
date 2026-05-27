@@ -47,6 +47,12 @@ vi.mock("../guardrails/FeedbackWidget", () => ({
   default: () => <div>Feedback widget</div>,
 }));
 
+vi.mock("src/sections/onboarding-home/hooks/useRecordActivationEvent", () => ({
+  useRecordActivationEvent: () => ({
+    mutate: vi.fn(),
+  }),
+}));
+
 describe("RequestDetailDrawer", () => {
   it("renders canonical snake_case details and exposes guardrail tab", async () => {
     render(

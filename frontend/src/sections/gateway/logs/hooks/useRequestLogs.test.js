@@ -11,6 +11,10 @@ describe("buildFilterParams", () => {
         maxLatency: "900",
         isError: "true",
         guardrailTriggered: "true",
+        requestId: "req-1",
+        onboarding: "review-request",
+        source: "onboarding",
+        campaignKey: "gateway_review_request",
       }),
     ).toEqual({
       min_status_code: "400",
@@ -19,6 +23,10 @@ describe("buildFilterParams", () => {
       max_latency: "900",
       is_error: "true",
       guardrail_triggered: "true",
+      request_id: "req-1",
+      onboarding: "review-request",
+      source: "onboarding",
+      campaign_key: "gateway_review_request",
     });
   });
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
 import {
   Box,
@@ -29,6 +29,7 @@ import Iconify from "src/components/iconify";
 import useRequestDetail from "./hooks/useRequestDetail";
 import FeedbackWidget from "../guardrails/FeedbackWidget";
 import { formatCost } from "../utils/formatters";
+import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/useRecordActivationEvent";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -466,8 +467,10 @@ function GuardrailsTab({ log }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-const RequestDetailDrawer = ({ logId, open, onClose }) => {
+const RequestDetailDrawer = ({ logId, open, onClose, onboardingMode }) => {
   const { data, isLoading, error, refetch } = useRequestDetail(logId);
+  const recordActivationEvent = useRecordActivationEvent();
+  const recordedLogIds = useRef(new Set());
   const [activeTab, setActiveTab] = useState(0);
 
   // Reset tab when a new log is selected
@@ -476,6 +479,48 @@ const RequestDetailDrawer = ({ logId, open, onClose }) => {
   }, [logId]);
 
   const log = data?.result ?? data ?? null;
+
+  useEffect(() => {
+    if (!open || !log?.id) return;
+    if (!["review-request", "fix-failure"].includes(onboardingMode)) return;
+    const key = `gateway_log_opened:${log.id}`;
+    if (recordedLogIds.current.has(key)) return;
+    recordedLogIds.current.add(key);
+
+    const metadata = {
+      request_log_id: String(log.id),
+      request_id: log.request_id || null,
+      status_code: log.status_code ?? null,
+      is_error: Boolean(
+        log.is_error || (log.status_code && log.status_code >= 400),
+      ),
+      provider: log.provider || null,
+      model: log.model || null,
+      resolved_model: log.resolved_model || null,
+      latency_ms: log.latency_ms ?? null,
+      cost: log.cost == null ? null : String(log.cost),
+      cache_hit: Boolean(log.cache_hit),
+      fallback_used: Boolean(log.fallback_used),
+      guardrail_triggered: Boolean(log.guardrail_triggered),
+    };
+    const logMetadata =
+      log.metadata && typeof log.metadata === "object" ? log.metadata : {};
+
+    recordActivationEvent.mutate({
+      eventName: "gateway_log_opened",
+      primaryPath: "gateway",
+      stage:
+        onboardingMode === "fix-failure"
+          ? "fix_gateway_failure"
+          : "review_gateway_log",
+      source: "gateway_request_log_drawer",
+      artifactType: "request_log",
+      artifactId: String(log.id),
+      metadata,
+      idempotencyKey: key,
+      isSample: Boolean(logMetadata.is_sample || logMetadata.sample),
+    });
+  }, [log, onboardingMode, open, recordActivationEvent]);
 
   // Build the dynamic tab list -- conditionally include Guardrails
   const showGuardrails = log?.guardrail_triggered;
@@ -674,6 +719,7 @@ RequestDetailDrawer.propTypes = {
   logId: PropTypes.string,
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
+  onboardingMode: PropTypes.string,
 };
 
 export default RequestDetailDrawer;

@@ -413,6 +413,28 @@ describe("OnboardingHomeView", () => {
     expect(screen.getByText("agent")).toBeVisible();
   });
 
+  it("renders gateway onboarding as one recommended gateway action", () => {
+    mocks.useActivationState.mockReturnValue({
+      state: normalizedFixture("gatewayKeyNoRequest"),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView();
+
+    expect(screen.getByText("Run a gateway request")).toBeVisible();
+    expect(screen.getByText("Send first gateway request")).toBeVisible();
+    expect(screen.getByRole("link", { name: /send request/i })).toHaveAttribute(
+      "href",
+      "/dashboard/gateway?onboarding=test-request",
+    );
+    expect(screen.getByText("Selected path")).toBeVisible();
+    expect(screen.getByText("gateway")).toBeVisible();
+  });
+
   it("saves a selected goal through the goal mutation", async () => {
     const mutateAsync = vi
       .fn()

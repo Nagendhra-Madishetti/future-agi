@@ -161,6 +161,36 @@ export const ONBOARDING_STAGE_COPY = {
     title: "Create the first agent quality check",
     description: "Create the check that keeps the agent behavior measurable.",
   },
+  configure_gateway_provider: {
+    eyebrow: "Gateway",
+    title: "Configure a model provider",
+    description: "Add a provider before routing model traffic.",
+  },
+  create_gateway_key: {
+    eyebrow: "Gateway key",
+    title: "Create a gateway key",
+    description: "Create a key for the first routed request.",
+  },
+  run_gateway_request: {
+    eyebrow: "Gateway request",
+    title: "Run a gateway request",
+    description: "Send one request and inspect the first log.",
+  },
+  review_gateway_log: {
+    eyebrow: "Gateway log",
+    title: "Review the gateway log",
+    description: "Inspect the first log for cost, latency, and failures.",
+  },
+  fix_gateway_failure: {
+    eyebrow: "Gateway quality",
+    title: "Fix the first gateway failure",
+    description: "Turn the first failure into a routing or provider change.",
+  },
+  add_gateway_policy: {
+    eyebrow: "Gateway policy",
+    title: "Add a gateway policy",
+    description: "Add a policy that keeps the request path controlled.",
+  },
   connect_observability: {
     eyebrow: "Observe",
     title: "Connect observability",

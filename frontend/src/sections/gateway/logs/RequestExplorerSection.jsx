@@ -63,6 +63,7 @@ const RequestExplorerSection = () => {
 
   // --- Local UI state -------------------------------------------------------
   const [selectedLogId, setSelectedLogId] = useState(null);
+  const [requestRows, setRequestRows] = useState([]);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [searchValue, setSearchValue] = useState(filters.search || "");
   const [exportAnchor, setExportAnchor] = useState(null);
@@ -87,6 +88,21 @@ const RequestExplorerSection = () => {
 
   // --- View tab -------------------------------------------------------------
   const currentView = filters.view || "requests";
+  const onboardingMode = filters.onboarding || null;
+  const onboardingRequestId = filters.requestId || null;
+
+  useEffect(() => {
+    if (!["review-request", "fix-failure"].includes(onboardingMode)) return;
+    if (!onboardingRequestId || selectedLogId) return;
+    const row = requestRows.find(
+      (item) =>
+        String(item.request_id || "") === String(onboardingRequestId) ||
+        String(item.id || "") === String(onboardingRequestId),
+    );
+    if (row?.id) {
+      setSelectedLogId(row.id);
+    }
+  }, [onboardingMode, onboardingRequestId, requestRows, selectedLogId]);
 
   const handleViewChange = useCallback(
     (_event, newValue) => {
@@ -297,6 +313,7 @@ const RequestExplorerSection = () => {
           setFilter={setFilter}
           setFilters={setFilters}
           onSelectLog={(logId) => setSelectedLogId(logId)}
+          onRowsLoaded={setRequestRows}
         />
       ) : (
         <SessionExplorer
@@ -308,6 +325,7 @@ const RequestExplorerSection = () => {
       {/* ---- Detail drawer ---- */}
       <RequestDetailDrawer
         logId={selectedLogId}
+        onboardingMode={onboardingMode}
         open={Boolean(selectedLogId)}
         onClose={() => setSelectedLogId(null)}
       />

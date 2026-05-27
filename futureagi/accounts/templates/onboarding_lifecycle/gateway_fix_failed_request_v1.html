@@ -1,0 +1,7 @@
+{% extends "onboarding_lifecycle/_base_action.html" %}
+{% block title %}Review the failed gateway request{% endblock %}
+{% block heading %}Inspect the failed gateway request{% endblock %}
+{% block body %}
+  <p style="margin:0 0 16px;">Hi {{ user_name }}, the first gateway request in {{ workspace_name }} needs review.</p>
+  <p style="margin:0;">Open the failed log and choose the first repair path from the request details.</p>
+{% endblock %}

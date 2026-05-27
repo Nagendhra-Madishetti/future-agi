@@ -206,6 +206,70 @@ def _first_agent_created_at(activation_state, workspace):
     return agent.created_at if agent else None
 
 
+def _first_gateway_provider_created_at(activation_state, organization, workspace):
+    gateway_state = activation_state.get("gateway") or {}
+    provider_id = gateway_state.get("provider_credential_id") or (
+        activation_state.get("signals") or {}
+    ).get("gateway_provider_credential_id")
+    if not provider_id:
+        return _latest_event_at(
+            organization,
+            workspace,
+            "gateway_provider_added",
+            is_sample=False,
+        )
+    from agentcc.models.provider_credential import AgentccProviderCredential
+
+    provider = AgentccProviderCredential.no_workspace_objects.filter(
+        id=provider_id,
+        organization=organization,
+    ).first()
+    return provider.created_at if provider else None
+
+
+def _first_gateway_key_created_at(activation_state, organization):
+    gateway_state = activation_state.get("gateway") or {}
+    key_id = gateway_state.get("gateway_key_id") or (
+        activation_state.get("signals") or {}
+    ).get("gateway_key_id")
+    if not key_id:
+        return None
+    from agentcc.models import AgentccAPIKey
+
+    key = AgentccAPIKey.no_workspace_objects.filter(
+        organization=organization,
+        gateway_key_id=key_id,
+    ).first()
+    return key.created_at if key else None
+
+
+def _first_gateway_request_created_at(activation_state, organization, workspace):
+    gateway_state = activation_state.get("gateway") or {}
+    request_log_id = gateway_state.get("request_log_id") or (
+        activation_state.get("signals") or {}
+    ).get("gateway_request_log_id")
+    request_id = gateway_state.get("request_id") or (
+        activation_state.get("signals") or {}
+    ).get("gateway_request_id")
+    from agentcc.models import AgentccRequestLog
+
+    queryset = AgentccRequestLog.no_workspace_objects.filter(organization=organization)
+    if request_log_id:
+        request = queryset.filter(id=request_log_id).first()
+    elif request_id:
+        request = queryset.filter(request_id=request_id).first()
+    else:
+        request = None
+    if request:
+        return request.started_at or request.created_at
+    return _latest_event_at(
+        organization,
+        workspace,
+        "gateway_request_seen",
+        is_sample=False,
+    )
+
+
 def _latest_event_at(organization, workspace, event_name, *, is_sample=False):
     event = (
         OnboardingActivationEvent.no_workspace_objects.filter(
@@ -306,6 +370,51 @@ def stage_started_at(*, activation_state, organization, workspace, now):
             "agent_trace_reviewed",
             is_sample=False,
         )
+    if stage == "configure_gateway_provider":
+        return _latest_goal_selected_at(organization, workspace) or getattr(
+            workspace,
+            "created_at",
+            None,
+        )
+    if stage == "create_gateway_key":
+        return _first_gateway_provider_created_at(
+            activation_state,
+            organization,
+            workspace,
+        ) or _latest_event_at(
+            organization,
+            workspace,
+            "gateway_provider_added",
+            is_sample=False,
+        )
+    if stage == "run_gateway_request":
+        return _first_gateway_key_created_at(
+            activation_state,
+            organization,
+        ) or _latest_event_at(
+            organization,
+            workspace,
+            "gateway_key_created",
+            is_sample=False,
+        )
+    if stage in {"review_gateway_log", "fix_gateway_failure"}:
+        return _first_gateway_request_created_at(
+            activation_state,
+            organization,
+            workspace,
+        ) or _latest_event_at(
+            organization,
+            workspace,
+            "gateway_request_seen",
+            is_sample=False,
+        )
+    if stage == "add_gateway_policy":
+        return _latest_event_at(
+            organization,
+            workspace,
+            "gateway_log_opened",
+            is_sample=False,
+        )
     if stage in {"activated", "daily_review"}:
         last_event = activation_state.get("last_meaningful_event") or {}
         return last_event.get("occurred_at") or now
@@ -331,6 +440,8 @@ def _target_event_complete(organization, workspace, campaign):
     if not campaign:
         return False
     is_sample = campaign.get("sample_policy") == "sample_only"
+    if campaign.get("campaign_key") == "gateway_sample_bridge":
+        is_sample = False
     return has_event(
         organization=organization,
         workspace=workspace,
@@ -415,6 +526,18 @@ def _sample_suppression(activation_state, campaign):
     sample_project = activation_state.get("sample_project") or {}
     signals = activation_state.get("signals") or {}
     if campaign["sample_policy"] == "sample_only":
+        if campaign.get("primary_path") == "gateway":
+            gateway_state = activation_state.get("gateway") or {}
+            if signals.get("gateway_requests", 0) > 0 or gateway_state.get(
+                "has_request"
+            ):
+                return "target_event_complete"
+            if not (
+                gateway_state.get("is_sample")
+                or signals.get("gateway_sample_request_count", 0) > 0
+            ):
+                return "sample_not_allowed"
+            return None
         if sample_project.get("is_hidden"):
             return "sample_hidden"
         if not sample_project.get("available"):
@@ -478,6 +601,7 @@ def apply_lifecycle_suppressions(
                 "first_signal": "first_action_recovery_enabled",
                 "prompt": "first_action_recovery_enabled",
                 "agent": "first_action_recovery_enabled",
+                "gateway": "first_action_recovery_enabled",
                 "next_loop": "next_loop_enabled",
                 "activation_success": "daily_digest_enabled",
             }.get(campaign["campaign_group"])

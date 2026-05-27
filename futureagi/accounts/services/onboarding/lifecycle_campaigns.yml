@@ -248,6 +248,139 @@ campaigns:
     owner: product
     qa_fixture: agent_sample_reviewed_no_real_agent
 
+  - campaign_key: gateway_add_provider
+    template_key: gateway_add_provider_v1
+    template_version: "2026-05-27.1"
+    campaign_group: gateway
+    primary_path: gateway
+    entry_stages:
+      - configure_gateway_provider
+    wait_window_minutes: 60
+    priority: 85
+    target_action_id: gateway_add_provider
+    target_success_event: gateway_provider_added
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_gateway_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: gateway_no_provider_after_wait
+
+  - campaign_key: gateway_create_key
+    template_key: gateway_create_key_v1
+    template_version: "2026-05-27.1"
+    campaign_group: gateway
+    primary_path: gateway
+    entry_stages:
+      - create_gateway_key
+    wait_window_minutes: 240
+    priority: 80
+    target_action_id: gateway_create_key
+    target_success_event: gateway_key_created
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_gateway_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: gateway_provider_no_key_after_wait
+
+  - campaign_key: gateway_send_first_request
+    template_key: gateway_send_first_request_v1
+    template_version: "2026-05-27.1"
+    campaign_group: gateway
+    primary_path: gateway
+    entry_stages:
+      - run_gateway_request
+    wait_window_minutes: 240
+    priority: 80
+    target_action_id: gateway_send_first_request
+    target_success_event: gateway_request_seen
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_gateway_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: gateway_key_no_request_after_wait
+
+  - campaign_key: gateway_review_request
+    template_key: gateway_review_request_v1
+    template_version: "2026-05-27.1"
+    campaign_group: gateway
+    primary_path: gateway
+    entry_stages:
+      - review_gateway_log
+    wait_window_minutes: 15
+    priority: 90
+    target_action_id: gateway_review_request
+    target_success_event: gateway_log_opened
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_gateway_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: gateway_request_not_reviewed
+
+  - campaign_key: gateway_fix_failed_request
+    template_key: gateway_fix_failed_request_v1
+    template_version: "2026-05-27.1"
+    campaign_group: gateway
+    primary_path: gateway
+    entry_stages:
+      - fix_gateway_failure
+    wait_window_minutes: 30
+    priority: 90
+    target_action_id: gateway_fix_failed_request
+    target_success_event: gateway_failure_resolved
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_gateway_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: gateway_failed_request_not_fixed
+
+  - campaign_key: gateway_add_policy
+    template_key: gateway_add_policy_v1
+    template_version: "2026-05-27.1"
+    campaign_group: gateway
+    primary_path: gateway
+    entry_stages:
+      - add_gateway_policy
+    wait_window_minutes: 1440
+    priority: 75
+    target_action_id: gateway_add_policy
+    target_success_event: gateway_policy_created
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_gateway_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: standard
+    sample_policy: real_only
+    owner: product
+    qa_fixture: gateway_reviewed_no_policy_after_wait
+
+  - campaign_key: gateway_sample_bridge
+    template_key: gateway_sample_bridge_v1
+    template_version: "2026-05-27.1"
+    campaign_group: gateway
+    primary_path: gateway
+    entry_stages:
+      - run_gateway_request
+    wait_window_minutes: 1440
+    priority: 60
+    target_action_id: gateway_send_first_request
+    target_success_event: gateway_request_seen
+    route_strategy: activation_recommendation
+    dry_run_flag: onboarding_email_gateway_enabled
+    send_flag: onboarding_lifecycle_send_enabled
+    frequency_cap_key: sample_bridge
+    sample_policy: sample_only
+    owner: product
+    qa_fixture: gateway_sample_request_no_real_request
+
   - campaign_key: observe_connect_first
     template_key: observe_connect_first_v1
     template_version: "2026-05-27.1"

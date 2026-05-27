@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from accounts.services.onboarding.constants import PRODUCT_PATHS
 
 
@@ -37,6 +39,15 @@ def _sample_route(flags, sample_project):
     )
 
 
+def _with_query(path, params):
+    clean_params = {
+        key: value for key, value in params.items() if value not in {None, ""}
+    }
+    if not clean_params:
+        return path
+    return f"{path}?{urlencode(clean_params)}"
+
+
 def resolve_route_availability(*, context, flags, signals, sample_project=None):
     can_write = context.permissions["can_write"]
     first_observe_id = signals.first_observe_id
@@ -51,6 +62,10 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
     agent_test_id = signals.agent_test_id
     agent_execution_id = signals.agent_execution_id
     agent_graph_execution_id = signals.agent_graph_execution_id
+    gateway_route_modes_enabled = bool(flags.get("onboarding_gateway_route_modes"))
+    gateway_path_enabled = bool(flags.get("onboarding_gateway_path"))
+    gateway_request_id = signals.gateway_request_id
+    gateway_policy_route = signals.gateway_policy_route or "budget"
 
     prompt_workbench_href = "/dashboard/workbench/all?source=onboarding"
     prompt_create_href = (
@@ -103,6 +118,19 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
             return route_entry(href, is_available=False, reason="missing_permission")
         return route_entry(href, is_available=is_available, reason=reason)
 
+    def gateway_route(href, *, requires_write=True, is_available=True, reason=None):
+        if not gateway_path_enabled:
+            return route_entry(href, is_available=False, reason="feature_disabled")
+        if not signals.gateway_available or signals.gateway_guard_blocked:
+            return route_entry(
+                href,
+                is_available=False,
+                reason=reason or "route_not_implemented",
+            )
+        if requires_write and not can_write:
+            return route_entry(href, is_available=False, reason="missing_permission")
+        return route_entry(href, is_available=is_available, reason=reason)
+
     if agent_source == "simulate":
         agent_run_href = (
             f"/dashboard/simulate/test/{agent_test_id}?onboarding=run-test"
@@ -148,6 +176,49 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
         if agent_id and agent_source == "agent_playground"
         else "/dashboard/agents"
     )
+    gateway_overview_href = "/dashboard/gateway"
+    gateway_provider_href = (
+        "/dashboard/gateway/providers?source=onboarding"
+        if gateway_route_modes_enabled
+        else "/dashboard/gateway/providers"
+    )
+    gateway_key_href = (
+        "/dashboard/gateway/keys?source=onboarding"
+        if gateway_route_modes_enabled
+        else "/dashboard/gateway/keys"
+    )
+    gateway_request_href = (
+        "/dashboard/gateway?onboarding=test-request"
+        if gateway_route_modes_enabled
+        else "/dashboard/gateway"
+    )
+    gateway_log_params = {}
+    if gateway_route_modes_enabled:
+        gateway_log_params["onboarding"] = (
+            "review-request" if gateway_request_id else "first-request"
+        )
+    if gateway_request_id:
+        gateway_log_params["request_id"] = gateway_request_id
+    gateway_log_review_href = _with_query("/dashboard/gateway/logs", gateway_log_params)
+    gateway_failure_params = {}
+    if gateway_route_modes_enabled:
+        gateway_failure_params["onboarding"] = "fix-failure"
+    if gateway_request_id:
+        gateway_failure_params["request_id"] = gateway_request_id
+    gateway_failure_href = _with_query(
+        "/dashboard/gateway/logs", gateway_failure_params
+    )
+    gateway_policy_path = {
+        "guardrail": "/dashboard/gateway/guardrails",
+        "fallback": "/dashboard/gateway/fallbacks",
+        "budget": "/dashboard/gateway/budgets",
+    }.get(gateway_policy_route, "/dashboard/gateway/budgets")
+    gateway_policy_params = {}
+    if gateway_route_modes_enabled:
+        gateway_policy_params["source"] = "onboarding"
+    if gateway_request_id:
+        gateway_policy_params["request_id"] = gateway_request_id
+    gateway_policy_href = _with_query(gateway_policy_path, gateway_policy_params)
 
     routes = {
         "home": route_entry("/dashboard/home"),
@@ -220,6 +291,23 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
         "agent_save_eval": agent_route(agent_save_eval_href),
         "agent_create_eval": agent_route(agent_create_eval_href),
         "agent_quality": agent_route(agent_quality_href, requires_write=False),
+        "gateway_overview": gateway_route(gateway_overview_href, requires_write=False),
+        "gateway_provider": gateway_route(gateway_provider_href),
+        "gateway_key": gateway_route(gateway_key_href),
+        "gateway_request": gateway_route(gateway_request_href),
+        "gateway_log_review": gateway_route(
+            gateway_log_review_href,
+            requires_write=False,
+            is_available=bool(signals.gateway_has_request),
+            reason="missing_id",
+        ),
+        "gateway_failure": gateway_route(
+            gateway_failure_href,
+            requires_write=False,
+            is_available=bool(signals.gateway_has_request),
+            reason="missing_id",
+        ),
+        "gateway_policy": gateway_route(gateway_policy_href),
     }
 
     for path in PRODUCT_PATHS:
@@ -232,6 +320,7 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
                 path in {"observe", "sample"}
                 or (path == "prompt" and prompt_path_enabled)
                 or (path == "agent" and agent_path_enabled)
+                or (path == "gateway" and gateway_path_enabled)
             )
             and not sample_hidden,
             reason=(

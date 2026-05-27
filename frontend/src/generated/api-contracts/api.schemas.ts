@@ -315,6 +315,12 @@ export const ActivationEventRequestApiArtifactType = {
   graph_execution: 'graph_execution',
   test_execution: 'test_execution',
   call_execution: 'call_execution',
+  gateway: 'gateway',
+  gateway_provider: 'gateway_provider',
+  gateway_key: 'gateway_key',
+  gateway_request: 'gateway_request',
+  gateway_policy: 'gateway_policy',
+  request_log: 'request_log',
 } as const;
 
 export type ActivationEventRequestApiMetadata = {[key: string]: string};
@@ -398,6 +404,14 @@ export const ActivationEventResultApiEventName = {
   agent_scenario_saved_as_eval: 'agent_scenario_saved_as_eval',
   agent_eval_created: 'agent_eval_created',
   agent_live_trace_received: 'agent_live_trace_received',
+  gateway_provider_added: 'gateway_provider_added',
+  gateway_key_created: 'gateway_key_created',
+  gateway_test_request_sent: 'gateway_test_request_sent',
+  gateway_request_seen: 'gateway_request_seen',
+  gateway_log_opened: 'gateway_log_opened',
+  gateway_failure_resolved: 'gateway_failure_resolved',
+  gateway_policy_created: 'gateway_policy_created',
+  gateway_dashboard_created: 'gateway_dashboard_created',
   team_member_invited: 'team_member_invited',
   trace_failure_detected: 'trace_failure_detected',
 } as const;
@@ -687,6 +701,51 @@ export interface ActivationSignalsApi {
   gateway_requests?: number;
   /** @minimum 0 */
   gateway_policies?: number;
+  gateway_available?: boolean;
+  gateway_id?: string;
+  gateway_status?: string;
+  gateway_public_url?: string;
+  /** @minimum 0 */
+  gateway_provider_count?: number;
+  gateway_provider_credential_id?: string;
+  gateway_provider_name?: string;
+  gateway_provider_health_status?: string;
+  /** @minimum 0 */
+  gateway_provider_model_count?: number;
+  gateway_has_provider?: boolean;
+  gateway_has_key?: boolean;
+  gateway_key_id?: string;
+  gateway_key_prefix?: string;
+  gateway_key_status?: string;
+  gateway_has_request?: boolean;
+  gateway_request_log_id?: string;
+  gateway_request_id?: string;
+  gateway_request_status_code?: number;
+  gateway_request_is_error?: boolean;
+  gateway_request_error_message?: string;
+  gateway_request_provider?: string;
+  gateway_request_model?: string;
+  gateway_request_resolved_model?: string;
+  /** @minimum 0 */
+  gateway_request_latency_ms?: number;
+  gateway_request_cost?: string;
+  gateway_request_cache_hit?: boolean;
+  gateway_request_fallback_used?: boolean;
+  gateway_request_guardrail_triggered?: boolean;
+  gateway_has_review?: boolean;
+  gateway_reviewed_at?: string;
+  gateway_has_failure_repair?: boolean;
+  gateway_has_policy?: boolean;
+  gateway_policy_type?: string;
+  gateway_policy_id?: string;
+  gateway_policy_route?: string;
+  gateway_policy_synced?: boolean;
+  gateway_is_sample_only?: boolean;
+  /** @minimum 0 */
+  gateway_sample_request_count?: number;
+  gateway_permission_limited?: boolean;
+  gateway_guard_blocked?: boolean;
+  gateway_first_loop_completed?: boolean;
   /** @minimum 0 */
   voice_agents?: number;
   /** @minimum 0 */
@@ -970,6 +1029,104 @@ export interface ActivationAgentStateApi {
   voice_feature_unavailable?: boolean;
   permission_limited?: boolean;
   diagnostics?: string[];
+}
+
+export type ActivationGatewayStateApiStage = typeof ActivationGatewayStateApiStage[keyof typeof ActivationGatewayStateApiStage];
+
+
+export const ActivationGatewayStateApiStage = {
+  feature_disabled: 'feature_disabled',
+  workspace_missing: 'workspace_missing',
+  permission_limited: 'permission_limited',
+  choose_goal: 'choose_goal',
+  selected_path_unavailable: 'selected_path_unavailable',
+  activated: 'activated',
+  daily_review: 'daily_review',
+  connect_observability: 'connect_observability',
+  waiting_for_first_trace: 'waiting_for_first_trace',
+  waiting_for_first_trace_sample_available: 'waiting_for_first_trace_sample_available',
+  review_first_trace: 'review_first_trace',
+  create_trace_evaluator: 'create_trace_evaluator',
+  review_sample_signal: 'review_sample_signal',
+  start_prompt: 'start_prompt',
+  run_prompt_test: 'run_prompt_test',
+  save_prompt_version: 'save_prompt_version',
+  compare_prompt_versions: 'compare_prompt_versions',
+  prompt_next_loop: 'prompt_next_loop',
+  create_agent: 'create_agent',
+  run_agent_scenario: 'run_agent_scenario',
+  review_agent_trace: 'review_agent_trace',
+  save_agent_eval: 'save_agent_eval',
+  agent_create_eval: 'agent_create_eval',
+  create_trace_dashboard: 'create_trace_dashboard',
+  create_trace_alert: 'create_trace_alert',
+  configure_gateway_provider: 'configure_gateway_provider',
+  create_gateway_key: 'create_gateway_key',
+  run_gateway_request: 'run_gateway_request',
+  review_gateway_log: 'review_gateway_log',
+  fix_gateway_failure: 'fix_gateway_failure',
+  add_gateway_policy: 'add_gateway_policy',
+  create_voice_agent: 'create_voice_agent',
+  run_voice_test_call: 'run_voice_test_call',
+  review_voice_call: 'review_voice_call',
+  add_voice_success_criteria: 'add_voice_success_criteria',
+  voice_monitor_calls: 'voice_monitor_calls',
+  create_eval_dataset: 'create_eval_dataset',
+  add_eval_scorer: 'add_eval_scorer',
+  run_eval: 'run_eval',
+  review_eval_failures: 'review_eval_failures',
+  eval_next_loop: 'eval_next_loop',
+  open_sample_project: 'open_sample_project',
+  connect_real_data: 'connect_real_data',
+} as const;
+
+export interface ActivationGatewayStateApi {
+  gateway_available: boolean;
+  gateway_id?: string;
+  gateway_status?: string;
+  gateway_public_url?: string;
+  /** @minimum 0 */
+  provider_count?: number;
+  provider_credential_id?: string;
+  provider_name?: string;
+  provider_health_status?: string;
+  /** @minimum 0 */
+  provider_model_count?: number;
+  has_provider?: boolean;
+  has_key?: boolean;
+  gateway_key_id?: string;
+  key_prefix?: string;
+  key_status?: string;
+  has_request?: boolean;
+  request_log_id?: string;
+  request_id?: string;
+  request_status_code?: number;
+  request_is_error?: boolean;
+  request_error_message?: string;
+  request_provider?: string;
+  request_model?: string;
+  request_resolved_model?: string;
+  /** @minimum 0 */
+  request_latency_ms?: number;
+  request_cost?: string;
+  request_cache_hit?: boolean;
+  request_fallback_used?: boolean;
+  request_guardrail_triggered?: boolean;
+  has_review?: boolean;
+  reviewed_at?: string;
+  has_failure_repair?: boolean;
+  has_policy?: boolean;
+  policy_type?: string;
+  policy_id?: string;
+  policy_route?: string;
+  policy_synced?: boolean;
+  is_sample?: boolean;
+  /** @minimum 0 */
+  sample_request_count?: number;
+  permission_limited?: boolean;
+  guard_blocked?: boolean;
+  diagnostics?: string[];
+  stage: ActivationGatewayStateApiStage;
 }
 
 export type LifecyclePreviewApiStatus = typeof LifecyclePreviewApiStatus[keyof typeof LifecyclePreviewApiStatus];
@@ -1395,6 +1552,7 @@ export interface ActivationStateResponseApi {
   sample_project: SampleProjectStateApi;
   prompt?: ActivationPromptStateApi;
   agent?: ActivationAgentStateApi;
+  gateway?: ActivationGatewayStateApi;
   lifecycle?: LifecyclePreviewApi;
   daily_quality?: DailyQualityStateApi;
   email_eligibility: LifecycleEligibilityApi;

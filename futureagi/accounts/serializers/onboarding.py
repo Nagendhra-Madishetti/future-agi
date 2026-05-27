@@ -184,6 +184,130 @@ class ActivationSignalsSerializer(serializers.Serializer):
     gateway_keys = serializers.IntegerField(min_value=0, default=0)
     gateway_requests = serializers.IntegerField(min_value=0, default=0)
     gateway_policies = serializers.IntegerField(min_value=0, default=0)
+    gateway_available = serializers.BooleanField(default=False)
+    gateway_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_public_url = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_provider_count = serializers.IntegerField(min_value=0, default=0)
+    gateway_provider_credential_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_provider_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_provider_health_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_provider_model_count = serializers.IntegerField(min_value=0, default=0)
+    gateway_has_provider = serializers.BooleanField(default=False)
+    gateway_has_key = serializers.BooleanField(default=False)
+    gateway_key_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_key_prefix = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_key_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_has_request = serializers.BooleanField(default=False)
+    gateway_request_log_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_request_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_request_status_code = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+    )
+    gateway_request_is_error = serializers.BooleanField(default=False)
+    gateway_request_error_message = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_request_provider = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_request_model = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_request_resolved_model = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_request_latency_ms = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
+    gateway_request_cost = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_request_cache_hit = serializers.BooleanField(default=False)
+    gateway_request_fallback_used = serializers.BooleanField(default=False)
+    gateway_request_guardrail_triggered = serializers.BooleanField(default=False)
+    gateway_has_review = serializers.BooleanField(default=False)
+    gateway_reviewed_at = serializers.DateTimeField(required=False, allow_null=True)
+    gateway_has_failure_repair = serializers.BooleanField(default=False)
+    gateway_has_policy = serializers.BooleanField(default=False)
+    gateway_policy_type = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_policy_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_policy_route = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_policy_synced = serializers.BooleanField(default=False)
+    gateway_is_sample_only = serializers.BooleanField(default=False)
+    gateway_sample_request_count = serializers.IntegerField(min_value=0, default=0)
+    gateway_permission_limited = serializers.BooleanField(default=False)
+    gateway_guard_blocked = serializers.BooleanField(default=False)
+    gateway_first_loop_completed = serializers.BooleanField(default=False)
     voice_agents = serializers.IntegerField(min_value=0, default=0)
     voice_simulations = serializers.IntegerField(min_value=0, default=0)
     voice_calls = serializers.IntegerField(min_value=0, default=0)
@@ -418,6 +542,144 @@ class ActivationAgentStateSerializer(serializers.Serializer):
         if attrs["is_sample"] and attrs.get("has_agent"):
             raise serializers.ValidationError(
                 "Sample agent state cannot count as a real agent."
+            )
+        return attrs
+
+
+class ActivationGatewayStateSerializer(serializers.Serializer):
+    gateway_available = serializers.BooleanField()
+    gateway_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    gateway_public_url = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    provider_count = serializers.IntegerField(min_value=0, default=0)
+    provider_credential_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    provider_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    provider_health_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    provider_model_count = serializers.IntegerField(min_value=0, default=0)
+    has_provider = serializers.BooleanField(default=False)
+    has_key = serializers.BooleanField(default=False)
+    gateway_key_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    key_prefix = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    key_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    has_request = serializers.BooleanField(default=False)
+    request_log_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    request_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    request_status_code = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+    )
+    request_is_error = serializers.BooleanField(default=False)
+    request_error_message = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    request_provider = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    request_model = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    request_resolved_model = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    request_latency_ms = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
+    request_cost = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    request_cache_hit = serializers.BooleanField(default=False)
+    request_fallback_used = serializers.BooleanField(default=False)
+    request_guardrail_triggered = serializers.BooleanField(default=False)
+    has_review = serializers.BooleanField(default=False)
+    reviewed_at = serializers.DateTimeField(required=False, allow_null=True)
+    has_failure_repair = serializers.BooleanField(default=False)
+    has_policy = serializers.BooleanField(default=False)
+    policy_type = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    policy_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    policy_route = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    policy_synced = serializers.BooleanField(default=False)
+    is_sample = serializers.BooleanField(default=False)
+    sample_request_count = serializers.IntegerField(min_value=0, default=0)
+    permission_limited = serializers.BooleanField(default=False)
+    guard_blocked = serializers.BooleanField(default=False)
+    diagnostics = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+    )
+    stage = serializers.ChoiceField(choices=choices(ACTIVATION_STAGES))
+
+    def validate(self, attrs):
+        if attrs["is_sample"] and attrs.get("has_request"):
+            raise serializers.ValidationError(
+                "Sample gateway request state cannot count as a real request."
             )
         return attrs
 
@@ -757,6 +1019,7 @@ class ActivationStateResponseSerializer(serializers.Serializer):
     sample_project = SampleProjectStateSerializer()
     prompt = ActivationPromptStateSerializer(required=False, allow_null=True)
     agent = ActivationAgentStateSerializer(required=False, allow_null=True)
+    gateway = ActivationGatewayStateSerializer(required=False, allow_null=True)
     lifecycle = LifecyclePreviewSerializer(required=False, allow_null=True)
     daily_quality = DailyQualityStateSerializer(required=False, allow_null=True)
     email_eligibility = LifecycleEligibilitySerializer()
@@ -959,6 +1222,12 @@ class ActivationEventRequestSerializer(serializers.Serializer):
                 "graph_execution",
                 "test_execution",
                 "call_execution",
+                "gateway",
+                "gateway_provider",
+                "gateway_key",
+                "gateway_request",
+                "gateway_policy",
+                "request_log",
             )
         ),
         required=False,

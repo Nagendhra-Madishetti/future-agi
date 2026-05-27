@@ -16,6 +16,9 @@ const FILTER_KEY_MAP = {
   userId: "user_id",
   sessionId: "session_id",
   apiKeyId: "api_key_id",
+  requestId: "request_id",
+  campaignKey: "campaign_key",
+  targetEvent: "target_event",
   minLatency: "min_latency",
   maxLatency: "max_latency",
   minCost: "min_cost",
@@ -72,6 +75,10 @@ export default function useRequestLogs({
       delete params.view;
       delete params.pageSize;
       delete params.search;
+      delete params.onboarding;
+      delete params.source;
+      delete params.campaign_key;
+      delete params.target_event;
 
       // Use the dedicated search endpoint when a search term is present
       if (searchTerm.length >= 2) {

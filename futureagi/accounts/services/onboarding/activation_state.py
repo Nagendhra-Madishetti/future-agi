@@ -239,6 +239,11 @@ def resolve_activation_state(*, context, flags, signals):
             if context.primary_path == "agent"
             else None
         ),
+        "gateway": (
+            signals.gateway_signals.to_activation_gateway_state(stage)
+            if context.primary_path == "gateway"
+            else None
+        ),
         "permissions": context.permissions,
         "feature_flags": flags,
         "route_availability": routes,

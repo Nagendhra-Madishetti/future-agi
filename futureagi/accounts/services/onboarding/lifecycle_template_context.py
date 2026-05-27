@@ -17,6 +17,7 @@ SUBJECTS = {
     "first_signal": "Your first trace is ready to review",
     "prompt": "Continue your prompt quality loop",
     "agent": "Continue your agent quality loop",
+    "gateway": "Continue your gateway request loop",
     "next_loop": "Turn the trace review into coverage",
     "activation_success": "Review today's AI quality signal",
 }
@@ -119,6 +120,14 @@ def _label_from_action(action_id, campaign_group):
         "save_agent_eval": "Save as eval",
         "create_agent_eval": "Create eval",
         "open_agent_quality": "Open agent quality",
+        "gateway_add_provider": "Add provider",
+        "gateway_create_key": "Create key",
+        "gateway_send_first_request": "Send request",
+        "gateway_review_request": "Review log",
+        "gateway_fix_failed_request": "Review failure",
+        "gateway_add_policy": "Add control",
+        "open_gateway_logs": "Open logs",
+        "open_gateway_overview": "Open gateway",
         "review_daily_quality": "Review quality signal",
     }
     if action_id in labels:

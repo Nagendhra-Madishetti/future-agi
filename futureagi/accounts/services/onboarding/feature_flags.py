@@ -12,6 +12,8 @@ ONBOARDING_FLAG_NAMES = (
     "onboarding_prompt_route_modes",
     "onboarding_agent_path",
     "onboarding_agent_route_modes",
+    "onboarding_gateway_path",
+    "onboarding_gateway_route_modes",
     "onboarding_lifecycle_email_dry_run",
     "onboarding_email_welcome_enabled",
     "onboarding_email_first_action_recovery_enabled",
@@ -22,6 +24,8 @@ ONBOARDING_FLAG_NAMES = (
     "onboarding_email_prompt_enabled",
     "onboarding_email_agent_enabled",
     "onboarding_email_agent",
+    "onboarding_email_gateway_enabled",
+    "onboarding_email_gateway",
     "onboarding_lifecycle_send_enabled",
 )
 
@@ -79,6 +83,11 @@ def get_onboarding_flags(*, user, organization, workspace):
         or flags.get("onboarding_email_agent_enabled")
     )
     flags["onboarding_email_agent_enabled"] = bool(flags["onboarding_email_agent"])
+    flags["onboarding_email_gateway"] = bool(
+        flags.get("onboarding_email_gateway")
+        or flags.get("onboarding_email_gateway_enabled")
+    )
+    flags["onboarding_email_gateway_enabled"] = bool(flags["onboarding_email_gateway"])
     flags["onboarding_lifecycle_email_send"] = bool(
         flags.get("onboarding_lifecycle_send_enabled", False)
     )

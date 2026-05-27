@@ -79,7 +79,7 @@ paths:
   gateway:
     label: Control model traffic
     description: Configure model routing and production policies.
-    first_action_id:
+    first_action_id: gateway_add_provider
     requires_permission: gateway:write
   voice:
     label: Connect a voice AI agent
@@ -319,6 +319,94 @@ actions:
     cta_label: Open agents
     priority: 20
     target_path: agent
+    fallback_route_key: get_started
+  gateway_add_provider:
+    kind: setup
+    title: Add gateway provider
+    description: Add one provider before sending model traffic through the gateway.
+    route_key: gateway_provider
+    cta_label: Add provider
+    priority: 100
+    estimated_minutes: 3
+    requires_permission: gateway:write
+    completion_event: gateway_provider_added
+    target_path: gateway
+    fallback_route_key: gateway_overview
+  gateway_create_key:
+    kind: setup
+    title: Create gateway key
+    description: Create one key for the first routed request.
+    route_key: gateway_key
+    cta_label: Create key
+    priority: 100
+    estimated_minutes: 2
+    requires_permission: gateway:write
+    completion_event: gateway_key_created
+    target_path: gateway
+    fallback_route_key: gateway_overview
+  gateway_send_first_request:
+    kind: send_signal
+    title: Send first gateway request
+    description: Send one request so the gateway loop has a real request to inspect.
+    route_key: gateway_request
+    cta_label: Send request
+    priority: 100
+    estimated_minutes: 4
+    requires_permission: gateway:write
+    completion_event: gateway_request_seen
+    target_path: gateway
+    fallback_route_key: gateway_overview
+  gateway_review_request:
+    kind: review
+    title: Review gateway request
+    description: Inspect the first request log for status, latency, and routing context.
+    route_key: gateway_log_review
+    cta_label: Review log
+    priority: 100
+    estimated_minutes: 3
+    completion_event: gateway_log_opened
+    target_path: gateway
+    fallback_route_key: gateway_overview
+  gateway_fix_failed_request:
+    kind: review
+    title: Review gateway failure
+    description: Inspect the failed request and choose the first repair path.
+    route_key: gateway_failure
+    cta_label: Review failure
+    priority: 100
+    estimated_minutes: 4
+    completion_event: gateway_failure_resolved
+    target_path: gateway
+    fallback_route_key: gateway_log_review
+  gateway_add_policy:
+    kind: improve
+    title: Add gateway control
+    description: Add a guardrail, fallback, or budget control for the first request path.
+    route_key: gateway_policy
+    cta_label: Add control
+    priority: 100
+    estimated_minutes: 4
+    requires_permission: gateway:write
+    completion_event: gateway_policy_created
+    target_path: gateway
+    fallback_route_key: gateway_overview
+  open_gateway_logs:
+    kind: review
+    title: Open gateway logs
+    description: Review the gateway request history.
+    route_key: gateway_log_review
+    cta_label: Open logs
+    priority: 80
+    target_path: gateway
+    fallback_route_key: gateway_overview
+  open_gateway_overview:
+    kind: fallback
+    title: Open gateway
+    description: Open the model gateway workspace.
+    route_key: gateway_overview
+    cta_label: Open gateway
+    priority: 20
+    target_path: gateway
     fallback_route_key: get_started
   create_observe_project:
     kind: setup
@@ -808,6 +896,15 @@ stages:
     next:
       - activated
   configure_gateway_provider:
+    progress:
+      build: selected
+      test: not_started
+      observe: available
+      ship: available
+      improve: available
+    recommended_action: gateway_add_provider
+    fallback_action: open_gateway_overview
+    requires_write: true
     copy:
       eyebrow: Gateway
       title: Configure a model provider
@@ -815,6 +912,15 @@ stages:
     next:
       - create_gateway_key
   create_gateway_key:
+    progress:
+      build: complete
+      test: not_started
+      observe: available
+      ship: available
+      improve: available
+    recommended_action: gateway_create_key
+    fallback_action: open_gateway_overview
+    requires_write: true
     copy:
       eyebrow: Gateway key
       title: Create a gateway key
@@ -822,6 +928,15 @@ stages:
     next:
       - run_gateway_request
   run_gateway_request:
+    progress:
+      build: complete
+      test: in_progress
+      observe: available
+      ship: available
+      improve: available
+    recommended_action: gateway_send_first_request
+    fallback_action: open_gateway_overview
+    requires_write: true
     copy:
       eyebrow: Gateway request
       title: Run a gateway request
@@ -829,6 +944,15 @@ stages:
     next:
       - review_gateway_log
   review_gateway_log:
+    progress:
+      build: complete
+      test: complete
+      observe: in_progress
+      ship: available
+      improve: available
+    recommended_action: gateway_review_request
+    fallback_action: open_gateway_overview
+    requires_write: false
     copy:
       eyebrow: Gateway log
       title: Review the gateway log
@@ -836,6 +960,15 @@ stages:
     next:
       - fix_gateway_failure
   fix_gateway_failure:
+    progress:
+      build: complete
+      test: complete
+      observe: blocked
+      ship: available
+      improve: in_progress
+    recommended_action: gateway_fix_failed_request
+    fallback_action: open_gateway_logs
+    requires_write: false
     copy:
       eyebrow: Gateway quality
       title: Fix the first gateway failure
@@ -843,6 +976,15 @@ stages:
     next:
       - add_gateway_policy
   add_gateway_policy:
+    progress:
+      build: complete
+      test: complete
+      observe: complete
+      ship: available
+      improve: in_progress
+    recommended_action: gateway_add_policy
+    fallback_action: open_gateway_logs
+    requires_write: true
     copy:
       eyebrow: Gateway policy
       title: Add a gateway policy
@@ -960,6 +1102,10 @@ stage_rules:
                   - context_equals:
                       primary_path: agent
                   - flag_enabled: onboarding_agent_path
+              - all:
+                  - context_equals:
+                      primary_path: gateway
+                  - flag_enabled: onboarding_gateway_path
   - stage: daily_review
     when:
       all:
@@ -1051,6 +1197,60 @@ stage_rules:
     when:
       context_equals:
         primary_path: agent
+  - stage: activated
+    when:
+      all:
+        - context_equals:
+            primary_path: gateway
+        - signal: gateway_first_loop_completed
+  - stage: fix_gateway_failure
+    when:
+      all:
+        - context_equals:
+            primary_path: gateway
+        - signal: gateway_has_request
+        - signal: gateway_request_is_error
+        - signal_not: gateway_has_review
+  - stage: fix_gateway_failure
+    when:
+      all:
+        - context_equals:
+            primary_path: gateway
+        - signal: gateway_request_is_error
+        - signal_not: gateway_has_failure_repair
+        - signal_not: gateway_has_policy
+  - stage: add_gateway_policy
+    when:
+      all:
+        - context_equals:
+            primary_path: gateway
+        - signal: gateway_has_review
+        - signal_not: gateway_has_policy
+  - stage: review_gateway_log
+    when:
+      all:
+        - context_equals:
+            primary_path: gateway
+        - signal: gateway_has_request
+        - signal_not: gateway_has_review
+  - stage: run_gateway_request
+    when:
+      all:
+        - context_equals:
+            primary_path: gateway
+        - signal: gateway_has_key
+        - signal_not: gateway_has_request
+  - stage: create_gateway_key
+    when:
+      all:
+        - context_equals:
+            primary_path: gateway
+        - signal: gateway_has_provider
+        - signal_not: gateway_has_key
+  - stage: configure_gateway_provider
+    when:
+      context_equals:
+        primary_path: gateway
   - stage: connect_observability
     when:
       signal_not: observe_project_exists
@@ -1146,6 +1346,14 @@ activation_events:
     - agent_scenario_saved_as_eval
     - agent_eval_created
     - agent_live_trace_received
+    - gateway_provider_added
+    - gateway_key_created
+    - gateway_test_request_sent
+    - gateway_request_seen
+    - gateway_log_opened
+    - gateway_failure_resolved
+    - gateway_policy_created
+    - gateway_dashboard_created
     - team_member_invited
     - trace_failure_detected
   aliases:
@@ -1164,3 +1372,5 @@ activation_events:
     agent_scenario_saved: agent_scenario_saved_as_eval
     run_test_executed: agent_prototype_run_completed
     graph_execution_completed: agent_prototype_run_completed
+    gateway_request_succeeded: gateway_request_seen
+    gateway_request_reviewed: gateway_log_opened

@@ -204,6 +204,91 @@ const normalizeSignals = (raw = {}) => ({
   gatewayKeys: raw.gateway_keys ?? raw.gatewayKeys ?? 0,
   gatewayRequests: raw.gateway_requests ?? raw.gatewayRequests ?? 0,
   gatewayPolicies: raw.gateway_policies ?? raw.gatewayPolicies ?? 0,
+  gatewayAvailable: Boolean(raw.gateway_available ?? raw.gatewayAvailable),
+  gatewayId: raw.gateway_id ?? raw.gatewayId ?? null,
+  gatewayStatus: raw.gateway_status ?? raw.gatewayStatus ?? null,
+  gatewayPublicUrl: raw.gateway_public_url ?? raw.gatewayPublicUrl ?? null,
+  gatewayProviderCount:
+    raw.gateway_provider_count ?? raw.gatewayProviderCount ?? 0,
+  gatewayProviderCredentialId:
+    raw.gateway_provider_credential_id ??
+    raw.gatewayProviderCredentialId ??
+    null,
+  gatewayProviderName:
+    raw.gateway_provider_name ?? raw.gatewayProviderName ?? null,
+  gatewayProviderHealthStatus:
+    raw.gateway_provider_health_status ??
+    raw.gatewayProviderHealthStatus ??
+    null,
+  gatewayProviderModelCount:
+    raw.gateway_provider_model_count ?? raw.gatewayProviderModelCount ?? 0,
+  gatewayHasProvider: Boolean(
+    raw.gateway_has_provider ?? raw.gatewayHasProvider,
+  ),
+  gatewayHasKey: Boolean(raw.gateway_has_key ?? raw.gatewayHasKey),
+  gatewayKeyId: raw.gateway_key_id ?? raw.gatewayKeyId ?? null,
+  gatewayKeyPrefix: raw.gateway_key_prefix ?? raw.gatewayKeyPrefix ?? null,
+  gatewayKeyStatus: raw.gateway_key_status ?? raw.gatewayKeyStatus ?? null,
+  gatewayHasRequest: Boolean(raw.gateway_has_request ?? raw.gatewayHasRequest),
+  gatewayRequestLogId:
+    raw.gateway_request_log_id ?? raw.gatewayRequestLogId ?? null,
+  gatewayRequestId: raw.gateway_request_id ?? raw.gatewayRequestId ?? null,
+  gatewayRequestStatusCode:
+    raw.gateway_request_status_code ?? raw.gatewayRequestStatusCode ?? null,
+  gatewayRequestIsError: Boolean(
+    raw.gateway_request_is_error ?? raw.gatewayRequestIsError,
+  ),
+  gatewayRequestErrorMessage:
+    raw.gateway_request_error_message ?? raw.gatewayRequestErrorMessage ?? null,
+  gatewayRequestProvider:
+    raw.gateway_request_provider ?? raw.gatewayRequestProvider ?? null,
+  gatewayRequestModel:
+    raw.gateway_request_model ?? raw.gatewayRequestModel ?? null,
+  gatewayRequestResolvedModel:
+    raw.gateway_request_resolved_model ??
+    raw.gatewayRequestResolvedModel ??
+    null,
+  gatewayRequestLatencyMs:
+    raw.gateway_request_latency_ms ?? raw.gatewayRequestLatencyMs ?? null,
+  gatewayRequestCost:
+    raw.gateway_request_cost ?? raw.gatewayRequestCost ?? null,
+  gatewayRequestCacheHit: Boolean(
+    raw.gateway_request_cache_hit ?? raw.gatewayRequestCacheHit,
+  ),
+  gatewayRequestFallbackUsed: Boolean(
+    raw.gateway_request_fallback_used ?? raw.gatewayRequestFallbackUsed,
+  ),
+  gatewayRequestGuardrailTriggered: Boolean(
+    raw.gateway_request_guardrail_triggered ??
+      raw.gatewayRequestGuardrailTriggered,
+  ),
+  gatewayHasReview: Boolean(raw.gateway_has_review ?? raw.gatewayHasReview),
+  gatewayReviewedAt: raw.gateway_reviewed_at ?? raw.gatewayReviewedAt ?? null,
+  gatewayHasFailureRepair: Boolean(
+    raw.gateway_has_failure_repair ?? raw.gatewayHasFailureRepair,
+  ),
+  gatewayHasPolicy: Boolean(raw.gateway_has_policy ?? raw.gatewayHasPolicy),
+  gatewayPolicyType: raw.gateway_policy_type ?? raw.gatewayPolicyType ?? null,
+  gatewayPolicyId: raw.gateway_policy_id ?? raw.gatewayPolicyId ?? null,
+  gatewayPolicyRoute:
+    raw.gateway_policy_route ?? raw.gatewayPolicyRoute ?? null,
+  gatewayPolicySynced: Boolean(
+    raw.gateway_policy_synced ?? raw.gatewayPolicySynced,
+  ),
+  gatewayIsSampleOnly: Boolean(
+    raw.gateway_is_sample_only ?? raw.gatewayIsSampleOnly,
+  ),
+  gatewaySampleRequestCount:
+    raw.gateway_sample_request_count ?? raw.gatewaySampleRequestCount ?? 0,
+  gatewayPermissionLimited: Boolean(
+    raw.gateway_permission_limited ?? raw.gatewayPermissionLimited,
+  ),
+  gatewayGuardBlocked: Boolean(
+    raw.gateway_guard_blocked ?? raw.gatewayGuardBlocked,
+  ),
+  gatewayFirstLoopCompleted: Boolean(
+    raw.gateway_first_loop_completed ?? raw.gatewayFirstLoopCompleted,
+  ),
   voiceAgents: raw.voice_agents ?? raw.voiceAgents ?? 0,
   voiceSimulations: raw.voice_simulations ?? raw.voiceSimulations ?? 0,
   voiceCalls: raw.voice_calls ?? raw.voiceCalls ?? 0,
@@ -348,6 +433,68 @@ const normalizeAgentState = (raw) => {
     ),
     permissionLimited: Boolean(raw.permission_limited ?? raw.permissionLimited),
     diagnostics: raw.diagnostics ?? [],
+  };
+};
+
+const normalizeGatewayState = (raw) => {
+  if (!raw) return null;
+  const isSample = Boolean(raw.is_sample ?? raw.isSample);
+  if (isSample && Boolean(raw.has_request ?? raw.hasRequest)) {
+    throw new Error(
+      "Sample gateway request state cannot count as a real request",
+    );
+  }
+  return {
+    gatewayAvailable: Boolean(raw.gateway_available ?? raw.gatewayAvailable),
+    gatewayId: raw.gateway_id ?? raw.gatewayId ?? null,
+    gatewayStatus: raw.gateway_status ?? raw.gatewayStatus ?? null,
+    gatewayPublicUrl: raw.gateway_public_url ?? raw.gatewayPublicUrl ?? null,
+    providerCount: raw.provider_count ?? raw.providerCount ?? 0,
+    providerCredentialId:
+      raw.provider_credential_id ?? raw.providerCredentialId ?? null,
+    providerName: raw.provider_name ?? raw.providerName ?? null,
+    providerHealthStatus:
+      raw.provider_health_status ?? raw.providerHealthStatus ?? null,
+    providerModelCount: raw.provider_model_count ?? raw.providerModelCount ?? 0,
+    hasProvider: Boolean(raw.has_provider ?? raw.hasProvider),
+    hasKey: Boolean(raw.has_key ?? raw.hasKey),
+    gatewayKeyId: raw.gateway_key_id ?? raw.gatewayKeyId ?? null,
+    keyPrefix: raw.key_prefix ?? raw.keyPrefix ?? null,
+    keyStatus: raw.key_status ?? raw.keyStatus ?? null,
+    hasRequest: Boolean(raw.has_request ?? raw.hasRequest),
+    requestLogId: raw.request_log_id ?? raw.requestLogId ?? null,
+    requestId: raw.request_id ?? raw.requestId ?? null,
+    requestStatusCode: raw.request_status_code ?? raw.requestStatusCode ?? null,
+    requestIsError: Boolean(raw.request_is_error ?? raw.requestIsError),
+    requestErrorMessage:
+      raw.request_error_message ?? raw.requestErrorMessage ?? null,
+    requestProvider: raw.request_provider ?? raw.requestProvider ?? null,
+    requestModel: raw.request_model ?? raw.requestModel ?? null,
+    requestResolvedModel:
+      raw.request_resolved_model ?? raw.requestResolvedModel ?? null,
+    requestLatencyMs: raw.request_latency_ms ?? raw.requestLatencyMs ?? null,
+    requestCost: raw.request_cost ?? raw.requestCost ?? null,
+    requestCacheHit: Boolean(raw.request_cache_hit ?? raw.requestCacheHit),
+    requestFallbackUsed: Boolean(
+      raw.request_fallback_used ?? raw.requestFallbackUsed,
+    ),
+    requestGuardrailTriggered: Boolean(
+      raw.request_guardrail_triggered ?? raw.requestGuardrailTriggered,
+    ),
+    hasReview: Boolean(raw.has_review ?? raw.hasReview),
+    reviewedAt: raw.reviewed_at ?? raw.reviewedAt ?? null,
+    hasFailureRepair: Boolean(raw.has_failure_repair ?? raw.hasFailureRepair),
+    hasPolicy: Boolean(raw.has_policy ?? raw.hasPolicy),
+    policyType: raw.policy_type ?? raw.policyType ?? null,
+    policyId: raw.policy_id ?? raw.policyId ?? null,
+    policyRoute: raw.policy_route ?? raw.policyRoute ?? null,
+    policySynced: Boolean(raw.policy_synced ?? raw.policySynced),
+    isSample,
+    sampleRequestCount: raw.sample_request_count ?? raw.sampleRequestCount ?? 0,
+    permissionLimited: Boolean(raw.permission_limited ?? raw.permissionLimited),
+    guardBlocked: Boolean(raw.guard_blocked ?? raw.guardBlocked),
+    diagnostics: raw.diagnostics ?? [],
+    stage: raw.stage ?? null,
   };
 };
 
@@ -633,6 +780,7 @@ export const normalizeActivationState = (raw) => {
     sampleProject: normalizeSampleProject(raw.sample_project),
     prompt: normalizePromptState(raw.prompt),
     agent: normalizeAgentState(raw.agent),
+    gateway: normalizeGatewayState(raw.gateway),
     dailyQuality: normalizeDailyQuality(raw.daily_quality ?? raw.dailyQuality),
     emailEligibility: normalizeEmailEligibility(raw.email_eligibility),
     permissions: normalizePermissions(raw.permissions),
