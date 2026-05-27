@@ -22,11 +22,13 @@ Notes on the schema:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Iterable, Optional
 
 import structlog
 
 from tracer.services.clickhouse.client import (
+    ClickHouseClient,
     get_clickhouse_client,
     is_clickhouse_enabled,
 )
@@ -34,11 +36,87 @@ from tracer.services.clickhouse.client import (
 logger = structlog.get_logger(__name__)
 
 
+@dataclass(frozen=True)
+class AttributeKey:
+    """One distinct span attribute key discovered for a project."""
+
+    key: str
+    type: str  # "string" | "number" | "boolean"
+    count: int
+
+
 def _ch_available() -> bool:
     if not is_clickhouse_enabled():
         return False
     client = get_clickhouse_client()
     return client is not None and client.is_configured
+
+
+def list_attribute_keys_for_project(project_id: str) -> list[AttributeKey]:
+    """Return every distinct span attribute key seen for the project.
+
+    Walks the three shredded Map columns on the ``spans`` table
+    (``span_attr_str`` / ``span_attr_num`` / ``span_attr_bool``) and reports
+    each key with its inferred type and total occurrence count, sorted by
+    occurrences descending.
+
+    Returns an empty list (with a log) if ClickHouse is unavailable.
+    """
+    if not project_id:
+        return []
+    if not is_clickhouse_enabled():
+        logger.info(
+            "ch_unavailable_for_attribute_keys_lookup",
+            project_id=project_id,
+        )
+        return []
+
+    query = """
+        SELECT key, 'string' AS type, count() AS cnt
+        FROM (
+            SELECT arrayJoin(mapKeys(span_attr_str)) AS key
+            FROM spans
+            WHERE project_id = %(project_id)s
+        )
+        GROUP BY key
+
+        UNION ALL
+
+        SELECT key, 'number' AS type, count() AS cnt
+        FROM (
+            SELECT arrayJoin(mapKeys(span_attr_num)) AS key
+            FROM spans
+            WHERE project_id = %(project_id)s
+        )
+        GROUP BY key
+
+        UNION ALL
+
+        SELECT key, 'boolean' AS type, count() AS cnt
+        FROM (
+            SELECT arrayJoin(mapKeys(span_attr_bool)) AS key
+            FROM spans
+            WHERE project_id = %(project_id)s
+        )
+        GROUP BY key
+
+        ORDER BY cnt DESC
+    """
+    params = {"project_id": project_id}
+
+    client = ClickHouseClient()
+    rows, _column_types, query_time_ms = client.execute_read(query, params)
+
+    logger.info(
+        "span_attribute_keys_fetched",
+        project_id=project_id,
+        key_count=len(rows),
+        query_time_ms=query_time_ms,
+    )
+
+    return [
+        AttributeKey(key=row[0], type=row[1], count=row[2]) for row in rows
+    ]
 
 
 def trace_ids_with_simulator_call_execution_id(
