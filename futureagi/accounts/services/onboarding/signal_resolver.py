@@ -23,6 +23,10 @@ from accounts.services.onboarding.prompt_signals import (
     PromptOnboardingSignals,
     collect_prompt_onboarding_signals,
 )
+from accounts.services.onboarding.voice_signals import (
+    VoiceOnboardingSignals,
+    collect_voice_onboarding_signals,
+)
 
 
 @dataclass(frozen=True)
@@ -153,6 +157,36 @@ class OnboardingSignals:
     voice_simulations: int = 0
     voice_calls: int = 0
     voice_reviews: int = 0
+    voice_agent_id: str | None = None
+    voice_agent_name: str | None = None
+    voice_agent_provider: str | None = None
+    voice_agent_version_id: str | None = None
+    voice_scenario_id: str | None = None
+    voice_run_test_id: str | None = None
+    voice_test_execution_id: str | None = None
+    voice_call_execution_id: str | None = None
+    voice_call_status: str | None = None
+    voice_call_completed_at: object | None = None
+    voice_call_duration_seconds: int | None = None
+    voice_call_response_time_ms: int | None = None
+    voice_call_interruption_count: int | None = None
+    voice_transcript_available: bool = False
+    voice_recording_available: bool = False
+    voice_has_agent: bool = False
+    voice_has_scenario: bool = False
+    voice_has_test: bool = False
+    voice_has_call: bool = False
+    voice_has_completed_call: bool = False
+    voice_call_failed: bool = False
+    voice_has_review: bool = False
+    voice_has_success_criteria: bool = False
+    voice_first_loop_completed: bool = False
+    voice_is_sample_only: bool = False
+    voice_sample_call_count: int = 0
+    voice_permission_limited: bool = False
+    voice_signals: VoiceOnboardingSignals = field(
+        default_factory=VoiceOnboardingSignals
+    )
     team_invites: int = 0
     dashboards: int = 0
     alerts: int = 0
@@ -282,6 +316,33 @@ class OnboardingSignals:
             "voice_simulations": self.voice_simulations,
             "voice_calls": self.voice_calls,
             "voice_reviews": self.voice_reviews,
+            "voice_agent_id": self.voice_agent_id,
+            "voice_agent_name": self.voice_agent_name,
+            "voice_agent_provider": self.voice_agent_provider,
+            "voice_agent_version_id": self.voice_agent_version_id,
+            "voice_scenario_id": self.voice_scenario_id,
+            "voice_run_test_id": self.voice_run_test_id,
+            "voice_test_execution_id": self.voice_test_execution_id,
+            "voice_call_execution_id": self.voice_call_execution_id,
+            "voice_call_status": self.voice_call_status,
+            "voice_call_completed_at": self.voice_call_completed_at,
+            "voice_call_duration_seconds": self.voice_call_duration_seconds,
+            "voice_call_response_time_ms": self.voice_call_response_time_ms,
+            "voice_call_interruption_count": self.voice_call_interruption_count,
+            "voice_transcript_available": self.voice_transcript_available,
+            "voice_recording_available": self.voice_recording_available,
+            "voice_has_agent": self.voice_has_agent,
+            "voice_has_scenario": self.voice_has_scenario,
+            "voice_has_test": self.voice_has_test,
+            "voice_has_call": self.voice_has_call,
+            "voice_has_completed_call": self.voice_has_completed_call,
+            "voice_call_failed": self.voice_call_failed,
+            "voice_has_review": self.voice_has_review,
+            "voice_has_success_criteria": self.voice_has_success_criteria,
+            "voice_first_loop_completed": self.voice_first_loop_completed,
+            "voice_is_sample_only": self.voice_is_sample_only,
+            "voice_sample_call_count": self.voice_sample_call_count,
+            "voice_permission_limited": self.voice_permission_limited,
             "team_invites": self.team_invites,
             "dashboards": self.dashboards,
             "alerts": self.alerts,
@@ -438,6 +499,11 @@ def collect_onboarding_signals(*, user, organization, workspace):
         organization=organization,
         workspace=workspace,
     )
+    voice_signals = collect_voice_onboarding_signals(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+    )
 
     return OnboardingSignals(
         first_checks=first_checks,
@@ -561,6 +627,38 @@ def collect_onboarding_signals(*, user, organization, workspace):
         gateway_guard_blocked=gateway_signals.guard_blocked,
         gateway_first_loop_completed=gateway_signals.first_loop_completed,
         gateway_signals=gateway_signals,
+        voice_agents=voice_signals.agent_count,
+        voice_simulations=voice_signals.run_test_count,
+        voice_calls=voice_signals.call_count,
+        voice_reviews=1 if voice_signals.has_review else 0,
+        voice_agent_id=voice_signals.agent_id,
+        voice_agent_name=voice_signals.agent_name,
+        voice_agent_provider=voice_signals.agent_provider,
+        voice_agent_version_id=voice_signals.agent_version_id,
+        voice_scenario_id=voice_signals.scenario_id,
+        voice_run_test_id=voice_signals.run_test_id,
+        voice_test_execution_id=voice_signals.test_execution_id,
+        voice_call_execution_id=voice_signals.call_execution_id,
+        voice_call_status=voice_signals.call_status,
+        voice_call_completed_at=voice_signals.call_completed_at,
+        voice_call_duration_seconds=voice_signals.call_duration_seconds,
+        voice_call_response_time_ms=voice_signals.call_response_time_ms,
+        voice_call_interruption_count=voice_signals.call_interruption_count,
+        voice_transcript_available=voice_signals.transcript_available,
+        voice_recording_available=voice_signals.recording_available,
+        voice_has_agent=voice_signals.has_agent,
+        voice_has_scenario=voice_signals.has_scenario,
+        voice_has_test=voice_signals.has_test,
+        voice_has_call=voice_signals.has_call,
+        voice_has_completed_call=voice_signals.has_completed_call,
+        voice_call_failed=voice_signals.call_failed,
+        voice_has_review=voice_signals.has_review,
+        voice_has_success_criteria=voice_signals.has_success_criteria,
+        voice_first_loop_completed=voice_signals.first_loop_completed,
+        voice_is_sample_only=voice_signals.is_sample_only,
+        voice_sample_call_count=voice_signals.sample_call_count,
+        voice_permission_limited=voice_signals.permission_limited,
+        voice_signals=voice_signals,
         team_invites=_as_count(first_checks.get("invite")),
         dashboards=_as_count(dashboard_exists),
         alerts=_as_count(alert_exists),

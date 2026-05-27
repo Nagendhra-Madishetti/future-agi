@@ -122,6 +122,11 @@ def resolve_recommended_action(*, context, flags, signals, stage, routes):
             configured_activation_action("open_eval_usage", routes),
             configured_activation_action("open_evals", routes),
         )
+    if stage == "activated" and context.primary_path == "voice":
+        return (
+            configured_activation_action("voice_monitor_calls", routes),
+            configured_activation_action("open_voice_agents", routes),
+        )
     fallback = _fallback_for_stage(stage, flags, routes)
     action_id = configured_stage(stage)["recommended_action"]
     action = configured_activation_action(action_id, routes)

@@ -315,6 +315,10 @@ export const ActivationEventRequestApiArtifactType = {
   graph_execution: 'graph_execution',
   test_execution: 'test_execution',
   call_execution: 'call_execution',
+  voice_agent: 'voice_agent',
+  voice_call: 'voice_call',
+  voice_scenario: 'voice_scenario',
+  voice_test: 'voice_test',
   dataset: 'dataset',
   eval: 'eval',
   eval_group: 'eval_group',
@@ -414,6 +418,17 @@ export const ActivationEventResultApiEventName = {
   onboarding_eval_failure_detail_opened: 'onboarding_eval_failure_detail_opened',
   onboarding_eval_source_fix_cta_clicked: 'onboarding_eval_source_fix_cta_clicked',
   onboarding_eval_sample_viewed: 'onboarding_eval_sample_viewed',
+  voice_agent_created: 'voice_agent_created',
+  voice_scenario_created: 'voice_scenario_created',
+  voice_test_call_started: 'voice_test_call_started',
+  voice_test_call_completed: 'voice_test_call_completed',
+  voice_call_reviewed: 'voice_call_reviewed',
+  voice_success_criteria_added: 'voice_success_criteria_added',
+  voice_call_monitor_opened: 'voice_call_monitor_opened',
+  onboarding_voice_route_focus_viewed: 'onboarding_voice_route_focus_viewed',
+  onboarding_voice_call_detail_opened: 'onboarding_voice_call_detail_opened',
+  onboarding_voice_success_criteria_cta_clicked: 'onboarding_voice_success_criteria_cta_clicked',
+  onboarding_voice_sample_viewed: 'onboarding_voice_sample_viewed',
   prompt_version_promoted: 'prompt_version_promoted',
   agent_created: 'agent_created',
   agent_scenario_created: 'agent_scenario_created',
@@ -803,6 +818,37 @@ export interface ActivationSignalsApi {
   voice_calls?: number;
   /** @minimum 0 */
   voice_reviews?: number;
+  voice_agent_id?: string;
+  voice_agent_name?: string;
+  voice_agent_provider?: string;
+  voice_agent_version_id?: string;
+  voice_scenario_id?: string;
+  voice_run_test_id?: string;
+  voice_test_execution_id?: string;
+  voice_call_execution_id?: string;
+  voice_call_status?: string;
+  voice_call_completed_at?: string;
+  /** @minimum 0 */
+  voice_call_duration_seconds?: number;
+  /** @minimum 0 */
+  voice_call_response_time_ms?: number;
+  /** @minimum 0 */
+  voice_call_interruption_count?: number;
+  voice_transcript_available?: boolean;
+  voice_recording_available?: boolean;
+  voice_has_agent?: boolean;
+  voice_has_scenario?: boolean;
+  voice_has_test?: boolean;
+  voice_has_call?: boolean;
+  voice_has_completed_call?: boolean;
+  voice_call_failed?: boolean;
+  voice_has_review?: boolean;
+  voice_has_success_criteria?: boolean;
+  voice_first_loop_completed?: boolean;
+  voice_is_sample_only?: boolean;
+  /** @minimum 0 */
+  voice_sample_call_count?: number;
+  voice_permission_limited?: boolean;
   /** @minimum 0 */
   team_invites?: number;
   /** @minimum 0 */
@@ -1154,6 +1200,93 @@ export interface ActivationEvalStateApi {
   is_sample?: boolean;
   /** @minimum 0 */
   sample_source_count?: number;
+  permission_limited?: boolean;
+  diagnostics?: string[];
+}
+
+export type ActivationVoiceStateApiStage = typeof ActivationVoiceStateApiStage[keyof typeof ActivationVoiceStateApiStage];
+
+
+export const ActivationVoiceStateApiStage = {
+  feature_disabled: 'feature_disabled',
+  workspace_missing: 'workspace_missing',
+  permission_limited: 'permission_limited',
+  choose_goal: 'choose_goal',
+  selected_path_unavailable: 'selected_path_unavailable',
+  activated: 'activated',
+  daily_review: 'daily_review',
+  connect_observability: 'connect_observability',
+  waiting_for_first_trace: 'waiting_for_first_trace',
+  waiting_for_first_trace_sample_available: 'waiting_for_first_trace_sample_available',
+  review_first_trace: 'review_first_trace',
+  create_trace_evaluator: 'create_trace_evaluator',
+  review_sample_signal: 'review_sample_signal',
+  start_prompt: 'start_prompt',
+  run_prompt_test: 'run_prompt_test',
+  save_prompt_version: 'save_prompt_version',
+  compare_prompt_versions: 'compare_prompt_versions',
+  prompt_next_loop: 'prompt_next_loop',
+  create_agent: 'create_agent',
+  run_agent_scenario: 'run_agent_scenario',
+  review_agent_trace: 'review_agent_trace',
+  save_agent_eval: 'save_agent_eval',
+  agent_create_eval: 'agent_create_eval',
+  create_trace_dashboard: 'create_trace_dashboard',
+  create_trace_alert: 'create_trace_alert',
+  configure_gateway_provider: 'configure_gateway_provider',
+  create_gateway_key: 'create_gateway_key',
+  run_gateway_request: 'run_gateway_request',
+  review_gateway_log: 'review_gateway_log',
+  fix_gateway_failure: 'fix_gateway_failure',
+  add_gateway_policy: 'add_gateway_policy',
+  create_voice_agent: 'create_voice_agent',
+  run_voice_test_call: 'run_voice_test_call',
+  review_voice_call: 'review_voice_call',
+  add_voice_success_criteria: 'add_voice_success_criteria',
+  voice_monitor_calls: 'voice_monitor_calls',
+  create_eval_dataset: 'create_eval_dataset',
+  add_eval_scorer: 'add_eval_scorer',
+  run_eval: 'run_eval',
+  review_eval_failures: 'review_eval_failures',
+  eval_next_loop: 'eval_next_loop',
+  open_sample_project: 'open_sample_project',
+  connect_real_data: 'connect_real_data',
+} as const;
+
+export interface ActivationVoiceStateApi {
+  agent_id?: string;
+  agent_name?: string;
+  agent_provider?: string;
+  agent_version_id?: string;
+  scenario_id?: string;
+  run_test_id?: string;
+  test_execution_id?: string;
+  call_execution_id?: string;
+  call_status?: string;
+  call_completed_at?: string;
+  /** @minimum 0 */
+  call_duration_seconds?: number;
+  /** @minimum 0 */
+  call_response_time_ms?: number;
+  /** @minimum 0 */
+  call_interruption_count?: number;
+  transcript_available?: boolean;
+  recording_available?: boolean;
+  reviewed_at?: string;
+  success_criteria_at?: string;
+  eval_config_id?: string;
+  stage: ActivationVoiceStateApiStage;
+  has_agent?: boolean;
+  has_scenario?: boolean;
+  has_test?: boolean;
+  has_call?: boolean;
+  has_completed_call?: boolean;
+  call_failed?: boolean;
+  has_review?: boolean;
+  has_success_criteria?: boolean;
+  is_sample?: boolean;
+  /** @minimum 0 */
+  sample_call_count?: number;
   permission_limited?: boolean;
   diagnostics?: string[];
 }
@@ -1680,6 +1813,7 @@ export interface ActivationStateResponseApi {
   prompt?: ActivationPromptStateApi;
   agent?: ActivationAgentStateApi;
   eval?: ActivationEvalStateApi;
+  voice?: ActivationVoiceStateApi;
   gateway?: ActivationGatewayStateApi;
   lifecycle?: LifecyclePreviewApi;
   daily_quality?: DailyQualityStateApi;

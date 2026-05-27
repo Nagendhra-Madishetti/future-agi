@@ -329,6 +329,54 @@ const normalizeSignals = (raw = {}) => ({
   voiceSimulations: raw.voice_simulations ?? raw.voiceSimulations ?? 0,
   voiceCalls: raw.voice_calls ?? raw.voiceCalls ?? 0,
   voiceReviews: raw.voice_reviews ?? raw.voiceReviews ?? 0,
+  voiceAgentId: raw.voice_agent_id ?? raw.voiceAgentId ?? null,
+  voiceAgentName: raw.voice_agent_name ?? raw.voiceAgentName ?? null,
+  voiceAgentProvider:
+    raw.voice_agent_provider ?? raw.voiceAgentProvider ?? null,
+  voiceAgentVersionId:
+    raw.voice_agent_version_id ?? raw.voiceAgentVersionId ?? null,
+  voiceScenarioId: raw.voice_scenario_id ?? raw.voiceScenarioId ?? null,
+  voiceRunTestId: raw.voice_run_test_id ?? raw.voiceRunTestId ?? null,
+  voiceTestExecutionId:
+    raw.voice_test_execution_id ?? raw.voiceTestExecutionId ?? null,
+  voiceCallExecutionId:
+    raw.voice_call_execution_id ?? raw.voiceCallExecutionId ?? null,
+  voiceCallStatus: raw.voice_call_status ?? raw.voiceCallStatus ?? null,
+  voiceCallCompletedAt:
+    raw.voice_call_completed_at ?? raw.voiceCallCompletedAt ?? null,
+  voiceCallDurationSeconds:
+    raw.voice_call_duration_seconds ?? raw.voiceCallDurationSeconds ?? null,
+  voiceCallResponseTimeMs:
+    raw.voice_call_response_time_ms ?? raw.voiceCallResponseTimeMs ?? null,
+  voiceCallInterruptionCount:
+    raw.voice_call_interruption_count ?? raw.voiceCallInterruptionCount ?? null,
+  voiceTranscriptAvailable: Boolean(
+    raw.voice_transcript_available ?? raw.voiceTranscriptAvailable,
+  ),
+  voiceRecordingAvailable: Boolean(
+    raw.voice_recording_available ?? raw.voiceRecordingAvailable,
+  ),
+  voiceHasAgent: Boolean(raw.voice_has_agent ?? raw.voiceHasAgent),
+  voiceHasScenario: Boolean(raw.voice_has_scenario ?? raw.voiceHasScenario),
+  voiceHasTest: Boolean(raw.voice_has_test ?? raw.voiceHasTest),
+  voiceHasCall: Boolean(raw.voice_has_call ?? raw.voiceHasCall),
+  voiceHasCompletedCall: Boolean(
+    raw.voice_has_completed_call ?? raw.voiceHasCompletedCall,
+  ),
+  voiceCallFailed: Boolean(raw.voice_call_failed ?? raw.voiceCallFailed),
+  voiceHasReview: Boolean(raw.voice_has_review ?? raw.voiceHasReview),
+  voiceHasSuccessCriteria: Boolean(
+    raw.voice_has_success_criteria ?? raw.voiceHasSuccessCriteria,
+  ),
+  voiceFirstLoopCompleted: Boolean(
+    raw.voice_first_loop_completed ?? raw.voiceFirstLoopCompleted,
+  ),
+  voiceIsSampleOnly: Boolean(raw.voice_is_sample_only ?? raw.voiceIsSampleOnly),
+  voiceSampleCallCount:
+    raw.voice_sample_call_count ?? raw.voiceSampleCallCount ?? 0,
+  voicePermissionLimited: Boolean(
+    raw.voice_permission_limited ?? raw.voicePermissionLimited,
+  ),
   teamInvites: raw.team_invites ?? raw.teamInvites ?? 0,
   dashboards: raw.dashboards ?? 0,
   alerts: raw.alerts ?? 0,
@@ -467,6 +515,56 @@ const normalizeAgentState = (raw) => {
     voiceFeatureUnavailable: Boolean(
       raw.voice_feature_unavailable ?? raw.voiceFeatureUnavailable,
     ),
+    permissionLimited: Boolean(raw.permission_limited ?? raw.permissionLimited),
+    diagnostics: raw.diagnostics ?? [],
+  };
+};
+
+const normalizeVoiceState = (raw) => {
+  if (!raw) return null;
+  const isSample = Boolean(raw.is_sample ?? raw.isSample);
+  if (isSample && Boolean(raw.has_call ?? raw.hasCall)) {
+    throw new Error("Sample voice call state cannot count as a real call");
+  }
+  return {
+    agentId: raw.agent_id ?? raw.agentId ?? null,
+    agentName: raw.agent_name ?? raw.agentName ?? null,
+    agentProvider: raw.agent_provider ?? raw.agentProvider ?? null,
+    agentVersionId: raw.agent_version_id ?? raw.agentVersionId ?? null,
+    scenarioId: raw.scenario_id ?? raw.scenarioId ?? null,
+    runTestId: raw.run_test_id ?? raw.runTestId ?? null,
+    testExecutionId: raw.test_execution_id ?? raw.testExecutionId ?? null,
+    callExecutionId: raw.call_execution_id ?? raw.callExecutionId ?? null,
+    callStatus: raw.call_status ?? raw.callStatus ?? null,
+    callCompletedAt: raw.call_completed_at ?? raw.callCompletedAt ?? null,
+    callDurationSeconds:
+      raw.call_duration_seconds ?? raw.callDurationSeconds ?? null,
+    callResponseTimeMs:
+      raw.call_response_time_ms ?? raw.callResponseTimeMs ?? null,
+    callInterruptionCount:
+      raw.call_interruption_count ?? raw.callInterruptionCount ?? null,
+    transcriptAvailable: Boolean(
+      raw.transcript_available ?? raw.transcriptAvailable,
+    ),
+    recordingAvailable: Boolean(
+      raw.recording_available ?? raw.recordingAvailable,
+    ),
+    reviewedAt: raw.reviewed_at ?? raw.reviewedAt ?? null,
+    successCriteriaAt: raw.success_criteria_at ?? raw.successCriteriaAt ?? null,
+    evalConfigId: raw.eval_config_id ?? raw.evalConfigId ?? null,
+    stage: raw.stage ?? null,
+    hasAgent: Boolean(raw.has_agent ?? raw.hasAgent),
+    hasScenario: Boolean(raw.has_scenario ?? raw.hasScenario),
+    hasTest: Boolean(raw.has_test ?? raw.hasTest),
+    hasCall: Boolean(raw.has_call ?? raw.hasCall),
+    hasCompletedCall: Boolean(raw.has_completed_call ?? raw.hasCompletedCall),
+    callFailed: Boolean(raw.call_failed ?? raw.callFailed),
+    hasReview: Boolean(raw.has_review ?? raw.hasReview),
+    hasSuccessCriteria: Boolean(
+      raw.has_success_criteria ?? raw.hasSuccessCriteria,
+    ),
+    isSample,
+    sampleCallCount: raw.sample_call_count ?? raw.sampleCallCount ?? 0,
     permissionLimited: Boolean(raw.permission_limited ?? raw.permissionLimited),
     diagnostics: raw.diagnostics ?? [],
   };
@@ -851,6 +949,7 @@ export const normalizeActivationState = (raw) => {
     prompt: normalizePromptState(raw.prompt),
     agent: normalizeAgentState(raw.agent),
     eval: normalizeEvalState(raw.eval),
+    voice: normalizeVoiceState(raw.voice),
     gateway: normalizeGatewayState(raw.gateway),
     dailyQuality: normalizeDailyQuality(raw.daily_quality ?? raw.dailyQuality),
     emailEligibility: normalizeEmailEligibility(raw.email_eligibility),

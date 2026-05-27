@@ -42444,6 +42444,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "graph_execution",
             "test_execution",
             "call_execution",
+            "voice_agent",
+            "voice_call",
+            "voice_scenario",
+            "voice_test",
             "dataset",
             "eval",
             "eval_group",
@@ -75213,6 +75217,17 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "onboarding_eval_failure_detail_opened",
             "onboarding_eval_source_fix_cta_clicked",
             "onboarding_eval_sample_viewed",
+            "voice_agent_created",
+            "voice_scenario_created",
+            "voice_test_call_started",
+            "voice_test_call_completed",
+            "voice_call_reviewed",
+            "voice_success_criteria_added",
+            "voice_call_monitor_opened",
+            "onboarding_voice_route_focus_viewed",
+            "onboarding_voice_call_detail_opened",
+            "onboarding_voice_success_criteria_cta_clicked",
+            "onboarding_voice_sample_viewed",
             "prompt_version_promoted",
             "agent_created",
             "agent_scenario_created",
@@ -75474,6 +75489,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "eval": {
           "$ref": "#/definitions/ActivationEvalState"
+        },
+        "voice": {
+          "$ref": "#/definitions/ActivationVoiceState"
         },
         "gateway": {
           "$ref": "#/definitions/ActivationGatewayState"
@@ -93058,6 +93076,146 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "default": 0,
           "minimum": 0
         },
+        "voice_agent_id": {
+          "title": "Voice agent id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "voice_agent_name": {
+          "title": "Voice agent name",
+          "type": "string",
+          "x-nullable": true
+        },
+        "voice_agent_provider": {
+          "title": "Voice agent provider",
+          "type": "string",
+          "x-nullable": true
+        },
+        "voice_agent_version_id": {
+          "title": "Voice agent version id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "voice_scenario_id": {
+          "title": "Voice scenario id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "voice_run_test_id": {
+          "title": "Voice run test id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "voice_test_execution_id": {
+          "title": "Voice test execution id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "voice_call_execution_id": {
+          "title": "Voice call execution id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "voice_call_status": {
+          "title": "Voice call status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "voice_call_completed_at": {
+          "title": "Voice call completed at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "voice_call_duration_seconds": {
+          "title": "Voice call duration seconds",
+          "type": "integer",
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "voice_call_response_time_ms": {
+          "title": "Voice call response time ms",
+          "type": "integer",
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "voice_call_interruption_count": {
+          "title": "Voice call interruption count",
+          "type": "integer",
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "voice_transcript_available": {
+          "title": "Voice transcript available",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_recording_available": {
+          "title": "Voice recording available",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_has_agent": {
+          "title": "Voice has agent",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_has_scenario": {
+          "title": "Voice has scenario",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_has_test": {
+          "title": "Voice has test",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_has_call": {
+          "title": "Voice has call",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_has_completed_call": {
+          "title": "Voice has completed call",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_call_failed": {
+          "title": "Voice call failed",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_has_review": {
+          "title": "Voice has review",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_has_success_criteria": {
+          "title": "Voice has success criteria",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_first_loop_completed": {
+          "title": "Voice first loop completed",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_is_sample_only": {
+          "title": "Voice is sample only",
+          "type": "boolean",
+          "default": false
+        },
+        "voice_sample_call_count": {
+          "title": "Voice sample call count",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+        "voice_permission_limited": {
+          "title": "Voice permission limited",
+          "type": "boolean",
+          "default": false
+        },
         "team_invites": {
           "title": "Team invites",
           "type": "integer",
@@ -93112,6 +93270,223 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "minLength": 1
         }
       }
+    },
+    "ActivationVoiceState": {
+      "required": [
+        "stage"
+      ],
+      "type": "object",
+      "properties": {
+        "agent_id": {
+          "title": "Agent id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "agent_name": {
+          "title": "Agent name",
+          "type": "string",
+          "x-nullable": true
+        },
+        "agent_provider": {
+          "title": "Agent provider",
+          "type": "string",
+          "x-nullable": true
+        },
+        "agent_version_id": {
+          "title": "Agent version id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "scenario_id": {
+          "title": "Scenario id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "run_test_id": {
+          "title": "Run test id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "test_execution_id": {
+          "title": "Test execution id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "call_execution_id": {
+          "title": "Call execution id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "call_status": {
+          "title": "Call status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "call_completed_at": {
+          "title": "Call completed at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "call_duration_seconds": {
+          "title": "Call duration seconds",
+          "type": "integer",
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "call_response_time_ms": {
+          "title": "Call response time ms",
+          "type": "integer",
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "call_interruption_count": {
+          "title": "Call interruption count",
+          "type": "integer",
+          "minimum": 0,
+          "x-nullable": true
+        },
+        "transcript_available": {
+          "title": "Transcript available",
+          "type": "boolean",
+          "default": false
+        },
+        "recording_available": {
+          "title": "Recording available",
+          "type": "boolean",
+          "default": false
+        },
+        "reviewed_at": {
+          "title": "Reviewed at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "success_criteria_at": {
+          "title": "Success criteria at",
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "eval_config_id": {
+          "title": "Eval config id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string",
+          "enum": [
+            "feature_disabled",
+            "workspace_missing",
+            "permission_limited",
+            "choose_goal",
+            "selected_path_unavailable",
+            "activated",
+            "daily_review",
+            "connect_observability",
+            "waiting_for_first_trace",
+            "waiting_for_first_trace_sample_available",
+            "review_first_trace",
+            "create_trace_evaluator",
+            "review_sample_signal",
+            "start_prompt",
+            "run_prompt_test",
+            "save_prompt_version",
+            "compare_prompt_versions",
+            "prompt_next_loop",
+            "create_agent",
+            "run_agent_scenario",
+            "review_agent_trace",
+            "save_agent_eval",
+            "agent_create_eval",
+            "create_trace_dashboard",
+            "create_trace_alert",
+            "configure_gateway_provider",
+            "create_gateway_key",
+            "run_gateway_request",
+            "review_gateway_log",
+            "fix_gateway_failure",
+            "add_gateway_policy",
+            "create_voice_agent",
+            "run_voice_test_call",
+            "review_voice_call",
+            "add_voice_success_criteria",
+            "voice_monitor_calls",
+            "create_eval_dataset",
+            "add_eval_scorer",
+            "run_eval",
+            "review_eval_failures",
+            "eval_next_loop",
+            "open_sample_project",
+            "connect_real_data"
+          ]
+        },
+        "has_agent": {
+          "title": "Has agent",
+          "type": "boolean",
+          "default": false
+        },
+        "has_scenario": {
+          "title": "Has scenario",
+          "type": "boolean",
+          "default": false
+        },
+        "has_test": {
+          "title": "Has test",
+          "type": "boolean",
+          "default": false
+        },
+        "has_call": {
+          "title": "Has call",
+          "type": "boolean",
+          "default": false
+        },
+        "has_completed_call": {
+          "title": "Has completed call",
+          "type": "boolean",
+          "default": false
+        },
+        "call_failed": {
+          "title": "Call failed",
+          "type": "boolean",
+          "default": false
+        },
+        "has_review": {
+          "title": "Has review",
+          "type": "boolean",
+          "default": false
+        },
+        "has_success_criteria": {
+          "title": "Has success criteria",
+          "type": "boolean",
+          "default": false
+        },
+        "is_sample": {
+          "title": "Is sample",
+          "type": "boolean",
+          "default": false
+        },
+        "sample_call_count": {
+          "title": "Sample call count",
+          "type": "integer",
+          "default": 0,
+          "minimum": 0
+        },
+        "permission_limited": {
+          "title": "Permission limited",
+          "type": "boolean",
+          "default": false
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "x-nullable": true
     },
     "AvailableGoal": {
       "required": [

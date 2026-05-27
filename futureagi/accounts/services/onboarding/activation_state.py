@@ -244,6 +244,11 @@ def resolve_activation_state(*, context, flags, signals):
             if context.primary_path == "evals"
             else None
         ),
+        "voice": (
+            signals.voice_signals.to_activation_voice_state(stage)
+            if context.primary_path == "voice"
+            else None
+        ),
         "gateway": (
             signals.gateway_signals.to_activation_gateway_state(stage)
             if context.primary_path == "gateway"

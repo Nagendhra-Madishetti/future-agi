@@ -373,6 +373,84 @@ class ActivationSignalsSerializer(serializers.Serializer):
     voice_simulations = serializers.IntegerField(min_value=0, default=0)
     voice_calls = serializers.IntegerField(min_value=0, default=0)
     voice_reviews = serializers.IntegerField(min_value=0, default=0)
+    voice_agent_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    voice_agent_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    voice_agent_provider = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    voice_agent_version_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    voice_scenario_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    voice_run_test_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    voice_test_execution_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    voice_call_execution_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    voice_call_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    voice_call_completed_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+    )
+    voice_call_duration_seconds = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
+    voice_call_response_time_ms = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
+    voice_call_interruption_count = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
+    voice_transcript_available = serializers.BooleanField(default=False)
+    voice_recording_available = serializers.BooleanField(default=False)
+    voice_has_agent = serializers.BooleanField(default=False)
+    voice_has_scenario = serializers.BooleanField(default=False)
+    voice_has_test = serializers.BooleanField(default=False)
+    voice_has_call = serializers.BooleanField(default=False)
+    voice_has_completed_call = serializers.BooleanField(default=False)
+    voice_call_failed = serializers.BooleanField(default=False)
+    voice_has_review = serializers.BooleanField(default=False)
+    voice_has_success_criteria = serializers.BooleanField(default=False)
+    voice_first_loop_completed = serializers.BooleanField(default=False)
+    voice_is_sample_only = serializers.BooleanField(default=False)
+    voice_sample_call_count = serializers.IntegerField(min_value=0, default=0)
+    voice_permission_limited = serializers.BooleanField(default=False)
     team_invites = serializers.IntegerField(min_value=0, default=0)
     dashboards = serializers.IntegerField(min_value=0, default=0)
     alerts = serializers.IntegerField(min_value=0, default=0)
@@ -603,6 +681,108 @@ class ActivationAgentStateSerializer(serializers.Serializer):
         if attrs["is_sample"] and attrs.get("has_agent"):
             raise serializers.ValidationError(
                 "Sample agent state cannot count as a real agent."
+            )
+        return attrs
+
+
+class ActivationVoiceStateSerializer(serializers.Serializer):
+    agent_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    agent_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    agent_provider = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    agent_version_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    scenario_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    run_test_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    test_execution_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    call_execution_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    call_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    call_completed_at = serializers.DateTimeField(required=False, allow_null=True)
+    call_duration_seconds = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
+    call_response_time_ms = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
+    call_interruption_count = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
+    transcript_available = serializers.BooleanField(default=False)
+    recording_available = serializers.BooleanField(default=False)
+    reviewed_at = serializers.DateTimeField(required=False, allow_null=True)
+    success_criteria_at = serializers.DateTimeField(required=False, allow_null=True)
+    eval_config_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    stage = serializers.ChoiceField(choices=choices(ACTIVATION_STAGES))
+    has_agent = serializers.BooleanField(default=False)
+    has_scenario = serializers.BooleanField(default=False)
+    has_test = serializers.BooleanField(default=False)
+    has_call = serializers.BooleanField(default=False)
+    has_completed_call = serializers.BooleanField(default=False)
+    call_failed = serializers.BooleanField(default=False)
+    has_review = serializers.BooleanField(default=False)
+    has_success_criteria = serializers.BooleanField(default=False)
+    is_sample = serializers.BooleanField(default=False)
+    sample_call_count = serializers.IntegerField(min_value=0, default=0)
+    permission_limited = serializers.BooleanField(default=False)
+    diagnostics = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+    )
+
+    def validate(self, attrs):
+        if attrs["is_sample"] and attrs.get("has_call"):
+            raise serializers.ValidationError(
+                "Sample voice call state cannot count as a real call."
+            )
+        if attrs.get("has_review") and not attrs.get("has_call"):
+            raise serializers.ValidationError("Voice review requires a call.")
+        if attrs.get("has_success_criteria") and not attrs.get("has_review"):
+            raise serializers.ValidationError(
+                "Voice success criteria require call review."
             )
         return attrs
 
@@ -1156,6 +1336,7 @@ class ActivationStateResponseSerializer(serializers.Serializer):
     prompt = ActivationPromptStateSerializer(required=False, allow_null=True)
     agent = ActivationAgentStateSerializer(required=False, allow_null=True)
     eval = ActivationEvalStateSerializer(required=False, allow_null=True)
+    voice = ActivationVoiceStateSerializer(required=False, allow_null=True)
     gateway = ActivationGatewayStateSerializer(required=False, allow_null=True)
     lifecycle = LifecyclePreviewSerializer(required=False, allow_null=True)
     daily_quality = DailyQualityStateSerializer(required=False, allow_null=True)
@@ -1359,6 +1540,10 @@ class ActivationEventRequestSerializer(serializers.Serializer):
                 "graph_execution",
                 "test_execution",
                 "call_execution",
+                "voice_agent",
+                "voice_call",
+                "voice_scenario",
+                "voice_test",
                 "dataset",
                 "eval",
                 "eval_group",

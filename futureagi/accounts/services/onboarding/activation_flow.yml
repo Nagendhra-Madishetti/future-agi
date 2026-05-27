@@ -84,7 +84,7 @@ paths:
   voice:
     label: Connect a voice AI agent
     description: Review calls and success criteria.
-    first_action_id:
+    first_action_id: create_voice_agent
     requires_permission: voice:write
   evals:
     label: Evaluate quality
@@ -484,6 +484,71 @@ actions:
     cta_label: Open evaluations
     priority: 20
     target_path: evals
+    fallback_route_key: get_started
+  create_voice_agent:
+    kind: setup
+    title: Create voice agent
+    description: Create or connect one voice agent before the first test call.
+    route_key: voice_create_agent
+    cta_label: Create agent
+    priority: 100
+    estimated_minutes: 3
+    requires_permission: voice:write
+    completion_event: voice_agent_created
+    target_path: voice
+    fallback_route_key: voice_list
+  run_voice_test_call:
+    kind: send_signal
+    title: Run test call
+    description: Run one safe call or simulation before reviewing the result.
+    route_key: voice_run_test_call
+    cta_label: Run call
+    priority: 100
+    estimated_minutes: 4
+    requires_permission: voice:write
+    completion_event: voice_test_call_completed
+    target_path: voice
+    fallback_route_key: voice_list
+  review_voice_call:
+    kind: review
+    title: Review voice call
+    description: Review transcript, audio, latency, and interruption signals.
+    route_key: voice_review_call
+    cta_label: Review call
+    priority: 100
+    estimated_minutes: 4
+    completion_event: voice_call_reviewed
+    target_path: voice
+    fallback_route_key: voice_list
+  add_voice_success_criteria:
+    kind: improve
+    title: Add success criteria
+    description: Add criteria so future voice calls can be judged.
+    route_key: voice_add_success_criteria
+    cta_label: Add criteria
+    priority: 100
+    estimated_minutes: 4
+    requires_permission: voice:write
+    completion_event: voice_success_criteria_added
+    target_path: voice
+    fallback_route_key: voice_review_call
+  voice_monitor_calls:
+    kind: review
+    title: Monitor voice calls
+    description: Review voice call quality against the saved criteria.
+    route_key: voice_monitor_calls
+    cta_label: Monitor calls
+    priority: 80
+    target_path: voice
+    fallback_route_key: voice_list
+  open_voice_agents:
+    kind: fallback
+    title: Open voice agents
+    description: Open the voice agent workspace.
+    route_key: voice_list
+    cta_label: Open agents
+    priority: 20
+    target_path: voice
     fallback_route_key: get_started
   create_observe_project:
     kind: setup
@@ -1068,6 +1133,15 @@ stages:
       description: Add a policy that keeps the request path controlled.
     next: []
   create_voice_agent:
+    progress:
+      build: selected
+      test: not_started
+      observe: available
+      ship: available
+      improve: available
+    recommended_action: create_voice_agent
+    fallback_action: open_voice_agents
+    requires_write: true
     copy:
       eyebrow: Voice
       title: Create a voice agent
@@ -1075,6 +1149,15 @@ stages:
     next:
       - run_voice_test_call
   run_voice_test_call:
+    progress:
+      build: complete
+      test: in_progress
+      observe: available
+      ship: available
+      improve: available
+    recommended_action: run_voice_test_call
+    fallback_action: open_voice_agents
+    requires_write: true
     copy:
       eyebrow: Voice test
       title: Run a test call
@@ -1082,6 +1165,15 @@ stages:
     next:
       - review_voice_call
   review_voice_call:
+    progress:
+      build: complete
+      test: complete
+      observe: in_progress
+      ship: available
+      improve: available
+    recommended_action: review_voice_call
+    fallback_action: open_voice_agents
+    requires_write: false
     copy:
       eyebrow: Voice review
       title: Review the voice call
@@ -1089,6 +1181,15 @@ stages:
     next:
       - add_voice_success_criteria
   add_voice_success_criteria:
+    progress:
+      build: complete
+      test: complete
+      observe: complete
+      ship: available
+      improve: in_progress
+    recommended_action: add_voice_success_criteria
+    fallback_action: open_voice_agents
+    requires_write: true
     copy:
       eyebrow: Voice criteria
       title: Add success criteria
@@ -1096,6 +1197,15 @@ stages:
     next:
       - voice_monitor_calls
   voice_monitor_calls:
+    progress:
+      build: complete
+      test: complete
+      observe: complete
+      ship: available
+      improve: selected
+    recommended_action: voice_monitor_calls
+    fallback_action: open_voice_agents
+    requires_write: false
     copy:
       eyebrow: Voice monitor
       title: Monitor voice calls
@@ -1232,6 +1342,10 @@ stage_rules:
                   - context_equals:
                       primary_path: evals
                   - flag_enabled: onboarding_eval_path
+              - all:
+                  - context_equals:
+                      primary_path: voice
+                  - flag_enabled: onboarding_voice_path
   - stage: daily_review
     when:
       all:
@@ -1408,6 +1522,45 @@ stage_rules:
     when:
       context_equals:
         primary_path: evals
+  - stage: activated
+    when:
+      all:
+        - context_equals:
+            primary_path: voice
+        - signal: voice_first_loop_completed
+  - stage: run_voice_test_call
+    when:
+      all:
+        - context_equals:
+            primary_path: voice
+        - signal: voice_call_failed
+        - signal: voice_has_review
+        - signal: voice_has_success_criteria
+  - stage: add_voice_success_criteria
+    when:
+      all:
+        - context_equals:
+            primary_path: voice
+        - signal: voice_has_review
+        - signal_not: voice_has_success_criteria
+  - stage: review_voice_call
+    when:
+      all:
+        - context_equals:
+            primary_path: voice
+        - signal: voice_has_call
+        - signal_not: voice_has_review
+  - stage: run_voice_test_call
+    when:
+      all:
+        - context_equals:
+            primary_path: voice
+        - signal: voice_has_agent
+        - signal_not: voice_has_completed_call
+  - stage: create_voice_agent
+    when:
+      context_equals:
+        primary_path: voice
   - stage: connect_observability
     when:
       signal_not: observe_project_exists
@@ -1507,6 +1660,17 @@ activation_events:
     - onboarding_eval_failure_detail_opened
     - onboarding_eval_source_fix_cta_clicked
     - onboarding_eval_sample_viewed
+    - voice_agent_created
+    - voice_scenario_created
+    - voice_test_call_started
+    - voice_test_call_completed
+    - voice_call_reviewed
+    - voice_success_criteria_added
+    - voice_call_monitor_opened
+    - onboarding_voice_route_focus_viewed
+    - onboarding_voice_call_detail_opened
+    - onboarding_voice_success_criteria_cta_clicked
+    - onboarding_voice_sample_viewed
     - prompt_version_promoted
     - agent_created
     - agent_scenario_created
@@ -1546,3 +1710,6 @@ activation_events:
     evaluation_created: eval_scorer_created
     evaluation_run_completed: eval_run_completed
     eval_result_reviewed: eval_failures_reviewed
+    voice_call_completed: voice_test_call_completed
+    voice_call_detail_opened: voice_call_reviewed
+    simulation_voice_call_completed: voice_test_call_completed

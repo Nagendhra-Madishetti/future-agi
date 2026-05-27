@@ -299,20 +299,37 @@ def create_test_execution(
     )
 
 
-def create_call_execution(*, test_execution, scenario, status="completed"):
+def create_call_execution(
+    *,
+    test_execution,
+    scenario,
+    status="completed",
+    simulation_call_type=None,
+    metadata=None,
+    transcript_available=True,
+    recording_available=False,
+    response_time_ms=None,
+    user_interruption_count=None,
+    ai_interruption_count=None,
+):
     from simulate.models.agent_definition import AgentTypeChoices
     from simulate.models.test_execution import CallExecution
 
     return CallExecution.no_workspace_objects.create(
         test_execution=test_execution,
-        simulation_call_type=AgentTypeChoices.TEXT,
+        simulation_call_type=simulation_call_type or AgentTypeChoices.TEXT,
         scenario=scenario,
         status=status,
         started_at=test_execution.started_at,
         completed_at=test_execution.completed_at,
         duration_seconds=1,
         call_summary="Agent answered the scenario.",
-        transcript_available=True,
+        call_metadata=metadata or {},
+        transcript_available=transcript_available,
+        recording_available=recording_available,
+        response_time_ms=response_time_ms,
+        user_interruption_count=user_interruption_count,
+        ai_interruption_count=ai_interruption_count,
     )
 
 

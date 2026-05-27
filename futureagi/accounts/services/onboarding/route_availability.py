@@ -72,6 +72,12 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
     eval_source_id = signals.eval_source_id
     eval_scorer_template_id = signals.eval_scorer_template_id
     eval_run_id = signals.eval_run_id
+    voice_route_modes_enabled = bool(flags.get("onboarding_voice_route_modes"))
+    voice_path_enabled = bool(flags.get("onboarding_voice_path"))
+    voice_agent_id = signals.voice_agent_id
+    voice_run_test_id = signals.voice_run_test_id
+    voice_test_execution_id = signals.voice_test_execution_id
+    voice_call_execution_id = signals.voice_call_execution_id
 
     prompt_workbench_href = "/dashboard/workbench/all?source=onboarding"
     prompt_create_href = (
@@ -139,6 +145,13 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
 
     def eval_route(href, *, requires_write=True, is_available=True, reason=None):
         if not eval_path_enabled:
+            return route_entry(href, is_available=False, reason="feature_disabled")
+        if requires_write and not can_write:
+            return route_entry(href, is_available=False, reason="missing_permission")
+        return route_entry(href, is_available=is_available, reason=reason)
+
+    def voice_route(href, *, requires_write=True, is_available=True, reason=None):
+        if not voice_path_enabled:
             return route_entry(href, is_available=False, reason="feature_disabled")
         if requires_write and not can_write:
             return route_entry(href, is_available=False, reason="missing_permission")
@@ -304,6 +317,59 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
         eval_source_fix_base,
         eval_source_fix_params,
     )
+    voice_list_href = "/dashboard/simulate/agent-definitions"
+    voice_create_params = {}
+    if voice_route_modes_enabled:
+        voice_create_params["source"] = "onboarding"
+    voice_create_href = _with_query(
+        "/dashboard/simulate/agent-definitions/create-new-agent-definition",
+        voice_create_params,
+    )
+    voice_run_params = {}
+    if voice_route_modes_enabled:
+        voice_run_params["onboarding"] = (
+            "run-test-call" if voice_run_test_id else "create-test-call"
+        )
+    if voice_agent_id:
+        voice_run_params["agent_definition_id"] = voice_agent_id
+    voice_run_base = (
+        f"/dashboard/simulate/test/{voice_run_test_id}"
+        if voice_run_test_id
+        else "/dashboard/simulate/test"
+    )
+    voice_run_href = _with_query(voice_run_base, voice_run_params)
+    voice_review_base = (
+        f"/dashboard/simulate/test/{voice_run_test_id}/"
+        f"{voice_test_execution_id}/call-details"
+        if voice_run_test_id and voice_test_execution_id
+        else "/dashboard/simulate/test"
+    )
+    voice_review_params = {}
+    if voice_route_modes_enabled:
+        voice_review_params["from"] = "onboarding"
+    if voice_call_execution_id:
+        voice_review_params["call_id"] = voice_call_execution_id
+    voice_review_href = _with_query(voice_review_base, voice_review_params)
+    voice_criteria_params = {}
+    if voice_route_modes_enabled:
+        voice_criteria_params["onboarding"] = "success-criteria"
+    if voice_call_execution_id:
+        voice_criteria_params["call_id"] = voice_call_execution_id
+    voice_criteria_base = (
+        f"/dashboard/simulate/test/{voice_run_test_id}"
+        if voice_run_test_id
+        else "/dashboard/simulate/test"
+    )
+    voice_criteria_href = _with_query(voice_criteria_base, voice_criteria_params)
+    voice_monitor_params = {}
+    if voice_route_modes_enabled:
+        voice_monitor_params["onboarding"] = "monitor-calls"
+    voice_monitor_base = (
+        f"/dashboard/simulate/test/{voice_run_test_id}"
+        if voice_run_test_id
+        else voice_list_href
+    )
+    voice_monitor_href = _with_query(voice_monitor_base, voice_monitor_params)
 
     routes = {
         "home": route_entry("/dashboard/home"),
@@ -416,6 +482,30 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
             is_available=bool(signals.eval_has_review and signals.eval_has_failures),
             reason="missing_id",
         ),
+        "voice_list": _available_if(voice_path_enabled, voice_list_href),
+        "voice_create_agent": voice_route(voice_create_href),
+        "voice_run_test_call": voice_route(
+            voice_run_href,
+            is_available=bool(signals.voice_has_agent),
+            reason="missing_id",
+        ),
+        "voice_review_call": voice_route(
+            voice_review_href,
+            requires_write=False,
+            is_available=bool(signals.voice_has_call),
+            reason="missing_id",
+        ),
+        "voice_add_success_criteria": voice_route(
+            voice_criteria_href,
+            is_available=bool(signals.voice_has_review),
+            reason="missing_id",
+        ),
+        "voice_monitor_calls": voice_route(
+            voice_monitor_href,
+            requires_write=False,
+            is_available=bool(signals.voice_has_success_criteria),
+            reason="missing_id",
+        ),
     }
 
     for path in PRODUCT_PATHS:
@@ -430,6 +520,7 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
                 or (path == "agent" and agent_path_enabled)
                 or (path == "gateway" and gateway_path_enabled)
                 or (path == "evals" and eval_path_enabled)
+                or (path == "voice" and voice_path_enabled)
             )
             and not sample_hidden,
             reason=(
