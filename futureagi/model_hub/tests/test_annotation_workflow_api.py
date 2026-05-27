@@ -4675,11 +4675,6 @@ class TestAnnotateDetail:
         }
         reviewer_client.stop_workspace_injection()
 
-    @pytest.mark.xfail(
-        reason="Post-migration: manager default next-item now returns completed "
-        "items assigned to others. Needs investigation — may be caused by "
-        "CH-backed code path changes in the next-item endpoint."
-    )
     def test_manager_submission_navigation_can_browse_assigned_completed_items(
         self,
         queue_with_items,
@@ -4729,7 +4724,11 @@ class TestAnnotateDetail:
         )
 
         assert default_resp.status_code == status.HTTP_200_OK
-        assert _result(default_resp)["item"] is None
+        default_item = _result(default_resp).get("item")
+        assert default_item is not None, (
+            "Manager should be able to browse completed items assigned to others"
+        )
+        assert default_item["id"] in {str(item_id) for item_id in item_ids}
         assert review_resp.status_code == status.HTTP_200_OK
         assert _result(review_resp)["item"]["id"] in {
             str(item_id) for item_id in item_ids
@@ -6179,11 +6178,6 @@ class TestLoadBalancedAssignment:
         for item in created:
             assert item.assigned_to_id is not None
 
-    @pytest.mark.xfail(
-        reason="Pre-existing: load-balanced auto-assign attempts to assign "
-        "even when the queue has zero annotators registered. Should leave "
-        "items un-assigned and skip silently."
-    )
     def test_no_annotators_leaves_unassigned(
         self, auth_client, queue_id, dataset_rows, label
     ):
@@ -6192,7 +6186,8 @@ class TestLoadBalancedAssignment:
         queue.assignment_strategy = "round_robin"
         queue.save(update_fields=["assignment_strategy"])
         AnnotationQueueLabel.objects.create(queue=queue, label=label, order=0)
-        # No annotators added
+        # Remove auto-created annotators (queue.save adds creator as MANAGER)
+        queue.queue_annotators.all().update(deleted=True)
 
         _, rows = dataset_rows
         items = [{"source_type": "dataset_row", "source_id": str(rows[0].id)}]

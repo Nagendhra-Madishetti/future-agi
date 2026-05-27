@@ -3087,10 +3087,10 @@ class TestAutomationRulesE2E:
     # 34. Concurrent evaluators of the same rule don't double-add
     # -----------------------------------------------------------------------
     @pytest.mark.xfail(
-        reason="Pre-existing: concurrent evaluators raise Organization "
-        "DoesNotExist due to thread-local workspace context not being "
-        "set on the spawned threads. Test infra issue, not a real backend "
-        "race condition."
+        reason="evaluate_rule internally resolves Organization via a path "
+        "that doesn't read from thread-local workspace context. Needs "
+        "evaluate_rule to accept organization_id as a parameter. Real "
+        "backend bug — not test infra."
     )
     def test_concurrent_evaluators_serialise(
         self, auth_client, organization, workspace
@@ -3103,6 +3103,7 @@ class TestAutomationRulesE2E:
 
         from model_hub.models.annotation_queues import AutomationRule, QueueItem
         from model_hub.utils.annotation_queue_helpers import evaluate_rule
+        from tfc.middleware.workspace_context import set_workspace_context
 
         project = _create_project(organization, workspace, name="Race Project")
         for i in range(5):
@@ -3128,6 +3129,7 @@ class TestAutomationRulesE2E:
 
         def fire():
             try:
+                set_workspace_context(workspace=workspace, organization=organization)
                 results.append(evaluate_rule(rule))
             except Exception as exc:  # pragma: no cover - shouldn't fire
                 errors.append(repr(exc))

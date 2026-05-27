@@ -360,23 +360,10 @@ class TestProcessRetellLogs:
         assert result["messages"] == []
         assert result["transcript_available"] is False
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "Known gap (observability_providers.py:582): if started_at is None "
-            "but transcripts exist, the consumer crashes in "
-            "datetime.fromisoformat(started_at). Production never sees this "
-            "(Retell always sends start_timestamp); xfail(strict=True) means if "
-            "someone adds the defensive guard the test flips to XPASS and we "
-            "remove the xfail."
-        ),
-    )
-    def test_retell_with_transcript_but_missing_started_at_is_known_gap(self):
+    def test_retell_with_transcript_but_missing_started_at_gracefully_degrades(self):
         mod = _import_provider_module()
         log = _retell_basic_call(start_timestamp=None, end_timestamp=None)
         result = mod.ObservabilityService._process_retell_logs(log)
-        # If a defensive guard is added: messages should still populate from
-        # transcripts; started_at stays None. xfail(strict=True) pins this contract.
         assert result["started_at"] is None
         assert result["messages"], "transcripts should still be extracted"
 
