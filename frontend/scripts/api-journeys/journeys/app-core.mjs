@@ -6087,11 +6087,17 @@ export const appCoreJourneys = [
         );
       }
 
+      const rawKey = `secret-${runId}`;
+      const rawUpdatedKey = `secret-updated-${runId}`;
+
       const created = await client.post(apiPath("/model-hub/api-keys/"), {
         provider,
-        key: `secret-${runId}`,
+        key: rawKey,
       });
       assert(created?.id, "Model provider key create did not return id.");
+      assertProviderKeyResponseIsMaskedOnly(created, "provider key create", [
+        rawKey,
+      ]);
       cleanup.defer("delete model provider key", () =>
         ignoreNotFound(() =>
           client.delete(
@@ -6111,23 +6117,35 @@ export const appCoreJourneys = [
         typeof detail.masked_actual_key === "string",
         "Provider key detail did not include a masked key.",
       );
+      assertProviderKeyResponseIsMaskedOnly(detail, "provider key detail", [
+        rawKey,
+      ]);
 
       const updated = await client.put(
         apiPath("/model-hub/api-keys/{id}/", { id: created.id }),
-        { provider, key: `secret-updated-${runId}` },
+        { provider, key: rawUpdatedKey },
       );
       assert(
         updated?.provider === provider,
         "Provider key update did not return the provider.",
       );
+      assertProviderKeyResponseIsMaskedOnly(updated, "provider key update", [
+        rawKey,
+        rawUpdatedKey,
+      ]);
 
       const listed = asArray(await client.get(apiPath("/model-hub/api-keys/")));
+      const listedKey = listed.find(
+        (key) => key.id === created.id && key.provider === provider,
+      );
       assert(
-        listed.some(
-          (key) => key.id === created.id && key.provider === provider,
-        ),
+        listedKey,
         "Updated provider key was not visible in list.",
       );
+      assertProviderKeyResponseIsMaskedOnly(listedKey, "provider key list", [
+        rawKey,
+        rawUpdatedKey,
+      ]);
 
       await client.delete(
         apiPath("/model-hub/api-keys/{id}/", { id: created.id }),
@@ -6516,6 +6534,22 @@ function assertNoRawProviderSecretLeak(payload, label) {
   assert(
     !/"actual_key"|"actual_json"/.test(text),
     `${label} exposed decrypted key field names.`,
+  );
+}
+
+function assertProviderKeyResponseIsMaskedOnly(payload, label, rawSecrets = []) {
+  assertNoRawProviderSecretLeak(payload, label);
+  const text = JSON.stringify(payload ?? {});
+  for (const secret of rawSecrets) {
+    assert(!text.includes(secret), `${label} exposed raw provider key material.`);
+  }
+  assert(
+    !Object.prototype.hasOwnProperty.call(payload ?? {}, "key"),
+    `${label} exposed secret-bearing key field.`,
+  );
+  assert(
+    !Object.prototype.hasOwnProperty.call(payload ?? {}, "config_json"),
+    `${label} exposed secret-bearing config_json field.`,
   );
 }
 

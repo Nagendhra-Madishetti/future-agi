@@ -186,7 +186,10 @@ import type {
   ApiDetailErrorResponseApi,
   ApiErrorResponseApi,
   ApiErrorWithDetailsResponseApi,
-  ApiKeyApi,
+  ApiKeyListResponseApi,
+  ApiKeyRequestApi,
+  ApiKeyResponseApi,
+  ApiKeySuccessResponseApi,
   ApiPublicOtelV1TracesCreateBodyOne,
   ApiPublicOtelV1TracesCreateBodyTwo,
   ApiSelectionTooLargeErrorApi,
@@ -651,7 +654,6 @@ import type {
   ModelHubAnnotationsLabelsListParams,
   ModelHubAnnotationsList200,
   ModelHubAnnotationsListParams,
-  ModelHubApiKeysList200,
   ModelHubApiKeysListParams,
   ModelHubDatasetOptimizationList200,
   ModelHubDatasetOptimizationListParams,
@@ -25216,7 +25218,7 @@ export const modelHubAnnotationsUpdateCells = async (id: string,
 
 
 export type modelHubApiKeysListResponse200 = {
-  data: ModelHubApiKeysList200
+  data: ApiKeyListResponseApi
   status: 200
 }
 
@@ -25266,17 +25268,17 @@ export const modelHubApiKeysList = async (params?: ModelHubApiKeysListParams, op
 
 
 
-export type modelHubApiKeysCreateResponse201 = {
-  data: ApiKeyApi
-  status: 201
+export type modelHubApiKeysCreateResponse200 = {
+  data: ApiKeySuccessResponseApi
+  status: 200
 }
 
 export type modelHubApiKeysCreateResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 201>
+  status: Exclude<HTTPStatusCodes, 200>
 }
 
-export type modelHubApiKeysCreateResponseSuccess = (modelHubApiKeysCreateResponse201) & {
+export type modelHubApiKeysCreateResponseSuccess = (modelHubApiKeysCreateResponse200) & {
   headers: Headers;
 };
 export type modelHubApiKeysCreateResponseError = (modelHubApiKeysCreateResponseDefault) & {
@@ -25293,7 +25295,7 @@ export const getModelHubApiKeysCreateUrl = () => {
   return `/model-hub/api-keys/`
 }
 
-export const modelHubApiKeysCreate = async (apiKeyApi: NonReadonly<ApiKeyApi>, options?: RequestInit): Promise<modelHubApiKeysCreateResponse> => {
+export const modelHubApiKeysCreate = async (apiKeyRequestApi: ApiKeyRequestApi, options?: RequestInit): Promise<modelHubApiKeysCreateResponse> => {
 
   return apiMutator<modelHubApiKeysCreateResponse>(getModelHubApiKeysCreateUrl(),
   {
@@ -25301,14 +25303,14 @@ export const modelHubApiKeysCreate = async (apiKeyApi: NonReadonly<ApiKeyApi>, o
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      apiKeyApi,)
+      apiKeyRequestApi,)
   }
 );}
 
 
 
 export type modelHubApiKeysReadResponse200 = {
-  data: ApiKeyApi
+  data: ApiKeySuccessResponseApi
   status: 200
 }
 
@@ -25348,7 +25350,7 @@ export const modelHubApiKeysRead = async (id: string, options?: RequestInit): Pr
 
 
 export type modelHubApiKeysUpdateResponse200 = {
-  data: ApiKeyApi
+  data: ApiKeyResponseApi
   status: 200
 }
 
@@ -25375,7 +25377,7 @@ export const getModelHubApiKeysUpdateUrl = (id: string,) => {
 }
 
 export const modelHubApiKeysUpdate = async (id: string,
-    apiKeyApi: NonReadonly<ApiKeyApi>, options?: RequestInit): Promise<modelHubApiKeysUpdateResponse> => {
+    apiKeyRequestApi: ApiKeyRequestApi, options?: RequestInit): Promise<modelHubApiKeysUpdateResponse> => {
 
   return apiMutator<modelHubApiKeysUpdateResponse>(getModelHubApiKeysUpdateUrl(id),
   {
@@ -25383,14 +25385,14 @@ export const modelHubApiKeysUpdate = async (id: string,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      apiKeyApi,)
+      apiKeyRequestApi,)
   }
 );}
 
 
 
 export type modelHubApiKeysPartialUpdateResponse200 = {
-  data: ApiKeyApi
+  data: ApiKeyResponseApi
   status: 200
 }
 
@@ -25417,7 +25419,7 @@ export const getModelHubApiKeysPartialUpdateUrl = (id: string,) => {
 }
 
 export const modelHubApiKeysPartialUpdate = async (id: string,
-    apiKeyApi: NonReadonly<ApiKeyApi>, options?: RequestInit): Promise<modelHubApiKeysPartialUpdateResponse> => {
+    apiKeyRequestApi: ApiKeyRequestApi, options?: RequestInit): Promise<modelHubApiKeysPartialUpdateResponse> => {
 
   return apiMutator<modelHubApiKeysPartialUpdateResponse>(getModelHubApiKeysPartialUpdateUrl(id),
   {
@@ -25425,7 +25427,7 @@ export const modelHubApiKeysPartialUpdate = async (id: string,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      apiKeyApi,)
+      apiKeyRequestApi,)
   }
 );}
 

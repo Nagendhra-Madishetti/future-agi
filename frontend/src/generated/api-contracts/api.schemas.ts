@@ -6746,6 +6746,42 @@ export interface ApiKeyApi {
   config_json?: ApiKeyApiConfigJson;
 }
 
+export type ApiKeyRequestApiConfigJson = { [key: string]: unknown };
+
+export interface ApiKeyRequestApi {
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  provider: string;
+  /** @maxLength 2500 */
+  key?: string;
+  config_json?: ApiKeyRequestApiConfigJson;
+}
+
+export interface ApiKeyResponseApi {
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 50
+     */
+  provider: string;
+  organization?: string;
+  masked_actual_key?: unknown;
+}
+
+export interface ApiKeyListResponseApi {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: ApiKeyResponseApi[];
+}
+
+export interface ApiKeySuccessResponseApi {
+  status?: boolean;
+  result: ApiKeyResponseApi;
+}
+
 export type ModelParameterSliderApiDefault = { [key: string]: unknown };
 
 export interface ModelParameterSliderApi {

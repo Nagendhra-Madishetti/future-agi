@@ -63,7 +63,11 @@ from model_hub.serializers.develop_dataset_contracts import (
 )
 from model_hub.serializers.run_prompt import (
     AddRunPromptSerializer,
+    ApiKeyListResponseSerializer,
+    ApiKeyRequestSerializer,
+    ApiKeyResponseSerializer,
     ApiKeySerializer,
+    ApiKeySuccessResponseSerializer,
     EditRunPromptColumnSerializer,
     LitellmSerializer,
     PreviewRunPromptSerializer,
@@ -193,6 +197,16 @@ class ApiKeyViewSet(viewsets.ModelViewSet):
         # The decryption will happen automatically through the model's __init__ method
         return queryset
 
+    @swagger_auto_schema(
+        responses={200: ApiKeyListResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        request_body=ApiKeyRequestSerializer,
+        responses={200: ApiKeySuccessResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
@@ -253,7 +267,6 @@ class ApiKeyViewSet(viewsets.ModelViewSet):
                     "id": str(api_key.id),
                     "provider": api_key.provider,
                     "masked_actual_key": api_key.masked_actual_key,
-                    "config_json": api_key.actual_json,
                 }
             )
         return self._gm.bad_request(parse_serialized_errors(serializer))
@@ -264,6 +277,9 @@ class ApiKeyViewSet(viewsets.ModelViewSet):
             or self.request.user.organization
         )
 
+    @swagger_auto_schema(
+        responses={200: ApiKeySuccessResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    )
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
@@ -272,6 +288,20 @@ class ApiKeyViewSet(viewsets.ModelViewSet):
         # if instance.actual_key:
         #     data['key'] = instance.actual_key
         return self._gm.success_response(data)
+
+    @swagger_auto_schema(
+        request_body=ApiKeyRequestSerializer,
+        responses={200: ApiKeyResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        request_body=ApiKeyRequestSerializer,
+        responses={200: ApiKeyResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         """

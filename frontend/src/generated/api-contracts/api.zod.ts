@@ -14754,8 +14754,6 @@ export const ModelHubApiKeysListQueryParams = zod.object({
 
 export const modelHubApiKeysListResponseResultsItemProviderMax = 50;
 
-export const modelHubApiKeysListResponseResultsItemKeyMax = 2500;
-
 
 
 export const ModelHubApiKeysListResponse = zod.object({
@@ -14765,12 +14763,8 @@ export const ModelHubApiKeysListResponse = zod.object({
   "results": zod.array(zod.object({
   "id": zod.string().uuid().optional(),
   "provider": zod.string().min(1).max(modelHubApiKeysListResponseResultsItemProviderMax),
-  "key": zod.string().max(modelHubApiKeysListResponseResultsItemKeyMax).optional(),
   "organization": zod.string().uuid().optional(),
-  "masked_actual_key": zod.string().optional(),
-  "config_json": zod.object({
-
-}).passthrough().optional()
+  "masked_actual_key": zod.unknown().optional()
 }))
 })
 
@@ -14789,26 +14783,39 @@ export const ModelHubApiKeysCreateBody = zod.object({
 }).passthrough().optional()
 })
 
+export const modelHubApiKeysCreateResponseStatusDefault = true;
+export const modelHubApiKeysCreateResponseResultProviderMax = 50;
+
+
+
+export const ModelHubApiKeysCreateResponse = zod.object({
+  "status": zod.boolean().default(modelHubApiKeysCreateResponseStatusDefault),
+  "result": zod.object({
+  "id": zod.string().uuid().optional(),
+  "provider": zod.string().min(1).max(modelHubApiKeysCreateResponseResultProviderMax),
+  "organization": zod.string().uuid().optional(),
+  "masked_actual_key": zod.unknown().optional()
+})
+})
+
 
 export const ModelHubApiKeysReadParams = zod.object({
   "id": zod.string()
 })
 
-export const modelHubApiKeysReadResponseProviderMax = 50;
-
-export const modelHubApiKeysReadResponseKeyMax = 2500;
+export const modelHubApiKeysReadResponseStatusDefault = true;
+export const modelHubApiKeysReadResponseResultProviderMax = 50;
 
 
 
 export const ModelHubApiKeysReadResponse = zod.object({
+  "status": zod.boolean().default(modelHubApiKeysReadResponseStatusDefault),
+  "result": zod.object({
   "id": zod.string().uuid().optional(),
-  "provider": zod.string().min(1).max(modelHubApiKeysReadResponseProviderMax),
-  "key": zod.string().max(modelHubApiKeysReadResponseKeyMax).optional(),
+  "provider": zod.string().min(1).max(modelHubApiKeysReadResponseResultProviderMax),
   "organization": zod.string().uuid().optional(),
-  "masked_actual_key": zod.string().optional(),
-  "config_json": zod.object({
-
-}).passthrough().optional()
+  "masked_actual_key": zod.unknown().optional()
+})
 })
 
 
@@ -14832,19 +14839,13 @@ export const ModelHubApiKeysUpdateBody = zod.object({
 
 export const modelHubApiKeysUpdateResponseProviderMax = 50;
 
-export const modelHubApiKeysUpdateResponseKeyMax = 2500;
-
 
 
 export const ModelHubApiKeysUpdateResponse = zod.object({
   "id": zod.string().uuid().optional(),
   "provider": zod.string().min(1).max(modelHubApiKeysUpdateResponseProviderMax),
-  "key": zod.string().max(modelHubApiKeysUpdateResponseKeyMax).optional(),
   "organization": zod.string().uuid().optional(),
-  "masked_actual_key": zod.string().optional(),
-  "config_json": zod.object({
-
-}).passthrough().optional()
+  "masked_actual_key": zod.unknown().optional()
 })
 
 
@@ -14868,19 +14869,13 @@ export const ModelHubApiKeysPartialUpdateBody = zod.object({
 
 export const modelHubApiKeysPartialUpdateResponseProviderMax = 50;
 
-export const modelHubApiKeysPartialUpdateResponseKeyMax = 2500;
-
 
 
 export const ModelHubApiKeysPartialUpdateResponse = zod.object({
   "id": zod.string().uuid().optional(),
   "provider": zod.string().min(1).max(modelHubApiKeysPartialUpdateResponseProviderMax),
-  "key": zod.string().max(modelHubApiKeysPartialUpdateResponseKeyMax).optional(),
   "organization": zod.string().uuid().optional(),
-  "masked_actual_key": zod.string().optional(),
-  "config_json": zod.object({
-
-}).passthrough().optional()
+  "masked_actual_key": zod.unknown().optional()
 })
 
 

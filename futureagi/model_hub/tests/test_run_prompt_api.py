@@ -13,6 +13,7 @@ Tests cover:
 Run with: pytest model_hub/tests/test_run_prompt_api.py -v
 """
 
+import json
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -33,6 +34,22 @@ from model_hub.models.choices import (
 from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
 from model_hub.models.run_prompt import RunPrompter
 from tfc.middleware.workspace_context import set_workspace_context
+
+
+API_KEYS_URL = "/model-hub/api-keys/"
+
+
+def api_key_detail_url(api_key_id):
+    return f"{API_KEYS_URL}{api_key_id}/"
+
+
+def assert_provider_key_response_is_masked(payload, *raw_secrets):
+    text = json.dumps(payload, default=str)
+    for secret in raw_secrets:
+        assert secret not in text
+    if isinstance(payload, dict):
+        assert "key" not in payload
+        assert "config_json" not in payload
 
 
 @pytest.fixture
@@ -800,6 +817,94 @@ class TestRunPromptForRowsView:
             status.HTTP_401_UNAUTHORIZED,
             status.HTTP_403_FORBIDDEN,
         ]
+
+
+@pytest.mark.django_db
+class TestProviderApiKeys:
+    def test_text_provider_key_responses_are_masked_only(self, auth_client):
+        raw_key = "secret-provider-key-value"
+        updated_raw_key = "secret-provider-key-value-updated"
+
+        response = auth_client.post(
+            API_KEYS_URL,
+            {"provider": "openai", "key": raw_key},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        created = response.data["result"]
+        assert created["provider"] == "openai"
+        assert "*" in created["masked_actual_key"]
+        assert_provider_key_response_is_masked(created, raw_key)
+
+        detail_response = auth_client.get(api_key_detail_url(created["id"]))
+        assert detail_response.status_code == status.HTTP_200_OK
+        detail = detail_response.data["result"]
+        assert detail["provider"] == "openai"
+        assert_provider_key_response_is_masked(detail, raw_key)
+
+        update_response = auth_client.put(
+            api_key_detail_url(created["id"]),
+            {"provider": "openai", "key": updated_raw_key},
+            format="json",
+        )
+        assert update_response.status_code == status.HTTP_200_OK
+        assert update_response.data["provider"] == "openai"
+        assert_provider_key_response_is_masked(
+            update_response.data,
+            raw_key,
+            updated_raw_key,
+        )
+
+        list_response = auth_client.get(API_KEYS_URL)
+        assert list_response.status_code == status.HTTP_200_OK
+        listed = next(
+            row
+            for row in list_response.data["results"]
+            if str(row["id"]) == created["id"]
+        )
+        assert_provider_key_response_is_masked(
+            listed,
+            raw_key,
+            updated_raw_key,
+        )
+
+    def test_json_provider_key_responses_are_masked_only(self, auth_client):
+        raw_config = {
+            "api_key": "secret-json-provider-key",
+            "api_base": "https://azure.example.test",
+            "api_version": "2024-05-01",
+        }
+
+        response = auth_client.post(
+            API_KEYS_URL,
+            {"provider": "azure", "key": json.dumps(raw_config)},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        created = response.data["result"]
+        assert created["provider"] == "azure"
+        assert isinstance(created["masked_actual_key"], dict)
+        assert created["masked_actual_key"]["api_key"] != raw_config["api_key"]
+        assert "*" in created["masked_actual_key"]["api_key"]
+        assert_provider_key_response_is_masked(created, *raw_config.values())
+
+        detail_response = auth_client.get(api_key_detail_url(created["id"]))
+        assert detail_response.status_code == status.HTTP_200_OK
+        assert_provider_key_response_is_masked(
+            detail_response.data["result"],
+            *raw_config.values(),
+        )
+
+        list_response = auth_client.get(API_KEYS_URL)
+        assert list_response.status_code == status.HTTP_200_OK
+        listed = next(
+            row
+            for row in list_response.data["results"]
+            if str(row["id"]) == created["id"]
+        )
+        assert_provider_key_response_is_masked(listed, *raw_config.values())
 
 
 # ==================== LitellmAPIView Tests ====================

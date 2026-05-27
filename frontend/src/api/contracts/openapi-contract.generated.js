@@ -12703,32 +12703,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "responses": {
           "200": {
-            "required": [
-              "count",
-              "results"
-            ],
-            "type": "object",
-            "properties": {
-              "count": {
-                "type": "integer"
-              },
-              "next": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "previous": {
-                "type": "string",
-                "format": "uri",
-                "x-nullable": true
-              },
-              "results": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/ApiKey"
-                }
-              }
-            }
+            "$ref": "#/definitions/ApiKeyListResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -12740,12 +12715,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeRequestValidation": false,
         "runtimeResponseValidation": false,
         "requestBody": {
-          "$ref": "#/definitions/ApiKey"
+          "$ref": "#/definitions/ApiKeyRequest"
         },
         "queryParameters": {},
         "responses": {
-          "201": {
-            "$ref": "#/definitions/ApiKey"
+          "200": {
+            "$ref": "#/definitions/ApiKeySuccessResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -12762,7 +12737,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ApiKey"
+            "$ref": "#/definitions/ApiKeySuccessResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -12774,12 +12749,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeRequestValidation": false,
         "runtimeResponseValidation": false,
         "requestBody": {
-          "$ref": "#/definitions/ApiKey"
+          "$ref": "#/definitions/ApiKeyRequest"
         },
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ApiKey"
+            "$ref": "#/definitions/ApiKeyResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -12791,12 +12766,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeRequestValidation": false,
         "runtimeResponseValidation": false,
         "requestBody": {
-          "$ref": "#/definitions/ApiKey"
+          "$ref": "#/definitions/ApiKeyRequest"
         },
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/ApiKey"
+            "$ref": "#/definitions/ApiKeyResponse"
           },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
@@ -46582,6 +46557,104 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Config json",
           "type": "object",
           "x-nullable": true
+        }
+      }
+    },
+    "ApiKeyRequest": {
+      "required": [
+        "provider"
+      ],
+      "type": "object",
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "key": {
+          "title": "Key",
+          "type": "string",
+          "maxLength": 2500,
+          "x-nullable": true
+        },
+        "config_json": {
+          "title": "Config json",
+          "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
+    "ApiKeyResponse": {
+      "required": [
+        "provider"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string",
+          "maxLength": 50,
+          "minLength": 1
+        },
+        "organization": {
+          "title": "Organization",
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "masked_actual_key": {
+          "title": "Masked actual key",
+          "x-nullable": true
+        }
+      }
+    },
+    "ApiKeyListResponse": {
+      "required": [
+        "count",
+        "results"
+      ],
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer"
+        },
+        "next": {
+          "type": "string",
+          "format": "uri",
+          "x-nullable": true
+        },
+        "previous": {
+          "type": "string",
+          "format": "uri",
+          "x-nullable": true
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ApiKeyResponse"
+          }
+        }
+      }
+    },
+    "ApiKeySuccessResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/ApiKeyResponse"
         }
       }
     },
