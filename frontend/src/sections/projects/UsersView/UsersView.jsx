@@ -214,14 +214,6 @@ const UsersView = ({
     }
   }, [gridApi]);
 
-  useEffect(() => {
-    setHeaderConfig((prev) => ({
-      ...prev,
-      text: "Users",
-      refreshData: refreshUsers,
-    }));
-  }, [refreshUsers, setHeaderConfig]);
-
   // --- Filter & date state ---
   const defaultDateFilter = useMemo(() => getDefaultDateRange(), []);
 
@@ -309,6 +301,15 @@ const UsersView = ({
   useEffect(() => {
     useUsersStore.setState({ filters: finalFilters });
   }, [finalFilters]);
+
+  useEffect(() => {
+    setHeaderConfig((prev) => ({
+      ...prev,
+      text: "Users",
+      filterUsers: finalFilters,
+      refreshData: refreshUsers,
+    }));
+  }, [refreshUsers, finalFilters, setHeaderConfig]);
 
   // Saved-view api — populates a ref the parent UsersPageTabBar drives.
   const getConfig = useCallback(() => {

@@ -62,6 +62,7 @@ const ObserveHeader = ({
   filterSpan,
   selectedTab,
   filterSession,
+  filterUsers,
   refreshData,
   resetFilters,
 }) => {
@@ -225,11 +226,13 @@ const ObserveHeader = ({
       if (text === "Sessions") {
         url = endpoints.project.projectSessionListExport;
         filters = filterSession;
+      } else if (text === "Users") {
+        url = endpoints.project.getUsersForObserveExport;
+        filters = filterUsers;
       } else if (selectedTab === "spans") {
         url = endpoints.project.getSpansForObserveExport;
         filters = filterSpan;
       } else {
-        // Default to trace export
         url = endpoints.project.getTraceForObserveExport;
         filters = filterTrace || [];
       }
@@ -248,11 +251,13 @@ const ObserveHeader = ({
       const fileSuffix =
         text === "Sessions"
           ? "sessions"
-          : selectedTab === "trace"
-            ? "traces"
-            : selectedTab === "spans"
-              ? "spans"
-              : "data";
+          : text === "Users"
+            ? "users"
+            : selectedTab === "trace"
+              ? "traces"
+              : selectedTab === "spans"
+                ? "spans"
+                : "data";
 
       enqueueSnackbar(
         `${fileSuffix.charAt(0).toUpperCase() + fileSuffix.slice(1)} downloaded successfully`,
@@ -670,6 +675,7 @@ ObserveHeader.propTypes = {
   filterSpan: PropTypes.array,
   selectedTab: PropTypes.string,
   filterSession: PropTypes.array,
+  filterUsers: PropTypes.array,
   refreshData: PropTypes.func,
   resetFilters: PropTypes.func,
 };
