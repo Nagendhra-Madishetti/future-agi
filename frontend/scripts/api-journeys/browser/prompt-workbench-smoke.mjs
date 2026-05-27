@@ -8,6 +8,7 @@ import {
   asArray,
   assert,
   createAuthenticatedContext,
+  envFlag,
   isUuid,
   requireMutations,
 } from "../lib/api-client.mjs";
@@ -25,7 +26,11 @@ const FOLDER_RENAMED_SCREENSHOT_PATH =
 const FOLDER_DELETED_SCREENSHOT_PATH =
   "/tmp/prompt-workbench-folder-deleted-smoke.png";
 const DETAIL_SCREENSHOT_PATH = "/tmp/prompt-workbench-detail-smoke.png";
+const MODEL_PICKER_SCREENSHOT_PATH =
+  "/tmp/prompt-workbench-model-picker-smoke.png";
+const RUN_OUTPUT_SCREENSHOT_PATH = "/tmp/prompt-workbench-run-output-smoke.png";
 const FAILURE_SCREENSHOT_PATH = "/tmp/prompt-workbench-smoke-failure.png";
+const RUN_PROMPT_UI = envFlag("API_JOURNEY_PROMPT_UI_RUN");
 
 async function main() {
   requireMutations();
@@ -34,22 +39,27 @@ async function main() {
   const folderName = `ui_prompt_folder_${suffix}`;
   const renamedFolderName = `ui_prompt_folder_renamed_${suffix}`;
   const promptName = `ui prompt workbench ${suffix}`;
-  const promptText = `Hello {{customer}} from ${auth.runId}`;
+  const promptText = `Customer {{customer}} asks for the readiness phrase ${auth.runId}.`;
+  const safeModel = await findSafePromptRunModel(auth.client);
   let folderId = null;
   let promptId = null;
   let browser = null;
   let caughtError = null;
   let uiDeletedFolder = false;
+  let runAudit = null;
   let deleteAudit = null;
   let hardCleanup = null;
 
   const apiFailures = [];
   const pageErrors = [];
   const promptRequests = [];
+  const promptSocketStatuses = [];
   const evidence = {
     folder_name: folderName,
     folder_renamed_name: renamedFolderName,
     prompt_name: promptName,
+    safe_model: safeModel.model_name,
+    safe_provider: safeModel.providers,
   };
 
   try {
@@ -68,6 +78,16 @@ async function main() {
       if (isPromptWorkbenchApiUrl(request.url())) {
         promptRequests.push(`${request.method()} ${request.url()}`);
       }
+    });
+    page.on("websocket", (socket) => {
+      if (!socket.url().includes("/ws/prompt-stream/")) return;
+      promptRequests.push("WS /ws/prompt-stream/");
+      socket.on("framesent", (event) =>
+        trackSocketPayload(promptSocketStatuses, event, "sent"),
+      );
+      socket.on("framereceived", (event) =>
+        trackSocketPayload(promptSocketStatuses, event, "received"),
+      );
     });
     page.on("response", (response) => {
       const url = response.url();
@@ -109,7 +129,7 @@ async function main() {
       async () => {
         await clickVisibleText(page, "New Folder", { exact: true });
         await waitForVisibleText(page, "Create new folder", { exact: true });
-        await typeIntoVisibleInput(page, folderName);
+        await typeIntoDialogInput(page, folderName);
         await clickVisibleText(page, "Create", { exact: true });
       },
     );
@@ -174,6 +194,7 @@ async function main() {
       name: promptName,
       runId: auth.runId,
       promptText,
+      model: safeModel,
     });
     evidence.prompt_id = promptId;
 
@@ -235,10 +256,74 @@ async function main() {
     await waitForVisibleText(page, "Playground", { exact: true });
     await waitForVisibleText(page, "Evaluation", { exact: true });
     await waitForVisibleText(page, "Metrics", { exact: true });
-    await waitForEditorText(page, ["Hello", "customer", auth.runId]);
+    await waitForEditorText(page, ["Customer", "customer", auth.runId]);
     await waitForNoVisibleText(page, "Invalid Date");
     await page.screenshot({ path: DETAIL_SCREENSHOT_PATH, fullPage: true });
     evidence.detail_screenshot = DETAIL_SCREENSHOT_PATH;
+
+    await openModelPickerAndSelectSafeModel(page, safeModel);
+    await page.screenshot({
+      path: MODEL_PICKER_SCREENSHOT_PATH,
+      fullPage: true,
+    });
+    evidence.model_picker_screenshot = MODEL_PICKER_SCREENSHOT_PATH;
+    assert(
+      modelParameterRequestObserved(promptRequests, safeModel),
+      "Model parameter endpoint did not load for the safe model.",
+    );
+    await clickVisibleMenuItemContaining(page, safeModel.model_name);
+    await page.waitForFunction(
+      () =>
+        window.visibleElements('input[placeholder="Select model"]').length ===
+        0,
+      { timeout: 30000 },
+    );
+    evidence.model_picker_selection_verified = true;
+    evidence.model_parameters_request_observed = true;
+
+    await clickVisibleText(page, "Text output", { exact: true });
+    await waitForVisibleText(page, "JSON output", { exact: true });
+    await waitForVisibleText(page, "Create custom schema", { exact: true });
+    evidence.response_format_menu_visible = true;
+    await page.keyboard.press("Escape");
+
+    await clickVisibleText(page, "Mustache", { exact: true });
+    await waitForVisibleText(page, "Jinja", { exact: true });
+    evidence.template_format_menu_visible = true;
+    await page.keyboard.press("Escape");
+
+    if (RUN_PROMPT_UI) {
+      await clickVisibleText(page, "Run Prompt", { exact: true });
+      await waitForPromptOutput(page);
+      await waitForPromptOutputMetadata(page);
+      runAudit = await auditPromptRunOutputDb({
+        promptId,
+        organizationId: auth.organizationId,
+        workspaceId: auth.workspaceId,
+        modelName: safeModel.model_name,
+      });
+      assert(
+        Number(runAudit.output_count) > 0 &&
+          Number(runAudit.metadata_count) > 0 &&
+          runAudit.model_name === safeModel.model_name &&
+          runAudit.is_draft === false,
+        `Prompt run output audit failed: ${JSON.stringify(runAudit)}`,
+      );
+      await page.screenshot({
+        path: RUN_OUTPUT_SCREENSHOT_PATH,
+        fullPage: true,
+      });
+      evidence.run_output_screenshot = RUN_OUTPUT_SCREENSHOT_PATH;
+      evidence.ui_run_output_visible = true;
+      evidence.ui_run_output_metadata_visible = true;
+      evidence.db_run_output_count = Number(runAudit.output_count);
+      evidence.db_run_metadata_count = Number(runAudit.metadata_count);
+      evidence.db_run_is_draft = runAudit.is_draft;
+      evidence.websocket_statuses = uniqueValues(promptSocketStatuses);
+    } else {
+      evidence.ui_run_output_skipped =
+        "Set API_JOURNEY_PROMPT_UI_RUN=1 when the local websocket server is available.";
+    }
 
     await waitForResponseDuring(
       page,
@@ -406,10 +491,35 @@ async function main() {
   if (caughtError) throw caughtError;
 }
 
+async function findSafePromptRunModel(client) {
+  const options = await client.get(
+    apiPath("/model-hub/develops/retrieve_run_prompt_options/"),
+  );
+  const models = payloadArray(options, "models");
+  const safeModel = models.find((model) => {
+    const name = model?.model_name || model?.modelName || model?.name;
+    const provider = model?.providers || model?.provider;
+    const type = model?.type || model?.mode || model?.model_type;
+    const isAvailable = model?.is_available ?? model?.isAvailable;
+    return (
+      name === "gpt-4o-mini" &&
+      provider === "openai" &&
+      (type === "chat" || type === "llm" || !type) &&
+      isAvailable === true
+    );
+  });
+  assert(
+    safeModel,
+    "Prompt Workbench browser run requires configured openai gpt-4o-mini.",
+  );
+  return normalizeModelOption(safeModel);
+}
+
 async function createWorkbenchPrompt(
   client,
-  { folderId, name, runId, promptText },
+  { folderId, name, runId, promptText, model },
 ) {
+  const modelDetail = normalizeModelDetail(model);
   const created = await client.post(
     apiPath("/model-hub/prompt-templates/create-draft/"),
     {
@@ -431,8 +541,13 @@ async function createWorkbenchPrompt(
             },
           ],
           configuration: {
-            model: "gpt-4o-mini",
-            model_detail: { type: "chat" },
+            model: model.model_name,
+            model_detail: modelDetail,
+            max_tokens: 16,
+            temperature: 0,
+            top_p: 1,
+            response_format: "text",
+            output_format: "string",
             template_format: "mustache",
           },
           placeholders: [],
@@ -444,6 +559,47 @@ async function createWorkbenchPrompt(
     created?.id || created?.root_template || created?.rootTemplate;
   assert(isUuid(promptId), "Workbench prompt create did not return a UUID id.");
   return promptId;
+}
+
+function normalizeModelOption(model) {
+  const modelName = model?.model_name || model?.modelName || model?.name;
+  const providers = model?.providers || model?.provider;
+  const type = model?.type || model?.mode || model?.model_type || "chat";
+  const logoUrl = model?.logoUrl || model?.logo_url || "";
+  const isAvailable = model?.is_available ?? model?.isAvailable;
+  return {
+    ...model,
+    model_name: modelName,
+    modelName,
+    providers,
+    type,
+    logoUrl,
+    logo_url: logoUrl,
+    is_available: isAvailable,
+    isAvailable,
+  };
+}
+
+function normalizeModelDetail(model) {
+  return {
+    model_name: model.model_name,
+    modelName: model.model_name,
+    providers: model.providers,
+    type: model.type || "chat",
+    logoUrl: model.logoUrl || "",
+    logo_url: model.logoUrl || "",
+    is_available: model.is_available,
+    isAvailable: model.isAvailable,
+  };
+}
+
+function payloadArray(payload, key) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.[key])) return payload[key];
+  if (Array.isArray(payload?.result?.[key])) return payload.result[key];
+  if (Array.isArray(payload?.data?.[key])) return payload.data[key];
+  if (Array.isArray(payload?.results?.[key])) return payload.results[key];
+  return asArray(payload);
 }
 
 async function cleanupPromptTemplate(client, promptId) {
@@ -496,6 +652,67 @@ async function assertPromptFolderAbsentFromList(client, { folderId, name }) {
     !folders.some((folder) => folder?.id === folderId || folder?.name === name),
     "Deleted prompt folder was still visible in the folder list.",
   );
+}
+
+async function auditPromptRunOutputDb({
+  promptId,
+  organizationId,
+  workspaceId,
+  modelName,
+}) {
+  assert(isUuid(promptId), "Prompt run audit requires a prompt UUID.");
+  const sql = `
+WITH target_versions AS (
+  SELECT
+    id,
+    template_version,
+    output,
+    metadata,
+    prompt_config_snapshot,
+    is_draft
+  FROM model_hub_promptversion
+  WHERE original_template_id = ${sqlUuid(promptId)}
+    AND deleted = false
+  ORDER BY created_at DESC
+)
+SELECT json_build_object(
+  'prompt_row_count', (
+    SELECT count(*)
+    FROM model_hub_prompttemplate
+    WHERE id = ${sqlUuid(promptId)}
+      AND organization_id = ${sqlUuid(organizationId)}
+      AND workspace_id = ${sqlUuid(workspaceId)}
+      AND deleted = false
+  ),
+  'version_count', (SELECT count(*) FROM target_versions),
+  'output_count', COALESCE((
+    SELECT jsonb_array_length(output)
+    FROM target_versions
+    WHERE template_version = 'v1'
+    LIMIT 1
+  ), 0),
+  'metadata_count', COALESCE((
+    SELECT jsonb_array_length(metadata)
+    FROM target_versions
+    WHERE template_version = 'v1'
+    LIMIT 1
+  ), 0),
+  'model_name', (
+    SELECT prompt_config_snapshot->'configuration'->>'model'
+    FROM target_versions
+    WHERE template_version = 'v1'
+    LIMIT 1
+  ),
+  'expected_model_name', ${sqlString(modelName)},
+  'is_draft', (
+    SELECT is_draft
+    FROM target_versions
+    WHERE template_version = 'v1'
+    LIMIT 1
+  )
+);
+`;
+  return runPostgresJson(sql);
 }
 
 async function auditDeletedPromptFolderDb({
@@ -641,6 +858,10 @@ async function runPostgresJson(sql) {
 function sqlUuid(value) {
   assert(isUuid(value), `Expected UUID, got ${value}`);
   return `'${String(value).replaceAll("'", "''")}'::uuid`;
+}
+
+function sqlString(value) {
+  return `'${String(value ?? "").replaceAll("'", "''")}'`;
 }
 
 function appendCleanupError(caughtError, cleanupError) {
@@ -792,6 +1013,162 @@ async function waitForEditorText(page, fragments, timeout = 30000) {
     },
     { timeout },
     fragments,
+  );
+}
+
+async function openModelPickerAndSelectSafeModel(page, model) {
+  await waitForVisibleText(page, model.model_name, { exact: true });
+  await clickModelPickerButton(page, model.model_name);
+  await page.waitForSelector('input[placeholder="Select model"]', {
+    timeout: 30000,
+  });
+  await waitForResponseDuring(
+    page,
+    "model picker search",
+    (response) => {
+      if (
+        !response.url().includes("/model-hub/api/models_list/") ||
+        response.status() >= 400
+      ) {
+        return false;
+      }
+      const url = new URL(response.url());
+      return url.searchParams.get("search") === model.model_name;
+    },
+    () => typeModelSearch(page, model.model_name),
+  );
+  await waitForVisibleMenuItemText(page, model.model_name);
+  await waitForNoVisibleText(page, "Configure an api key", { timeout: 5000 });
+}
+
+async function clickModelPickerButton(page, modelName) {
+  const labelPoint = await page.evaluate((expectedText) => {
+    const label = window.visibleElements().find((candidate) => {
+      return window.normalizeText(candidate.textContent) === expectedText;
+    });
+    if (!label) return null;
+    const rect = label.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+  }, modelName);
+  assert(labelPoint, `Could not locate model picker label ${modelName}.`);
+  await page.mouse.click(labelPoint.x, labelPoint.y);
+
+  const opened = await page
+    .waitForSelector('input[placeholder="Select model"]', { timeout: 1500 })
+    .then(() => true)
+    .catch(() => false);
+  if (opened) return;
+
+  const chevronPoint = await page.evaluate((expectedText) => {
+    const label = window.visibleElements().find((candidate) => {
+      return window.normalizeText(candidate.textContent) === expectedText;
+    });
+    if (!label) return null;
+    const labelRect = label.getBoundingClientRect();
+    const labelCenterY = labelRect.top + labelRect.height / 2;
+    const button = window.visibleElements("button").find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const text = window.normalizeText(candidate.textContent);
+      return (
+        rect.left > labelRect.right &&
+        rect.left < labelRect.right + 180 &&
+        Math.abs(rect.top + rect.height / 2 - labelCenterY) < 24 &&
+        text !== "Params"
+      );
+    });
+    if (!button) return null;
+    const rect = button.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+  }, modelName);
+  assert(chevronPoint, `Could not locate model picker chevron ${modelName}.`);
+  await page.mouse.click(chevronPoint.x, chevronPoint.y);
+}
+
+async function waitForVisibleMenuItemText(page, text, timeout = 30000) {
+  await page.waitForFunction(
+    (expectedText) =>
+      window.visibleElements('[role="menuitem"]').some((element) => {
+        const textContent = window.normalizeText(element.textContent);
+        return (
+          textContent === expectedText || textContent.includes(expectedText)
+        );
+      }),
+    { timeout },
+    text,
+  );
+}
+
+async function clickVisibleMenuItemContaining(page, text) {
+  await waitForVisibleMenuItemText(page, text);
+  const clicked = await page.evaluate((expectedText) => {
+    const menuItems = window.visibleElements('[role="menuitem"]');
+    const exactMatch = menuItems.find((candidate) => {
+      const textContent = window.normalizeText(candidate.textContent);
+      return textContent === expectedText;
+    });
+    const menuItem =
+      exactMatch ||
+      menuItems.find((candidate) => {
+        const textContent = window.normalizeText(candidate.textContent);
+        return textContent.includes(expectedText);
+      });
+    if (!menuItem || menuItem.getAttribute("aria-disabled") === "true") {
+      return false;
+    }
+    menuItem.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+    );
+    menuItem.dispatchEvent(
+      new MouseEvent("mouseup", { bubbles: true, cancelable: true }),
+    );
+    menuItem.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    return true;
+  }, text);
+  assert(clicked, `Could not click menu item containing ${text}.`);
+}
+
+async function typeModelSearch(page, value) {
+  const selector = 'input[placeholder="Select model"]';
+  await page.waitForSelector(selector, { timeout: 30000 });
+  await page.click(selector);
+  await page.keyboard.down(modifierKey());
+  await page.keyboard.press("A");
+  await page.keyboard.up(modifierKey());
+  await page.keyboard.press("Backspace");
+  await page.type(selector, value);
+}
+
+async function waitForPromptOutput(page) {
+  await page.waitForFunction(
+    () =>
+      window.visibleElements(".streaming-text").some((element) => {
+        const textContent = window.normalizeText(element.textContent);
+        return textContent.length > 0;
+      }),
+    { timeout: 120000 },
+  );
+}
+
+async function waitForPromptOutputMetadata(page) {
+  await page.waitForFunction(
+    () =>
+      window.visibleElements(".prompt-output-container").some((element) => {
+        const textContent = window.normalizeText(element.textContent);
+        const hasResponseTime = /\b\d+(?:\.\d+)?s\b/.test(textContent);
+        const hasCost =
+          textContent.includes("<0.1") || /\b\d+\.\d+\b/.test(textContent);
+        const hasTokenCount = /\b\d+\b/.test(textContent);
+        return hasResponseTime && hasCost && hasTokenCount;
+      }),
+    { timeout: 120000 },
   );
 }
 
@@ -957,33 +1334,6 @@ async function clickDialogButton(page, text) {
   assert(clicked, `Could not click dialog button ${text}.`);
 }
 
-async function typeIntoVisibleInput(page, value) {
-  await page.waitForFunction(
-    () => window.visibleElements("input").some((input) => !input.disabled),
-    { timeout: 30000 },
-  );
-  const inputs = await page.$$("input");
-  for (const input of inputs) {
-    const visible = await input.evaluate((element) => {
-      const style = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return (
-        !element.disabled &&
-        style.visibility !== "hidden" &&
-        style.display !== "none" &&
-        rect.width > 0 &&
-        rect.height > 0
-      );
-    });
-    if (!visible) continue;
-    await input.click({ clickCount: 3 });
-    await page.keyboard.press("Backspace");
-    await page.type("input:focus", value);
-    return;
-  }
-  throw new Error("No visible input found.");
-}
-
 async function typeIntoDialogInput(page, value) {
   await page.waitForFunction(
     () => {
@@ -1089,6 +1439,39 @@ function unwrapResult(body) {
   return body;
 }
 
+function trackSocketPayload(statuses, event, direction) {
+  const payload = typeof event === "string" ? event : event?.payload;
+  if (!payload) return;
+  try {
+    const body = JSON.parse(payload);
+    const status = body?.streaming_status || body?.type;
+    if (status) statuses.push(`${direction}:${status}`);
+  } catch {
+    // Ignore non-JSON control frames.
+  }
+}
+
+function uniqueValues(values) {
+  return Array.from(new Set(values));
+}
+
+function modelParameterRequestObserved(requests, model) {
+  return requests.some((requestLabel) => {
+    const match = requestLabel.match(/https?:\/\/\S+$/);
+    if (!match) return false;
+    try {
+      const url = new URL(match[0]);
+      return (
+        url.pathname.endsWith("/model-hub/api/model_parameters/") &&
+        url.searchParams.get("model") === model.model_name &&
+        url.searchParams.get("provider") === model.providers
+      );
+    } catch {
+      return false;
+    }
+  });
+}
+
 async function parseWorkbenchFolderId(page) {
   const pathname = await page.evaluate(() => window.location.pathname);
   const match = pathname.match(/\/dashboard\/workbench\/([0-9a-f-]{36})$/i);
@@ -1096,7 +1479,9 @@ async function parseWorkbenchFolderId(page) {
 }
 
 function isPromptWorkbenchApiUrl(url) {
-  return url.includes("/model-hub/prompt-");
+  return (
+    url.includes("/model-hub/prompt-") || url.includes("/model-hub/api/model_")
+  );
 }
 
 function shortRunId(runId) {
