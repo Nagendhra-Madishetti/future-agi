@@ -1,0 +1,2864 @@
+{
+  "id": "4a6498c5-975a-4fe3-aa5c-c1704b9a9ace",
+  "phone_number": "+18639377317",
+  "customer_name": "+18639377317",
+  "call_id": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+  "status": "completed",
+  "started_at": "2026-05-20T19:45:23.396Z",
+  "duration_seconds": 3,
+  "recording_url": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/7382520e-69a7-4586-8731-69146614ce08.mp3",
+  "cost_cents": 0.38999999999999996,
+  "cost_breakdown": {
+    "stt": 0.001,
+    "llm": 0,
+    "tts": 0,
+    "vapi": 0.0029,
+    "transport": 0,
+    "total": 0.0039
+  },
+  "call_metadata": {
+    "provider": "vapi",
+    "provider_log_id": "019e46eb-dbd4-7000-a3b0-171e18d3f65c"
+  },
+  "error_message": null,
+  "transcript": [
+    {
+      "id": "764079bb-5b2c-42c6-bff8-ff289f9b8af1",
+      "role": "bot",
+      "content": "Hello?",
+      "time": "2026-05-20T19:45:24.254000",
+      "duration": 0.77
+    }
+  ],
+  "created_at": "2026-05-20T19:45:22.900Z",
+  "recording": {
+    "mono": {
+      "combined_url": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/7382520e-69a7-4586-8731-69146614ce08.mp3",
+      "customer_url": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/07efb3a4-8ecb-46da-bfac-3760ddf28b23.mp3",
+      "assistant_url": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/38774645-5ace-4d09-afb9-983092d3163f.mp3"
+    },
+    "stereo_url": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/f09ffad3-3308-41df-a6fa-e8435f985f90.mp3"
+  },
+  "stereo_recording_url": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/f09ffad3-3308-41df-a6fa-e8435f985f90.mp3",
+  "call_summary": "",
+  "ended_reason": "customer-ended-call",
+  "overall_score": null,
+  "response_time_ms": null,
+  "response_time_seconds": null,
+  "messages": [
+    {
+      "role": "system",
+      "time": null,
+      "source": null,
+      "end_time": null,
+      "message": "# Takataka Tara Brewery Tour - Voice Appointment Booking Agent\n\n## System Context\nYou are a friendly, conversational voice agent for Takataka Tara Brewery. Your role is to help customers book brewery tour appointments by checking real-time availability and confirming bookings.\n\n## Core Responsibilities\n1. **Understand customer intent** - Identify when someone wants to book a tour\n2. **Check availability** - Query the availability system for open slots\n3. **Gather information** - Collect necessary booking details from the customer\n4. **Confirm & book** - Provide confirmation and complete the reservation\n5. **Handle inquiries** - Answer basic questions about tours, brewery, facilities\n\n## Language Capability\n- Detect the customer's language preference from their initial message\n- Respond in the detected language throughout the conversation\n- If uncertain, politely ask which language they prefer\n- Supported languages: English, Spanish, French, German, Italian, Portuguese, Japanese, Mandarin, Hindi, and any other language the customer initiates with\n- Maintain the same language consistency unless the customer switches\n\n## Available Tour Slots (Example - Connect to Real Database)\n\nMorning Tours: 9:00 AM, 10:00 AM, 11:00 AM\nAfternoon Tours: 2:00 PM, 3:00 PM, 4:00 PM\nEvening Tours: 6:00 PM, 7:00 PM (Weekends only)\n\nOperating Days: Tuesday - Sunday\nClosed: Mondays\n\nTour Duration: 90 minutes\nGroup Size: 2-12 people\nPrice: $45 per person\n\n\n## Information Collection Checklist\n- [ ] Preferred tour date\n- [ ] Preferred time slot\n- [ ] Number of guests\n- [ ] Customer name\n- [ ] Contact phone number\n- [ ] Email address\n- [ ] Any dietary restrictions or accessibility needs\n- [ ] Special occasions or notes\n\n## Conversation Flow\n\n### Opening\n- Greet warmly and identify your language\n- Example: \"Hi there! Welcome to Takataka Tara Brewery. I'm here to help you book a brewery tour. What language would you prefer to speak in?\"\n\n### Tour Details Inquiry\n- Ask about preferred date and time\n- Confirm group size\n- Check availability in real-time\n- Offer alternative slots if preferred time is unavailable\n\n### Booking Confirmation\n- Summarize all details back to customer\n- Provide booking reference number\n- Confirm contact information\n- Mention cancellation/modification policy\n- Provide brewery location and parking info\n\n### Closing\n- Thank the customer\n- Provide confirmation email details\n- Invite questions\n\n## Important Guidelines\n\n### Tone & Style\n- Warm, enthusiastic, and knowledgeable about brewery tours\n- Patient and accommodating\n- Professional but conversational\n- Use natural pauses in speech\n- Show genuine interest in the customer's visit\n\n### Handling Edge Cases\n- **Language mixing**: If customer switches between languages, follow their lead\n- **Group size limits**: Politely suggest splitting into two tours if group exceeds 12\n- **Unavailable times**: Offer 2-3 alternative slots with enthusiasm\n- **Accessibility needs**: Take detailed notes and ensure follow-up\n- **Special requests**: Note them and confirm they'll be accommodated\n\n### Information Management\n- Always confirm details before finalizing\n- Never assume; ask clarifying questions\n- Repeat critical information back\n- Handle special characters in names with grace\n- Verify phone/email clearly (spell out if needed)\n\n### Tour Information to Share (If Asked)\n- Duration: 90 minutes including tasting\n- Experience: Behind-the-scenes brewery tour + 3 craft beer tastings\n- Includes: Complimentary brewery merchandise (pint glass)\n- Parking: Free on-site parking available\n- Accessibility: Wheelchair accessible areas (notify ahead for specific accommodations)\n- Food: Small appetizer board included for groups of 6+\n- No prior beer knowledge required\n\n### Cancellation & Modification Policy\n- Free cancellation up to 48 hours before\n- Modifications available up to 72 hours before\n- Cancellations within 48 hours forfeit 50% of payment\n- Group reductions allowed with 48-hour notice\n\n## Safety & Compliance\n- Verify customer is 21+ for alcohol tasting (ask directly in initial chat)\n- Do not book minors without explicit adult guardian confirmation\n- Flag any concerning interactions for human review\n- Protect customer privacy; never share contact info with third parties\n- GDPR/Privacy compliant data handling\n\n## Escalation Triggers\n- Customer disputes regarding booking\n- Accessibility requirements beyond standard accommodation\n- Group sizes significantly exceeding capacity\n- Special event inquiries (private group, corporate events)\n- Technical issues with payment or confirmation\n- Any customer expressing dissatisfaction\n\n**Action**: Route to human agent with context provided\n\n## Example Conversation (English)\n\n**Agent**: \"Hi! Welcome to Takataka Tara Brewery. I'm your tour booking assistant. When would you like to visit us for a brewery tour?\"\n\n**Customer**: \"Next Saturday if you have availability.\"\n\n**Agent**: \"Great choice! We have some wonderful slots available next Saturday. We offer tours at 9 AM, 10 AM, 11 AM, 2 PM, 3 PM, and 4 PM. How many people will be joining you, and which time works best?\"\n\n**Customer**: \"Four of us, and afternoon would be better. 2 PM sounds perfect.\"\n\n**Agent**: \"Perfect! Four guests at 2 PM next Saturday. That's all set. Now, I just need a few details to complete your booking. What's your name?\"\n\n**Customer**: \"Sarah Mitchell.\"\n\n**Agent**: \"Great, Sarah. And what's the best phone number to reach you?\"\n\n**Customer**: \"555-0147.\"\n\n**Agent**: \"Just to confirm, that's 555-0147. And could I also get an email address for your confirmation?\"\n\n**Customer**: \"sarah.mitchell@email.com\"\n\n**Agent**: \"Wonderful! So to recap: Four guests for the 2 PM tour next Saturday with confirmation to sarah.mitchell@email.com. Your booking reference is BT-SAT-2PM-047. You'll receive a confirmation email shortly. Do you have any questions about the tour, or any dietary restrictions I should note?\"\n\n**Customer**: \"No questions. See you then!\"\n\n**Agent**: \"Perfect! Thanks for booking with Takataka Tara Brewery. We're excited to see you. See you Saturday!\"\n\n## Multilingual Example (Spanish)\n\n**Agent**: \"¡Hola! Bienvenido a Takataka Tara Brewery. Soy tu asistente de reservas de tours. ¿Cuándo te gustaría visitarnos para una cata de cerveza?\"\n\n[Continues in Spanish with same flow]\n\n## Performance Metrics to Track\n- Booking completion rate\n- Average conversation duration\n- Customer satisfaction (post-call survey)\n- Escalation rate\n- Language detection accuracy\n- Error rate in data collection\n\n## Continuous Improvement\n- Log failed booking attempts for analysis\n- Note common customer questions not addressed\n- Collect feedback on tone and helpfulness\n- Monitor language-specific edge cases\n- A/B test different greeting approaches",
+      "duration": null,
+      "seconds_from_start": null,
+      "metadata": null
+    },
+    {
+      "role": "bot",
+      "time": 0.858,
+      "source": "",
+      "end_time": 1.629,
+      "message": "Hello?",
+      "duration": 0.77,
+      "seconds_from_start": 0.858,
+      "metadata": null
+    }
+  ],
+  "assistant_id": "8047f0f9-3769-4b0d-99cf-3b3868e09663",
+  "assistant_phone_number": null,
+  "call_type": "inbound",
+  "ended_at": "2026-05-20T19:45:26.862Z",
+  "analysis_data": {
+    "summary": null,
+    "success_evaluation": null
+  },
+  "evaluation_data": null,
+  "message_count": 2,
+  "transcript_available": true,
+  "recording_available": true,
+  "observation_span": [
+    {
+      "id": "3453da38-8eed-473e-8128-bbc02e2062be",
+      "project": "586ea737-3195-417b-84ac-5712c019ecb8",
+      "project_version": null,
+      "trace": "4a6498c5-975a-4fe3-aa5c-c1704b9a9ace",
+      "parent_span_id": null,
+      "name": "Vapi Call Log",
+      "observation_type": "conversation",
+      "start_time": "2026-05-20T19:45:22.900000Z",
+      "end_time": "2026-05-20T19:45:26.862000Z",
+      "input": {},
+      "output": {},
+      "model": null,
+      "model_parameters": null,
+      "latency_ms": null,
+      "org_id": null,
+      "org_user_id": null,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 0,
+      "response_time": null,
+      "eval_id": null,
+      "cost": 0.0039,
+      "status": "ok",
+      "status_message": null,
+      "tags": [],
+      "metadata": {
+        "provider": "vapi",
+        "provider_log_id": "019e46eb-dbd4-7000-a3b0-171e18d3f65c"
+      },
+      "span_events": [],
+      "provider": "vapi",
+      "provider_logo": null,
+      "span_attributes": {
+        "raw_log": {
+          "id": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+          "cost": 0.0039,
+          "type": "inboundPhoneCall",
+          "costs": [
+            {
+              "cost": 0.000963585,
+              "type": "transcriber",
+              "minutes": 0.10011666666666666,
+              "transcriber": {
+                "model": "flux-general-en",
+                "provider": "deepgram"
+              }
+            },
+            {
+              "cost": 0,
+              "type": "model",
+              "model": {
+                "model": "gpt-4.1",
+                "provider": "openai"
+              },
+              "promptTokens": 0,
+              "completionTokens": 0,
+              "cachedPromptTokens": 0
+            },
+            {
+              "cost": 0,
+              "type": "voice",
+              "voice": {
+                "model": "eleven_turbo_v2_5",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "provider": "vapi"
+              },
+              "characters": 0
+            },
+            {
+              "cost": 0.00289,
+              "type": "vapi",
+              "minutes": 0.0578,
+              "subType": "normal"
+            },
+            {
+              "cost": 0,
+              "type": "knowledge-base",
+              "model": {
+                "model": "gemini-2.5-flash",
+                "provider": "google"
+              },
+              "promptTokens": 0,
+              "completionTokens": 0
+            }
+          ],
+          "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+          "status": "ended",
+          "endedAt": "2026-05-20T19:45:26.862Z",
+          "monitor": {
+            "listenUrl": "wss://phone-call-websocket.aws-us-west-2-backend-production1.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c/listen",
+            "controlUrl": "https://phone-call-websocket.aws-us-west-2-backend-production1.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c/control"
+          },
+          "summary": "",
+          "analysis": {},
+          "artifact": {
+            "nodes": [],
+            "logUrl": "https://calllogs.vapi.ai/f630cf58-cbd0-4cf8-957a-af31d15223a7/019e46eb-dbd4-7000-a3b0-171e18d3f65c-d37427d2-444a-470f-8fe9-33437b4ffc56-1779306329953.jsonl.gz",
+            "pcapUrl": "https://storage.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c-1779306329691-7acaecc6-acb1-4acb-bcc3-74e99c9a9322-sip.pcap",
+            "messages": [
+              {
+                "role": "system",
+                "time": 1779306323206,
+                "message": "# Takataka Tara Brewery Tour - Voice Appointment Booking Agent\n\n## System Context\nYou are a friendly, conversational voice agent for Takataka Tara Brewery. Your role is to help customers book brewery tour appointments by checking real-time availability and confirming bookings.\n\n## Core Responsibilities\n1. **Understand customer intent** - Identify when someone wants to book a tour\n2. **Check availability** - Query the availability system for open slots\n3. **Gather information** - Collect necessary booking details from the customer\n4. **Confirm & book** - Provide confirmation and complete the reservation\n5. **Handle inquiries** - Answer basic questions about tours, brewery, facilities\n\n## Language Capability\n- Detect the customer's language preference from their initial message\n- Respond in the detected language throughout the conversation\n- If uncertain, politely ask which language they prefer\n- Supported languages: English, Spanish, French, German, Italian, Portuguese, Japanese, Mandarin, Hindi, and any other language the customer initiates with\n- Maintain the same language consistency unless the customer switches\n\n## Available Tour Slots (Example - Connect to Real Database)\n\nMorning Tours: 9:00 AM, 10:00 AM, 11:00 AM\nAfternoon Tours: 2:00 PM, 3:00 PM, 4:00 PM\nEvening Tours: 6:00 PM, 7:00 PM (Weekends only)\n\nOperating Days: Tuesday - Sunday\nClosed: Mondays\n\nTour Duration: 90 minutes\nGroup Size: 2-12 people\nPrice: $45 per person\n\n\n## Information Collection Checklist\n- [ ] Preferred tour date\n- [ ] Preferred time slot\n- [ ] Number of guests\n- [ ] Customer name\n- [ ] Contact phone number\n- [ ] Email address\n- [ ] Any dietary restrictions or accessibility needs\n- [ ] Special occasions or notes\n\n## Conversation Flow\n\n### Opening\n- Greet warmly and identify your language\n- Example: \"Hi there! Welcome to Takataka Tara Brewery. I'm here to help you book a brewery tour. What language would you prefer to speak in?\"\n\n### Tour Details Inquiry\n- Ask about preferred date and time\n- Confirm group size\n- Check availability in real-time\n- Offer alternative slots if preferred time is unavailable\n\n### Booking Confirmation\n- Summarize all details back to customer\n- Provide booking reference number\n- Confirm contact information\n- Mention cancellation/modification policy\n- Provide brewery location and parking info\n\n### Closing\n- Thank the customer\n- Provide confirmation email details\n- Invite questions\n\n## Important Guidelines\n\n### Tone & Style\n- Warm, enthusiastic, and knowledgeable about brewery tours\n- Patient and accommodating\n- Professional but conversational\n- Use natural pauses in speech\n- Show genuine interest in the customer's visit\n\n### Handling Edge Cases\n- **Language mixing**: If customer switches between languages, follow their lead\n- **Group size limits**: Politely suggest splitting into two tours if group exceeds 12\n- **Unavailable times**: Offer 2-3 alternative slots with enthusiasm\n- **Accessibility needs**: Take detailed notes and ensure follow-up\n- **Special requests**: Note them and confirm they'll be accommodated\n\n### Information Management\n- Always confirm details before finalizing\n- Never assume; ask clarifying questions\n- Repeat critical information back\n- Handle special characters in names with grace\n- Verify phone/email clearly (spell out if needed)\n\n### Tour Information to Share (If Asked)\n- Duration: 90 minutes including tasting\n- Experience: Behind-the-scenes brewery tour + 3 craft beer tastings\n- Includes: Complimentary brewery merchandise (pint glass)\n- Parking: Free on-site parking available\n- Accessibility: Wheelchair accessible areas (notify ahead for specific accommodations)\n- Food: Small appetizer board included for groups of 6+\n- No prior beer knowledge required\n\n### Cancellation & Modification Policy\n- Free cancellation up to 48 hours before\n- Modifications available up to 72 hours before\n- Cancellations within 48 hours forfeit 50% of payment\n- Group reductions allowed with 48-hour notice\n\n## Safety & Compliance\n- Verify customer is 21+ for alcohol tasting (ask directly in initial chat)\n- Do not book minors without explicit adult guardian confirmation\n- Flag any concerning interactions for human review\n- Protect customer privacy; never share contact info with third parties\n- GDPR/Privacy compliant data handling\n\n## Escalation Triggers\n- Customer disputes regarding booking\n- Accessibility requirements beyond standard accommodation\n- Group sizes significantly exceeding capacity\n- Special event inquiries (private group, corporate events)\n- Technical issues with payment or confirmation\n- Any customer expressing dissatisfaction\n\n**Action**: Route to human agent with context provided\n\n## Example Conversation (English)\n\n**Agent**: \"Hi! Welcome to Takataka Tara Brewery. I'm your tour booking assistant. When would you like to visit us for a brewery tour?\"\n\n**Customer**: \"Next Saturday if you have availability.\"\n\n**Agent**: \"Great choice! We have some wonderful slots available next Saturday. We offer tours at 9 AM, 10 AM, 11 AM, 2 PM, 3 PM, and 4 PM. How many people will be joining you, and which time works best?\"\n\n**Customer**: \"Four of us, and afternoon would be better. 2 PM sounds perfect.\"\n\n**Agent**: \"Perfect! Four guests at 2 PM next Saturday. That's all set. Now, I just need a few details to complete your booking. What's your name?\"\n\n**Customer**: \"Sarah Mitchell.\"\n\n**Agent**: \"Great, Sarah. And what's the best phone number to reach you?\"\n\n**Customer**: \"555-0147.\"\n\n**Agent**: \"Just to confirm, that's 555-0147. And could I also get an email address for your confirmation?\"\n\n**Customer**: \"sarah.mitchell@email.com\"\n\n**Agent**: \"Wonderful! So to recap: Four guests for the 2 PM tour next Saturday with confirmation to sarah.mitchell@email.com. Your booking reference is BT-SAT-2PM-047. You'll receive a confirmation email shortly. Do you have any questions about the tour, or any dietary restrictions I should note?\"\n\n**Customer**: \"No questions. See you then!\"\n\n**Agent**: \"Perfect! Thanks for booking with Takataka Tara Brewery. We're excited to see you. See you Saturday!\"\n\n## Multilingual Example (Spanish)\n\n**Agent**: \"¡Hola! Bienvenido a Takataka Tara Brewery. Soy tu asistente de reservas de tours. ¿Cuándo te gustaría visitarnos para una cata de cerveza?\"\n\n[Continues in Spanish with same flow]\n\n## Performance Metrics to Track\n- Booking completion rate\n- Average conversation duration\n- Customer satisfaction (post-call survey)\n- Escalation rate\n- Language detection accuracy\n- Error rate in data collection\n\n## Continuous Improvement\n- Log failed booking attempts for analysis\n- Note common customer questions not addressed\n- Collect feedback on tone and helpfulness\n- Monitor language-specific edge cases\n- A/B test different greeting approaches",
+                "secondsFromStart": 0
+              },
+              {
+                "role": "bot",
+                "time": 1779306324254,
+                "source": "",
+                "endTime": 1779306325025,
+                "message": "Hello?",
+                "duration": 771,
+                "secondsFromStart": 0.858
+              }
+            ],
+            "recording": {
+              "mono": {
+                "combinedUrl": "https://storage.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c-1779306329462-fa3900bf-b2b4-4ae1-b0c2-8a2dc23136e0-mono.wav",
+                "customerUrl": "https://storage.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c-1779306329462-af329a0a-2186-4bbf-b41d-695a286adfe3-mono.wav",
+                "assistantUrl": "https://storage.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c-1779306329462-2c2cdf2f-6435-4041-99e0-21266558368e-mono.wav"
+              },
+              "stereoUrl": "https://storage.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c-1779306329462-e2ef3130-eab5-44de-8e99-b1ae1a30fd0d-stereo.wav"
+            },
+            "transfers": [],
+            "variables": {
+              "cid": "943400966-3988295122-417162083@msc1.382COM.COM",
+              "day": "20",
+              "now": "May 20, 2026, 7:45 PM UTC",
+              "call": {
+                "id": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "type": "inboundPhoneCall",
+                "status": "ringing",
+                "createdAt": "2026-05-20T19:45:22.900Z",
+                "transport": {
+                  "callSid": "4afb5529-8e4b-4c70-b631-134d3f8f6d05",
+                  "provider": "vapi.sip",
+                  "sbcCallSid": "943400966-3988295122-417162083@msc1.382COM.COM",
+                  "conversationType": "voice"
+                },
+                "phoneCallProvider": "vapi"
+              },
+              "date": "May 20, 2026 UTC",
+              "time": "7:45 PM UTC",
+              "year": "2026",
+              "month": "May",
+              "customer": {
+                "number": "+18639377317",
+                "sipUri": "sip:+18639377317@44.229.228.186:5060"
+              },
+              "transport": {
+                "callSid": "4afb5529-8e4b-4c70-b631-134d3f8f6d05",
+                "provider": "vapi.sip",
+                "sbcCallSid": "943400966-3988295122-417162083@msc1.382COM.COM",
+                "conversationType": "voice"
+              },
+              "account-sid": "c033b672-5b99-42ae-9ce2-b231e9a522fb",
+              "phoneNumber": {
+                "id": "87cc82b4-323e-49ba-a445-36d4e1e1b25c",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "number": "+13463967116",
+                "status": "active",
+                "provider": "vapi",
+                "createdAt": "2026-04-21T10:01:35.510Z",
+                "updatedAt": "2026-04-21T10:03:35.743Z",
+                "assistantId": "8047f0f9-3769-4b0d-99cf-3b3868e09663",
+                "providerResourceId": "fd48d03d-d15f-4686-8c95-930ca630dfec"
+              },
+              "forwarded-for": "64.125.111.10",
+              "application-sid": "79d078c8-76b2-452a-99e0-ddd5abbf6269",
+              "currentDateTime": "Wednesday, May 20, 2026 at 7:45 PM UTC",
+              "voip-carrier-sid": "a5569621-84ac-49cc-a8b8-11c7fb96b905",
+              "originating-carrier": "382com"
+            },
+            "scorecards": {},
+            "transcript": "AI: Hello?\n",
+            "recordingUrl": "https://storage.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c-1779306329462-fa3900bf-b2b4-4ae1-b0c2-8a2dc23136e0-mono.wav",
+            "variableValues": {
+              "cid": "943400966-3988295122-417162083@msc1.382COM.COM",
+              "day": "20",
+              "now": "May 20, 2026, 7:45 PM UTC",
+              "call": {
+                "id": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "type": "inboundPhoneCall",
+                "status": "ringing",
+                "createdAt": "2026-05-20T19:45:22.900Z",
+                "transport": {
+                  "callSid": "4afb5529-8e4b-4c70-b631-134d3f8f6d05",
+                  "provider": "vapi.sip",
+                  "sbcCallSid": "943400966-3988295122-417162083@msc1.382COM.COM",
+                  "conversationType": "voice"
+                },
+                "phoneCallProvider": "vapi"
+              },
+              "date": "May 20, 2026 UTC",
+              "time": "7:45 PM UTC",
+              "year": "2026",
+              "month": "May",
+              "customer": {
+                "number": "+18639377317",
+                "sipUri": "sip:+18639377317@44.229.228.186:5060"
+              },
+              "transport": {
+                "callSid": "4afb5529-8e4b-4c70-b631-134d3f8f6d05",
+                "provider": "vapi.sip",
+                "sbcCallSid": "943400966-3988295122-417162083@msc1.382COM.COM",
+                "conversationType": "voice"
+              },
+              "account-sid": "c033b672-5b99-42ae-9ce2-b231e9a522fb",
+              "phoneNumber": {
+                "id": "87cc82b4-323e-49ba-a445-36d4e1e1b25c",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "number": "+13463967116",
+                "status": "active",
+                "provider": "vapi",
+                "createdAt": "2026-04-21T10:01:35.510Z",
+                "updatedAt": "2026-04-21T10:03:35.743Z",
+                "assistantId": "8047f0f9-3769-4b0d-99cf-3b3868e09663",
+                "providerResourceId": "fd48d03d-d15f-4686-8c95-930ca630dfec"
+              },
+              "forwarded-for": "64.125.111.10",
+              "application-sid": "79d078c8-76b2-452a-99e0-ddd5abbf6269",
+              "currentDateTime": "Wednesday, May 20, 2026 at 7:45 PM UTC",
+              "voip-carrier-sid": "a5569621-84ac-49cc-a8b8-11c7fb96b905",
+              "originating-carrier": "382com"
+            },
+            "performanceMetrics": {
+              "turnLatencies": [],
+              "numUserInterrupted": 0,
+              "turnLatencyAverage": 0,
+              "modelLatencyAverage": 0,
+              "voiceLatencyAverage": 0,
+              "numAssistantInterrupted": 0,
+              "endpointingLatencyAverage": 0,
+              "toTransportLatencyAverage": 20,
+              "transcriberLatencyAverage": 0,
+              "fromTransportLatencyAverage": 20
+            },
+            "stereoRecordingUrl": "https://storage.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c-1779306329462-e2ef3130-eab5-44de-8e99-b1ae1a30fd0d-stereo.wav",
+            "assistantActivations": [
+              {
+                "assistantId": "8047f0f9-3769-4b0d-99cf-3b3868e09663",
+                "assistantName": "Brew buddy"
+              }
+            ],
+            "messagesOpenAIFormatted": [
+              {
+                "role": "system",
+                "content": "# Takataka Tara Brewery Tour - Voice Appointment Booking Agent\n\n## System Context\nYou are a friendly, conversational voice agent for Takataka Tara Brewery. Your role is to help customers book brewery tour appointments by checking real-time availability and confirming bookings.\n\n## Core Responsibilities\n1. **Understand customer intent** - Identify when someone wants to book a tour\n2. **Check availability** - Query the availability system for open slots\n3. **Gather information** - Collect necessary booking details from the customer\n4. **Confirm & book** - Provide confirmation and complete the reservation\n5. **Handle inquiries** - Answer basic questions about tours, brewery, facilities\n\n## Language Capability\n- Detect the customer's language preference from their initial message\n- Respond in the detected language throughout the conversation\n- If uncertain, politely ask which language they prefer\n- Supported languages: English, Spanish, French, German, Italian, Portuguese, Japanese, Mandarin, Hindi, and any other language the customer initiates with\n- Maintain the same language consistency unless the customer switches\n\n## Available Tour Slots (Example - Connect to Real Database)\n\nMorning Tours: 9:00 AM, 10:00 AM, 11:00 AM\nAfternoon Tours: 2:00 PM, 3:00 PM, 4:00 PM\nEvening Tours: 6:00 PM, 7:00 PM (Weekends only)\n\nOperating Days: Tuesday - Sunday\nClosed: Mondays\n\nTour Duration: 90 minutes\nGroup Size: 2-12 people\nPrice: $45 per person\n\n\n## Information Collection Checklist\n- [ ] Preferred tour date\n- [ ] Preferred time slot\n- [ ] Number of guests\n- [ ] Customer name\n- [ ] Contact phone number\n- [ ] Email address\n- [ ] Any dietary restrictions or accessibility needs\n- [ ] Special occasions or notes\n\n## Conversation Flow\n\n### Opening\n- Greet warmly and identify your language\n- Example: \"Hi there! Welcome to Takataka Tara Brewery. I'm here to help you book a brewery tour. What language would you prefer to speak in?\"\n\n### Tour Details Inquiry\n- Ask about preferred date and time\n- Confirm group size\n- Check availability in real-time\n- Offer alternative slots if preferred time is unavailable\n\n### Booking Confirmation\n- Summarize all details back to customer\n- Provide booking reference number\n- Confirm contact information\n- Mention cancellation/modification policy\n- Provide brewery location and parking info\n\n### Closing\n- Thank the customer\n- Provide confirmation email details\n- Invite questions\n\n## Important Guidelines\n\n### Tone & Style\n- Warm, enthusiastic, and knowledgeable about brewery tours\n- Patient and accommodating\n- Professional but conversational\n- Use natural pauses in speech\n- Show genuine interest in the customer's visit\n\n### Handling Edge Cases\n- **Language mixing**: If customer switches between languages, follow their lead\n- **Group size limits**: Politely suggest splitting into two tours if group exceeds 12\n- **Unavailable times**: Offer 2-3 alternative slots with enthusiasm\n- **Accessibility needs**: Take detailed notes and ensure follow-up\n- **Special requests**: Note them and confirm they'll be accommodated\n\n### Information Management\n- Always confirm details before finalizing\n- Never assume; ask clarifying questions\n- Repeat critical information back\n- Handle special characters in names with grace\n- Verify phone/email clearly (spell out if needed)\n\n### Tour Information to Share (If Asked)\n- Duration: 90 minutes including tasting\n- Experience: Behind-the-scenes brewery tour + 3 craft beer tastings\n- Includes: Complimentary brewery merchandise (pint glass)\n- Parking: Free on-site parking available\n- Accessibility: Wheelchair accessible areas (notify ahead for specific accommodations)\n- Food: Small appetizer board included for groups of 6+\n- No prior beer knowledge required\n\n### Cancellation & Modification Policy\n- Free cancellation up to 48 hours before\n- Modifications available up to 72 hours before\n- Cancellations within 48 hours forfeit 50% of payment\n- Group reductions allowed with 48-hour notice\n\n## Safety & Compliance\n- Verify customer is 21+ for alcohol tasting (ask directly in initial chat)\n- Do not book minors without explicit adult guardian confirmation\n- Flag any concerning interactions for human review\n- Protect customer privacy; never share contact info with third parties\n- GDPR/Privacy compliant data handling\n\n## Escalation Triggers\n- Customer disputes regarding booking\n- Accessibility requirements beyond standard accommodation\n- Group sizes significantly exceeding capacity\n- Special event inquiries (private group, corporate events)\n- Technical issues with payment or confirmation\n- Any customer expressing dissatisfaction\n\n**Action**: Route to human agent with context provided\n\n## Example Conversation (English)\n\n**Agent**: \"Hi! Welcome to Takataka Tara Brewery. I'm your tour booking assistant. When would you like to visit us for a brewery tour?\"\n\n**Customer**: \"Next Saturday if you have availability.\"\n\n**Agent**: \"Great choice! We have some wonderful slots available next Saturday. We offer tours at 9 AM, 10 AM, 11 AM, 2 PM, 3 PM, and 4 PM. How many people will be joining you, and which time works best?\"\n\n**Customer**: \"Four of us, and afternoon would be better. 2 PM sounds perfect.\"\n\n**Agent**: \"Perfect! Four guests at 2 PM next Saturday. That's all set. Now, I just need a few details to complete your booking. What's your name?\"\n\n**Customer**: \"Sarah Mitchell.\"\n\n**Agent**: \"Great, Sarah. And what's the best phone number to reach you?\"\n\n**Customer**: \"555-0147.\"\n\n**Agent**: \"Just to confirm, that's 555-0147. And could I also get an email address for your confirmation?\"\n\n**Customer**: \"sarah.mitchell@email.com\"\n\n**Agent**: \"Wonderful! So to recap: Four guests for the 2 PM tour next Saturday with confirmation to sarah.mitchell@email.com. Your booking reference is BT-SAT-2PM-047. You'll receive a confirmation email shortly. Do you have any questions about the tour, or any dietary restrictions I should note?\"\n\n**Customer**: \"No questions. See you then!\"\n\n**Agent**: \"Perfect! Thanks for booking with Takataka Tara Brewery. We're excited to see you. See you Saturday!\"\n\n## Multilingual Example (Spanish)\n\n**Agent**: \"¡Hola! Bienvenido a Takataka Tara Brewery. Soy tu asistente de reservas de tours. ¿Cuándo te gustaría visitarnos para una cata de cerveza?\"\n\n[Continues in Spanish with same flow]\n\n## Performance Metrics to Track\n- Booking completion rate\n- Average conversation duration\n- Customer satisfaction (post-call survey)\n- Escalation rate\n- Language detection accuracy\n- Error rate in data collection\n\n## Continuous Improvement\n- Log failed booking attempts for analysis\n- Note common customer questions not addressed\n- Collect feedback on tone and helpfulness\n- Monitor language-specific edge cases\n- A/B test different greeting approaches"
+              },
+              {
+                "role": "assistant",
+                "content": "Hello?"
+              }
+            ]
+          },
+          "customer": {
+            "number": "+18639377317",
+            "sipUri": "sip:+18639377317@44.229.228.186:5060"
+          },
+          "messages": [
+            {
+              "role": "system",
+              "time": 1779306323206,
+              "message": "# Takataka Tara Brewery Tour - Voice Appointment Booking Agent\n\n## System Context\nYou are a friendly, conversational voice agent for Takataka Tara Brewery. Your role is to help customers book brewery tour appointments by checking real-time availability and confirming bookings.\n\n## Core Responsibilities\n1. **Understand customer intent** - Identify when someone wants to book a tour\n2. **Check availability** - Query the availability system for open slots\n3. **Gather information** - Collect necessary booking details from the customer\n4. **Confirm & book** - Provide confirmation and complete the reservation\n5. **Handle inquiries** - Answer basic questions about tours, brewery, facilities\n\n## Language Capability\n- Detect the customer's language preference from their initial message\n- Respond in the detected language throughout the conversation\n- If uncertain, politely ask which language they prefer\n- Supported languages: English, Spanish, French, German, Italian, Portuguese, Japanese, Mandarin, Hindi, and any other language the customer initiates with\n- Maintain the same language consistency unless the customer switches\n\n## Available Tour Slots (Example - Connect to Real Database)\n\nMorning Tours: 9:00 AM, 10:00 AM, 11:00 AM\nAfternoon Tours: 2:00 PM, 3:00 PM, 4:00 PM\nEvening Tours: 6:00 PM, 7:00 PM (Weekends only)\n\nOperating Days: Tuesday - Sunday\nClosed: Mondays\n\nTour Duration: 90 minutes\nGroup Size: 2-12 people\nPrice: $45 per person\n\n\n## Information Collection Checklist\n- [ ] Preferred tour date\n- [ ] Preferred time slot\n- [ ] Number of guests\n- [ ] Customer name\n- [ ] Contact phone number\n- [ ] Email address\n- [ ] Any dietary restrictions or accessibility needs\n- [ ] Special occasions or notes\n\n## Conversation Flow\n\n### Opening\n- Greet warmly and identify your language\n- Example: \"Hi there! Welcome to Takataka Tara Brewery. I'm here to help you book a brewery tour. What language would you prefer to speak in?\"\n\n### Tour Details Inquiry\n- Ask about preferred date and time\n- Confirm group size\n- Check availability in real-time\n- Offer alternative slots if preferred time is unavailable\n\n### Booking Confirmation\n- Summarize all details back to customer\n- Provide booking reference number\n- Confirm contact information\n- Mention cancellation/modification policy\n- Provide brewery location and parking info\n\n### Closing\n- Thank the customer\n- Provide confirmation email details\n- Invite questions\n\n## Important Guidelines\n\n### Tone & Style\n- Warm, enthusiastic, and knowledgeable about brewery tours\n- Patient and accommodating\n- Professional but conversational\n- Use natural pauses in speech\n- Show genuine interest in the customer's visit\n\n### Handling Edge Cases\n- **Language mixing**: If customer switches between languages, follow their lead\n- **Group size limits**: Politely suggest splitting into two tours if group exceeds 12\n- **Unavailable times**: Offer 2-3 alternative slots with enthusiasm\n- **Accessibility needs**: Take detailed notes and ensure follow-up\n- **Special requests**: Note them and confirm they'll be accommodated\n\n### Information Management\n- Always confirm details before finalizing\n- Never assume; ask clarifying questions\n- Repeat critical information back\n- Handle special characters in names with grace\n- Verify phone/email clearly (spell out if needed)\n\n### Tour Information to Share (If Asked)\n- Duration: 90 minutes including tasting\n- Experience: Behind-the-scenes brewery tour + 3 craft beer tastings\n- Includes: Complimentary brewery merchandise (pint glass)\n- Parking: Free on-site parking available\n- Accessibility: Wheelchair accessible areas (notify ahead for specific accommodations)\n- Food: Small appetizer board included for groups of 6+\n- No prior beer knowledge required\n\n### Cancellation & Modification Policy\n- Free cancellation up to 48 hours before\n- Modifications available up to 72 hours before\n- Cancellations within 48 hours forfeit 50% of payment\n- Group reductions allowed with 48-hour notice\n\n## Safety & Compliance\n- Verify customer is 21+ for alcohol tasting (ask directly in initial chat)\n- Do not book minors without explicit adult guardian confirmation\n- Flag any concerning interactions for human review\n- Protect customer privacy; never share contact info with third parties\n- GDPR/Privacy compliant data handling\n\n## Escalation Triggers\n- Customer disputes regarding booking\n- Accessibility requirements beyond standard accommodation\n- Group sizes significantly exceeding capacity\n- Special event inquiries (private group, corporate events)\n- Technical issues with payment or confirmation\n- Any customer expressing dissatisfaction\n\n**Action**: Route to human agent with context provided\n\n## Example Conversation (English)\n\n**Agent**: \"Hi! Welcome to Takataka Tara Brewery. I'm your tour booking assistant. When would you like to visit us for a brewery tour?\"\n\n**Customer**: \"Next Saturday if you have availability.\"\n\n**Agent**: \"Great choice! We have some wonderful slots available next Saturday. We offer tours at 9 AM, 10 AM, 11 AM, 2 PM, 3 PM, and 4 PM. How many people will be joining you, and which time works best?\"\n\n**Customer**: \"Four of us, and afternoon would be better. 2 PM sounds perfect.\"\n\n**Agent**: \"Perfect! Four guests at 2 PM next Saturday. That's all set. Now, I just need a few details to complete your booking. What's your name?\"\n\n**Customer**: \"Sarah Mitchell.\"\n\n**Agent**: \"Great, Sarah. And what's the best phone number to reach you?\"\n\n**Customer**: \"555-0147.\"\n\n**Agent**: \"Just to confirm, that's 555-0147. And could I also get an email address for your confirmation?\"\n\n**Customer**: \"sarah.mitchell@email.com\"\n\n**Agent**: \"Wonderful! So to recap: Four guests for the 2 PM tour next Saturday with confirmation to sarah.mitchell@email.com. Your booking reference is BT-SAT-2PM-047. You'll receive a confirmation email shortly. Do you have any questions about the tour, or any dietary restrictions I should note?\"\n\n**Customer**: \"No questions. See you then!\"\n\n**Agent**: \"Perfect! Thanks for booking with Takataka Tara Brewery. We're excited to see you. See you Saturday!\"\n\n## Multilingual Example (Spanish)\n\n**Agent**: \"¡Hola! Bienvenido a Takataka Tara Brewery. Soy tu asistente de reservas de tours. ¿Cuándo te gustaría visitarnos para una cata de cerveza?\"\n\n[Continues in Spanish with same flow]\n\n## Performance Metrics to Track\n- Booking completion rate\n- Average conversation duration\n- Customer satisfaction (post-call survey)\n- Escalation rate\n- Language detection accuracy\n- Error rate in data collection\n\n## Continuous Improvement\n- Log failed booking attempts for analysis\n- Note common customer questions not addressed\n- Collect feedback on tone and helpfulness\n- Monitor language-specific edge cases\n- A/B test different greeting approaches",
+              "secondsFromStart": 0
+            },
+            {
+              "role": "bot",
+              "time": 1779306324254,
+              "source": "",
+              "endTime": 1779306325025,
+              "message": "Hello?",
+              "duration": 771,
+              "secondsFromStart": 0.858
+            }
+          ],
+          "createdAt": "2026-05-20T19:45:22.900Z",
+          "startedAt": "2026-05-20T19:45:23.396Z",
+          "transport": {
+            "callSid": "4afb5529-8e4b-4c70-b631-134d3f8f6d05",
+            "provider": "vapi.sip",
+            "sbcCallSid": "943400966-3988295122-417162083@msc1.382COM.COM",
+            "conversationType": "voice"
+          },
+          "updatedAt": "2026-05-20T19:45:30.415Z",
+          "transcript": "AI: Hello?\n",
+          "assistantId": "8047f0f9-3769-4b0d-99cf-3b3868e09663",
+          "endedReason": "customer-ended-call",
+          "recordingUrl": "https://storage.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c-1779306329462-fa3900bf-b2b4-4ae1-b0c2-8a2dc23136e0-mono.wav",
+          "costBreakdown": {
+            "llm": 0,
+            "stt": 0.001,
+            "tts": 0,
+            "chat": 0,
+            "vapi": 0.0029,
+            "total": 0.0039,
+            "transport": 0,
+            "ttsCharacters": 0,
+            "llmPromptTokens": 0,
+            "knowledgeBaseCost": 0,
+            "llmCompletionTokens": 0,
+            "analysisCostBreakdown": {
+              "summary": 0,
+              "structuredData": 0,
+              "structuredOutput": 0,
+              "successEvaluation": 0,
+              "summaryPromptTokens": 0,
+              "summaryCompletionTokens": 0,
+              "summaryCachedPromptTokens": 0,
+              "structuredDataPromptTokens": 0,
+              "structuredOutputPromptTokens": 0,
+              "successEvaluationPromptTokens": 0,
+              "structuredDataCompletionTokens": 0,
+              "structuredDataCachedPromptTokens": 0,
+              "structuredOutputCompletionTokens": 0,
+              "successEvaluationCompletionTokens": 0,
+              "structuredOutputCachedPromptTokens": 0,
+              "successEvaluationCachedPromptTokens": 0
+            },
+            "llmCachedPromptTokens": 0,
+            "voicemailDetectionCost": 0
+          },
+          "phoneNumberId": "87cc82b4-323e-49ba-a445-36d4e1e1b25c",
+          "phoneCallProvider": "vapi",
+          "assistantOverrides": {
+            "variableValues": {
+              "cid": "943400966-3988295122-417162083@msc1.382COM.COM",
+              "account-sid": "c033b672-5b99-42ae-9ce2-b231e9a522fb",
+              "forwarded-for": "64.125.111.10",
+              "application-sid": "79d078c8-76b2-452a-99e0-ddd5abbf6269",
+              "voip-carrier-sid": "a5569621-84ac-49cc-a8b8-11c7fb96b905",
+              "originating-carrier": "382com"
+            }
+          },
+          "phoneCallTransport": "sip",
+          "stereoRecordingUrl": "https://storage.vapi.ai/019e46eb-dbd4-7000-a3b0-171e18d3f65c-1779306329462-e2ef3130-eab5-44de-8e99-b1ae1a30fd0d-stereo.wav",
+          "phoneCallProviderId": "4afb5529-8e4b-4c70-b631-134d3f8f6d05",
+          "phoneCallProviderDetails": {
+            "sip": {
+              "raw": "INVITE sip:3463967116@172.30.4.200:5060 SIP/2.0\r\nVia: SIP/2.0/UDP 44.229.228.186;rport=5060;branch=z9hG4bK9Dy3r71mF6vtF;received=172.31.57.86\r\nMax-Forwards: 70\r\nFrom: <sip:+18639377317@44.229.228.186:5060>;tag=y93DBNt8tDcHN\r\nTo: <sip:3463967116@192.168.250.45>\r\nCall-ID: 47fbf386-cf27-123f-db88-0ec7040a32ad\r\nCSeq: 115099369 INVITE\r\nContact: <sip:172.31.57.86:5060>\r\nAccept: application/sdp\r\nAllow: PUBLISH, MESSAGE, UPDATE, PRACK, SUBSCRIBE, REFER, INFO, NOTIFY, REGISTER, OPTIONS, BYE, INVITE, ACK, CANCEL\r\nSupported: 100rel, timer\r\nMin-SE: 600\r\nPrivacy: none\r\nContent-Type: application/sdp\r\nContent-Length: 301\r\nX-Account-Sid: c033b672-5b99-42ae-9ce2-b231e9a522fb\r\nX-CID: 943400966-3988295122-417162083@msc1.382COM.COM\r\nX-Forwarded-For: 64.125.111.10\r\nX-Originating-Carrier: 382com\r\nX-Voip-Carrier-Sid: a5569621-84ac-49cc-a8b8-11c7fb96b905\r\nX-Application-Sid: 79d078c8-76b2-452a-99e0-ddd5abbf6269\r\nIdentity: eyJhbGciOiJFUzI1NiIsInBwdCI6InNoYWtlbiIsInR5cCI6InBhc3Nwb3J0IiwieDV1IjoiaHR0cHM6Ly9jci5jY2lkLm5ldXN0YXIuYml6L2NjaWQvYXV0aG4vdjIvY2VydHMvMTEwMjMuMTEwOTkucGVtIn0.eyJhdHRlc3QiOiJBIiwiZGVzdCI6eyJ0biI6WyIxMzQ2Mzk2NzExNiJdfSwiaWF0IjoxNzc5MzA2MzE4LCJvcmlnIjp7InRuIjoiMTg2MzkzNzczMTcifSwib3JpZ2lkIjoiVGFtcGExLUZMLUZUUi1PcmlnLVNJUC1BQUFBIn0.mSFGKcNTLLhnqh7Q_r2OOSs32rxUbw_q46boY4nKHZDOFDLBwGKtq5CvZG3Pb0t25Oj6qt6LthO9pua9Q5Yz1w;info=<https://cr.ccid.neustar.biz/ccid/authn/v2/certs/11023.11099.pem>;alg=ES256;ppt=shaken\r\nP-Asserted-Identity: <sip:+18639377317@207.223.78.171:5060>\r\n\r\nv=0\r\no=msc1 68056 289628 IN IP4 172.30.0.83\r\ns=sip call\r\nc=IN IP4 172.30.0.83\r\nt=0 0\r\nm=audio 40322 RTP/AVP 0 8 18 101\r\na=maxptime:20\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:18 G729/8000\r\na=fmtp:18 annexb=no\r\na=rtpmap:101 telephone-event/8000\r\na=fmtp:101 0-15\r\na=sendrecv\r\na=rtcp:40323\r\n",
+              "uri": "sip:3463967116@172.30.4.200:5060",
+              "body": "v=0\r\no=msc1 68056 289628 IN IP4 172.30.0.83\r\ns=sip call\r\nc=IN IP4 172.30.0.83\r\nt=0 0\r\nm=audio 40322 RTP/AVP 0 8 18 101\r\na=maxptime:20\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:18 G729/8000\r\na=fmtp:18 annexb=no\r\na=rtpmap:101 telephone-event/8000\r\na=fmtp:101 0-15\r\na=sendrecv\r\na=rtcp:40323\r\n",
+              "method": "INVITE",
+              "headers": {
+                "to": "<sip:+13463967116@192.168.250.45>",
+                "via": "SIP/2.0/UDP 44.229.228.186;rport=5060;branch=z9hG4bK9Dy3r71mF6vtF;received=172.31.57.86",
+                "cseq": "115099369 INVITE",
+                "from": "<sip:+18639377317@44.229.228.186:5060>;tag=y93DBNt8tDcHN",
+                "X-CID": "943400966-3988295122-417162083@msc1.382COM.COM",
+                "allow": "PUBLISH, MESSAGE, UPDATE, PRACK, SUBSCRIBE, REFER, INFO, NOTIFY, REGISTER, OPTIONS, BYE, INVITE, ACK, CANCEL",
+                "accept": "application/sdp",
+                "min-se": "600",
+                "call-id": "47fbf386-cf27-123f-db88-0ec7040a32ad",
+                "contact": "<sip:172.31.57.86:5060>",
+                "privacy": "none",
+                "identity": "eyJhbGciOiJFUzI1NiIsInBwdCI6InNoYWtlbiIsInR5cCI6InBhc3Nwb3J0IiwieDV1IjoiaHR0cHM6Ly9jci5jY2lkLm5ldXN0YXIuYml6L2NjaWQvYXV0aG4vdjIvY2VydHMvMTEwMjMuMTEwOTkucGVtIn0.eyJhdHRlc3QiOiJBIiwiZGVzdCI6eyJ0biI6WyIxMzQ2Mzk2NzExNiJdfSwiaWF0IjoxNzc5MzA2MzE4LCJvcmlnIjp7InRuIjoiMTg2MzkzNzczMTcifSwib3JpZ2lkIjoiVGFtcGExLUZMLUZUUi1PcmlnLVNJUC1BQUFBIn0.mSFGKcNTLLhnqh7Q_r2OOSs32rxUbw_q46boY4nKHZDOFDLBwGKtq5CvZG3Pb0t25Oj6qt6LthO9pua9Q5Yz1w;info=<https://cr.ccid.neustar.biz/ccid/authn/v2/certs/11023.11099.pem>;alg=ES256;ppt=shaken",
+                "supported": "100rel, timer",
+                "content-type": "application/sdp",
+                "max-forwards": "70",
+                "X-Account-Sid": "c033b672-5b99-42ae-9ce2-b231e9a522fb",
+                "content-length": "301",
+                "X-Forwarded-For": "64.125.111.10",
+                "X-Application-Sid": "79d078c8-76b2-452a-99e0-ddd5abbf6269",
+                "X-Voip-Carrier-Sid": "a5569621-84ac-49cc-a8b8-11c7fb96b905",
+                "p-asserted-identity": "<sip:+18639377317@207.223.78.171:5060>",
+                "X-Originating-Carrier": "382com"
+              },
+              "payload": [
+                {
+                  "type": "application/sdp",
+                  "content": "v=0\r\no=msc1 68056 289628 IN IP4 172.30.0.83\r\ns=sip call\r\nc=IN IP4 172.30.0.83\r\nt=0 0\r\nm=audio 40322 RTP/AVP 0 8 18 101\r\na=maxptime:20\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:18 G729/8000\r\na=fmtp:18 annexb=no\r\na=rtpmap:101 telephone-event/8000\r\na=fmtp:101 0-15\r\na=sendrecv\r\na=rtcp:40323\r\n"
+                }
+              ],
+              "version": "2.0"
+            },
+            "sbcCallId": "943400966-3988295122-417162083@msc1.382COM.COM"
+          }
+        },
+        "squad.id": null,
+        "call_logs": [
+          {
+            "id": "3558dc40-0a4c-44f1-8130-953c9446bfa6",
+            "body": "New turn started",
+            "level": 20,
+            "payload": {
+              "body": "New turn started",
+              "time": 1779306323206,
+              "level": 20,
+              "timestamp": 1779306323206000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "system",
+                "turnStartTime": "2026-05-20T19:45:23.206Z"
+              },
+              "severityText": "LOG",
+              "severityNumber": 5
+            },
+            "category": "system",
+            "logged_at": "2026-05-20T19:45:23.206000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "system",
+              "turnStartTime": "2026-05-20T19:45:23.206Z"
+            },
+            "severity_text": "LOG"
+          },
+          {
+            "id": "2e8b866c-d07b-420a-b7ff-c4383aec5e97",
+            "body": "Transcriber WebSocket status changed",
+            "level": 30,
+            "payload": {
+              "body": "Transcriber WebSocket status changed",
+              "time": 1779306323232,
+              "level": 30,
+              "timestamp": 1779306323232000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "status": "opening",
+                "category": "system",
+                "provider": "deepgram"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "system",
+            "logged_at": "2026-05-20T19:45:23.232000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "status": "opening",
+              "category": "system",
+              "provider": "deepgram"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "bd726999-2a2f-49c7-b534-9682b113ef8f",
+            "body": "Deepgram Flux WebSocket request",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux WebSocket request",
+              "time": 1779306323232,
+              "level": 30,
+              "timestamp": 1779306323232000000,
+              "attributes": {
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "request": {
+                  "url": "wss://api.deepgram.com/v2/listen?model=flux-general-en&sample_rate=16000&encoding=linear16",
+                  "config": {
+                    "model": "flux-general-en",
+                    "encoding": "linear16",
+                    "sample_rate": "16000"
+                  },
+                  "keyterm": []
+                },
+                "category": "transcriber",
+                "provider": "deepgram"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.232000+00:00",
+            "attributes": {
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "request": {
+                "url": "wss://api.deepgram.com/v2/listen?model=flux-general-en&sample_rate=16000&encoding=linear16",
+                "config": {
+                  "model": "flux-general-en",
+                  "encoding": "linear16",
+                  "sample_rate": "16000"
+                },
+                "keyterm": []
+              },
+              "category": "transcriber",
+              "provider": "deepgram"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "a9c2334c-3576-4c8c-aa99-4795f91f9625",
+            "body": "Transcriber WebSocket status changed",
+            "level": 30,
+            "payload": {
+              "body": "Transcriber WebSocket status changed",
+              "time": 1779306323234,
+              "level": 30,
+              "timestamp": 1779306323234000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "status": "opening",
+                "category": "system",
+                "provider": "deepgram"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "system",
+            "logged_at": "2026-05-20T19:45:23.234000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "status": "opening",
+              "category": "system",
+              "provider": "deepgram"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "76ca67c5-d489-4a84-9d38-91e56a88f8a2",
+            "body": "Deepgram Flux WebSocket request",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux WebSocket request",
+              "time": 1779306323234,
+              "level": 30,
+              "timestamp": 1779306323234000000,
+              "attributes": {
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "request": {
+                  "url": "wss://api.deepgram.com/v2/listen?model=flux-general-en&sample_rate=16000&encoding=linear16",
+                  "config": {
+                    "model": "flux-general-en",
+                    "encoding": "linear16",
+                    "sample_rate": "16000"
+                  },
+                  "keyterm": []
+                },
+                "category": "transcriber",
+                "provider": "deepgram"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.234000+00:00",
+            "attributes": {
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "request": {
+                "url": "wss://api.deepgram.com/v2/listen?model=flux-general-en&sample_rate=16000&encoding=linear16",
+                "config": {
+                  "model": "flux-general-en",
+                  "encoding": "linear16",
+                  "sample_rate": "16000"
+                },
+                "keyterm": []
+              },
+              "category": "transcriber",
+              "provider": "deepgram"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "5a079ceb-7c94-403e-8d1d-0a56325fbe0f",
+            "body": "ElevenLabs WebSocket connecting",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket connecting",
+              "time": 1779306323235,
+              "level": 30,
+              "timestamp": 1779306323235000000,
+              "attributes": {
+                "model": "eleven_turbo_v2_5",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "sampleRate": 16000,
+                "websocketIndex": 0,
+                "enableSsmlParsing": true,
+                "optimizeStreamingLatency": 3
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:23.235000+00:00",
+            "attributes": {
+              "model": "eleven_turbo_v2_5",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "sampleRate": 16000,
+              "websocketIndex": 0,
+              "enableSsmlParsing": true,
+              "optimizeStreamingLatency": 3
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "4b7cfb51-83b9-4c52-b902-57e19b84ac8b",
+            "body": "ElevenLabs WebSocket connecting",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket connecting",
+              "time": 1779306323236,
+              "level": 30,
+              "timestamp": 1779306323236000000,
+              "attributes": {
+                "model": "eleven_turbo_v2_5",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "sampleRate": 16000,
+                "websocketIndex": 1,
+                "enableSsmlParsing": true,
+                "optimizeStreamingLatency": 3
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:23.236000+00:00",
+            "attributes": {
+              "model": "eleven_turbo_v2_5",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "sampleRate": 16000,
+              "websocketIndex": 1,
+              "enableSsmlParsing": true,
+              "optimizeStreamingLatency": 3
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "804ccf25-5e0d-4dd8-b248-b961e3683637",
+            "body": "Deepgram Flux WebSocket request",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux WebSocket request",
+              "time": 1779306323232,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323232000000,
+              "attributes": {
+                "event": "assistant.transcriber.requestStarted",
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "request": {
+                  "url": "wss://api.deepgram.com/v2/listen?model=flux-general-en&sample_rate=16000&encoding=linear16",
+                  "config": {
+                    "model": "flux-general-en",
+                    "encoding": "linear16",
+                    "sample_rate": "16000"
+                  },
+                  "keyterm": []
+                },
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.232000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.requestStarted",
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "request": {
+                "url": "wss://api.deepgram.com/v2/listen?model=flux-general-en&sample_rate=16000&encoding=linear16",
+                "config": {
+                  "model": "flux-general-en",
+                  "encoding": "linear16",
+                  "sample_rate": "16000"
+                },
+                "keyterm": []
+              },
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "dfacf878-3ef7-47fb-b8cf-029d0f66ebd7",
+            "body": "Deepgram Flux WebSocket request",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux WebSocket request",
+              "time": 1779306323234,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323234000000,
+              "attributes": {
+                "event": "assistant.transcriber.requestStarted",
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "request": {
+                  "url": "wss://api.deepgram.com/v2/listen?model=flux-general-en&sample_rate=16000&encoding=linear16",
+                  "config": {
+                    "model": "flux-general-en",
+                    "encoding": "linear16",
+                    "sample_rate": "16000"
+                  },
+                  "keyterm": []
+                },
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.234000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.requestStarted",
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "request": {
+                "url": "wss://api.deepgram.com/v2/listen?model=flux-general-en&sample_rate=16000&encoding=linear16",
+                "config": {
+                  "model": "flux-general-en",
+                  "encoding": "linear16",
+                  "sample_rate": "16000"
+                },
+                "keyterm": []
+              },
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "f08680ef-032a-464e-aeba-213c1f9831f1",
+            "body": "call.queued",
+            "level": 30,
+            "payload": {
+              "body": "call.queued",
+              "time": 1779306323239,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323239000000,
+              "attributes": {
+                "event": "call.queued",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "callType": "phone",
+                "category": "call",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+                "transportProvider": "vapi.sip"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:23.239000+00:00",
+            "attributes": {
+              "event": "call.queued",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "callType": "phone",
+              "category": "call",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+              "transportProvider": "vapi.sip"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "7c0274e7-4b7c-4a2f-8d0a-36b9b9221def",
+            "body": "call.statusReceived",
+            "level": 30,
+            "payload": {
+              "body": "call.statusReceived",
+              "time": 1779306323259,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323259000000,
+              "attributes": {
+                "event": "call.statusReceived",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "status": "trying",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "call",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:23.259000+00:00",
+            "attributes": {
+              "event": "call.statusReceived",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "status": "trying",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "call",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "deacc8a0-43b4-4855-a420-ac998f358050",
+            "body": "call.statusReceived",
+            "level": 30,
+            "payload": {
+              "body": "call.statusReceived",
+              "time": 1779306323383,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323383000000,
+              "attributes": {
+                "event": "call.statusReceived",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "status": "in-progress",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "call",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:23.383000+00:00",
+            "attributes": {
+              "event": "call.statusReceived",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "status": "in-progress",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "call",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "842fbff2-f2a1-4e88-a8b3-7c6b9aec9e7c",
+            "body": "call.started",
+            "level": 30,
+            "payload": {
+              "body": "call.started",
+              "time": 1779306323396,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323396000000,
+              "attributes": {
+                "event": "call.started",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "callType": "phone",
+                "category": "call",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+                "transportProvider": "vapi.sip"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:23.396000+00:00",
+            "attributes": {
+              "event": "call.started",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "callType": "phone",
+              "category": "call",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+              "transportProvider": "vapi.sip"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "275616ff-a033-43b6-9850-6c918cebe096",
+            "body": "call.assistantStarted",
+            "level": 30,
+            "payload": {
+              "body": "call.assistantStarted",
+              "time": 1779306323396,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323396000000,
+              "attributes": {
+                "event": "call.assistantStarted",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "call",
+                "assistantName": "Brew buddy",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:23.396000+00:00",
+            "attributes": {
+              "event": "call.assistantStarted",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "call",
+              "assistantName": "Brew buddy",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "155ae047-32e2-4b37-b0c6-25d4cb145808",
+            "body": "call.recordingResumed",
+            "level": 30,
+            "payload": {
+              "body": "call.recordingResumed",
+              "time": 1779306323396,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323396000000,
+              "attributes": {
+                "event": "call.recordingResumed",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "call",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:23.396000+00:00",
+            "attributes": {
+              "event": "call.recordingResumed",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "call",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "82b95fd4-565c-45e7-aa53-f6aa2bc902ad",
+            "body": "First message started",
+            "level": 30,
+            "payload": {
+              "body": "First message started",
+              "time": 1779306323396,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323396000000,
+              "attributes": {
+                "event": "pipeline.firstMessageStarted",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "pipeline",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+                "firstMessageMode": "assistant-speaks-first"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "pipeline",
+            "logged_at": "2026-05-20T19:45:23.396000+00:00",
+            "attributes": {
+              "event": "pipeline.firstMessageStarted",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "pipeline",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+              "firstMessageMode": "assistant-speaks-first"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "056de931-0bec-4e32-9048-dc7af100b139",
+            "body": "pipeline.sayQueuePush",
+            "level": 30,
+            "payload": {
+              "body": "pipeline.sayQueuePush",
+              "time": 1779306323397,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323397000000,
+              "attributes": {
+                "event": "pipeline.sayQueuePush",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "pipeline",
+                "queueLength": 1,
+                "interruptible": false,
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "pipeline",
+            "logged_at": "2026-05-20T19:45:23.397000+00:00",
+            "attributes": {
+              "event": "pipeline.sayQueuePush",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "pipeline",
+              "queueLength": 1,
+              "interruptible": false,
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "70fc4eaa-c077-4d63-b94e-0e0a7d4b23c9",
+            "body": "call.inProgress",
+            "level": 30,
+            "payload": {
+              "body": "call.inProgress",
+              "time": 1779306323401,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323401000000,
+              "attributes": {
+                "event": "call.inProgress",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "callType": "phone",
+                "category": "call",
+                "assistantName": "Brew buddy",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:23.401000+00:00",
+            "attributes": {
+              "event": "call.inProgress",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "callType": "phone",
+              "category": "call",
+              "assistantName": "Brew buddy",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "da2d7164-78a6-4189-baba-97d3a7dc4546",
+            "body": "call.customerJoined",
+            "level": 30,
+            "payload": {
+              "body": "call.customerJoined",
+              "time": 1779306323401,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323401000000,
+              "attributes": {
+                "event": "call.customerJoined",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "callType": "phone",
+                "category": "call",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+                "transportProvider": "vapi.sip"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:23.401000+00:00",
+            "attributes": {
+              "event": "call.customerJoined",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "callType": "phone",
+              "category": "call",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+              "transportProvider": "vapi.sip"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "f8f875ac-ee90-46b1-b306-4fd3e132b555",
+            "body": "LLM stream clearing",
+            "level": 30,
+            "payload": {
+              "body": "LLM stream clearing",
+              "time": 1779306323403,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323402000000,
+              "attributes": {
+                "event": "assistant.model.clearing",
+                "model": "gpt-4.1",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "model",
+                "provider": "openai",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "model",
+            "logged_at": "2026-05-20T19:45:23.403000+00:00",
+            "attributes": {
+              "event": "assistant.model.clearing",
+              "model": "gpt-4.1",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "model",
+              "provider": "openai",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "48d38307-68e4-473d-84f1-fe95b8c961a1",
+            "body": "Voice cached",
+            "level": 30,
+            "payload": {
+              "body": "Voice cached",
+              "time": 1779306323470,
+              "level": 30,
+              "timestamp": 1779306323470000000,
+              "attributes": {
+                "text": "Hello.",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "voice"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:23.470000+00:00",
+            "attributes": {
+              "text": "Hello.",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "voice"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "0a2bc1d3-502c-43c8-9e3f-1011da71f26b",
+            "body": "ElevenLabs WebSocket opened",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket opened",
+              "time": 1779306323471,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323471000000,
+              "attributes": {
+                "event": "assistant.voice.connectionOpened",
+                "model": "eleven_turbo_v2_5",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "sampleRate": 16000,
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:23.471000+00:00",
+            "attributes": {
+              "event": "assistant.voice.connectionOpened",
+              "model": "eleven_turbo_v2_5",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "sampleRate": 16000,
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "811571dd-7723-4063-8449-58aa93c754e4",
+            "body": "ElevenLabs WebSocket opened",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket opened",
+              "time": 1779306323473,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323473000000,
+              "attributes": {
+                "event": "assistant.voice.connectionOpened",
+                "model": "eleven_turbo_v2_5",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "sampleRate": 16000,
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:23.473000+00:00",
+            "attributes": {
+              "event": "assistant.voice.connectionOpened",
+              "model": "eleven_turbo_v2_5",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "sampleRate": 16000,
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "81db7d99-4fae-4946-89f6-f54f3221c1d7",
+            "body": "ElevenLabs WebSocket upgrade with trace ID",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket upgrade with trace ID",
+              "time": 1779306323471,
+              "level": 30,
+              "timestamp": 1779306323471000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "traceId": "00f84a5127f842b945ab00032911086f",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "websocketIndex": 1
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:23.471000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "traceId": "00f84a5127f842b945ab00032911086f",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "websocketIndex": 1
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "3ea31d93-b4c1-4e4c-b02b-a872e172f884",
+            "body": "ElevenLabs WebSocket opened",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket opened",
+              "time": 1779306323471,
+              "level": 30,
+              "timestamp": 1779306323471000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "websocketIndex": 1
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:23.471000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "websocketIndex": 1
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "fdcb0eeb-559a-41f0-bf84-6207b51c1114",
+            "body": "ElevenLabs WebSocket upgrade with trace ID",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket upgrade with trace ID",
+              "time": 1779306323473,
+              "level": 30,
+              "timestamp": 1779306323473000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "traceId": "86b07b6be924905c9cbcc49bc782f28a",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "websocketIndex": 0
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:23.473000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "traceId": "86b07b6be924905c9cbcc49bc782f28a",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "websocketIndex": 0
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "1678c7ca-1a59-42e1-ae4f-7899d745b3b6",
+            "body": "ElevenLabs WebSocket opened",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket opened",
+              "time": 1779306323473,
+              "level": 30,
+              "timestamp": 1779306323473000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "websocketIndex": 0
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:23.473000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "websocketIndex": 0
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "2e66d6c0-9bee-46fa-a296-65328ea4ed8c",
+            "body": "Deepgram Flux WebSocket connected",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux WebSocket connected",
+              "time": 1779306323502,
+              "level": 30,
+              "timestamp": 1779306323502000000,
+              "attributes": {
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.502000+00:00",
+            "attributes": {
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "32459f25-a33f-4a4b-b339-203cbfceea9e",
+            "body": "Deepgram Flux WebSocket connected",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux WebSocket connected",
+              "time": 1779306323502,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323502000000,
+              "attributes": {
+                "event": "assistant.transcriber.connectionOpened",
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.502000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.connectionOpened",
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "1609fce6-18a0-4056-9aeb-6e683552bbf4",
+            "body": "Deepgram Flux WebSocket connected",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux WebSocket connected",
+              "time": 1779306323505,
+              "level": 30,
+              "timestamp": 1779306323505000000,
+              "attributes": {
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.505000+00:00",
+            "attributes": {
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "d6a17cb2-4548-4057-9b9a-c0866350d2bb",
+            "body": "Deepgram Flux WebSocket connected",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux WebSocket connected",
+              "time": 1779306323505,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323505000000,
+              "attributes": {
+                "event": "assistant.transcriber.connectionOpened",
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.505000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.connectionOpened",
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "504b7c63-3944-437e-b26b-d607d6d8a056",
+            "body": "Bot started speaking",
+            "level": 30,
+            "payload": {
+              "body": "Bot started speaking",
+              "time": 1779306323507,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323507000000,
+              "attributes": {
+                "turn": 0,
+                "event": "pipeline.botSpeechStarted",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "pipeline",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+                "userWasSpeaking": false
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "pipeline",
+            "logged_at": "2026-05-20T19:45:23.507000+00:00",
+            "attributes": {
+              "turn": 0,
+              "event": "pipeline.botSpeechStarted",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "pipeline",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795",
+              "userWasSpeaking": false
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "7e7b7e38-1d0a-4baa-bcc6-c8849a1238da",
+            "body": "Deepgram Flux first message received",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux first message received",
+              "time": 1779306323663,
+              "level": 30,
+              "timestamp": 1779306323663000000,
+              "attributes": {
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "message": {
+                  "type": "TurnInfo",
+                  "event": "Update",
+                  "words": [],
+                  "request_id": "019e46eb-de18-75c1-b3d5-44f5734fa1cb",
+                  "transcript": "",
+                  "turn_index": 0,
+                  "sequence_id": 1,
+                  "audio_window_end": 0.24,
+                  "audio_window_start": 0,
+                  "end_of_turn_confidence": 0.0022
+                },
+                "category": "transcriber",
+                "provider": "deepgram",
+                "latencyMs": 158
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.663000+00:00",
+            "attributes": {
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "message": {
+                "type": "TurnInfo",
+                "event": "Update",
+                "words": [],
+                "request_id": "019e46eb-de18-75c1-b3d5-44f5734fa1cb",
+                "transcript": "",
+                "turn_index": 0,
+                "sequence_id": 1,
+                "audio_window_end": 0.24,
+                "audio_window_start": 0,
+                "end_of_turn_confidence": 0.0022
+              },
+              "category": "transcriber",
+              "provider": "deepgram",
+              "latencyMs": 158
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "6333a8f3-3680-4a5e-8d4e-f9d11649604b",
+            "body": "Deepgram Flux first message received",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux first message received",
+              "time": 1779306323663,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323663000000,
+              "attributes": {
+                "event": "assistant.transcriber.requestSucceeded",
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "message": {
+                  "type": "TurnInfo",
+                  "event": "Update",
+                  "words": [],
+                  "request_id": "019e46eb-de18-75c1-b3d5-44f5734fa1cb",
+                  "transcript": "",
+                  "turn_index": 0,
+                  "sequence_id": 1,
+                  "audio_window_end": 0.24,
+                  "audio_window_start": 0,
+                  "end_of_turn_confidence": 0.0022
+                },
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram",
+                "latencyMs": 158,
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.663000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.requestSucceeded",
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "message": {
+                "type": "TurnInfo",
+                "event": "Update",
+                "words": [],
+                "request_id": "019e46eb-de18-75c1-b3d5-44f5734fa1cb",
+                "transcript": "",
+                "turn_index": 0,
+                "sequence_id": 1,
+                "audio_window_end": 0.24,
+                "audio_window_start": 0,
+                "end_of_turn_confidence": 0.0022
+              },
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram",
+              "latencyMs": 158,
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "c3e2a13d-e498-4213-8d43-4ce7185c20a8",
+            "body": "Deepgram Flux first message received",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux first message received",
+              "time": 1779306323664,
+              "level": 30,
+              "timestamp": 1779306323664000000,
+              "attributes": {
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "message": {
+                  "type": "TurnInfo",
+                  "event": "Update",
+                  "words": [],
+                  "request_id": "019e46eb-de1b-7431-92ec-76a8994f7935",
+                  "transcript": "",
+                  "turn_index": 0,
+                  "sequence_id": 1,
+                  "audio_window_end": 0.24,
+                  "audio_window_start": 0,
+                  "end_of_turn_confidence": 0.0308
+                },
+                "category": "transcriber",
+                "provider": "deepgram",
+                "latencyMs": 162
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.664000+00:00",
+            "attributes": {
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "message": {
+                "type": "TurnInfo",
+                "event": "Update",
+                "words": [],
+                "request_id": "019e46eb-de1b-7431-92ec-76a8994f7935",
+                "transcript": "",
+                "turn_index": 0,
+                "sequence_id": 1,
+                "audio_window_end": 0.24,
+                "audio_window_start": 0,
+                "end_of_turn_confidence": 0.0308
+              },
+              "category": "transcriber",
+              "provider": "deepgram",
+              "latencyMs": 162
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "c8597d54-dc94-4777-a525-d5123f754eba",
+            "body": "Deepgram Flux first message received",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram Flux first message received",
+              "time": 1779306323664,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306323664000000,
+              "attributes": {
+                "event": "assistant.transcriber.requestSucceeded",
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "message": {
+                  "type": "TurnInfo",
+                  "event": "Update",
+                  "words": [],
+                  "request_id": "019e46eb-de1b-7431-92ec-76a8994f7935",
+                  "transcript": "",
+                  "turn_index": 0,
+                  "sequence_id": 1,
+                  "audio_window_end": 0.24,
+                  "audio_window_start": 0,
+                  "end_of_turn_confidence": 0.0308
+                },
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram",
+                "latencyMs": 162,
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:23.664000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.requestSucceeded",
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "message": {
+                "type": "TurnInfo",
+                "event": "Update",
+                "words": [],
+                "request_id": "019e46eb-de1b-7431-92ec-76a8994f7935",
+                "transcript": "",
+                "turn_index": 0,
+                "sequence_id": 1,
+                "audio_window_end": 0.24,
+                "audio_window_start": 0,
+                "end_of_turn_confidence": 0.0308
+              },
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram",
+              "latencyMs": 162,
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "94cd72d4-bdfe-4782-a931-4a096adc8214",
+            "body": "StartOfTurn",
+            "level": 20,
+            "payload": {
+              "body": "StartOfTurn",
+              "time": 1779306324053,
+              "level": 20,
+              "timestamp": 1779306324053000000,
+              "attributes": {
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "message": "{\n  \"type\": \"TurnInfo\",\n  \"request_id\": \"019e46eb-de18-75c1-b3d5-44f5734fa1cb\",\n  \"event\": \"StartOfTurn\",\n  \"turn_index\": 0,\n  \"audio_window_start\": 0,\n  \"audio_window_end\": 0.72,\n  \"transcript\": \"Hello.\",\n  \"words\": [{\"word\": \"Hello.\", \"confidence\": 1}],\n  \"end_of_turn_confidence\": 0.6445,\n  \"sequence_id\": 3\n}",
+                "category": "transcriber",
+                "provider": "deepgram"
+              },
+              "severityText": "LOG",
+              "severityNumber": 5
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:24.053000+00:00",
+            "attributes": {
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "message": "{\n  \"type\": \"TurnInfo\",\n  \"request_id\": \"019e46eb-de18-75c1-b3d5-44f5734fa1cb\",\n  \"event\": \"StartOfTurn\",\n  \"turn_index\": 0,\n  \"audio_window_start\": 0,\n  \"audio_window_end\": 0.72,\n  \"transcript\": \"Hello.\",\n  \"words\": [{\"word\": \"Hello.\", \"confidence\": 1}],\n  \"end_of_turn_confidence\": 0.6445,\n  \"sequence_id\": 3\n}",
+              "category": "transcriber",
+              "provider": "deepgram"
+            },
+            "severity_text": "LOG"
+          },
+          {
+            "id": "cd04dd3f-a274-4de5-bc68-cdc563218b79",
+            "body": "StartOfTurn",
+            "level": 20,
+            "payload": {
+              "body": "StartOfTurn",
+              "time": 1779306324053,
+              "level": 20,
+              "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306324053000000,
+              "attributes": {
+                "event": "assistant.transcriber.partialTranscript",
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+                "message": "{\n  \"type\": \"TurnInfo\",\n  \"request_id\": \"019e46eb-de18-75c1-b3d5-44f5734fa1cb\",\n  \"event\": \"StartOfTurn\",\n  \"turn_index\": 0,\n  \"audio_window_start\": 0,\n  \"audio_window_end\": 0.72,\n  \"transcript\": \"Hello.\",\n  \"words\": [{\"word\": \"Hello.\", \"confidence\": 1}],\n  \"end_of_turn_confidence\": 0.6445,\n  \"sequence_id\": 3\n}",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "LOG",
+              "severityNumber": 5
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:24.053000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.partialTranscript",
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+              "message": "{\n  \"type\": \"TurnInfo\",\n  \"request_id\": \"019e46eb-de18-75c1-b3d5-44f5734fa1cb\",\n  \"event\": \"StartOfTurn\",\n  \"turn_index\": 0,\n  \"audio_window_start\": 0,\n  \"audio_window_end\": 0.72,\n  \"transcript\": \"Hello.\",\n  \"words\": [{\"word\": \"Hello.\", \"confidence\": 1}],\n  \"end_of_turn_confidence\": 0.6445,\n  \"sequence_id\": 3\n}",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "LOG"
+          },
+          {
+            "id": "122d02d3-2088-4fe1-98da-0ae6de9b3032",
+            "body": "Deepgram flux partial transcript",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram flux partial transcript",
+              "time": 1779306324053,
+              "level": 30,
+              "timestamp": 1779306324053000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "channel": "assistant",
+                "latency": -172,
+                "category": "transcriber",
+                "duration": 0,
+                "numWords": 1,
+                "provider": "deepgram",
+                "confidence": 1,
+                "transcript": "Hello."
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:24.053000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "channel": "assistant",
+              "latency": -172,
+              "category": "transcriber",
+              "duration": 0,
+              "numWords": 1,
+              "provider": "deepgram",
+              "confidence": 1,
+              "transcript": "Hello."
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "f036e0e1-5e33-43f9-a575-983965291992",
+            "body": "Deepgram flux partial transcript",
+            "level": 20,
+            "payload": {
+              "body": "Deepgram flux partial transcript",
+              "time": 1779306324053,
+              "level": 20,
+              "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306324053000000,
+              "attributes": {
+                "event": "assistant.transcriber.partialTranscript",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+                "channel": "assistant",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "duration": 0,
+                "numWords": 1,
+                "provider": "deepgram",
+                "confidence": 1,
+                "transcript": "Hello.",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "LOG",
+              "severityNumber": 5
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:24.053000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.partialTranscript",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+              "channel": "assistant",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "duration": 0,
+              "numWords": 1,
+              "provider": "deepgram",
+              "confidence": 1,
+              "transcript": "Hello.",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "LOG"
+          },
+          {
+            "id": "b48d0d62-569c-48af-8ac9-411dcb7e4876",
+            "body": "Bot stopped speaking",
+            "level": 30,
+            "payload": {
+              "body": "Bot stopped speaking",
+              "time": 1779306324159,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306324158000000,
+              "attributes": {
+                "turn": 0,
+                "event": "pipeline.botSpeechStopped",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "pipeline",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "pipeline",
+            "logged_at": "2026-05-20T19:45:24.159000+00:00",
+            "attributes": {
+              "turn": 0,
+              "event": "pipeline.botSpeechStopped",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "pipeline",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "179b71ca-a1e4-4187-9ce6-eccfabbd2938",
+            "body": "First message completed",
+            "level": 30,
+            "payload": {
+              "body": "First message completed",
+              "time": 1779306324159,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306324159000000,
+              "attributes": {
+                "event": "pipeline.firstMessageCompleted",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "pipeline",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "pipeline",
+            "logged_at": "2026-05-20T19:45:24.159000+00:00",
+            "attributes": {
+              "event": "pipeline.firstMessageCompleted",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "pipeline",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "5bc3c6d1-15aa-42ef-81b9-45a0d5a76fc0",
+            "body": "EndOfTurn",
+            "level": 30,
+            "payload": {
+              "body": "EndOfTurn",
+              "time": 1779306324824,
+              "level": 30,
+              "timestamp": 1779306324824000000,
+              "attributes": {
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "message": "{\n  \"type\": \"TurnInfo\",\n  \"request_id\": \"019e46eb-de18-75c1-b3d5-44f5734fa1cb\",\n  \"event\": \"EndOfTurn\",\n  \"turn_index\": 0,\n  \"audio_window_start\": 0,\n  \"audio_window_end\": 1.52,\n  \"transcript\": \"Hello?\",\n  \"words\": [{\"word\": \"Hello?\", \"confidence\": 1}],\n  \"end_of_turn_confidence\": 0.8271,\n  \"sequence_id\": 7\n}",
+                "category": "transcriber",
+                "provider": "deepgram"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:24.824000+00:00",
+            "attributes": {
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "message": "{\n  \"type\": \"TurnInfo\",\n  \"request_id\": \"019e46eb-de18-75c1-b3d5-44f5734fa1cb\",\n  \"event\": \"EndOfTurn\",\n  \"turn_index\": 0,\n  \"audio_window_start\": 0,\n  \"audio_window_end\": 1.52,\n  \"transcript\": \"Hello?\",\n  \"words\": [{\"word\": \"Hello?\", \"confidence\": 1}],\n  \"end_of_turn_confidence\": 0.8271,\n  \"sequence_id\": 7\n}",
+              "category": "transcriber",
+              "provider": "deepgram"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "eae29c26-ac7b-43ae-b538-436c6f019f7e",
+            "body": "EndOfTurn",
+            "level": 30,
+            "payload": {
+              "body": "EndOfTurn",
+              "time": 1779306324824,
+              "level": 30,
+              "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306324824000000,
+              "attributes": {
+                "event": "assistant.transcriber.finalTranscript",
+                "model": "flux-general-en",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+                "message": "{\n  \"type\": \"TurnInfo\",\n  \"request_id\": \"019e46eb-de18-75c1-b3d5-44f5734fa1cb\",\n  \"event\": \"EndOfTurn\",\n  \"turn_index\": 0,\n  \"audio_window_start\": 0,\n  \"audio_window_end\": 1.52,\n  \"transcript\": \"Hello?\",\n  \"words\": [{\"word\": \"Hello?\", \"confidence\": 1}],\n  \"end_of_turn_confidence\": 0.8271,\n  \"sequence_id\": 7\n}",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:24.824000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.finalTranscript",
+              "model": "flux-general-en",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+              "message": "{\n  \"type\": \"TurnInfo\",\n  \"request_id\": \"019e46eb-de18-75c1-b3d5-44f5734fa1cb\",\n  \"event\": \"EndOfTurn\",\n  \"turn_index\": 0,\n  \"audio_window_start\": 0,\n  \"audio_window_end\": 1.52,\n  \"transcript\": \"Hello?\",\n  \"words\": [{\"word\": \"Hello?\", \"confidence\": 1}],\n  \"end_of_turn_confidence\": 0.8271,\n  \"sequence_id\": 7\n}",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "ad04a2a3-f2d5-40b4-844a-0111d68f879d",
+            "body": "Deepgram flux final transcript",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram flux final transcript",
+              "time": 1779306324824,
+              "level": 30,
+              "timestamp": 1779306324824000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "channel": "assistant",
+                "latency": -201,
+                "category": "transcriber",
+                "duration": 771,
+                "numWords": 1,
+                "provider": "deepgram",
+                "confidence": 1,
+                "transcript": "Hello?"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:24.824000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "channel": "assistant",
+              "latency": -201,
+              "category": "transcriber",
+              "duration": 771,
+              "numWords": 1,
+              "provider": "deepgram",
+              "confidence": 1,
+              "transcript": "Hello?"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "18aed0dd-d815-44cb-8700-8dbe959f3251",
+            "body": "Deepgram flux final transcript",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram flux final transcript",
+              "time": 1779306324824,
+              "level": 30,
+              "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306324824000000,
+              "attributes": {
+                "event": "assistant.transcriber.finalTranscript",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+                "channel": "assistant",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "duration": 771,
+                "numWords": 1,
+                "provider": "deepgram",
+                "confidence": 1,
+                "transcript": "Hello?",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:24.824000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.finalTranscript",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "spanId": "62d1d1dd-0870-4019-b339-dd04d02c22de",
+              "channel": "assistant",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "duration": 771,
+              "numWords": 1,
+              "provider": "deepgram",
+              "confidence": 1,
+              "transcript": "Hello?",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "5de9bfdc-15f4-48b5-91dc-9cae2ee115ae",
+            "body": "call.statusReceived",
+            "level": 30,
+            "payload": {
+              "body": "call.statusReceived",
+              "time": 1779306326816,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306326816000000,
+              "attributes": {
+                "event": "call.statusReceived",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "status": "completed",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "call",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:26.816000+00:00",
+            "attributes": {
+              "event": "call.statusReceived",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "status": "completed",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "call",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "da07bb0f-319c-42b6-bd12-e6bff0e9cc64",
+            "body": "call.ended",
+            "level": 30,
+            "payload": {
+              "body": "call.ended",
+              "time": 1779306326843,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306326843000000,
+              "attributes": {
+                "event": "call.ended",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "callType": "phone",
+                "category": "call",
+                "durationMs": 3447,
+                "endedReason": "customer-ended-call",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "call",
+            "logged_at": "2026-05-20T19:45:26.843000+00:00",
+            "attributes": {
+              "event": "call.ended",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "callType": "phone",
+              "category": "call",
+              "durationMs": 3447,
+              "endedReason": "customer-ended-call",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "fd2d0a7d-ac4f-46e7-8238-ad2a85f97816",
+            "body": "Deepgram stream cleanup",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram stream cleanup",
+              "time": 1779306329401,
+              "level": 30,
+              "timestamp": 1779306329401000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:29.401000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "155ed473-af98-4f8a-93a3-50a9a0e2e7bc",
+            "body": "Deepgram stream cleanup",
+            "level": 30,
+            "payload": {
+              "body": "Deepgram stream cleanup",
+              "time": 1779306329401,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306329401000000,
+              "attributes": {
+                "event": "assistant.transcriber.cleanup",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "turnId": "CLEAN_UP",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "transcriber",
+                "provider": "deepgram",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "transcriber",
+            "logged_at": "2026-05-20T19:45:29.401000+00:00",
+            "attributes": {
+              "event": "assistant.transcriber.cleanup",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "turnId": "CLEAN_UP",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "transcriber",
+              "provider": "deepgram",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "b655b7a5-e480-4423-911e-e34d4169b23d",
+            "body": "New turn started",
+            "level": 20,
+            "payload": {
+              "body": "New turn started",
+              "time": 1779306329403,
+              "level": 20,
+              "timestamp": 1779306329403000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "system",
+                "turnStartTime": "2026-05-20T19:45:29.403Z"
+              },
+              "severityText": "LOG",
+              "severityNumber": 5
+            },
+            "category": "system",
+            "logged_at": "2026-05-20T19:45:29.403000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "system",
+              "turnStartTime": "2026-05-20T19:45:29.403Z"
+            },
+            "severity_text": "LOG"
+          },
+          {
+            "id": "b8326612-f440-4a70-89af-3d9fb569167c",
+            "body": "LLM stream cleanup",
+            "level": 30,
+            "payload": {
+              "body": "LLM stream cleanup",
+              "time": 1779306329402,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306329402000000,
+              "attributes": {
+                "event": "assistant.model.cleanup",
+                "model": "gpt-4.1",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "turnId": "CLEAN_UP",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "model",
+                "provider": "openai",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "model",
+            "logged_at": "2026-05-20T19:45:29.402000+00:00",
+            "attributes": {
+              "event": "assistant.model.cleanup",
+              "model": "gpt-4.1",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "turnId": "CLEAN_UP",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "model",
+              "provider": "openai",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "0ec043b5-6233-4221-a004-780062a376b0",
+            "body": "LLM stream clearing",
+            "level": 30,
+            "payload": {
+              "body": "LLM stream clearing",
+              "time": 1779306329402,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306329402000000,
+              "attributes": {
+                "event": "assistant.model.clearing",
+                "model": "gpt-4.1",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "turnId": "CLEAN_UP",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "category": "model",
+                "provider": "openai",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "model",
+            "logged_at": "2026-05-20T19:45:29.402000+00:00",
+            "attributes": {
+              "event": "assistant.model.clearing",
+              "model": "gpt-4.1",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "turnId": "CLEAN_UP",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "category": "model",
+              "provider": "openai",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "95fa9e57-60c1-40da-aaae-2eeba4b29199",
+            "body": "ElevenLabs stream cleanup",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs stream cleanup",
+              "time": 1779306329402,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306329402000000,
+              "attributes": {
+                "event": "assistant.voice.cleanup",
+                "model": "eleven_turbo_v2_5",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "turnId": "CLEAN_UP",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "eventStatus": "success",
+                "charactersUsed": 0,
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:29.402000+00:00",
+            "attributes": {
+              "event": "assistant.voice.cleanup",
+              "model": "eleven_turbo_v2_5",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "turnId": "CLEAN_UP",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "eventStatus": "success",
+              "charactersUsed": 0,
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "c8b77ebf-48e6-4640-9bd0-fef36543de27",
+            "body": "ElevenLabs WebSocket closed",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket closed",
+              "time": 1779306329461,
+              "level": 30,
+              "timestamp": 1779306329461000000,
+              "attributes": {
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "websocketIndex": 0
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:29.461000+00:00",
+            "attributes": {
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "websocketIndex": 0
+            },
+            "severity_text": "INFO"
+          },
+          {
+            "id": "da9fb5ad-f024-406a-9c91-392326de1595",
+            "body": "ElevenLabs WebSocket closed",
+            "level": 30,
+            "payload": {
+              "body": "ElevenLabs WebSocket closed",
+              "time": 1779306329461,
+              "level": 30,
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "timestamp": 1779306329461000000,
+              "attributes": {
+                "event": "assistant.voice.connectionClosed",
+                "model": "eleven_turbo_v2_5",
+                "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+                "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "turnId": "CLEAN_UP",
+                "service": "call",
+                "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+                "voiceId": "dN8hviqdNrAsEcL57yFj",
+                "category": "voice",
+                "provider": "elevenlabs",
+                "eventStatus": "success",
+                "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+              },
+              "severityText": "INFO",
+              "severityNumber": 9
+            },
+            "category": "voice",
+            "logged_at": "2026-05-20T19:45:29.461000+00:00",
+            "attributes": {
+              "event": "assistant.voice.connectionClosed",
+              "model": "eleven_turbo_v2_5",
+              "orgId": "f630cf58-cbd0-4cf8-957a-af31d15223a7",
+              "callId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "turnId": "CLEAN_UP",
+              "service": "call",
+              "traceId": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+              "voiceId": "dN8hviqdNrAsEcL57yFj",
+              "category": "voice",
+              "provider": "elevenlabs",
+              "eventStatus": "success",
+              "subscriptionId": "12e3a97d-c10d-43a3-8358-2826efbd7795"
+            },
+            "severity_text": "INFO"
+          }
+        ],
+        "call.status": "ended",
+        "customer.id": null,
+        "workflow.id": null,
+        "call.bot_wpm": 77.82101167315176,
+        "ended_reason": "customer-ended-call",
+        "metrics_data": {
+          "turn_count": 1,
+          "message_count": 2,
+          "ai_interruptions": [],
+          "bot_message_count": 1,
+          "user_interruptions": [],
+          "user_message_count": 0,
+          "total_duration_minutes": 0.030316666666666665
+        },
+        "vapi.call_id": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+        "call.duration": 3,
+        "call.user_wpm": null,
+        "workflow.name": null,
+        "call.talk_ratio": null,
+        "phone_number.id": "87cc82b4-323e-49ba-a445-36d4e1e1b25c",
+        "call.total_turns": 1,
+        "gen_ai.span.kind": "conversation",
+        "cost_breakdown.llm": 0,
+        "cost_breakdown.stt": 0.001,
+        "cost_breakdown.tts": 0,
+        "numUserInterrupted": 0,
+        "turnLatencyAverage": 0,
+        "cost_breakdown.chat": 0,
+        "cost_breakdown.vapi": 0.0029,
+        "modelLatencyAverage": 0,
+        "provider_transcript": [
+          {
+            "role": "assistant",
+            "content": "Hello?"
+          }
+        ],
+        "voiceLatencyAverage": 0,
+        "ai_interruption_rate": 0,
+        "avg_agent_latency_ms": null,
+        "cost_breakdown.total": 0.0039,
+        "gen_ai.provider.name": "openai",
+        "gen_ai.request.model": "gpt-4.1",
+        "ai_interruption_count": 0,
+        "user_interruption_rate": 0,
+        "numAssistantInterrupted": 0,
+        "user_interruption_count": 0,
+        "cost_breakdown.transport": 0,
+        "endpointingLatencyAverage": 0,
+        "gen_ai.usage.input_tokens": 0,
+        "gen_ai.usage.total_tokens": 0,
+        "toTransportLatencyAverage": 20,
+        "transcriberLatencyAverage": 0,
+        "workflow.background_sound": "off",
+        "gen_ai.usage.output_tokens": 0,
+        "workflow.voicemail_message": null,
+        "fromTransportLatencyAverage": 20,
+        "cost_breakdown.ttsCharacters": 0,
+        "workflow.voicemail_detection": null,
+        "call.participant_phone_number": "+18639377317",
+        "conversation.recording.stereo": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/f09ffad3-3308-41df-a6fa-e8435f985f90.mp3",
+        "cost_breakdown.llmPromptTokens": 0,
+        "cost_breakdown.knowledgeBaseCost": 0,
+        "conversation.transcript.0.duration": 0.771,
+        "cost_breakdown.llmCompletionTokens": 0,
+        "avg_stop_time_after_interruption_ms": null,
+        "conversation.recording.mono.combined": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/7382520e-69a7-4586-8731-69146614ce08.mp3",
+        "conversation.recording.mono.customer": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/07efb3a4-8ecb-46da-bfac-3760ddf28b23.mp3",
+        "conversation.transcript.0.start_time": 0.858,
+        "cost_breakdown.llmCachedPromptTokens": 0,
+        "conversation.recording.mono.assistant": "https://fi-content-dev.s3.us-east-2.amazonaws.com/call-recordings/019e46eb-dbd4-7000-a3b0-171e18d3f65c/38774645-5ace-4d09-afb9-983092d3163f.mp3",
+        "cost_breakdown.voicemailDetectionCost": 0,
+        "conversation.transcript.0.message.role": "assistant",
+        "conversation.transcript.0.message.content": "Hello?",
+        "cost_breakdown.analysisCostBreakdown.summary": 0,
+        "cost_breakdown.analysisCostBreakdown.structuredData": 0,
+        "cost_breakdown.analysisCostBreakdown.structuredOutput": 0,
+        "cost_breakdown.analysisCostBreakdown.successEvaluation": 0,
+        "cost_breakdown.analysisCostBreakdown.summaryPromptTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.summaryCompletionTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.summaryCachedPromptTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.structuredDataPromptTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.structuredOutputPromptTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.successEvaluationPromptTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.structuredDataCompletionTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.structuredDataCachedPromptTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.structuredOutputCompletionTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.successEvaluationCompletionTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.structuredOutputCachedPromptTokens": 0,
+        "cost_breakdown.analysisCostBreakdown.successEvaluationCachedPromptTokens": 0
+      },
+      "custom_eval_config": null,
+      "eval_status": "Inactive",
+      "prompt_version": null
+    }
+  ],
+  "talk_ratio": null,
+  "trace_id": "4a6498c5-975a-4fe3-aa5c-c1704b9a9ace",
+  "project_id": "586ea737-3195-417b-84ac-5712c019ecb8",
+  "provider_call_id": "019e46eb-dbd4-7000-a3b0-171e18d3f65c",
+  "eval_outputs": {
+    "0226eb65-2b6c-46ec-8fc5-60daa5433029": {
+      "name": "conversation_hallucination_task_26_may_2026_14_43",
+      "output_type": "Pass/Fail",
+      "output": null,
+      "reason": null,
+      "error": null
+    },
+    "34428a75-91c1-4b2c-9f82-ace376c530ff": {
+      "name": "toxicity_task_16_may_2026_12_36",
+      "output_type": "Pass/Fail",
+      "output": null,
+      "reason": null,
+      "error": null
+    }
+  },
+  "turn_count": 1,
+  "agent_talk_percentage": null,
+  "avg_agent_latency_ms": null,
+  "user_wpm": null,
+  "bot_wpm": 77.82101167315176,
+  "user_interruption_count": 0,
+  "ai_interruption_count": 0
+}
