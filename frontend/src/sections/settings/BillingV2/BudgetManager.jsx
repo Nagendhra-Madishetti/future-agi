@@ -27,6 +27,8 @@ import {
   DialogContent,
   DialogActions,
   Skeleton,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import Iconify from "src/components/iconify";
 import CustomDialog from "src/sections/develop-detail/Common/CustomDialog/CustomDialog";
@@ -54,18 +56,73 @@ const SCOPE_OPTIONS = [
   { value: "total_spend", label: "Total Spend ($)" },
 ];
 
-const EMPTY_BUDGET = {
+const DEFAULT_BUDGET_THRESHOLDS = [
+  { percent: 50, enabled: true, severity: "info" },
+  { percent: 80, enabled: true, severity: "warning" },
+  { percent: 100, enabled: true, severity: "critical" },
+];
+
+const THRESHOLD_STAGE_COPY = {
+  50: { label: "Early warning", color: "info" },
+  80: { label: "Escalation", color: "warning" },
+  100: { label: "Limit reached", color: "error" },
+};
+
+const createEmptyBudget = () => ({
   name: "",
   scope: "ai_credits",
   threshold_value: "",
   action: "notify",
-};
+  notify_emails: "",
+  thresholds: DEFAULT_BUDGET_THRESHOLDS.map((stage) => ({ ...stage })),
+});
+
+function normalizeBudgetThresholds(thresholds) {
+  const byPercent = new Map(
+    DEFAULT_BUDGET_THRESHOLDS.map((stage) => [stage.percent, { ...stage }]),
+  );
+
+  (Array.isArray(thresholds) ? thresholds : []).forEach((stage) => {
+    if (!byPercent.has(stage?.percent)) return;
+    const fallback = byPercent.get(stage.percent);
+    byPercent.set(stage.percent, {
+      percent: stage.percent,
+      enabled: stage.enabled !== false,
+      severity: stage.severity || fallback.severity,
+    });
+  });
+
+  return DEFAULT_BUDGET_THRESHOLDS.map((stage) => byPercent.get(stage.percent));
+}
+
+function parseEmailRecipients(value) {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((email) => email.trim())
+    .filter(Boolean);
+}
+
+function formatEmailRecipients(recipients) {
+  return Array.isArray(recipients) ? recipients.join(", ") : "";
+}
+
+function budgetFormToPayload(budget) {
+  return {
+    name: budget.name.trim(),
+    scope: budget.scope,
+    threshold_value: budget.threshold_value,
+    action: budget.action,
+    notify_emails: parseEmailRecipients(budget.notify_emails),
+    thresholds: normalizeBudgetThresholds(budget.thresholds),
+  };
+}
 
 export default function BudgetManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [newBudget, setNewBudget] = useState(EMPTY_BUDGET);
+  const [newBudget, setNewBudget] = useState(createEmptyBudget);
 
   const queryClient = useQueryClient();
 
@@ -81,7 +138,7 @@ export default function BudgetManager() {
       queryClient.invalidateQueries({ queryKey: ["v2-budgets"] });
       setDialogOpen(false);
       setEditingId(null);
-      setNewBudget(EMPTY_BUDGET);
+      setNewBudget(createEmptyBudget());
       enqueueSnackbar("Budget created", { variant: "success" });
     },
     onError: () =>
@@ -95,7 +152,7 @@ export default function BudgetManager() {
       queryClient.invalidateQueries({ queryKey: ["v2-budgets"] });
       setDialogOpen(false);
       setEditingId(null);
-      setNewBudget(EMPTY_BUDGET);
+      setNewBudget(createEmptyBudget());
       enqueueSnackbar("Budget updated", { variant: "success" });
     },
     onError: () =>
@@ -118,22 +175,34 @@ export default function BudgetManager() {
       scope: budget.scope,
       threshold_value: String(budget.threshold_value),
       action: budget.action,
+      notify_emails: formatEmailRecipients(budget.notify_emails),
+      thresholds: normalizeBudgetThresholds(budget.thresholds),
     });
     setDialogOpen(true);
   }, []);
 
   const handleSave = useCallback(() => {
+    const payload = budgetFormToPayload(newBudget);
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: newBudget });
+      updateMutation.mutate({ id: editingId, data: payload });
     } else {
-      createMutation.mutate(newBudget);
+      createMutation.mutate(payload);
     }
   }, [editingId, newBudget, updateMutation, createMutation]);
 
   const handleCloseDialog = useCallback(() => {
     setDialogOpen(false);
     setEditingId(null);
-    setNewBudget(EMPTY_BUDGET);
+    setNewBudget(createEmptyBudget());
+  }, []);
+
+  const handleThresholdToggle = useCallback((percent, enabled) => {
+    setNewBudget((current) => ({
+      ...current,
+      thresholds: normalizeBudgetThresholds(current.thresholds).map((stage) =>
+        stage.percent === percent ? { ...stage, enabled } : stage,
+      ),
+    }));
   }, []);
 
   // Threshold must be a positive decimal. HTML `type="number"` accepts
@@ -152,22 +221,37 @@ export default function BudgetManager() {
   return (
     <Box>
       <Stack
-        direction="row"
+        direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
-        alignItems="center"
+        alignItems={{ xs: "stretch", sm: "center" }}
         mb={2}
+        spacing={1}
       >
         <Typography variant="subtitle1" fontWeight={600}>
           Usage Budgets
         </Typography>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<Iconify icon="mdi:plus" />}
-          onClick={() => setDialogOpen(true)}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          alignItems={{ xs: "stretch", sm: "center" }}
         >
-          Add Budget
-        </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Iconify icon="mdi:plus" />}
+            onClick={() => setDialogOpen(true)}
+          >
+            Add Budget
+          </Button>
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<Iconify icon="mdi:bell-cog-outline" />}
+            href="/dashboard/settings/notifications"
+          >
+            Notification settings
+          </Button>
+        </Stack>
       </Stack>
 
       {!budgets || budgets.length === 0 ? (
@@ -198,6 +282,9 @@ export default function BudgetManager() {
             const scopeLabel =
               SCOPE_OPTIONS.find((s) => s.value === budget.scope)?.label ||
               budget.scope;
+            const thresholdStages = normalizeBudgetThresholds(
+              budget.thresholds,
+            );
 
             return (
               <Paper
@@ -222,9 +309,32 @@ export default function BudgetManager() {
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {scopeLabel}:{" "}
-                        {Number(budget.threshold_value).toLocaleString()} →{" "}
+                        {Number(budget.threshold_value).toLocaleString()} -{" "}
                         {actionConfig.label}
                       </Typography>
+                      <Stack direction="row" spacing={0.75} flexWrap="wrap">
+                        {thresholdStages.map((stage) => {
+                          const stageCopy = THRESHOLD_STAGE_COPY[
+                            stage.percent
+                          ] || {
+                            label: "Threshold",
+                            color: "default",
+                          };
+                          const disabled = stage.enabled === false;
+                          return (
+                            <Chip
+                              key={stage.percent}
+                              size="small"
+                              label={`${stage.percent}% ${
+                                disabled ? "Off" : stageCopy.label
+                              }`}
+                              color={disabled ? "default" : stageCopy.color}
+                              variant="outlined"
+                              sx={{ mt: 0.75 }}
+                            />
+                          );
+                        })}
+                      </Stack>
                     </Box>
                   </Stack>
                   <Stack direction="row" spacing={1} alignItems="center">
@@ -332,6 +442,72 @@ export default function BudgetManager() {
                 <MenuItem value="pause">Pause — block further usage</MenuItem>
               </Select>
             </FormControl>
+            <Box>
+              <Typography variant="subtitle2" mb={0.5}>
+                Notification stages
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Send budget alerts as usage approaches the limit.
+              </Typography>
+              <Stack spacing={1} mt={1}>
+                {normalizeBudgetThresholds(newBudget.thresholds).map(
+                  (stage) => {
+                    const stageCopy = THRESHOLD_STAGE_COPY[stage.percent];
+                    return (
+                      <FormControlLabel
+                        key={stage.percent}
+                        control={
+                          <Switch
+                            checked={stage.enabled !== false}
+                            onChange={(event) =>
+                              handleThresholdToggle(
+                                stage.percent,
+                                event.target.checked,
+                              )
+                            }
+                            inputProps={{
+                              "aria-label": `Alert at ${stage.percent}%`,
+                            }}
+                          />
+                        }
+                        label={
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            flexWrap="wrap"
+                          >
+                            <Chip
+                              size="small"
+                              label={`${stage.percent}%`}
+                              color={stageCopy.color}
+                              variant="outlined"
+                            />
+                            <Typography variant="body2">
+                              {stageCopy.label}
+                            </Typography>
+                          </Stack>
+                        }
+                      />
+                    );
+                  },
+                )}
+              </Stack>
+            </Box>
+            <TextField
+              label="Notification emails"
+              fullWidth
+              size="small"
+              value={newBudget.notify_emails}
+              onChange={(e) =>
+                setNewBudget({
+                  ...newBudget,
+                  notify_emails: e.target.value,
+                })
+              }
+              placeholder="ops@example.com, finance@example.com"
+              helperText="Leave empty to notify organization admins."
+            />
           </Stack>
         </DialogContent>
         <DialogActions>
