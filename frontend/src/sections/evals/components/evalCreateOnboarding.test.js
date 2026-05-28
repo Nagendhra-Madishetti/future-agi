@@ -6,6 +6,7 @@ import {
   buildEvalFailuresReviewedPayload,
   buildEvalReviewDetailHref,
   buildEvalReviewRouteFocusPayload,
+  buildEvalReviewStepHref,
   buildEvalRouteFocusPayload,
   buildEvalRunStepHref,
   buildEvalRunCompletedPayload,
@@ -23,6 +24,7 @@ import {
   getEvalFailureActionOnboardingParams,
   getEvalReviewOnboardingCopy,
   getEvalReviewOnboardingParams,
+  getEvalRunResultId,
 } from "./evalCreateOnboarding";
 
 describe("evalCreateOnboarding", () => {
@@ -308,6 +310,13 @@ describe("evalCreateOnboarding", () => {
   });
 
   it("preserves review onboarding params when moving from usage list to detail", () => {
+    expect(buildEvalReviewStepHref({ evalId: "eval-1", runId: "run-1" })).toBe(
+      "/dashboard/evaluations/eval-1?tab=usage&source=onboarding&step=review&run_id=run-1",
+    );
+    expect(buildEvalReviewStepHref({ runId: "run-1" })).toBe(
+      "/dashboard/evaluations/usage?tab=usage&source=onboarding&step=review&run_id=run-1",
+    );
+
     expect(
       buildEvalReviewDetailHref(
         "eval-1",
@@ -320,6 +329,17 @@ describe("evalCreateOnboarding", () => {
     expect(buildEvalReviewDetailHref("eval-1", "?tab=usage")).toBe(
       "/dashboard/evaluations/eval-1",
     );
+  });
+
+  it("extracts the safest available run id from eval run results", () => {
+    expect(getEvalRunResultId({ log_id: "log-1" })).toBe("log-1");
+    expect(
+      getEvalRunResultId({
+        eval_task_id: "task-1",
+        log_id: "log-1",
+      }),
+    ).toBe("task-1");
+    expect(getEvalRunResultId({})).toBeNull();
   });
 
   it("builds a review route focus payload", () => {

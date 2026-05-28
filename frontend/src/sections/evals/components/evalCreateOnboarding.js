@@ -187,6 +187,14 @@ export const buildEvalRunStepHref = ({ evalId, sourceId, sourceType } = {}) => {
   return `/dashboard/evaluations/create/${evalId}?${params.toString()}`;
 };
 
+export const getEvalRunResultId = (result = {}) =>
+  result?.run_id ||
+  result?.eval_run_id ||
+  result?.eval_task_id ||
+  result?.evaluation_id ||
+  result?.log_id ||
+  null;
+
 export const getEvalReviewOnboardingParams = (search = "") => {
   const params = toSearchParams(search);
   const step = params.get("step");
@@ -216,19 +224,26 @@ export const getEvalFailureActionOnboardingParams = (search = "") => {
 
 export const getEvalReviewOnboardingCopy = () => EVAL_REVIEW_COPY;
 
+export const buildEvalReviewStepHref = ({ evalId, runId } = {}) => {
+  const basePath = evalId
+    ? `/dashboard/evaluations/${evalId}`
+    : "/dashboard/evaluations/usage";
+  const params = new URLSearchParams();
+  params.set("tab", "usage");
+  params.set("source", "onboarding");
+  params.set("step", EVAL_REVIEW_STEP);
+  if (runId) params.set("run_id", runId);
+
+  return `${basePath}?${params.toString()}`;
+};
+
 export const buildEvalReviewDetailHref = (evalId, search = "") => {
   const reviewParams = getEvalReviewOnboardingParams(search);
   const basePath = `/dashboard/evaluations/${evalId}`;
 
   if (!reviewParams.isOnboarding) return basePath;
 
-  const params = new URLSearchParams();
-  params.set("tab", "usage");
-  params.set("source", "onboarding");
-  params.set("step", EVAL_REVIEW_STEP);
-  if (reviewParams.runId) params.set("run_id", reviewParams.runId);
-
-  return `${basePath}?${params.toString()}`;
+  return buildEvalReviewStepHref({ evalId, runId: reviewParams.runId });
 };
 
 export const evalCreateOnboardingStage = (step) =>
@@ -378,12 +393,7 @@ export const buildEvalRunCompletedPayload = ({
   sourceId,
   sourceType,
 } = {}) => {
-  const resultRunId =
-    result?.run_id ||
-    result?.eval_run_id ||
-    result?.eval_task_id ||
-    result?.evaluation_id ||
-    result?.log_id;
+  const resultRunId = getEvalRunResultId(result);
   const artifactId = safeKeyPart(runId || resultRunId || evalId, "eval-run");
 
   return {

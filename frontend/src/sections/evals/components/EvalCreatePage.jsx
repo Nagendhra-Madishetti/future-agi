@@ -48,9 +48,10 @@ import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/use
 import EvalOnboardingFocusPanel from "./EvalOnboardingFocusPanel";
 import {
   buildEvalCreateDraftHref,
+  buildEvalReviewStepHref,
   buildEvalRouteFocusPayload,
-  buildEvalRunStepHref,
   buildEvalRunCompletedPayload,
+  buildEvalRunStepHref,
   buildEvalScorerCreatedPayload,
   buildEvalSourceSelectedPayload,
   buildEvalSourceSetupHref,
@@ -59,6 +60,7 @@ import {
   getEvalCreateOnboardingCopy,
   getEvalCreateOnboardingParams,
   getEvalOnboardingSourceSummary,
+  getEvalRunResultId,
 } from "./evalCreateOnboarding";
 
 const EVAL_TYPE_TABS = [
@@ -284,6 +286,8 @@ const EvalCreatePage = () => {
         onboardingParams.isOnboarding &&
         onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.RUN
       ) {
+        const completedRunId =
+          getEvalRunResultId(result) || onboardingParams.runId;
         recordActivationEvent?.(
           buildEvalRunCompletedPayload({
             evalId: draftId,
@@ -291,14 +295,27 @@ const EvalCreatePage = () => {
             isComposite: mode === "composite",
             mode,
             result,
-            runId: onboardingParams.runId,
+            runId: completedRunId,
             sourceId: onboardingParams.sourceId,
             sourceType: onboardingParams.sourceType,
           }),
         );
+        navigate(
+          buildEvalReviewStepHref({
+            evalId: draftId,
+            runId: completedRunId,
+          }),
+        );
       }
     },
-    [draftId, evalType, mode, onboardingParams, recordActivationEvent],
+    [
+      draftId,
+      evalType,
+      mode,
+      navigate,
+      onboardingParams,
+      recordActivationEvent,
+    ],
   );
 
   // Load existing draft from URL, or create a new one
