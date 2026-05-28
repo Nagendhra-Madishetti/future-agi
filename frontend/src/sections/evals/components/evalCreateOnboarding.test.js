@@ -10,6 +10,8 @@ import {
   buildEvalRouteFocusPayload,
   buildEvalRunStepHref,
   buildEvalRunCompletedPayload,
+  buildEvalScorerEditCtaClickedPayload,
+  buildEvalScorerEditHref,
   buildEvalScorerCreatedPayload,
   buildEvalScorerSourceHref,
   buildEvalSourceFixCtaClickedPayload,
@@ -69,6 +71,16 @@ describe("evalCreateOnboarding", () => {
     expect(buildEvalScorerSourceHref({ sourceId: "data-1" })).toBe(
       "/dashboard/evaluations/create?source=onboarding&step=scorer&source_type=dataset&source_id=data-1",
     );
+    expect(
+      buildEvalScorerEditHref({
+        evalId: "eval-1",
+        sourceId: "data-1",
+        sourceType: "dataset",
+      }),
+    ).toBe(
+      "/dashboard/evaluations/create/eval-1?source=onboarding&step=scorer&source_type=dataset&source_id=data-1",
+    );
+    expect(buildEvalScorerEditHref()).toBeNull();
     expect(
       buildEvalRunStepHref({
         evalId: "eval-1",
@@ -685,5 +697,38 @@ describe("evalCreateOnboarding", () => {
     expect(payload.metadata).not.toHaveProperty("rows");
     expect(payload.metadata).not.toHaveProperty("output");
     expect(payload.metadata).not.toHaveProperty("reason");
+  });
+
+  it("builds a scorer edit CTA payload without row content", () => {
+    const payload = buildEvalScorerEditCtaClickedPayload({
+      editRoute:
+        "/dashboard/evaluations/create/eval-1?source=onboarding&step=scorer",
+      evalId: "eval-1",
+      evalLogId: "log-1",
+      rowSource: "eval_playground",
+      runId: "run-1",
+    });
+
+    expect(payload).toMatchObject({
+      eventName: "onboarding_eval_scorer_edit_cta_clicked",
+      primaryPath: "evals",
+      stage: "fix_eval_source",
+      source: "eval_review_onboarding",
+      artifactType: "eval_scorer",
+      artifactId: "eval-1",
+      metadata: {
+        edit_route:
+          "/dashboard/evaluations/create/eval-1?source=onboarding&step=scorer",
+        eval_id: "eval-1",
+        eval_log_id: "log-1",
+        row_source: "eval_playground",
+        run_id: "run-1",
+        step: "scorer",
+      },
+      idempotencyKey: "onboarding_eval_scorer_edit_cta_clicked:eval-1:log-1",
+    });
+    expect(payload.metadata).not.toHaveProperty("output");
+    expect(payload.metadata).not.toHaveProperty("reason");
+    expect(payload.metadata).not.toHaveProperty("value");
   });
 });

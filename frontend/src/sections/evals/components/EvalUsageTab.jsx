@@ -41,6 +41,8 @@ import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/use
 import {
   buildEvalFailuresReviewedPayload,
   buildEvalFailureActionCreatedPayload,
+  buildEvalScorerEditCtaClickedPayload,
+  buildEvalScorerEditHref,
   buildEvalSourceFixCtaClickedPayload,
   buildEvalSourceFixHref,
   evalUsageLogMatchesRun,
@@ -444,6 +446,27 @@ const EvalUsageTab = ({
     failureActionOnboardingParams.step,
     templateId,
   ]);
+  const scorerEditHref = useMemo(() => {
+    if (
+      !failureActionOnboardingParams.isOnboarding ||
+      failureActionOnboardingParams.step !== "review" ||
+      !templateId
+    ) {
+      return null;
+    }
+
+    return buildEvalScorerEditHref({
+      evalId: templateId,
+      sourceId: failureActionOnboardingParams.sourceId,
+      sourceType: failureActionOnboardingParams.sourceType,
+    });
+  }, [
+    failureActionOnboardingParams.isOnboarding,
+    failureActionOnboardingParams.sourceId,
+    failureActionOnboardingParams.sourceType,
+    failureActionOnboardingParams.step,
+    templateId,
+  ]);
 
   // Split queries
   const { data: chartData, isLoading: chartLoading } = useEvalUsageChart(
@@ -597,6 +620,33 @@ const EvalUsageTab = ({
       navigate,
       recordActivationEvent,
       sourceFixHref,
+      templateId,
+    ],
+  );
+  const handleScorerEditClicked = useCallback(
+    ({ row } = {}) => {
+      if (!scorerEditHref) return;
+
+      recordActivationEvent?.(
+        buildEvalScorerEditCtaClickedPayload({
+          editRoute: scorerEditHref,
+          evalId: templateId,
+          evalLogId: getEvalUsageLogId(row),
+          rowSource: row?.source,
+          runId: failureActionOnboardingParams.runId,
+          sourceId: failureActionOnboardingParams.sourceId,
+          sourceType: failureActionOnboardingParams.sourceType,
+        }),
+      );
+      navigate(scorerEditHref);
+    },
+    [
+      failureActionOnboardingParams.runId,
+      failureActionOnboardingParams.sourceId,
+      failureActionOnboardingParams.sourceType,
+      navigate,
+      recordActivationEvent,
+      scorerEditHref,
       templateId,
     ],
   );
@@ -942,6 +992,10 @@ const EvalUsageTab = ({
               onSourceFixClick={() =>
                 handleSourceFixClicked({ row: detailRow })
               }
+              onScorerEditClick={() =>
+                handleScorerEditClicked({ row: detailRow })
+              }
+              scorerEditHref={scorerEditHref}
               sourceFixHref={sourceFixHref}
             />
           )}
@@ -959,7 +1013,9 @@ const DetailPanelContent = ({
   evalType = "llm",
   onFailureActionSubmitted,
   onFeedbackSubmitted,
+  onScorerEditClick,
   onSourceFixClick,
+  scorerEditHref,
   sourceFixHref,
 }) => {
   const [viewMode, setViewMode] = useState("formatted");
@@ -968,6 +1024,22 @@ const DetailPanelContent = ({
   const detail = useMemo(() => row.detail || {}, [row.detail]);
   const warnings = row.warnings || detail.warnings || [];
   const json = useMemo(() => JSON.stringify(detail, null, 2), [detail]);
+  const nextAction = sourceFixHref
+    ? {
+        buttonLabel: "Open source fix",
+        description: "Fix the source tied to this result, then rerun the eval.",
+        icon: "mingcute:external-link-line",
+        onClick: onSourceFixClick,
+      }
+    : scorerEditHref
+      ? {
+          buttonLabel: "Edit scorer",
+          description:
+            "No source route was available. Edit the scorer, then rerun the eval.",
+          icon: "mingcute:edit-line",
+          onClick: onScorerEditClick,
+        }
+      : null;
 
   return (
     <Box
@@ -1192,7 +1264,7 @@ const DetailPanelContent = ({
           <CompositeChildrenSection row={row} />
         ) : (
           <>
-            {sourceFixHref && (
+            {nextAction && (
               <Box
                 sx={{
                   px: 1.5,
@@ -1213,11 +1285,11 @@ const DetailPanelContent = ({
                   color="text.secondary"
                   sx={{ mb: 1.5, display: "block", lineHeight: 1.5 }}
                 >
-                  Fix the source tied to this result, then rerun the eval.
+                  {nextAction.description}
                 </Typography>
                 <Box
                   component="button"
-                  onClick={onSourceFixClick}
+                  onClick={nextAction.onClick}
                   sx={{
                     display: "flex",
                     alignItems: "center",
@@ -1241,8 +1313,8 @@ const DetailPanelContent = ({
                     },
                   }}
                 >
-                  <Iconify icon="mingcute:external-link-line" width={14} />
-                  Open source fix
+                  <Iconify icon={nextAction.icon} width={14} />
+                  {nextAction.buttonLabel}
                 </Box>
               </Box>
             )}

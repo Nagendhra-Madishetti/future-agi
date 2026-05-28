@@ -196,6 +196,22 @@ export const buildEvalScorerSourceHref = ({ sourceId } = {}) => {
   return `/dashboard/evaluations/create?${params.toString()}`;
 };
 
+export const buildEvalScorerEditHref = ({
+  evalId,
+  sourceId,
+  sourceType,
+} = {}) => {
+  if (!evalId) return null;
+
+  const params = new URLSearchParams();
+  params.set("source", "onboarding");
+  params.set("step", EVAL_CREATE_ONBOARDING_STEPS.SCORER);
+  if (sourceType) params.set("source_type", sourceType);
+  if (sourceId) params.set("source_id", sourceId);
+
+  return `/dashboard/evaluations/create/${evalId}?${params.toString()}`;
+};
+
 export const buildEvalRunStepHref = ({ evalId, sourceId, sourceType } = {}) => {
   const params = new URLSearchParams();
   params.set("source", "onboarding");
@@ -792,6 +808,46 @@ export const buildEvalSourceFixCtaClickedPayload = ({
       "onboarding_eval_source_fix_cta_clicked",
       safeKeyPart(sourceId || evalLogId, "no-source"),
       safeKeyPart(evalId, "no-eval"),
+    ].join(":"),
+    isSample: false,
+  };
+};
+
+export const buildEvalScorerEditCtaClickedPayload = ({
+  editRoute,
+  evalId,
+  evalLogId,
+  rowSource,
+  runId,
+  sourceId,
+  sourceType,
+} = {}) => {
+  const artifactId = safeKeyPart(
+    evalId || evalLogId || runId,
+    "eval-scorer-edit",
+  );
+
+  return {
+    eventName: "onboarding_eval_scorer_edit_cta_clicked",
+    primaryPath: "evals",
+    stage: "fix_eval_source",
+    source: "eval_review_onboarding",
+    artifactType: "eval_scorer",
+    artifactId,
+    metadata: compactMetadata({
+      edit_route: editRoute,
+      eval_id: evalId,
+      eval_log_id: evalLogId,
+      row_source: rowSource,
+      run_id: runId,
+      source_id: sourceId,
+      source_type: sourceType,
+      step: EVAL_CREATE_ONBOARDING_STEPS.SCORER,
+    }),
+    idempotencyKey: [
+      "onboarding_eval_scorer_edit_cta_clicked",
+      safeKeyPart(evalId, "no-eval"),
+      safeKeyPart(evalLogId || runId, "no-run"),
     ].join(":"),
     isSample: false,
   };
