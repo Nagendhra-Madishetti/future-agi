@@ -240,6 +240,84 @@ def test_observe_project_route_focus_records_event(
 
 
 @pytest.mark.django_db
+def test_first_quality_loop_completion_requires_primary_path(auth_client, workspace):
+    response = auth_client.post(
+        "/accounts/activation-events/",
+        {
+            "event_name": "first_quality_loop_completed",
+            "stage": "activated",
+            "source": "manual_completion",
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert (
+        OnboardingActivationEvent.no_workspace_objects.filter(
+            workspace=workspace,
+            event_name="first_quality_loop_completed",
+        ).count()
+        == 0
+    )
+
+
+@pytest.mark.django_db
+def test_direct_observe_first_quality_loop_completion_is_rejected(
+    auth_client,
+    workspace,
+):
+    response = auth_client.post(
+        "/accounts/activation-events/",
+        {
+            "event_name": "first_quality_loop_completed",
+            "primary_path": "observe",
+            "stage": "activated",
+            "source": "manual_completion",
+            "artifact_type": "eval",
+            "artifact_id": "eval-1",
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert (
+        OnboardingActivationEvent.no_workspace_objects.filter(
+            workspace=workspace,
+            event_name="first_quality_loop_completed",
+        ).count()
+        == 0
+    )
+
+
+@pytest.mark.django_db
+def test_prompt_first_quality_loop_completion_api_remains_supported(
+    auth_client,
+    workspace,
+):
+    response = auth_client.post(
+        "/accounts/activation-events/",
+        {
+            "event_name": "first_quality_loop_completed",
+            "primary_path": "prompt",
+            "stage": "activated",
+            "source": "prompt_metrics",
+            "metadata": {"template_id": "prompt-1"},
+            "idempotency_key": "prompt:first-quality-loop:prompt-1",
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    event = OnboardingActivationEvent.no_workspace_objects.get(
+        workspace=workspace,
+        event_name="first_quality_loop_completed",
+    )
+    assert event.product_path == "prompt"
+    assert event.activation_stage == "activated"
+    assert event.metadata == {"template_id": "prompt-1"}
+
+
+@pytest.mark.django_db
 def test_activation_event_rejects_unknown_event(auth_client):
     response = auth_client.post(
         "/accounts/activation-events/",
@@ -283,4 +361,9 @@ def test_trace_review_rejects_trace_outside_workspace(
     )
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert OnboardingActivationEvent.no_workspace_objects.count() == 0
+    assert (
+        OnboardingActivationEvent.no_workspace_objects.filter(
+            event_name="trace_reviewed",
+        ).count()
+        == 0
+    )

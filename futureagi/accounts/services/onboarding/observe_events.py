@@ -136,6 +136,7 @@ def record_observe_first_loop_completed(
                 ]
             ),
             is_sample=False,
+            allow_observe_loop_completion=True,
         )
     except Exception:
         logger.exception(

@@ -122,6 +122,7 @@ def record_event(
     is_sample=False,
     idempotency_key=None,
     occurred_at=None,
+    allow_observe_loop_completion=False,
 ):
     validate_workspace_scope(organization=organization, workspace=workspace)
     canonical_event_name = validate_event_name(event_name)
@@ -129,6 +130,15 @@ def record_event(
     canonical_activation_stage = validate_activation_stage(activation_stage)
     safe_metadata = sanitize_activation_metadata(metadata)
     normalized_idempotency_key = _normalize_idempotency_key(idempotency_key)
+    if (
+        canonical_event_name == "first_quality_loop_completed"
+        and canonical_product_path == "observe"
+        and is_sample is False
+        and allow_observe_loop_completion is False
+    ):
+        raise ValidationError(
+            "Observe loop completion must be recorded from product evidence."
+        )
 
     defaults = {
         "user": user,

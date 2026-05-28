@@ -386,7 +386,30 @@ def test_metadata_must_be_json_safe(organization, workspace, user):
 
 
 @pytest.mark.django_db
-def test_first_quality_loop_ignores_sample(organization, workspace, user):
+def test_direct_observe_first_quality_loop_completion_rejected(
+    organization,
+    workspace,
+    user,
+):
+    with pytest.raises(ValidationError):
+        record_event(
+            user=user,
+            organization=organization,
+            workspace=workspace,
+            event_name="first_quality_loop_completed",
+            source="manual_completion",
+            product_path="observe",
+        )
+
+    assert OnboardingActivationEvent.no_workspace_objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_first_quality_loop_ignores_sample_and_allows_evidence_writer(
+    organization,
+    workspace,
+    user,
+):
     record_event(
         user=user,
         organization=organization,
@@ -413,6 +436,7 @@ def test_first_quality_loop_ignores_sample(organization, workspace, user):
         event_name="first_quality_loop_completed",
         source="activation_resolver",
         product_path="observe",
+        allow_observe_loop_completion=True,
     )
 
     assert (

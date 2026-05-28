@@ -3,6 +3,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
+from accounts.models import OnboardingActivationEvent
 from accounts.services.onboarding.activation_events import record_event
 from accounts.services.onboarding.activation_state import resolve_activation_state
 from accounts.services.onboarding.context import OnboardingContext
@@ -104,6 +105,11 @@ def _activated_observe_workspace(organization, workspace, user, *, now):
         workspace=workspace,
         user=user,
     )
+    OnboardingActivationEvent.no_workspace_objects.filter(
+        workspace=workspace,
+        event_name="observe_project_created",
+        metadata__project_id=str(project.id),
+    ).update(occurred_at=now - timedelta(hours=4))
     trace = create_trace(project=project)
     _set_created_at(trace, now - timedelta(hours=3))
     create_custom_eval(organization=organization, workspace=workspace, project=project)
@@ -124,6 +130,7 @@ def _activated_observe_workspace(organization, workspace, user, *, now):
         source="test",
         product_path="observe",
         occurred_at=now - timedelta(hours=2),
+        allow_observe_loop_completion=True,
     )
     return project
 

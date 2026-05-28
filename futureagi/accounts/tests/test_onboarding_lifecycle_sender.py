@@ -9,6 +9,7 @@ from accounts.models import (
     NotificationChannel,
     NotificationDeliveryLog,
     NotificationPreference,
+    OnboardingActivationEvent,
     OnboardingGoal,
     OnboardingLifecycleEvaluationLog,
     OnboardingLifecyclePreference,
@@ -83,6 +84,11 @@ def _activated_observe_workspace(organization, workspace, user, *, now):
         workspace=workspace,
         user=user,
     )
+    OnboardingActivationEvent.no_workspace_objects.filter(
+        workspace=workspace,
+        event_name="observe_project_created",
+        metadata__project_id=str(project.id),
+    ).update(occurred_at=now - timedelta(hours=4))
     trace = create_trace(project=project)
     type(trace).no_workspace_objects.filter(id=trace.id).update(
         created_at=now - timedelta(hours=3)
@@ -105,6 +111,7 @@ def _activated_observe_workspace(organization, workspace, user, *, now):
         source="test",
         product_path="observe",
         occurred_at=now - timedelta(hours=2),
+        allow_observe_loop_completion=True,
     )
     return project
 

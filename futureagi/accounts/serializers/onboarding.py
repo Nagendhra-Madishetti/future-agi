@@ -1668,6 +1668,25 @@ class ActivationEventRequestSerializer(serializers.Serializer):
         primary_path = attrs.get("primary_path")
         artifact_type = attrs.get("artifact_type")
 
+        if event_name == "first_quality_loop_completed":
+            if primary_path is None:
+                raise serializers.ValidationError(
+                    {
+                        "primary_path": (
+                            "First quality loop completion events require "
+                            "a primary path."
+                        )
+                    }
+                )
+            if primary_path == "observe":
+                raise serializers.ValidationError(
+                    {
+                        "event_name": (
+                            "Observe loop completion is recorded from product evidence."
+                        )
+                    }
+                )
+
         if event_name == "trace_reviewed":
             if primary_path != "observe":
                 raise serializers.ValidationError(

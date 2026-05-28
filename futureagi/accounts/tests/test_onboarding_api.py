@@ -260,6 +260,7 @@ def test_onboarding_goal_stale_expected_stage_returns_conflict(
         event_name="first_quality_loop_completed",
         source="activation_resolver",
         product_path="observe",
+        allow_observe_loop_completion=True,
     )
 
     response = auth_client.post(
