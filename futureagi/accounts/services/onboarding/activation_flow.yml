@@ -621,6 +621,16 @@ actions:
     priority: 20
     target_path: observe
     fallback_route_key: get_started
+  open_observe_setup_fallback:
+    kind: fallback
+    title: Open observe setup
+    description: Return to the observe setup path and send the first trace.
+    route_key: observe_setup
+    cta_label: Start with observe
+    priority: 20
+    requires_permission: observe:write
+    target_path: observe
+    fallback_route_key: observe_dashboard
   review_daily_quality:
     kind: daily_quality
     title: Review today's quality signal
@@ -668,7 +678,7 @@ stage_defaults:
     ship: available
     improve: available
   recommended_action: choose_available_path
-  fallback_action: open_get_started
+  fallback_action: open_observe_setup_fallback
   next: []
 
 stages:
@@ -710,7 +720,7 @@ stages:
       title: Request access for setup
       description: This workspace needs write access before setup can continue.
     recommended_action: request_workspace_access
-    fallback_action: open_get_started
+    fallback_action: open_observe_dashboard_fallback
     requires_write: false
     next:
       - connect_observability
@@ -727,7 +737,7 @@ stages:
       ship: available
       improve: available
     recommended_action: choose_onboarding_goal
-    fallback_action: open_get_started
+    fallback_action: open_observe_setup_fallback
     requires_write: true
     next:
       - connect_observability
@@ -739,7 +749,7 @@ stages:
       title: Start with an available path
       description: This selected path is not available in the product yet.
     recommended_action: choose_available_path
-    fallback_action: open_get_started
+    fallback_action: open_observe_setup_fallback
     next:
       - connect_observability
   activated:
@@ -786,7 +796,7 @@ stages:
       ship: available
       improve: available
     recommended_action: create_observe_project
-    fallback_action: open_get_started
+    fallback_action: open_observe_setup_fallback
     flagged_fallback_actions:
       onboarding_sample_project: open_sample_trace
     requires_write: true
@@ -806,7 +816,7 @@ stages:
       ship: available
       improve: available
     recommended_action: send_first_trace
-    fallback_action: open_get_started
+    fallback_action: open_observe_dashboard_fallback
     flagged_fallback_actions:
       onboarding_sample_project: open_sample_trace
     requires_write: true
@@ -842,7 +852,7 @@ stages:
       ship: available
       improve: available
     recommended_action: review_first_trace
-    fallback_action: open_get_started
+    fallback_action: open_observe_dashboard_fallback
     next:
       - create_trace_evaluator
   create_trace_evaluator:
@@ -858,7 +868,7 @@ stages:
       ship: available
       improve: in_progress
     recommended_action: create_trace_evaluator
-    fallback_action: open_get_started
+    fallback_action: open_observe_dashboard_fallback
     requires_write: true
     next:
       - activated
@@ -869,7 +879,7 @@ stages:
       title: Review a sample signal
       description: Inspect the sample signal while real workspace data is pending.
     recommended_action: open_sample_trace
-    fallback_action: open_get_started
+    fallback_action: open_observe_setup_fallback
     next:
       - connect_real_data
   start_prompt:

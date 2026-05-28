@@ -19,6 +19,7 @@ export default function GoalPicker({
   onSelectGoal,
   onSaveGoal,
   skipHref,
+  skipLabel,
   isSaving = false,
   error,
   disabled = false,
@@ -160,7 +161,7 @@ export default function GoalPicker({
               href={skipHref}
               disabled={isSaving}
             >
-              Open Get Started
+              {skipLabel || "Open fallback"}
             </Button>
           ) : null}
         </Stack>
@@ -178,4 +179,5 @@ GoalPicker.propTypes = {
   onSelectGoal: PropTypes.func.isRequired,
   selectedGoal: PropTypes.string,
   skipHref: PropTypes.string,
+  skipLabel: PropTypes.string,
 };

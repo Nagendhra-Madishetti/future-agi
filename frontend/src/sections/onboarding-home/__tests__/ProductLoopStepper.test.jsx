@@ -90,9 +90,12 @@ describe("ProductLoopStepper", () => {
     );
 
     expect(screen.getByText("Fallback")).toBeVisible();
-    expect(screen.getByText("Open Get Started")).toBeVisible();
+    expect(screen.getByText("Open observe setup")).toBeVisible();
     expect(
       screen.getByRole("link", { name: /open fallback/i }),
-    ).toHaveAttribute("href", "/dashboard/get-started");
+    ).toHaveAttribute(
+      "href",
+      "/dashboard/observe?setup=true&source=onboarding",
+    );
   });
 });

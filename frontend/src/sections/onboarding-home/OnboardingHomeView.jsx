@@ -617,6 +617,10 @@ export default function OnboardingHomeView() {
               onSelectGoal={handleSelectGoal}
               onSaveGoal={handleSaveGoal}
               skipHref={renderedState.fallbackAction?.href}
+              skipLabel={
+                renderedState.fallbackAction?.ctaLabel ||
+                renderedState.fallbackAction?.title
+              }
               isSaving={isSavingGoal}
               error={saveGoal.error}
             />

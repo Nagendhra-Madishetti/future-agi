@@ -283,6 +283,27 @@ const fallbackAction = (overrides = {}) =>
     ...overrides,
   });
 
+const observeSetupFallbackAction = (overrides = {}) =>
+  action({
+    id: "open_observe_setup_fallback",
+    kind: "fallback",
+    title: "Open observe setup",
+    description: "Return to the observe setup path and send the first trace.",
+    href: "/dashboard/observe?setup=true&source=onboarding",
+    cta_label: "Start with observe",
+    estimated_minutes: null,
+    priority: 20,
+    requires_permission: "observe:write",
+    completion_event: null,
+    fallback_href: "/dashboard/observe",
+    analytics: {
+      event_name: "onboarding_recommended_action_clicked",
+      source: "home",
+      target_path: "observe",
+    },
+    ...overrides,
+  });
+
 const promptAction = (overrides = {}) =>
   action({
     id: "create_prompt",
@@ -758,7 +779,7 @@ const baseState = (overrides = {}) => ({
   is_activated: false,
   activated_at: null,
   recommended_action: action(),
-  fallback_action: fallbackAction(),
+  fallback_action: observeSetupFallbackAction(),
   progress: {
     build: "selected",
     test: "available",
@@ -2155,7 +2176,7 @@ export const activationStateFixtures = {
         target_path: "observe",
       },
     }),
-    fallback_action: fallbackAction(),
+    fallback_action: observeSetupFallbackAction(),
     available_paths: [
       {
         ...gatewayAvailablePaths()[0],
@@ -2530,7 +2551,7 @@ export const activationStateFixtures = {
 
   sampleUnavailable: baseState({
     stage: "waiting_for_first_trace",
-    fallback_action: fallbackAction(),
+    fallback_action: observeSetupFallbackAction(),
     sample_project: baseSampleProject({
       available: false,
       status: "unavailable",

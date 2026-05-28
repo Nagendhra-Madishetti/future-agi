@@ -15,7 +15,8 @@ describe("GoalPicker", () => {
         selectedGoal="monitor_production_ai_app"
         onSelectGoal={onSelectGoal}
         onSaveGoal={onSaveGoal}
-        skipHref="/dashboard/get-started"
+        skipHref="/dashboard/observe?setup=true&source=onboarding"
+        skipLabel="Start with observe"
       />,
     );
 
@@ -28,9 +29,11 @@ describe("GoalPicker", () => {
     expect(onSaveGoal).toHaveBeenCalledWith(
       expect.objectContaining({ goal: "monitor_production_ai_app" }),
     );
-    expect(screen.getByRole("link", { name: /get started/i })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: /start with observe/i }),
+    ).toHaveAttribute(
       "href",
-      "/dashboard/get-started",
+      "/dashboard/observe?setup=true&source=onboarding",
     );
   });
 

@@ -108,6 +108,10 @@ def test_no_goal_returns_choose_goal(organization, workspace, user):
     )
 
     assert payload["stage"] == "choose_goal"
+    assert payload["fallback_action"]["id"] == "open_observe_setup_fallback"
+    assert payload["fallback_action"]["href"] == (
+        "/dashboard/observe?setup=true&source=onboarding"
+    )
 
 
 @pytest.mark.django_db
@@ -126,6 +130,10 @@ def test_observe_path_no_setup_returns_connect_observability(
     assert payload["stage_copy"]["title"] == "Connect observability"
     assert payload["available_goals"][0]["goal"] == "monitor_production_ai_app"
     assert payload["recommended_action"]["id"] == "create_observe_project"
+    assert payload["fallback_action"]["id"] == "open_observe_setup_fallback"
+    assert payload["fallback_action"]["href"] == (
+        "/dashboard/observe?setup=true&source=onboarding"
+    )
 
 
 def test_activation_flow_config_drives_goal_and_stage_wiring():
@@ -159,6 +167,8 @@ def test_observe_project_without_trace_waits_for_trace(organization, workspace, 
     assert payload["recommended_action"]["href"] == (
         f"/dashboard/observe/{project.id}/llm-tracing"
     )
+    assert payload["fallback_action"]["id"] == "open_observe_dashboard_fallback"
+    assert payload["fallback_action"]["href"] == f"/dashboard/observe/{project.id}"
 
 
 @pytest.mark.django_db
@@ -235,6 +245,8 @@ def test_trace_without_review_returns_review_first_trace(organization, workspace
     )
 
     assert payload["stage"] == "review_first_trace"
+    assert payload["fallback_action"]["id"] == "open_observe_dashboard_fallback"
+    assert payload["fallback_action"]["href"] == f"/dashboard/observe/{project.id}"
 
 
 @pytest.mark.django_db
@@ -274,6 +286,8 @@ def test_trace_review_without_improvement_returns_create_evaluator(
     assert payload["recommended_action"]["href"] == (
         f"/dashboard/observe/{project.id}/llm-tracing"
     )
+    assert payload["fallback_action"]["id"] == "open_observe_dashboard_fallback"
+    assert payload["fallback_action"]["href"] == f"/dashboard/observe/{project.id}"
 
 
 @pytest.mark.django_db
@@ -402,6 +416,7 @@ def test_permission_limited_user_does_not_receive_write_action(
 
     assert payload["stage"] == "permission_limited"
     assert payload["recommended_action"]["kind"] == "request_access"
+    assert payload["fallback_action"]["id"] == "open_observe_dashboard_fallback"
 
 
 @pytest.mark.django_db
@@ -425,6 +440,7 @@ def test_unavailable_goal_returns_selected_path_unavailable(
     )
 
     assert payload["stage"] == "selected_path_unavailable"
+    assert payload["fallback_action"]["id"] == "open_observe_setup_fallback"
 
 
 @pytest.mark.django_db
