@@ -521,6 +521,9 @@ export default function OnboardingHomeView() {
     ? dailyQualityPanel || (
         <FirstLoopCompletePanel
           {...observePanelProps}
+          dailyQualityRoute={
+            renderedState.routeAvailability?.daily_quality_home
+          }
           lastMeaningfulEvent={renderedState.lastMeaningfulEvent}
           primaryPath={renderedState.primaryPath}
         />

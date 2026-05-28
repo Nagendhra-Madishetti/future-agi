@@ -6,14 +6,12 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Iconify from "src/components/iconify";
 import { RouterLink } from "src/routes/components";
-import { paths } from "src/routes/paths";
 import { ObservePanelActions, ObservePanelHeader } from "./observe-panel-utils";
 import { readableToken } from "../onboarding-home.constants";
 
-const DAILY_QUALITY_HREF = `${paths.dashboard.home}?mode=daily-quality`;
-
 export default function FirstLoopCompletePanel({
   action,
+  dailyQualityRoute,
   fallbackAction,
   lastMeaningfulEvent,
   primaryPath,
@@ -24,6 +22,9 @@ export default function FirstLoopCompletePanel({
 }) {
   const productPath = primaryPath || action?.analytics?.targetPath;
   const pathLabel = productPath ? readableToken(productPath) : null;
+  const dailyQualityHref = dailyQualityRoute?.isAvailable
+    ? dailyQualityRoute.href
+    : null;
 
   return (
     <Box
@@ -68,8 +69,9 @@ export default function FirstLoopCompletePanel({
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
           <Button
             variant="contained"
-            component={RouterLink}
-            href={DAILY_QUALITY_HREF}
+            component={dailyQualityHref ? RouterLink : "button"}
+            href={dailyQualityHref || undefined}
+            disabled={!dailyQualityHref}
             startIcon={<Iconify icon="mdi:calendar-check" width={18} />}
           >
             Review daily quality
@@ -91,6 +93,7 @@ export default function FirstLoopCompletePanel({
 
 FirstLoopCompletePanel.propTypes = {
   action: PropTypes.object,
+  dailyQualityRoute: PropTypes.object,
   fallbackAction: PropTypes.object,
   isChecking: PropTypes.bool,
   lastMeaningfulEvent: PropTypes.object,

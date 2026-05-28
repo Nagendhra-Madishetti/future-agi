@@ -208,8 +208,14 @@ describe("OnboardingHomeView", () => {
   });
 
   it("uses the post-aha screen for activated non-observe paths", () => {
+    const activatedState = normalizedFixture("promptActivated");
+    activatedState.routeAvailability.daily_quality_home = {
+      href: "/dashboard/home?mode=daily-quality&source=post-aha-test",
+      isAvailable: true,
+      reason: null,
+    };
     mocks.useActivationState.mockReturnValue({
-      state: normalizedFixture("promptActivated"),
+      state: activatedState,
       isLoading: false,
       isRefetching: false,
       isError: false,
@@ -227,7 +233,10 @@ describe("OnboardingHomeView", () => {
     expect(within(panel).getByText("prompt")).toBeVisible();
     expect(
       within(panel).getByRole("link", { name: /review daily quality/i }),
-    ).toHaveAttribute("href", "/dashboard/home?mode=daily-quality");
+    ).toHaveAttribute(
+      "href",
+      "/dashboard/home?mode=daily-quality&source=post-aha-test",
+    );
     expect(
       within(panel).getByRole("link", { name: /open prompt metrics/i }),
     ).toHaveAttribute(
