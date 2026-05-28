@@ -39,7 +39,7 @@ ONBOARDING_FLAG_NAMES = (
     "onboarding_lifecycle_send_enabled",
 )
 
-SELF_HOST_ONBOARDING_DEFAULTS = {
+CORE_ONBOARDING_DEFAULTS = {
     "onboarding_activation_state_api": True,
     "onboarding_goal_picker": True,
     "onboarding_path_cards": True,
@@ -48,6 +48,8 @@ SELF_HOST_ONBOARDING_DEFAULTS = {
     "onboarding_eval_path": True,
     "onboarding_eval_route_modes": True,
 }
+
+SELF_HOST_ONBOARDING_DEFAULTS = CORE_ONBOARDING_DEFAULTS
 
 CONTRACT_FLAG_ALIASES = {
     "onboarding_home_enabled": "onboarding_activation_state_api",
@@ -82,6 +84,7 @@ def _groups(organization, workspace):
 
 def get_onboarding_flags(*, user, organization, workspace):
     flags = dict.fromkeys(ONBOARDING_FLAG_NAMES, False)
+    flags.update(CORE_ONBOARDING_DEFAULTS)
     overrides = _flag_overrides()
     overrides_configured = hasattr(settings, "ONBOARDING_FEATURE_FLAGS")
     groups = _groups(organization, workspace)
@@ -93,6 +96,8 @@ def get_onboarding_flags(*, user, organization, workspace):
     for flag_name in ONBOARDING_FLAG_NAMES:
         if flag_name in overrides:
             flags[flag_name] = bool(overrides[flag_name])
+            continue
+        if flag_name in CORE_ONBOARDING_DEFAULTS:
             continue
         if overrides_configured:
             continue

@@ -1505,8 +1505,8 @@ async function clickVisibleButtonText(page, text, timeout = 30000) {
   assert(element, `Expected visible button for ${text}.`);
   await element.evaluate((button) => {
     button.scrollIntoView({ block: "center", inline: "center" });
-    button.click();
   });
+  await element.click();
   await handle.dispose();
 }
 

@@ -32,6 +32,7 @@ import RegionSelect from "src/components/RegionSelect";
 import { GOOGLE_SITE_KEY } from "src/config-global";
 import RightSectionAuth from "./RightSectionAuth";
 import { isValidUtm } from "src/utils/utmUtils";
+import { getAuthErrorMessage } from "./auth-error-message";
 
 export default function JwtRegisterView() {
   const { register, login, awsRegister } = useAuthContext();
@@ -199,11 +200,7 @@ export default function JwtRegisterView() {
     } catch (error) {
       setLoading(false);
       logger.error("Registration Error:", error);
-      setErrorMsg(
-        typeof error === "string"
-          ? error
-          : error.error || error.detail || error.result,
-      );
+      setErrorMsg(getAuthErrorMessage(error, "Registration failed"));
     } finally {
       setLoading(false);
     }
@@ -243,11 +240,7 @@ export default function JwtRegisterView() {
         // setError("password", {message: "Check your password and try again", type: "focus"}, { shouldFocus: true })
         setErrorMsg("Enter a valid Email and password combination");
       } else {
-        setErrorMsg(
-          typeof error === "string"
-            ? error
-            : error?.detail || error?.result?.error,
-        );
+        setErrorMsg(getAuthErrorMessage(error, "Login failed"));
       }
       logger.error("Login failed", error);
     } finally {
