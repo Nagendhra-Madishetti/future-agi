@@ -4,6 +4,50 @@ from model_hub.models.kb import KnowledgeBase
 
 
 class KnowledgeBaseSerializer(serializers.ModelSerializer):
+    """A knowledge base is a chunked, embedded corpus used to ground
+    LLM prompts (RAG) or synthetic data generation.
+
+    Each KB has an embedding model (e.g. 'text-embedding-3-small'), a
+    chunk size (in tokens), and a collection of indexed files. Use KBs
+    in prompt templates as a retrieval source, in dataset synthesis to
+    seed examples, or attach to agents for grounded answers. Names are
+    unique per organization.
+    """
+
+    id = serializers.UUIDField(
+        read_only=True,
+        help_text=(
+            "Unique knowledge base identifier (UUID v4). **How to get it:** "
+            "call `list_knowledge_bases` first."
+        ),
+    )
+    name = serializers.CharField(
+        max_length=255,
+        help_text=(
+            "Human-readable KB name. Must be unique within the organization. "
+            "Examples: 'product-docs-v3', 'company-handbook', 'api-reference'."
+        ),
+    )
+    embedding_model = serializers.CharField(
+        required=False,
+        help_text=(
+            "Embedding model used to vectorise chunks. Examples: "
+            "'text-embedding-3-small', 'text-embedding-3-large', "
+            "'voyage-3'. Determines retrieval quality and dimensionality."
+        ),
+    )
+    chunk_size = serializers.IntegerField(
+        required=False,
+        help_text=(
+            "Chunk size in tokens. Typical values 256-1024. Smaller chunks "
+            "give more granular retrieval; larger chunks preserve context."
+        ),
+    )
+    organization = serializers.UUIDField(
+        read_only=True,
+        help_text="Organization UUID, auto-set from the authenticated user.",
+    )
+
     class Meta:
         model = KnowledgeBase
         fields = [

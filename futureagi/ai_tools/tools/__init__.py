@@ -11,12 +11,11 @@ import tracer.views.project  # noqa: F401  — registers tracing_* bridge tools
 from ai_tools.tools.agents import (
     get_call_execution,  # noqa: F401
     get_test_execution,  # noqa: F401
-    list_agent_versions,  # noqa: F401
-    list_agents,  # noqa: F401
     list_scenarios,  # noqa: F401
     list_test_executions,  # noqa: F401
 )
 
+# list_agents, list_agent_versions -> DRF bridge (see _agents.py)
 # Annotation Queue tools (8)
 from ai_tools.tools.annotation_queues import (
     add_queue_items,  # noqa: F401
@@ -37,9 +36,12 @@ from ai_tools.tools.annotations import (
 
 # DRF bridges programmatically applied for legacy lint-debt files:
 from ai_tools.tools.bridge import (
+    _agents,  # noqa: F401  list/get/create/update/delete_agent
     _annotation_queues,  # noqa: F401  list/get/create/update/delete_annotation_queue
     _datasets,  # noqa: F401  list/get/create/update/delete_dataset
     _eval_groups,  # noqa: F401  list/get/create/update/delete_eval_group
+    _knowledge_bases,  # noqa: F401  list/get/create/update/delete_knowledge_base
+    _personas,  # noqa: F401  list/get/create/update/delete_persona
     _prompt_templates,  # noqa: F401  list/get/create/update/delete_prompt_template
 )
 
@@ -64,7 +66,7 @@ from ai_tools.tools.datasets import (
     duplicate_dataset,  # noqa: F401
     duplicate_rows,  # noqa: F401
     list_dataset_evals,  # noqa: F401
-    list_knowledge_bases,  # noqa: F401
+    # list_knowledge_bases -> DRF bridge (see _knowledge_bases.py)
     merge_datasets,  # noqa: F401
     run_prompt_for_rows,  # noqa: F401
     update_cell_value,  # noqa: F401
@@ -150,28 +152,22 @@ from ai_tools.tools.simulation import (
     activate_agent_version,  # noqa: F401
     cancel_test_execution,  # noqa: F401
     compare_agent_versions,  # noqa: F401
-    create_persona,  # noqa: F401
     create_simulator_agent,  # noqa: F401
     delete_agent_definition,  # noqa: F401
-    delete_persona,  # noqa: F401
     delete_run_test,  # noqa: F401
     delete_scenario,  # noqa: F401
     delete_simulate_eval_config,  # noqa: F401
     delete_test_execution,  # noqa: F401
     duplicate_agent_definition,  # noqa: F401
-    duplicate_persona,  # noqa: F401
     get_agent_version,  # noqa: F401
     get_call_logs,  # noqa: F401
     get_call_transcript,  # noqa: F401
-    get_persona,  # noqa: F401
     get_scenario,  # noqa: F401
     get_test_execution_analytics,  # noqa: F401
     list_eval_mapping_options,  # noqa: F401
-    list_personas,  # noqa: F401
     list_simulate_eval_configs,  # noqa: F401
     list_simulator_agents,  # noqa: F401
     rerun_call_execution,  # noqa: F401
-    update_persona,  # noqa: F401
     update_scenario,  # noqa: F401
     update_simulate_eval_config,  # noqa: F401
     update_simulator_agent,  # noqa: F401
