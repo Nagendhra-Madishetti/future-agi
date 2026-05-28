@@ -232,6 +232,21 @@ async function main() {
           "sample_trace_review",
       { timeout: 45000 },
     );
+    await expectVisibleTestId(page, "observe-onboarding-focus", {
+      timeout: 45000,
+    });
+    await expectVisibleText(page, "Real data", { timeout: 45000 });
+    await expectVisibleText(page, "Connect your app", {
+      exact: true,
+      timeout: 45000,
+    });
+    await expectVisibleText(
+      page,
+      "Use the setup below to send one real or test trace from your app.",
+      { timeout: 45000 },
+    );
+    await expectVisibleText(page, "Sample review", { timeout: 45000 });
+    await expectNoVisibleText(page, "Open sample trace");
 
     const browserState = await page.evaluate(() => ({
       initialRender: localStorage.getItem("initial-render"),
@@ -286,6 +301,17 @@ async function main() {
       "Expected sample to real setup activation event.",
     );
     assert(
+      evidence.activationEventPosts.some(
+        (payload) =>
+          payload?.event_name === "onboarding_observe_route_focus_viewed" &&
+          payload?.primary_path === "observe" &&
+          payload?.stage === "connect_real_data" &&
+          payload?.source === "sample_trace_review" &&
+          payload?.metadata?.setup_source === "sample_trace_review",
+      ),
+      "Expected real setup focus event after sample trace review.",
+    );
+    assert(
       evidence.activationStateRequests.some(
         (request) => request.source === "setup_org",
       ),
@@ -335,6 +361,13 @@ async function main() {
               (payload) =>
                 payload?.event_name === "sample_to_real_setup_clicked",
             ),
+            sample_review_return_focus_event:
+              evidence.activationEventPosts.find(
+                (payload) =>
+                  payload?.event_name ===
+                    "onboarding_observe_route_focus_viewed" &&
+                  payload?.source === "sample_trace_review",
+              ),
             sample_trace_url: sampleTraceUrl,
             real_setup_return_url: page.url(),
             screenshot: SCREENSHOT_PATH,

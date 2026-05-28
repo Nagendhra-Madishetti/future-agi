@@ -201,6 +201,40 @@ describe("ProjectWrapperView observe setup onboarding", () => {
     });
   });
 
+  it("returns sample trace users to real setup guidance", async () => {
+    renderWithRouter(<ProjectWrapperView />, {
+      route: "/dashboard/observe?setup=true&source=sample_trace_review",
+    });
+
+    expect(screen.getByText("Connect your app")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Use the setup below to send one real or test trace from your app.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByText("Sample review")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /open sample trace/i }),
+    ).toBeNull();
+
+    await waitFor(() => {
+      expect(mocks.recordActivationEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          artifactType: "observe_setup",
+          eventName: "onboarding_observe_route_focus_viewed",
+          metadata: {
+            route_mode: "setup-observe",
+            setup: true,
+            setup_source: "sample_trace_review",
+          },
+          primaryPath: "observe",
+          source: "sample_trace_review",
+          stage: "connect_real_data",
+        }),
+      );
+    });
+  });
+
   it("does not show setup focus on the normal observe list route", () => {
     renderWithRouter(<ProjectWrapperView />, {
       route: "/dashboard/observe",

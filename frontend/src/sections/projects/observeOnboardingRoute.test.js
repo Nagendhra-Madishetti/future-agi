@@ -8,6 +8,7 @@ import {
   getObserveSetupOnboardingParams,
   observeOnboardingStage,
   OBSERVE_ONBOARDING_MODES,
+  OBSERVE_ONBOARDING_SOURCES,
 } from "./observeOnboardingRoute";
 
 describe("observeOnboardingRoute", () => {
@@ -37,6 +38,17 @@ describe("observeOnboardingRoute", () => {
     ).toEqual({
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
+      source: OBSERVE_ONBOARDING_SOURCES.ONBOARDING,
+    });
+  });
+
+  it("reads observe setup params after sample trace review", () => {
+    expect(
+      getObserveSetupOnboardingParams("?setup=true&source=sample_trace_review"),
+    ).toEqual({
+      isOnboarding: true,
+      mode: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
+      source: OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW,
     });
   });
 
@@ -84,6 +96,15 @@ describe("observeOnboardingRoute", () => {
       primaryLabel: "Refresh traces",
       title: "Send the first trace",
     });
+    expect(
+      getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE, {
+        source: OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW,
+      }),
+    ).toMatchObject({
+      currentStep: "Real data",
+      primaryLabel: "Send real trace",
+      title: "Connect your app",
+    });
   });
 
   it("builds a safe route-focus payload", () => {
@@ -128,6 +149,30 @@ describe("observeOnboardingRoute", () => {
       },
       idempotencyKey:
         "onboarding_observe_route_focus_viewed:setup-observe:observe-setup",
+      isSample: false,
+    });
+  });
+
+  it("builds a distinct setup focus payload after sample trace review", () => {
+    expect(
+      buildObserveRouteFocusPayload({
+        mode: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
+        setupSource: OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW,
+      }),
+    ).toMatchObject({
+      eventName: "onboarding_observe_route_focus_viewed",
+      primaryPath: "observe",
+      stage: "connect_real_data",
+      source: OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW,
+      artifactType: "observe_setup",
+      artifactId: "observe-setup",
+      metadata: {
+        route_mode: "setup-observe",
+        setup: true,
+        setup_source: OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW,
+      },
+      idempotencyKey:
+        "onboarding_observe_route_focus_viewed:sample_trace_review:setup-observe:observe-setup",
       isSample: false,
     });
   });

@@ -6,11 +6,17 @@ export const OBSERVE_ONBOARDING_MODES = {
   SETUP_OBSERVE: "setup-observe",
 };
 
+export const OBSERVE_ONBOARDING_SOURCES = {
+  ONBOARDING: "onboarding",
+  SAMPLE_TRACE_REVIEW: "sample_trace_review",
+};
+
 const projectModeSet = new Set([
   OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR,
   OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
 ]);
 const routeFocusModeSet = new Set(Object.values(OBSERVE_ONBOARDING_MODES));
+const setupSourceSet = new Set(Object.values(OBSERVE_ONBOARDING_SOURCES));
 
 const safeKeyPart = (value, fallback = DEFAULT_ARTIFACT_ID) =>
   String(value || fallback)
@@ -26,7 +32,8 @@ const compactMetadata = (value = {}) =>
 
 export const getObserveOnboardingParams = (search = "") => {
   const params = new URLSearchParams(search);
-  const isOnboarding = params.get("source") === "onboarding";
+  const isOnboarding =
+    params.get("source") === OBSERVE_ONBOARDING_SOURCES.ONBOARDING;
   const rawMode = params.get("onboarding");
   return {
     isOnboarding,
@@ -36,7 +43,8 @@ export const getObserveOnboardingParams = (search = "") => {
 
 export const getObserveSetupOnboardingParams = (search = "") => {
   const params = new URLSearchParams(search);
-  const isOnboarding = params.get("source") === "onboarding";
+  const source = params.get("source");
+  const isOnboarding = setupSourceSet.has(source);
   const isSetupRoute =
     params.get("setup") === "true" ||
     params.get("onboarding") === OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE;
@@ -46,6 +54,7 @@ export const getObserveSetupOnboardingParams = (search = "") => {
       isOnboarding && isSetupRoute
         ? OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE
         : null,
+    source: isOnboarding ? source : null,
   };
 };
 
@@ -59,8 +68,24 @@ export const observeOnboardingStage = (mode) => {
   return "waiting_for_first_trace";
 };
 
-export const getObserveOnboardingCopy = (mode) => {
+export const getObserveOnboardingCopy = (mode, { source } = {}) => {
   if (mode === OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE) {
+    if (source === OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW) {
+      return {
+        currentStep: "Real data",
+        description:
+          "Use the setup below to send one real or test trace from your app.",
+        primaryLabel: "Send real trace",
+        secondaryLabel: null,
+        steps: [
+          { label: "Sample review", complete: true },
+          { label: "Install", complete: false },
+          { label: "Trace", complete: false },
+        ],
+        title: "Connect your app",
+      };
+    }
+
     return {
       currentStep: "Setup",
       description:
@@ -128,11 +153,18 @@ export const buildObserveEvaluatorCreateHref = ({ observeId } = {}) => {
   return `/dashboard/evaluations/create?${params.toString()}`;
 };
 
-export const buildObserveRouteFocusPayload = ({ observeId, mode } = {}) => {
+export const buildObserveRouteFocusPayload = ({
+  observeId,
+  mode,
+  setupSource,
+} = {}) => {
   const normalizedMode = routeFocusModeSet.has(mode)
     ? mode
     : OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE;
   const isSetupMode = normalizedMode === OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE;
+  const isSampleReviewSetup =
+    isSetupMode &&
+    setupSource === OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW;
   const artifactId = isSetupMode
     ? "observe-setup"
     : safeKeyPart(observeId, DEFAULT_ARTIFACT_ID);
@@ -140,23 +172,31 @@ export const buildObserveRouteFocusPayload = ({ observeId, mode } = {}) => {
   return {
     eventName: "onboarding_observe_route_focus_viewed",
     primaryPath: "observe",
-    stage: observeOnboardingStage(normalizedMode),
-    source: isSetupMode
-      ? "observe_setup_onboarding"
-      : "observe_project_onboarding",
+    stage: isSampleReviewSetup
+      ? "connect_real_data"
+      : observeOnboardingStage(normalizedMode),
+    source: isSampleReviewSetup
+      ? OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW
+      : isSetupMode
+        ? "observe_setup_onboarding"
+        : "observe_project_onboarding",
     artifactType: isSetupMode ? "observe_setup" : "observe_project",
     artifactId,
     projectId: isSetupMode ? undefined : observeId,
     metadata: compactMetadata({
       project_id: isSetupMode ? undefined : observeId,
       route_mode: normalizedMode,
+      setup_source: isSampleReviewSetup ? setupSource : undefined,
       setup: isSetupMode ? true : undefined,
     }),
     idempotencyKey: [
       "onboarding_observe_route_focus_viewed",
+      isSampleReviewSetup ? setupSource : undefined,
       safeKeyPart(normalizedMode, "mode"),
       artifactId,
-    ].join(":"),
+    ]
+      .filter(Boolean)
+      .join(":"),
     isSample: false,
   };
 };

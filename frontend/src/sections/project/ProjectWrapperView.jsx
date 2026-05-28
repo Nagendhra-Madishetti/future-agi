@@ -44,6 +44,7 @@ import {
   getObserveOnboardingCopy,
   getObserveSetupOnboardingParams,
   OBSERVE_ONBOARDING_MODES,
+  OBSERVE_ONBOARDING_SOURCES,
 } from "src/sections/projects/observeOnboardingRoute";
 
 export const SearchFieldBox = styled(Box)(({ theme }) => ({
@@ -111,16 +112,21 @@ const ProjectWrapperView = () => {
     currentTab === "observe" &&
     observeSetupOnboardingParams.mode ===
       OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE;
+  const isSampleReviewReturn =
+    observeSetupOnboardingParams.source ===
+    OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW;
   const observeSetupCopy = useMemo(
     () =>
       showObserveSetupFocus
-        ? getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE)
+        ? getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE, {
+            source: observeSetupOnboardingParams.source,
+          })
         : null,
-    [showObserveSetupFocus],
+    [observeSetupOnboardingParams.source, showObserveSetupFocus],
   );
-  const canOpenObserveSetupSample = canOpenSample(
-    observeSetupFocusState?.sampleProject,
-  );
+  const canOpenObserveSetupSample =
+    !isSampleReviewReturn &&
+    canOpenSample(observeSetupFocusState?.sampleProject);
 
   useEffect(() => {
     if (!showObserveSetupFocus || recordedObserveSetupFocusRef.current) return;
@@ -128,9 +134,14 @@ const ProjectWrapperView = () => {
     recordActivationEvent?.(
       buildObserveRouteFocusPayload({
         mode: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
+        setupSource: observeSetupOnboardingParams.source,
       }),
     );
-  }, [recordActivationEvent, showObserveSetupFocus]);
+  }, [
+    observeSetupOnboardingParams.source,
+    recordActivationEvent,
+    showObserveSetupFocus,
+  ]);
 
   useEffect(() => {
     if (
