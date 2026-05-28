@@ -77,7 +77,13 @@ const options = [
   // },
 ];
 
-const AddDatasetDrawer = ({ open, onClose, onDatasetCreated, refreshGrid }) => {
+const AddDatasetDrawer = ({
+  open,
+  onClose,
+  onDatasetCreated,
+  onboardingContext,
+  refreshGrid,
+}) => {
   const [uploadFileModalOpen, setUploadFileModalOpen] = useState(false);
   const [addSDK, setAddSDK] = useState(false);
   const [manuallyCreateDatasetModalOpen, setManuallyCreateDatasetModalOpen] =
@@ -93,6 +99,7 @@ const AddDatasetDrawer = ({ open, onClose, onDatasetCreated, refreshGrid }) => {
   const filteredOptions = isOSS
     ? options.filter((o) => o.id !== "synthetic-data")
     : options;
+  const isEvalSourceContext = onboardingContext === "eval_source";
 
   return (
     <>
@@ -180,7 +187,9 @@ const AddDatasetDrawer = ({ open, onClose, onDatasetCreated, refreshGrid }) => {
                       color="text.primary"
                       variant="m3"
                     >
-                      Add dataset
+                      {isEvalSourceContext
+                        ? "Create eval source"
+                        : "Add dataset"}
                     </Typography>
                     <Link
                       href="https://docs.futureagi.com/docs/dataset"
@@ -194,8 +203,30 @@ const AddDatasetDrawer = ({ open, onClose, onDatasetCreated, refreshGrid }) => {
                     </Link>
                   </Box>
                   <Typography typography="s1">
-                    Provide a dataset to experiment, evaluate, and optimize.
+                    {isEvalSourceContext
+                      ? "Create or import the dataset for this evaluation. The next step adds the scorer."
+                      : "Provide a dataset to experiment, evaluate, and optimize."}
                   </Typography>
+                  {isEvalSourceContext && (
+                    <Box
+                      sx={{
+                        mt: 1,
+                        p: 1,
+                        borderLeft: "3px solid",
+                        borderColor: "primary.main",
+                        borderRadius: "6px",
+                        bgcolor: "action.hover",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block" }}
+                      >
+                        Eval setup: Source now, scorer next, run after that.
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
 
                 <IconButton
@@ -258,7 +289,7 @@ const AddDatasetDrawer = ({ open, onClose, onDatasetCreated, refreshGrid }) => {
                         // setSyntheticDataDrawerOpen(true);
                         navigate(
                           `/dashboard/develop/create-synthetic-dataset${
-                            onDatasetCreated
+                            isEvalSourceContext
                               ? "?source=onboarding&action=create-eval-dataset"
                               : ""
                           }`,
@@ -290,6 +321,7 @@ AddDatasetDrawer.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
   onDatasetCreated: PropTypes.func,
+  onboardingContext: PropTypes.string,
   refreshGrid: PropTypes.func,
 };
 

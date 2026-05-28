@@ -399,6 +399,9 @@ const DevelopView = () => {
           onDatasetCreated={
             isEvalDatasetOnboarding ? handleOnboardingDatasetCreated : undefined
           }
+          onboardingContext={
+            isEvalDatasetOnboarding ? "eval_source" : undefined
+          }
           refreshGrid={refreshGrid}
         />
       </Box>
@@ -513,6 +516,7 @@ const DevelopView = () => {
         onDatasetCreated={
           isEvalDatasetOnboarding ? handleOnboardingDatasetCreated : undefined
         }
+        onboardingContext={isEvalDatasetOnboarding ? "eval_source" : undefined}
         refreshGrid={refreshGrid}
       />
       <DuplicateDataset
