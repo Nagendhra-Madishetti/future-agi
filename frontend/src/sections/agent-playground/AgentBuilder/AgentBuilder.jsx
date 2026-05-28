@@ -162,13 +162,21 @@ export default function AgentBuilder() {
         refetchType: "none",
       });
       // Sync React Router so useSearchParams returns the draft version ID.
-      setSearchParams({ version: newVersionData.id }, { replace: true });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("version", newVersionData.id);
+          return next;
+        },
+        { replace: true },
+      );
     },
     [updateVersion, queryClient, graphId, executionStatusRef, setSearchParams],
   );
 
   const isDrawerOpen = !!selectedNode;
   const nodeDrawerResize = useNodeDrawerResize(isDrawerOpen);
+  const onboardingMode = searchParams.get("onboarding");
 
   const hasNodes = nodes?.length > 0;
 
@@ -301,7 +309,11 @@ export default function AgentBuilder() {
                 setGlobalVariablesDrawerOpen={setGlobalVariablesDrawerOpen}
               />
             )}
-            <BuilderActions width={SELECTION_PANEL_WIDTH} hasNodes={hasNodes} />
+            <BuilderActions
+              width={SELECTION_PANEL_WIDTH}
+              hasNodes={hasNodes}
+              onboardingMode={onboardingMode}
+            />
             {/* Run Agent Panel - Shows output after workflow run */}
             {hasNodes && showOutput && !isLoadingTemplate && (
               <RunAgentPanel

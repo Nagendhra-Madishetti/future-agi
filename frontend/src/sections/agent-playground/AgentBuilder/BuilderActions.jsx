@@ -10,13 +10,18 @@ import {
   useWorkflowRunStoreShallow,
   useTemplateLoadingStoreShallow,
 } from "../store";
+import AgentOnboardingFocusPanel from "../components/AgentOnboardingFocusPanel";
 import StopTemplateLoadingDialog from "../components/StopTemplateLoadingDialog";
 import useWorkflowExecution from "../hooks/useWorkflowExecution";
 import { validateGraphForSave } from "../utils/workflowValidation";
 import { enqueueSnackbar } from "src/components/snackbar";
 
 // Main BuilderActions Component
-export default function BuilderActions({ width, hasNodes = true }) {
+export default function BuilderActions({
+  width,
+  hasNodes = true,
+  onboardingMode,
+}) {
   const { runWorkflow, stopWorkflow, isRunning, isInitiating } =
     useWorkflowExecution();
 
@@ -109,8 +114,73 @@ export default function BuilderActions({ width, hasNodes = true }) {
     setShowStopConfirmDialog(false);
   };
 
+  const showRunScenarioFocus = onboardingMode === "run-scenario";
+  const onboardingBlocker = (() => {
+    if (!hasNodes) {
+      return "Add one node first";
+    }
+    if (isLoadingTemplate) {
+      return "Template loading";
+    }
+    if (isRunning) {
+      return "Workflow running";
+    }
+    if (isDraft) {
+      return "Save required";
+    }
+    return null;
+  })();
+  const runWorkflowLabel = (() => {
+    if (!hasNodes) {
+      return "Add nodes first";
+    }
+    if (isDraft) {
+      return "Save and run";
+    }
+    return hasRun ? "Rerun workflow" : "Run workflow";
+  })();
+
   return (
     <>
+      <Box
+        sx={{
+          position: "absolute",
+          top: 12,
+          left: `calc(${width} + 16px)`,
+          right: 16,
+          zIndex: 8,
+          pointerEvents: "auto",
+        }}
+      >
+        <AgentOnboardingFocusPanel
+          currentStep="Scenario"
+          description="Run one saved agent workflow so the first result can be reviewed before creating evals or versions."
+          hidden={!showRunScenarioFocus}
+          blocker={onboardingBlocker}
+          primaryAction={{
+            label: runWorkflowLabel,
+            onClick: handleRunWorkflow,
+            disabled: !hasNodes || isLoadingTemplate || isRunning,
+          }}
+          secondaryAction={
+            hasRun
+              ? {
+                  label: showOutput ? "Hide outcome" : "Show outcome",
+                  onClick: handleToggleOutput,
+                  disabled: isLoadingTemplate,
+                }
+              : null
+          }
+          steps={[
+            { label: "Agent", complete: true },
+            { label: "Scenario", complete: hasRun },
+            { label: "Review", complete: false },
+          ]}
+          sx={{ mb: 0 }}
+          title="Run the first agent workflow"
+        />
+      </Box>
+
       {/* Action Buttons */}
       <Box
         sx={{
@@ -258,4 +328,5 @@ export default function BuilderActions({ width, hasNodes = true }) {
 BuilderActions.propTypes = {
   width: PropTypes.string.isRequired,
   hasNodes: PropTypes.bool,
+  onboardingMode: PropTypes.string,
 };

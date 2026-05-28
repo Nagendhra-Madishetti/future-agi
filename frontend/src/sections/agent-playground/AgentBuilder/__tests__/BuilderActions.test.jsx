@@ -131,6 +131,44 @@ describe("BuilderActions", () => {
     });
   });
 
+  describe("Onboarding focus", () => {
+    it("renders run-scenario guidance and reuses the run action", () => {
+      useAgentPlaygroundStore.setState({
+        currentAgent: { is_draft: false, version_id: "v1" },
+      });
+
+      render(
+        <BuilderActions
+          width="300px"
+          hasNodes={true}
+          onboardingMode="run-scenario"
+        />,
+      );
+
+      expect(screen.getByTestId("agent-onboarding-focus")).toBeInTheDocument();
+      expect(screen.getByText("Run the first agent workflow")).toBeVisible();
+
+      fireEvent.click(screen.getByRole("button", { name: /^run workflow$/i }));
+
+      expect(mockRunWorkflow).toHaveBeenCalled();
+    });
+
+    it("shows the missing-node blocker when run-scenario has no nodes", () => {
+      render(
+        <BuilderActions
+          width="300px"
+          hasNodes={false}
+          onboardingMode="run-scenario"
+        />,
+      );
+
+      expect(screen.getByText("Add one node first")).toBeVisible();
+      expect(
+        screen.getByRole("button", { name: /add nodes first/i }),
+      ).toBeDisabled();
+    });
+  });
+
   describe("Exit Workflow button", () => {
     it("renders when running", () => {
       useWorkflowRunStore.getState().setWorkflowState(WORKFLOW_STATE.RUNNING);

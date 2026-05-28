@@ -30,7 +30,12 @@ export const mapGraphToAgent = (result) => ({
  * @param {Function} options.setCurrentAgent - store setter for the active agent
  * @param {Function} [options.onSuccess]     - optional callback after navigation
  */
-export const useCreateGraph = ({ navigate, setCurrentAgent, onSuccess } = {}) =>
+export const useCreateGraph = ({
+  navigate,
+  onboardingMode,
+  setCurrentAgent,
+  onSuccess,
+} = {}) =>
   useMutation({
     mutationFn: () => {
       const now = new Date();
@@ -43,9 +48,17 @@ export const useCreateGraph = ({ navigate, setCurrentAgent, onSuccess } = {}) =>
       const result = res.data?.result;
       if (!result) return;
       const agent = mapGraphToAgent(result);
+      const searchParams = new URLSearchParams();
+      if (result.active_version?.id) {
+        searchParams.set("version", result.active_version.id);
+      }
+      if (onboardingMode) {
+        searchParams.set("onboarding", onboardingMode);
+      }
+      const search = searchParams.toString();
       setCurrentAgent?.(agent);
       navigate?.(
-        `/dashboard/agents/playground/${result.id}/build?version=${result.active_version?.id}`,
+        `/dashboard/agents/playground/${result.id}/build${search ? `?${search}` : ""}`,
       );
       onSuccess?.(agent);
     },

@@ -19,10 +19,12 @@ import { useDebounce } from "src/hooks/use-debounce";
 import axios, { endpoints } from "src/utils/axios";
 import { useAgentPlaygroundStoreShallow } from "../store";
 import DeleteAgentsDialog from "../components/DeleteAgentsDialog";
+import AgentOnboardingFocusPanel from "../components/AgentOnboardingFocusPanel";
 import {
   useCreateGraph,
   useDeleteGraphs,
 } from "../../../api/agent-playground/agent-playground";
+import { useSearchParams } from "react-router-dom";
 
 const PAGE_SIZE_DEFAULT = 25;
 
@@ -45,6 +47,7 @@ const mapGraph = (graph) => {
 
 export default function AgentListView() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { setCurrentAgent } = useAgentPlaygroundStoreShallow((s) => ({
     setCurrentAgent: s.setCurrentAgent,
@@ -107,8 +110,11 @@ export default function AgentListView() {
 
   const { mutate: createAgent, isPending: isCreatingAgent } = useCreateGraph({
     navigate,
+    onboardingMode:
+      searchParams.get("onboarding") === "create" ? "run-scenario" : null,
     setCurrentAgent,
   });
+  const showCreateFocus = searchParams.get("onboarding") === "create";
 
   const handleRowClick = useCallback(
     (row) => {
@@ -119,6 +125,21 @@ export default function AgentListView() {
           `/dashboard/agents/playground/${row.id}/build?version=${row.activeVersionId}`,
         );
       }
+    },
+    [navigate],
+  );
+
+  const handleOpenAgentForOnboarding = useCallback(
+    (row) => {
+      if (!row?.id) return;
+      const params = new URLSearchParams();
+      if (row.activeVersionId) {
+        params.set("version", row.activeVersionId);
+      }
+      params.set("onboarding", "run-scenario");
+      navigate(
+        `/dashboard/agents/playground/${row.id}/build?${params.toString()}`,
+      );
     },
     [navigate],
   );
@@ -319,6 +340,31 @@ export default function AgentListView() {
           </Typography>
         </Button>
       </Box>
+
+      <AgentOnboardingFocusPanel
+        currentStep="Agent"
+        description="Create or open one agent workflow so it can be run and reviewed from the builder."
+        hidden={!showCreateFocus}
+        primaryAction={{
+          label: "Create Agent",
+          onClick: () => createAgent(),
+          disabled: isCreatingAgent,
+        }}
+        secondaryAction={
+          items[0]
+            ? {
+                label: "Open first agent",
+                onClick: () => handleOpenAgentForOnboarding(items[0]),
+              }
+            : null
+        }
+        steps={[
+          { label: "Agent", complete: items.length > 0 },
+          { label: "Scenario", complete: false },
+          { label: "Review", complete: false },
+        ]}
+        title="Create the first agent"
+      />
 
       {/* Search + bulk actions / create */}
       <Box

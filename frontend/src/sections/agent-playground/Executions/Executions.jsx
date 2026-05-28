@@ -6,14 +6,22 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useLocation, useParams } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { useGetExecutions } from "src/api/agent-playground/agent-playground";
 import ExecutionsList from "./ExecutionsList";
 import ExecutionDetailView from "./ExecutionDetailView";
+import AgentOnboardingFocusPanel from "../components/AgentOnboardingFocusPanel";
 
 export default function Executions() {
   const { agentId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [selectedExecutionId, setSelectedExecutionId] = useState(null);
 
   const { data, isLoading, isFetchingNextPage, fetchNextPage, hasNextPage } =
@@ -36,6 +44,28 @@ export default function Executions() {
     setSelectedExecutionId(executionId);
   }, []);
 
+  const reviewExecution =
+    executions.find((execution) =>
+      ["success", "failed", "error"].includes(execution.status),
+    ) || executions[0];
+  const showReviewFocus = searchParams.get("onboarding") === "review-run";
+
+  const buildRoute = useCallback(
+    (onboardingMode) => {
+      const params = new URLSearchParams();
+      const version = searchParams.get("version");
+      if (version) {
+        params.set("version", version);
+      }
+      if (onboardingMode) {
+        params.set("onboarding", onboardingMode);
+      }
+      const search = params.toString();
+      return `/dashboard/agents/playground/${agentId}/build${search ? `?${search}` : ""}`;
+    },
+    [agentId, searchParams],
+  );
+
   useEffect(() => {
     const onboardingMode = new URLSearchParams(location.search).get(
       "onboarding",
@@ -47,12 +77,13 @@ export default function Executions() {
     ) {
       return;
     }
-    const terminalExecution =
-      executions.find((execution) =>
-        ["success", "failed", "error"].includes(execution.status),
-      ) || executions[0];
-    setSelectedExecutionId(terminalExecution.id);
-  }, [executions, location.search, selectedExecutionId]);
+    setSelectedExecutionId(reviewExecution.id);
+  }, [
+    executions.length,
+    location.search,
+    reviewExecution,
+    selectedExecutionId,
+  ]);
 
   if (isLoading) {
     return (
@@ -73,49 +104,106 @@ export default function Executions() {
     return (
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           height: "100%",
+          minHeight: 0,
+          display: "flex",
           flexDirection: "column",
-          gap: 1,
+          p: 2,
         }}
       >
-        <Typography typography="m3" color="text.disabled">
-          No executions yet
-        </Typography>
-        <Typography typography="s2" color="text.disabled">
-          Run your workflow from the Agent Builder to see results here
-        </Typography>
+        <AgentOnboardingFocusPanel
+          currentStep="Review"
+          description="Run the agent once before reviewing node outputs and deciding what to turn into an eval."
+          hidden={!showReviewFocus}
+          blocker="No run yet"
+          primaryAction={{
+            label: "Open builder",
+            onClick: () => navigate(buildRoute("run-scenario")),
+          }}
+          steps={[
+            { label: "Agent", complete: true },
+            { label: "Scenario", complete: false },
+            { label: "Review", complete: false },
+          ]}
+          title="Review the first agent run"
+        />
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          <Typography typography="m3" color="text.disabled">
+            No executions yet
+          </Typography>
+          <Typography typography="s2" color="text.disabled">
+            Run your workflow from the Agent Builder to see results here
+          </Typography>
+        </Box>
       </Box>
     );
   }
 
   return (
-    <Stack direction="row" height="100%">
-      <Box
-        sx={{
-          width: "230px",
-          flexShrink: 0,
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <ExecutionsList
-          executions={executions}
-          selectedExecutionId={selectedExecutionId}
-          onExecutionChange={handleExecutionChange}
-          isFetchingNextPage={isFetchingNextPage}
-          fetchNextPage={fetchNextPage}
-          hasNextPage={hasNextPage}
+    <Box
+      sx={{
+        height: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box sx={{ px: 2, pt: 2 }}>
+        <AgentOnboardingFocusPanel
+          currentStep="Review"
+          description="Inspect the latest agent run, then use the findings to create eval coverage or improve the workflow."
+          hidden={!showReviewFocus}
+          primaryAction={{
+            label: "Review latest run",
+            onClick: () => setSelectedExecutionId(reviewExecution.id),
+          }}
+          secondaryAction={{
+            label: "Run another scenario",
+            onClick: () => navigate(buildRoute("run-scenario")),
+          }}
+          steps={[
+            { label: "Agent", complete: true },
+            { label: "Scenario", complete: true },
+            { label: "Review", complete: Boolean(selectedExecutionId) },
+          ]}
+          title="Review the first agent run"
         />
       </Box>
-      <Divider orientation="vertical" />
-      <ExecutionDetailView
-        graphId={agentId}
-        executionId={selectedExecutionId}
-      />
-    </Stack>
+      <Stack direction="row" sx={{ flex: 1, minHeight: 0 }}>
+        <Box
+          sx={{
+            width: "230px",
+            flexShrink: 0,
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <ExecutionsList
+            executions={executions}
+            selectedExecutionId={selectedExecutionId}
+            onExecutionChange={handleExecutionChange}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={fetchNextPage}
+            hasNextPage={hasNextPage}
+          />
+        </Box>
+        <Divider orientation="vertical" />
+        <ExecutionDetailView
+          graphId={agentId}
+          executionId={selectedExecutionId}
+        />
+      </Stack>
+    </Box>
   );
 }
