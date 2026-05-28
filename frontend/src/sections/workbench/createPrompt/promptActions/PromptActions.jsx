@@ -50,7 +50,12 @@ import VersionStyle from "./VersionStyle";
 import MoreActions from "./MoreActions";
 import { getColorMap as getTagColorMap } from "../VersionHistory/common";
 import PromptOnboardingFocusPanel from "./PromptOnboardingFocusPanel";
-import { buildPromptCreatedHref } from "./promptOnboardingRoute";
+import {
+  buildPromptCreatedHref,
+  buildPromptEditorHref,
+  PROMPT_ONBOARDING_MODES,
+  shouldAdvancePromptRunOnboarding,
+} from "./promptOnboardingRoute";
 
 const PromptActions = () => {
   const theme = useTheme();
@@ -323,6 +328,37 @@ const PromptActions = () => {
     !RolePermission.PROMPTS[PERMISSIONS.UPDATE][userRole];
   const onboardingMode = searchParams.get("onboarding");
   const onboardingSource = searchParams.get("source");
+
+  useEffect(() => {
+    if (
+      !id ||
+      !shouldAdvancePromptRunOnboarding({
+        isContentEmpty,
+        isGenerating,
+        loadingPrompt,
+        mode: onboardingMode,
+        source: onboardingSource,
+      })
+    ) {
+      return;
+    }
+
+    navigate(
+      buildPromptEditorHref({
+        promptId: id,
+        mode: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+      }),
+      { replace: true },
+    );
+  }, [
+    id,
+    isContentEmpty,
+    isGenerating,
+    loadingPrompt,
+    navigate,
+    onboardingMode,
+    onboardingSource,
+  ]);
 
   const handleRunPrompt = () => {
     if (buttonTooltip) {

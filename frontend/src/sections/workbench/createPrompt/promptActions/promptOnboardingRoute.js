@@ -56,3 +56,16 @@ export const buildPromptCreatedHref = ({ promptId, search } = {}) => {
 
   return buildPromptEditorHref({ promptId, mode: nextMode });
 };
+
+export const shouldAdvancePromptRunOnboarding = ({
+  isContentEmpty,
+  isGenerating,
+  loadingPrompt,
+  mode,
+  source,
+} = {}) =>
+  source === "onboarding" &&
+  mode === PROMPT_ONBOARDING_MODES.RUN_TEST &&
+  !loadingPrompt &&
+  !isGenerating &&
+  !isContentEmpty;

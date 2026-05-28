@@ -4,6 +4,7 @@ import {
   buildPromptEditorHref,
   getPromptOnboardingRouteParams,
   PROMPT_ONBOARDING_MODES,
+  shouldAdvancePromptRunOnboarding,
 } from "./promptOnboardingRoute";
 
 describe("promptOnboardingRoute", () => {
@@ -60,5 +61,39 @@ describe("promptOnboardingRoute", () => {
         search: "?folder=all",
       }),
     ).toBe("/dashboard/workbench/create/prompt-1");
+  });
+
+  it("advances run-test onboarding after a completed run result", () => {
+    expect(
+      shouldAdvancePromptRunOnboarding({
+        isContentEmpty: false,
+        isGenerating: false,
+        loadingPrompt: false,
+        mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
+        source: "onboarding",
+      }),
+    ).toBe(true);
+  });
+
+  it("does not advance run-test onboarding while the result is incomplete", () => {
+    expect(
+      shouldAdvancePromptRunOnboarding({
+        isContentEmpty: true,
+        isGenerating: false,
+        loadingPrompt: false,
+        mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
+        source: "onboarding",
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldAdvancePromptRunOnboarding({
+        isContentEmpty: false,
+        isGenerating: true,
+        loadingPrompt: false,
+        mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
+        source: "onboarding",
+      }),
+    ).toBe(false);
   });
 });
