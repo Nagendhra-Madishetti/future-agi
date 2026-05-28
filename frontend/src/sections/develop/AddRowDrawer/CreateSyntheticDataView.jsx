@@ -27,6 +27,11 @@ import { useEditSyntheticDataStore } from "./EditSyntheticData/state";
 import { useDatasetOriginStore } from "../../develop-detail/states";
 import { useBeforeUnload } from "src/hooks/useBeforeUnload";
 import { getRequestErrorMessage } from "src/utils/errorUtils";
+import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/useRecordActivationEvent";
+import {
+  buildEvalDatasetCreatedPayload,
+  buildEvalScorerSourceHref,
+} from "../../evals/components/evalCreateOnboarding";
 
 const allTabList = [
   { label: "Add details", value: "addDetails", status: "active" },
@@ -103,7 +108,9 @@ const CreateSyntheticDataView = ({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [focusField, setFocusField] = useState("");
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const location = useLocation();
+  const { state } = location;
+  const { mutate: recordActivationEvent } = useRecordActivationEvent();
   const [newProps, setNewProps] = useState([[]]);
   const validationSchema = createValidationSchema(
     null,
@@ -114,6 +121,13 @@ const CreateSyntheticDataView = ({
   const { setProcessingComplete } = useDatasetOriginStore();
   const modalSubmitRef = useRef(null);
   const { dataset } = useParams();
+  const onboardingDatasetParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search],
+  );
+  const isEvalDatasetOnboarding =
+    onboardingDatasetParams.get("source") === "onboarding" &&
+    onboardingDatasetParams.get("action") === "create-eval-dataset";
   const methods = useForm({
     defaultValues: getSyntheticDefaultValues(editData),
     resolver: zodResolver(validationSchema),
@@ -193,9 +207,26 @@ const CreateSyntheticDataView = ({
     },
     onSuccess: (res) => {
       const data = res?.data?.result?.data;
+      const datasetId = data?.id || data?.datasetId || data?.dataset_id;
+      let nextHref = null;
+      if (isEvalDatasetOnboarding && datasetId) {
+        recordActivationEvent?.(
+          buildEvalDatasetCreatedPayload({
+            datasetId,
+            sourceMethod: "synthetic",
+          }),
+        );
+        nextHref = buildEvalScorerSourceHref({ sourceId: datasetId });
+      }
       if (onClose) onClose();
       setTimeout(() => {
-        navigate(`/dashboard/develop/${data?.id}?tab=data`, { replace: true });
+        navigate(
+          nextHref ||
+            (datasetId
+              ? `/dashboard/develop/${datasetId}?tab=data`
+              : "/dashboard/develop"),
+          { replace: true },
+        );
       }, 0);
       enqueueSnackbar(
         res?.data?.result?.message || "Dataset uploaded successfully",

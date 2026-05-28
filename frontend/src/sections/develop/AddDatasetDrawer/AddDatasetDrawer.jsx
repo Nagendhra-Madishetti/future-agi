@@ -99,6 +99,7 @@ const AddDatasetDrawer = ({ open, onClose, onDatasetCreated, refreshGrid }) => {
       <AddSDKModal
         open={addSDK}
         onClose={() => setAddSDK(false)}
+        onDatasetCreated={onDatasetCreated}
         refreshGrid={refreshGrid}
       />
       <UploadFileModal
@@ -255,7 +256,13 @@ const AddDatasetDrawer = ({ open, onClose, onDatasetCreated, refreshGrid }) => {
                         });
                         trackEvent(Events.syntheticDatasetCreationClicked);
                         // setSyntheticDataDrawerOpen(true);
-                        navigate("/dashboard/develop/create-synthetic-dataset");
+                        navigate(
+                          `/dashboard/develop/create-synthetic-dataset${
+                            onDatasetCreated
+                              ? "?source=onboarding&action=create-eval-dataset"
+                              : ""
+                          }`,
+                        );
                       }
                     }}
                   />

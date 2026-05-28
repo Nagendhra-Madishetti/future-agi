@@ -396,7 +396,9 @@ const DevelopView = () => {
         <AddDatasetDrawer
           open={addDatasetDrawerOpen}
           onClose={() => setAddDatasetDrawerOpen(false)}
-          onDatasetCreated={handleOnboardingDatasetCreated}
+          onDatasetCreated={
+            isEvalDatasetOnboarding ? handleOnboardingDatasetCreated : undefined
+          }
           refreshGrid={refreshGrid}
         />
       </Box>
@@ -508,7 +510,9 @@ const DevelopView = () => {
       <AddDatasetDrawer
         open={addDatasetDrawerOpen}
         onClose={() => setAddDatasetDrawerOpen(false)}
-        onDatasetCreated={handleOnboardingDatasetCreated}
+        onDatasetCreated={
+          isEvalDatasetOnboarding ? handleOnboardingDatasetCreated : undefined
+        }
         refreshGrid={refreshGrid}
       />
       <DuplicateDataset
