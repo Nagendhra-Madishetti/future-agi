@@ -247,13 +247,134 @@ async function main() {
     );
     await expectVisibleText(page, "Sample review", { timeout: 45000 });
     await expectNoVisibleText(page, "Open sample trace");
+    const realSetupReturnUrl = page.url();
 
-    const browserState = await page.evaluate(() => ({
+    const authState = await page.evaluate(() => ({
+      accessToken: localStorage.getItem("accessToken"),
       initialRender: localStorage.getItem("initial-render"),
       organizationId: sessionStorage.getItem("organizationId"),
       redirectUrl: localStorage.getItem("redirectUrl"),
       workspaceId: sessionStorage.getItem("workspaceId"),
     }));
+    const browserState = {
+      initialRender: authState.initialRender,
+      organizationId: authState.organizationId,
+      redirectUrl: authState.redirectUrl,
+      workspaceId: authState.workspaceId,
+    };
+    const apiHeaders = authenticatedApiHeaders(authState);
+    const realProject = await createSmokeObserveProject(apiHeaders, runId);
+    const realTrace = await createSmokeTrace(
+      apiHeaders,
+      realProject.projectId,
+      runId,
+    );
+    const realTraceReviewState = await fetchSmokeActivationState(
+      apiHeaders,
+      "real_trace_created",
+    );
+    assert(
+      realTraceReviewState.stage === "review_first_trace",
+      `Expected review_first_trace after creating a real trace, got ${realTraceReviewState.stage}`,
+    );
+    assert(
+      realTraceReviewState.recommended_action?.href ===
+        `/dashboard/observe/${realProject.projectId}/trace/${realTrace.traceId}`,
+      `Expected Review trace href for created trace, got ${realTraceReviewState.recommended_action?.href}`,
+    );
+    assert(
+      realTraceReviewState.recommended_action?.cta_label === "Review trace",
+      `Expected Review trace CTA, got ${realTraceReviewState.recommended_action?.cta_label}`,
+    );
+
+    await page.goto(`${APP_BASE}/dashboard/home?source=real_trace_created`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expectVisibleTestId(page, "onboarding-home-view", {
+      timeout: 45000,
+    });
+    await expectVisibleText(page, "Review the first trace", {
+      timeout: 45000,
+    });
+    await expectVisibleTestId(page, "first-signal-panel", { timeout: 45000 });
+    await expectVisibleText(page, realTrace.traceId, { timeout: 45000 });
+    await expectVisibleText(page, "Not reviewed", { timeout: 45000 });
+    await expectVisibleActionHref(
+      page,
+      "Review trace",
+      realTraceReviewState.recommended_action.href,
+      { timeout: 45000 },
+    );
+    const realTraceHomeUrl = page.url();
+    await clickVisibleActionHref(
+      page,
+      "Review trace",
+      realTraceReviewState.recommended_action.href,
+      45000,
+    );
+    await page.waitForFunction(
+      ({ projectId, traceId }) =>
+        window.location.pathname ===
+        `/dashboard/observe/${projectId}/trace/${traceId}`,
+      { timeout: 45000 },
+      {
+        projectId: realProject.projectId,
+        traceId: realTrace.traceId,
+      },
+    );
+    await expectVisibleText(page, "Trace", { exact: true, timeout: 45000 });
+    await waitForCondition(
+      () =>
+        evidence.traceDetailRequests.some(
+          (path) => path === `/tracer/trace/${realTrace.traceId}/`,
+        ),
+      "Expected trace detail request for real trace.",
+      45000,
+    );
+    await waitForCondition(
+      () =>
+        evidence.activationEventPosts.some(
+          (payload) =>
+            payload?.event_name === "trace_detail_opened" &&
+            payload?.primary_path === "observe" &&
+            payload?.stage === "review_first_trace" &&
+            payload?.artifact_id === realTrace.traceId &&
+            payload?.project_id === realProject.projectId &&
+            payload?.is_sample === false,
+        ),
+      "Expected real trace detail activation event.",
+      45000,
+    );
+    const realTraceReviewUrl = page.url();
+    const postReviewState = await waitForSmokeActivationStage(
+      apiHeaders,
+      "real_trace_reviewed",
+      "create_trace_evaluator",
+    );
+    assert(
+      postReviewState.stage === "create_trace_evaluator",
+      `Expected create_trace_evaluator after reviewing a real trace, got ${postReviewState.stage}`,
+    );
+    assert(
+      postReviewState.recommended_action?.cta_label === "Create evaluator",
+      `Expected Create evaluator CTA, got ${postReviewState.recommended_action?.cta_label}`,
+    );
+    await page.goto(`${APP_BASE}/dashboard/home?source=real_trace_reviewed`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expectVisibleTestId(page, "onboarding-home-view", {
+      timeout: 45000,
+    });
+    await expectVisibleTestId(page, "first-signal-panel", { timeout: 45000 });
+    await expectVisibleText(page, "Create an evaluator", { timeout: 45000 });
+    await expectVisibleText(page, "Reviewed", { timeout: 45000 });
+    await expectVisibleActionHref(
+      page,
+      "Create evaluator",
+      postReviewState.recommended_action.href,
+      { timeout: 45000 },
+    );
+    const postReviewHomeUrl = page.url();
 
     assert(evidence.signupPosts.length === 1, "Expected one signup POST.");
     assert(evidence.tokenPosts.length === 1, "Expected one token POST.");
@@ -353,6 +474,19 @@ async function main() {
             onboarding_post: evidence.onboardingPosts[0],
             observe_cta_href: observeCtaHref,
             observe_setup_url: observeSetupUrl,
+            post_review_home_url: postReviewHomeUrl,
+            post_review_state: summarizeActivationState(postReviewState),
+            real_observe_project: realProject,
+            real_trace: realTrace,
+            real_trace_home_url: realTraceHomeUrl,
+            real_trace_review_event: evidence.activationEventPosts.find(
+              (payload) =>
+                payload?.event_name === "trace_detail_opened" &&
+                payload?.artifact_id === realTrace.traceId,
+            ),
+            real_trace_review_state:
+              summarizeActivationState(realTraceReviewState),
+            real_trace_review_url: realTraceReviewUrl,
             sample_project_post: evidence.sampleProjectPosts[0],
             sample_trace_activation_event: evidence.activationEventPosts.find(
               (payload) => payload?.event_name === "sample_trace_detail_opened",
@@ -369,7 +503,7 @@ async function main() {
                   payload?.source === "sample_trace_review",
               ),
             sample_trace_url: sampleTraceUrl,
-            real_setup_return_url: page.url(),
+            real_setup_return_url: realSetupReturnUrl,
             screenshot: SCREENSHOT_PATH,
             setup_post: evidence.setupPosts[0],
             signup_post: evidence.signupPosts[0],
@@ -639,6 +773,138 @@ function parseJsonPostData(requestOrData) {
   }
 }
 
+function authenticatedApiHeaders(authState) {
+  assert(authState.accessToken, "Expected accessToken in browser storage.");
+  assert(
+    authState.organizationId,
+    "Expected organizationId in browser storage.",
+  );
+  assert(authState.workspaceId, "Expected workspaceId in browser storage.");
+  return {
+    Authorization: `Bearer ${authState.accessToken}`,
+    "Content-Type": "application/json",
+    "X-Organization-Id": authState.organizationId,
+    "X-Workspace-Id": authState.workspaceId,
+  };
+}
+
+async function createSmokeObserveProject(headers, runId) {
+  const payload = await apiPostJson("/tracer/project/", headers, {
+    name: `Smoke Real Trace ${runId}`,
+    model_type: "GenerativeLLM",
+    trace_type: "observe",
+  });
+  const result = unwrapApiResult(payload);
+  const projectId = result?.project_id || result?.id;
+  assert(
+    projectId,
+    `Expected created project id, got ${JSON.stringify(payload)}`,
+  );
+  return {
+    name: result?.name,
+    projectId: String(projectId),
+  };
+}
+
+async function createSmokeTrace(headers, projectId, runId) {
+  const payload = await apiPostJson("/tracer/trace/", headers, {
+    project: projectId,
+    name: "Onboarding smoke real trace",
+    metadata: {
+      is_sample: false,
+      source: "onboarding_smoke",
+    },
+    input: {
+      prompt: "Summarize onboarding smoke",
+    },
+    output: {
+      response: "Real trace created for onboarding proof",
+    },
+    tags: ["onboarding-smoke", runId],
+  });
+  const result = unwrapApiResult(payload);
+  const traceId = result?.id;
+  assert(traceId, `Expected created trace id, got ${JSON.stringify(payload)}`);
+  return {
+    name: result?.name,
+    traceId: String(traceId),
+  };
+}
+
+async function fetchSmokeActivationState(headers, source) {
+  const payload = await apiGetJson(
+    `/accounts/activation-state/?source=${encodeURIComponent(source)}`,
+    headers,
+  );
+  return unwrapApiResult(payload);
+}
+
+async function waitForSmokeActivationStage(headers, source, expectedStage) {
+  let latestState = null;
+  await waitForCondition(
+    async () => {
+      latestState = await fetchSmokeActivationState(headers, source);
+      return latestState?.stage === expectedStage;
+    },
+    `Expected activation stage ${expectedStage}, got ${latestState?.stage}`,
+    45000,
+  );
+  return latestState;
+}
+
+async function apiPostJson(path, headers, body) {
+  return apiJson(path, {
+    body: JSON.stringify(body),
+    headers,
+    method: "POST",
+  });
+}
+
+async function apiGetJson(path, headers) {
+  return apiJson(path, {
+    headers,
+    method: "GET",
+  });
+}
+
+async function apiJson(path, options) {
+  const response = await fetch(`${API_BASE}${path}`, options);
+  const text = await response.text();
+  let payload = {};
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { raw: text.slice(0, 500) };
+    }
+  }
+  assert(
+    response.status < 400,
+    `${options.method} ${path} failed with ${response.status}: ${JSON.stringify(
+      payload,
+    )}`,
+  );
+  return payload;
+}
+
+function unwrapApiResult(payload) {
+  return payload?.result ?? payload;
+}
+
+function summarizeActivationState(state) {
+  return {
+    recommended_action: state?.recommended_action
+      ? {
+          cta_label: state.recommended_action.cta_label,
+          href: state.recommended_action.href,
+          id: state.recommended_action.id,
+          title: state.recommended_action.title,
+        }
+      : null,
+    stage: state?.stage,
+  };
+}
+
 function redactSensitiveAuth(value) {
   if (!value || typeof value !== "object") return value;
   return {
@@ -680,7 +946,7 @@ function isTrackedApiPath(path) {
 async function waitForCondition(condition, message, timeout = 30000) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeout) {
-    if (condition()) return;
+    if (await condition()) return;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(message);
