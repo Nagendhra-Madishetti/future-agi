@@ -215,17 +215,22 @@ const DevelopDataSelectionActive = () => {
     },
   });
 
-  const { mutate: onMergeRows } = useMutation({
-    mutationFn: () => {
+  const { mutate: onMergeRows, isPending: isMergeRowsLoading } = useMutation({
+    mutationFn: (selectedTargetDatasetId) => {
       const selectedIds = toggledNodes;
+      const resolvedTargetDatasetId =
+        selectedTargetDatasetId || targetDatasetId;
 
       return axios.post(endpoints.develop.mergeDatasetRows(dataset), {
-        target_dataset_id: targetDatasetId,
+        target_dataset_id: resolvedTargetDatasetId,
         row_ids: selectedIds,
         selected_all_rows: selectAll,
       });
     },
-    onSuccess: () => {
+    onSuccess: (_data, selectedTargetDatasetId) => {
+      const resolvedTargetDatasetId =
+        selectedTargetDatasetId || targetDatasetId;
+
       handleClose();
       setTimeout(unCheckedHandler, 100);
       refreshGrid();
@@ -234,7 +239,7 @@ const DevelopDataSelectionActive = () => {
           message="Datapoint added to the chosen dataset"
           buttonText="View Dataset"
           onClick={() =>
-            navigate(`/dashboard/develop/${targetDatasetId}?tab=data`)
+            navigate(`/dashboard/develop/${resolvedTargetDatasetId}?tab=data`)
           }
         />,
         {
@@ -306,7 +311,7 @@ const DevelopDataSelectionActive = () => {
           setAnchorElSubmenu={setAnchorElSubmenu}
           anchorElSubmenu={anchorElSubmenu}
           setName={setName}
-          loading={isCreateDatasetLoading}
+          loading={isCreateDatasetLoading || isMergeRowsLoading}
           onCreateDatasetRows={onCreateDatasetRows}
           onMergeRows={onMergeRows}
           setTargetDatasetId={setTargetDatasetId}

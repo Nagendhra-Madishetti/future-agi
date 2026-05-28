@@ -180,7 +180,7 @@ const DataMenuList = ({
           select_all: selectAll,
         },
       });
-      onMergeRows();
+      onMergeRows(selectedDatasetId);
     }
     handleClose();
   };
