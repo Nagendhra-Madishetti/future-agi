@@ -19,6 +19,7 @@ async function main() {
   const auth = createStubbedAuthenticatedContext();
   const apiFailures = [];
   const pageErrors = [];
+  const onboardingPosts = [];
   const setupPosts = [];
   const activationStateRequests = [];
   let setupCompleted = false;
@@ -36,6 +37,7 @@ async function main() {
   await installRuntime(page, auth, {
     activationStateRequests,
     getSetupCompleted: () => setupCompleted,
+    onboardingPosts,
     onSetupComplete: () => {
       setupCompleted = true;
     },
@@ -77,13 +79,15 @@ async function main() {
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   try {
-    await page.goto(`${APP_BASE}/auth/jwt/setup-org?step=2`, {
+    await page.goto(`${APP_BASE}/auth/jwt/setup-org?step=0`, {
       waitUntil: "domcontentloaded",
     });
-    await expectVisibleText(page, "Invite your team later");
+    await expectVisibleText(page, "What's your role");
     await page.evaluate(() => {
       localStorage.setItem("redirectUrl", "/dashboard/observe?project=stale");
     });
+    await clickVisibleButtonText(page, "Connect observability first");
+    await expectVisibleText(page, "Invite your team later");
 
     const organizationNameInput = 'input[placeholder="Add organization name"]';
     await page.click(organizationNameInput, { clickCount: 3 });
@@ -116,6 +120,17 @@ async function main() {
       browserState.redirectUrl === null,
       `Expected redirectUrl to be cleared, got ${browserState.redirectUrl}`,
     );
+    assert(onboardingPosts.length === 1, "Expected one onboarding POST.");
+    assert(
+      onboardingPosts[0]?.role === "AI Builder",
+      `Expected quick-start role, got ${onboardingPosts[0]?.role}`,
+    );
+    assert(
+      onboardingPosts[0]?.goals?.includes("Monitor LLMs and Agents"),
+      `Expected observe quick-start goal, got ${JSON.stringify(
+        onboardingPosts[0]?.goals,
+      )}`,
+    );
     assert(setupPosts.length === 1, "Expected one setup organization POST.");
     assert(
       activationStateRequests.length === 1,
@@ -135,6 +150,7 @@ async function main() {
           evidence: {
             activation_state_requests: activationStateRequests,
             browser_state: browserState,
+            onboarding_post: onboardingPosts[0],
             screenshot: SCREENSHOT_PATH,
             setup_post: setupPosts[0],
           },
@@ -154,6 +170,7 @@ async function main() {
             api_failures: apiFailures,
             body_text: await safeBodyText(page),
             page_errors: pageErrors,
+            onboarding_posts: onboardingPosts,
             setup_posts: setupPosts,
             url: page.url(),
           },
@@ -171,7 +188,13 @@ async function main() {
 async function installRuntime(
   page,
   auth,
-  { activationStateRequests, getSetupCompleted, onSetupComplete, setupPosts },
+  {
+    activationStateRequests,
+    getSetupCompleted,
+    onboardingPosts,
+    onSetupComplete,
+    setupPosts,
+  },
 ) {
   await page.setRequestInterception(true);
   page.on("request", async (request) => {
@@ -234,6 +257,18 @@ async function installRuntime(
     }
 
     if (normalizedPath === "/accounts/onboarding/") {
+      if (request.method() === "POST") {
+        const payload = parseJsonPostData(request.postData());
+        onboardingPosts.push(payload);
+        await respondJson(request, {
+          status: true,
+          result: {
+            data: payload,
+            message: "Onboarding data saved successfully",
+          },
+        });
+        return;
+      }
       await respondJson(request, {
         status: true,
         result: {
@@ -425,6 +460,38 @@ async function expectVisibleText(
     { timeout },
     { text, exact },
   );
+}
+
+async function clickVisibleButtonText(page, text, timeout = 30000) {
+  await page.waitForFunction(
+    (expectedText) => {
+      const normalized = (value) => String(value || "").trim();
+      const isVisible = (element) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.visibility !== "hidden" &&
+          style.display !== "none" &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      return Array.from(document.querySelectorAll("button")).some(
+        (element) =>
+          isVisible(element) &&
+          normalized(element.textContent) === expectedText,
+      );
+    },
+    { timeout },
+    text,
+  );
+  await page.evaluate((expectedText) => {
+    const normalized = (value) => String(value || "").trim();
+    const button = Array.from(document.querySelectorAll("button")).find(
+      (element) => normalized(element.textContent) === expectedText,
+    );
+    button.click();
+  }, text);
 }
 
 async function safeBodyText(page) {

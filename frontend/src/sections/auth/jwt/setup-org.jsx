@@ -35,6 +35,11 @@ import SvgColor from "src/components/svg-color";
 import { useSearchParams } from "react-router-dom";
 import { resolveSetupCompletionHref } from "./setup-org-routing";
 
+const QUICK_START_ROLE = "AI Builder";
+const QUICK_START_GOAL_LABEL =
+  GOALS_LIST.find((goal) => goal.id === "monitor_llms_agents")?.label ||
+  "Monitor LLMs and Agents";
+
 const DotsStepper = styled(MobileStepper)(({ theme }) => ({
   background: "transparent",
   justifyContent: "flex-start",
@@ -375,6 +380,16 @@ const SetupOrganization = ({ getStarted = false }) => {
 
   const customRoleValue = userForm.watch("customRole");
   const roleValue = userForm.watch("role");
+  const handleObserveQuickStart = useCallback(() => {
+    if (isSavingUserData) {
+      return;
+    }
+
+    saveUserData({
+      role: customRoleValue || roleValue || QUICK_START_ROLE,
+      goals: [QUICK_START_GOAL_LABEL],
+    });
+  }, [customRoleValue, isSavingUserData, roleValue, saveUserData]);
   const orgForm = useForm({
     resolver: zodResolver(organizationSchema),
     mode: "onChange",
@@ -810,6 +825,16 @@ const SetupOrganization = ({ getStarted = false }) => {
             >
               Continue
             </Button>
+
+            <LoadingButton
+              sx={{ borderRadius: 0.5 }}
+              variant="outlined"
+              loading={isSavingUserData}
+              onClick={handleObserveQuickStart}
+              color="primary"
+            >
+              Connect observability first
+            </LoadingButton>
           </Stack>
         );
 
@@ -884,6 +909,16 @@ const SetupOrganization = ({ getStarted = false }) => {
             >
               Skip for now
             </Typography>
+
+            <LoadingButton
+              sx={{ borderRadius: 0.5 }}
+              variant="outlined"
+              loading={isSavingUserData}
+              onClick={handleObserveQuickStart}
+              color="primary"
+            >
+              Connect observability first
+            </LoadingButton>
           </Stack>
         );
 
