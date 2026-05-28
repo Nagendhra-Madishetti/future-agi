@@ -408,6 +408,22 @@ const SetupOrganization = ({ getStarted = false }) => {
     },
     [handleObserveQuickStart],
   );
+
+  const renderObserveQuickStartButton = () => (
+    <LoadingButton
+      fullWidth
+      sx={{ borderRadius: 0.5 }}
+      variant="contained"
+      loading={isSavingUserData}
+      disabled={isSavingUserData}
+      onClick={handleObserveQuickStart}
+      onPointerUp={handleObserveQuickStartPointerUp}
+      color="primary"
+    >
+      Connect observability first
+    </LoadingButton>
+  );
+
   const orgForm = useForm({
     resolver: zodResolver(organizationSchema),
     mode: "onChange",
@@ -800,6 +816,8 @@ const SetupOrganization = ({ getStarted = false }) => {
               </Typography>
             </Box>
 
+            {renderObserveQuickStartButton()}
+
             <RadioField
               custom
               control={userForm.control}
@@ -836,24 +854,13 @@ const SetupOrganization = ({ getStarted = false }) => {
             />
 
             <Button
-              variant="contained"
+              variant="outlined"
               disabled={!roleValue && !customRoleValue}
               onClick={() => setActiveStep(1)}
               color="primary"
             >
-              Continue
+              Continue with role
             </Button>
-
-            <LoadingButton
-              sx={{ borderRadius: 0.5 }}
-              variant="outlined"
-              loading={isSavingUserData}
-              onClick={handleObserveQuickStart}
-              onPointerUp={handleObserveQuickStartPointerUp}
-              color="primary"
-            >
-              Connect observability first
-            </LoadingButton>
           </Stack>
         );
 
@@ -898,9 +905,12 @@ const SetupOrganization = ({ getStarted = false }) => {
                 />
               ))}
             </Stack>
+
+            {renderObserveQuickStartButton()}
+
             <LoadingButton
               sx={{ borderRadius: 0.5 }}
-              variant="contained"
+              variant="outlined"
               loading={isSavingUserData}
               disabled={isSavingUserData || (!roleValue && !customRoleValue)}
               onClick={handleSubmitUserData((data) =>
@@ -908,7 +918,7 @@ const SetupOrganization = ({ getStarted = false }) => {
               )}
               color="primary"
             >
-              Continue
+              Continue with selected goals
             </LoadingButton>
 
             <Typography
@@ -928,17 +938,6 @@ const SetupOrganization = ({ getStarted = false }) => {
             >
               Skip for now
             </Typography>
-
-            <LoadingButton
-              sx={{ borderRadius: 0.5 }}
-              variant="outlined"
-              loading={isSavingUserData}
-              onClick={handleObserveQuickStart}
-              onPointerUp={handleObserveQuickStartPointerUp}
-              color="primary"
-            >
-              Connect observability first
-            </LoadingButton>
           </Stack>
         );
 
