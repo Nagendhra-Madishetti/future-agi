@@ -13,6 +13,11 @@ import {
   TabWrapper,
 } from "src/sections/develop/AddDatasetDrawer/AddDatasetStyle";
 
+const CODE_SECTION_ALIASES = {
+  installationGuide: "installation_guide",
+  projectAddCode: "project_add_code",
+};
+
 const NewExperiment = () => {
   const theme = useTheme();
   const [languageTab, setLanguageTab] = useState("python");
@@ -51,7 +56,9 @@ const NewExperiment = () => {
 
   const getCodeBySection = (section) => {
     const languageKey = languageTab === "python" ? "Python" : "TypeScript";
-    return cleanCode(keysData[section]?.[languageKey]);
+    const sectionData =
+      keysData[section] || keysData[CODE_SECTION_ALIASES[section]];
+    return cleanCode(sectionData?.[languageKey]);
   };
 
   if (!isSuccess || !keysData) return <LinearProgress />;

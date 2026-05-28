@@ -126,6 +126,41 @@ async function main() {
       "/dashboard/observe?setup=true&source=onboarding",
       { timeout: 45000 },
     );
+    await clickVisibleActionHref(
+      page,
+      "Connect observability",
+      "/dashboard/observe?setup=true&source=onboarding",
+    );
+    await page.waitForFunction(
+      () =>
+        window.location.pathname === "/dashboard/observe" &&
+        new URLSearchParams(window.location.search).get("setup") === "true" &&
+        new URLSearchParams(window.location.search).get("source") ===
+          "onboarding",
+      { timeout: 45000 },
+    );
+    await expectVisibleTestId(page, "observe-onboarding-focus", {
+      timeout: 45000,
+    });
+    await expectVisibleText(page, "Observe onboarding", { timeout: 45000 });
+    await expectVisibleText(page, "Setup", { timeout: 45000 });
+    await expectVisibleText(page, "Connect Observe to your app", {
+      timeout: 45000,
+    });
+    await expectVisibleText(
+      page,
+      "Install tracing, load your keys, and send one real or test request.",
+      { timeout: 45000 },
+    );
+    await expectVisibleText(page, "Install", { timeout: 45000 });
+    await expectVisibleText(page, "Trace", { timeout: 45000 });
+    await expectVisibleText(page, "Review", { timeout: 45000 });
+    await expectVisibleText(page, "Review setup", { timeout: 45000 });
+    await expectVisibleText(page, "Install Dependencies", { timeout: 45000 });
+    await expectVisibleText(page, "Load API keys", { timeout: 45000 });
+    await expectVisibleText(page, "Setup Telemetry", { timeout: 45000 });
+    await expectVisibleText(page, "Setup Instrumentation", { timeout: 45000 });
+    await expectNoVisibleText(page, "Code not available");
 
     const browserState = await page.evaluate(() => ({
       initialRender: localStorage.getItem("initial-render"),
@@ -192,6 +227,7 @@ async function main() {
             email: user.email,
             onboarding_post: evidence.onboardingPosts[0],
             observe_cta_href: observeCtaHref,
+            observe_setup_url: page.url(),
             screenshot: SCREENSHOT_PATH,
             setup_post: evidence.setupPosts[0],
             signup_post: evidence.signupPosts[0],
@@ -266,6 +302,31 @@ async function expectVisibleText(
   );
 }
 
+async function expectNoVisibleText(page, text, { timeout = 30000 } = {}) {
+  await page.waitForFunction(
+    (expectedText) => {
+      const normalized = (value) => String(value || "").trim();
+      const isVisible = (element) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.visibility !== "hidden" &&
+          style.display !== "none" &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      return !Array.from(document.querySelectorAll("body *")).some(
+        (element) =>
+          isVisible(element) &&
+          normalized(element.textContent).includes(expectedText),
+      );
+    },
+    { timeout },
+    text,
+  );
+}
+
 async function expectVisibleTestId(page, testId, { timeout = 30000 } = {}) {
   await page.waitForFunction(
     (expectedTestId) => {
@@ -325,6 +386,69 @@ async function expectVisibleActionHref(
   const href = await handle.jsonValue();
   await handle.dispose();
   return href;
+}
+
+async function clickVisibleActionHref(
+  page,
+  text,
+  expectedPath,
+  timeout = 30000,
+) {
+  await page.waitForFunction(
+    ({ expectedText, expectedHrefPath }) => {
+      const normalized = (value) => String(value || "").trim();
+      const isVisible = (element) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.visibility !== "hidden" &&
+          style.display !== "none" &&
+          rect.width > 0 &&
+          rect.height > 0 &&
+          !element.disabled
+        );
+      };
+      return Array.from(document.querySelectorAll("a, button")).some(
+        (element) => {
+          if (!isVisible(element)) return false;
+          if (normalized(element.textContent) !== expectedText) return false;
+          const href = element.getAttribute("href") || element.href;
+          if (!href) return false;
+          const url = new URL(href, window.location.origin);
+          return `${url.pathname}${url.search}` === expectedHrefPath;
+        },
+      );
+    },
+    { timeout },
+    { expectedText: text, expectedHrefPath: expectedPath },
+  );
+  await page.evaluate(
+    ({ expectedText, expectedHrefPath }) => {
+      const normalized = (value) => String(value || "").trim();
+      const action = Array.from(document.querySelectorAll("a, button")).find(
+        (element) => {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          if (
+            style.visibility === "hidden" ||
+            style.display === "none" ||
+            rect.width <= 0 ||
+            rect.height <= 0 ||
+            element.disabled ||
+            normalized(element.textContent) !== expectedText
+          ) {
+            return false;
+          }
+          const href = element.getAttribute("href") || element.href;
+          if (!href) return false;
+          const url = new URL(href, window.location.origin);
+          return `${url.pathname}${url.search}` === expectedHrefPath;
+        },
+      );
+      action.click();
+    },
+    { expectedText: text, expectedHrefPath: expectedPath },
+  );
 }
 
 async function clickVisibleButtonText(page, text, timeout = 30000) {
