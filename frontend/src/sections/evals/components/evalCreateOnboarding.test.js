@@ -18,6 +18,7 @@ import {
   getEvalCreateInitialSourceTab,
   getEvalCreateOnboardingCopy,
   getEvalCreateOnboardingParams,
+  getEvalOnboardingSourceSummary,
   getEvalFailureActionOnboardingParams,
   getEvalReviewOnboardingCopy,
   getEvalReviewOnboardingParams,
@@ -94,6 +95,29 @@ describe("evalCreateOnboarding", () => {
         step: EVAL_CREATE_ONBOARDING_STEPS.DATA,
       }),
     ).toBe(EVAL_CREATE_SOURCE_TABS.CUSTOM);
+  });
+
+  it("summarizes a completed onboarding eval source without source content", () => {
+    expect(
+      getEvalOnboardingSourceSummary({
+        isOnboarding: true,
+        sourceId: "data-1",
+        sourceType: "dataset",
+        step: EVAL_CREATE_ONBOARDING_STEPS.SCORER,
+      }),
+    ).toEqual({
+      description: "The next scorer you save will evaluate this source.",
+      label: "Dataset ready",
+    });
+
+    expect(
+      getEvalOnboardingSourceSummary({
+        isOnboarding: true,
+        sourceId: "data-1",
+        sourceType: "dataset",
+        step: EVAL_CREATE_ONBOARDING_STEPS.DATA,
+      }),
+    ).toBeNull();
   });
 
   it("builds a safe route focus payload", () => {

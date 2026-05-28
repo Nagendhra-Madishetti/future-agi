@@ -10,6 +10,7 @@ export default function EvalOnboardingFocusPanel({
   currentStep,
   description,
   hidden = false,
+  sourceSummary = null,
   steps = [],
   title,
 }) {
@@ -41,6 +42,34 @@ export default function EvalOnboardingFocusPanel({
             {description}
           </Typography>
         </Box>
+        {sourceSummary?.label ? (
+          <Box
+            data-testid="eval-onboarding-source-summary"
+            sx={{
+              p: 1,
+              borderRadius: "6px",
+              bgcolor: "action.hover",
+              border: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Stack direction="row" spacing={0.75} alignItems="center">
+              <Iconify icon="mdi:check-circle" width={16} />
+              <Typography variant="caption" fontWeight={600}>
+                {sourceSummary.label}
+              </Typography>
+            </Stack>
+            {sourceSummary.description ? (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", mt: 0.25 }}
+              >
+                {sourceSummary.description}
+              </Typography>
+            ) : null}
+          </Box>
+        ) : null}
         {steps.length ? (
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
             {steps.map((step) => (
@@ -68,6 +97,10 @@ EvalOnboardingFocusPanel.propTypes = {
   currentStep: PropTypes.string,
   description: PropTypes.string.isRequired,
   hidden: PropTypes.bool,
+  sourceSummary: PropTypes.shape({
+    description: PropTypes.string,
+    label: PropTypes.string.isRequired,
+  }),
   steps: PropTypes.arrayOf(
     PropTypes.shape({
       complete: PropTypes.bool,

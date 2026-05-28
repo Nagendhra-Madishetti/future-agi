@@ -57,6 +57,7 @@ import {
   getEvalCreateInitialSourceTab,
   getEvalCreateOnboardingCopy,
   getEvalCreateOnboardingParams,
+  getEvalOnboardingSourceSummary,
 } from "./evalCreateOnboarding";
 
 const EVAL_TYPE_TABS = [
@@ -175,6 +176,10 @@ const EvalCreatePage = () => {
   );
   const onboardingInitialSourceTab = useMemo(
     () => getEvalCreateInitialSourceTab(onboardingParams),
+    [onboardingParams],
+  );
+  const onboardingSourceSummary = useMemo(
+    () => getEvalOnboardingSourceSummary(onboardingParams),
     [onboardingParams],
   );
   const onboardingSourceSetupHref = useMemo(() => {
@@ -828,6 +833,7 @@ const EvalCreatePage = () => {
         currentStep={onboardingCopy.currentStep}
         description={onboardingCopy.description}
         hidden={!onboardingParams.isOnboarding}
+        sourceSummary={onboardingSourceSummary}
         steps={onboardingCopy.steps}
         title={onboardingCopy.title}
       />

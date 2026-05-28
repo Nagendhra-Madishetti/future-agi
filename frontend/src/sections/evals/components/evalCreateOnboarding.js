@@ -31,6 +31,13 @@ const SOURCE_TYPE_TO_TAB = {
   trace_project: EVAL_CREATE_SOURCE_TABS.TRACING,
 };
 
+const SOURCE_TYPE_LABELS = {
+  dataset: "Dataset",
+  simulation: "Simulation",
+  trace: "Trace",
+  trace_project: "Trace project",
+};
+
 const STEP_COPY = {
   [EVAL_CREATE_ONBOARDING_STEPS.DATA]: {
     currentStep: "Source",
@@ -130,6 +137,26 @@ export const getEvalCreateInitialSourceTab = ({
   }
 
   return EVAL_CREATE_SOURCE_TABS.CUSTOM;
+};
+
+export const getEvalOnboardingSourceSummary = ({
+  isOnboarding,
+  sourceId,
+  sourceType,
+  step,
+} = {}) => {
+  if (
+    !isOnboarding ||
+    !sourceId ||
+    step === EVAL_CREATE_ONBOARDING_STEPS.DATA
+  ) {
+    return null;
+  }
+
+  return {
+    description: "The next scorer you save will evaluate this source.",
+    label: `${SOURCE_TYPE_LABELS[sourceType] || "Source"} ready`,
+  };
 };
 
 export const buildEvalCreateDraftHref = (draftId, search = "") => {
