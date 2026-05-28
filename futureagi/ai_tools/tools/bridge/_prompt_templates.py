@@ -1,10 +1,15 @@
 """Bridge registration for PromptTemplateViewSet.
 
-Applies @expose_to_mcp programmatically to avoid editing the legacy
-model_hub/views/prompt_template.py file (which has pre-existing lint debt).
-Descriptions live on the PromptTemplateSerializer's docstring — the bridge
-auto-derives the tool description from there, so this file only declares
-tool names, query params, and field allowlists.
+All metadata (descriptions, parameter schemas, field allowlists) lives in
+the serializer — PromptTemplateSerializer.__doc__ for the entity description
+and field-level help_text for parameter descriptions. Standard CRUD tool
+names are auto-generated as list/get/create/update/delete + entity. No
+config needed here beyond the category.
+
+TODO: when PromptTemplateViewSet.list grows a @validated_request(
+query_serializer=PromptTemplateListRequestSerializer), the bridge will
+auto-discover the search/page/page_size/ordering params and this file can
+remove the list query_params block too.
 """
 
 from ai_tools.drf_bridge import expose_to_mcp
@@ -14,7 +19,6 @@ expose_to_mcp(
     category="prompts",
     tools={
         "list": {
-            "name": "list_prompt_templates",
             "query_params": {
                 "search": {
                     "type": str,
@@ -27,15 +31,13 @@ expose_to_mcp(
                 "page": {
                     "type": int,
                     "default": 1,
-                    "description": "Page number, 1-indexed. Default 1.",
+                    "description": "Page number, 1-indexed.",
                     "required": False,
                 },
                 "page_size": {
                     "type": int,
                     "default": 20,
-                    "description": (
-                        "Number of templates per page. Range 1-100. Default 20."
-                    ),
+                    "description": "Number of templates per page. Range 1-100.",
                     "required": False,
                 },
                 "ordering": {
@@ -48,9 +50,9 @@ expose_to_mcp(
                 },
             },
         },
-        "retrieve": {"name": "get_prompt_template"},
-        "create": {"name": "create_prompt_template"},
-        "update": {"name": "update_prompt_template"},
-        "destroy": {"name": "delete_prompt_template"},
+        "retrieve": {},
+        "create": {},
+        "update": {},
+        "destroy": {},
     },
 )(PromptTemplateViewSet)

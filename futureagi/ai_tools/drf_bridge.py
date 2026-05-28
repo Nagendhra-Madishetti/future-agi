@@ -103,6 +103,47 @@ ACTION_VERB_MAP = {
     "delete": "Delete a",
 }
 
+# Maps action name → tool name prefix. "list" → "list_users",
+# "retrieve" → "get_user", "create" → "create_user", etc.
+ACTION_TOOL_PREFIX = {
+    "list": "list",
+    "retrieve": "get",
+    "create": "create",
+    "update": "update",
+    "partial_update": "update",
+    "destroy": "delete",
+    "get": "list",  # APIView list-style
+    "post": "create",
+    "put": "update",
+    "patch": "update",
+    "delete": "delete",
+}
+
+
+def _derive_tool_name(
+    action_name: str,
+    entity_name: str,
+    detail: bool,
+    verb_map: dict | None = None,
+) -> str:
+    """Auto-generate a tool name: {verb}_{entity[s]}.
+
+    list / get-without-detail → plural entity ("list_users", "list_workspaces").
+    retrieve / detail HTTP get → singular ("get_user").
+    create / update / destroy → singular ("create_user", "delete_user").
+
+    Pass `verb_map` to override the default prefixes per decorator,
+    e.g. {"retrieve": "fetch"} → "fetch_user" instead of "get_user".
+    """
+    effective = dict(ACTION_TOOL_PREFIX)
+    if verb_map:
+        effective.update(verb_map)
+    prefix = effective.get(action_name, action_name)
+    pluralize = action_name in LIST_ACTIONS or (action_name == "get" and not detail)
+    suffix = "s" if pluralize and not entity_name.endswith("s") else ""
+    return f"{prefix}_{entity_name}{suffix}"
+
+
 # Kept for backward compat with any callers that still reference it.
 ACTION_DESCRIPTION_MAP = {
     "list": "List all {entity}s in the workspace.",
@@ -601,11 +642,16 @@ def _register_bridge_tool(
     action_name: str,
     tool_config: dict,
     category: str,
+    verb_map: dict | None = None,
 ):
     """Build and register a single bridge tool from config."""
     from ai_tools.registry import registry
 
-    tool_name = tool_config.get("name", f"{category}_{action_name}")
+    detail_early = tool_config.get("detail", action_name in DETAIL_ACTIONS)
+    entity_early = tool_config.get("entity") or _derive_entity_name(viewset_cls)
+    tool_name = tool_config.get("name") or _derive_tool_name(
+        action_name, entity_early, detail_early, verb_map=verb_map
+    )
     method = tool_config.get("method", ACTION_METHOD_MAP.get(action_name, "GET"))
     detail = tool_config.get("detail", action_name in DETAIL_ACTIONS)
     pk_field = tool_config.get("pk_field", "id" if detail else None)
@@ -719,41 +765,60 @@ def _register_bridge_tool(
     return instance
 
 
-def expose_to_mcp(category: str, tools: dict):
+STANDARD_CRUD = ("list", "retrieve", "create", "update", "destroy")
+
+
+def expose_to_mcp(category: str, tools=None, verb_map: dict | None = None):
     """Class decorator that registers ViewSet actions as MCP/Falcon tools.
 
-    Usage:
-        @expose_to_mcp(
-            category="tracing",
-            tools={
-                "list": {
-                    "name": "tracing_list_projects",
-                    "query_params": {
-                        "name": {"type": str, "description": "Filter by name"},
-                        "project_type": {"type": str, "description": "Filter: 'experiment' or 'observe'"},
-                        "page_number": {"type": int, "default": 0, "description": "Page number"},
-                        "page_size": {"type": int, "default": 20, "description": "Items per page"},
-                    },
-                },
-                "retrieve": {"name": "tracing_get_project"},
-                "create": {"name": "tracing_create_project"},
-                "update_project_name": {
-                    "name": "tracing_update_project_name",
-                    "serializer": "ProjectNameUpdateSerializer",
-                },
-            },
-        )
-        class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
-            serializer_class = ProjectSerializer
+    The `tools` argument accepts three forms:
+
+      1. None — auto-expose the standard CRUD actions
+         (list/retrieve/create/update/destroy). Tool names are derived
+         from the action verb + serializer's entity name.
+
+         @expose_to_mcp(category="prompts")(PromptTemplateViewSet)
+
+      2. List of action names — same as None but lets you cherry-pick
+         which actions to expose.
+
+         @expose_to_mcp(category="prompts", tools=["list", "retrieve"])
+         class PromptTemplateViewSet(...):
+
+      3. Dict of action → config — full control. Each config can override
+         name, description, query_params, serializer, include_fields,
+         exclude_fields, method, detail, pk_field, entity, id_source.
+
+         @expose_to_mcp(category="tracing", tools={
+             "list": {"query_params": {...}},
+             "update_project_name": {"serializer": "ProjectNameUpdateSerializer"},
+         })
+
+    Per-tool config keys are all optional. The bridge auto-derives:
+      - tool name from {verb}_{entity}[s]
+      - tool description from {verb} {entity}. + serializer.__doc__
+      - input schema from serializer fields (skipping read_only)
+      - method from action name
+      - detail flag for retrieve/update/destroy
+      - the `id` field's "How to get it" hint pointing at the list tool
     """
 
     def decorator(viewset_cls):
         viewset_path = f"{viewset_cls.__module__}.{viewset_cls.__name__}"
 
+        if tools is None:
+            tool_iter = [(a, {}) for a in STANDARD_CRUD]
+        elif isinstance(tools, list):
+            tool_iter = [(a, {}) for a in tools]
+        else:
+            tool_iter = list(tools.items())
+
         ordered_actions = sorted(
-            tools.items(),
+            tool_iter,
             key=lambda kv: (
-                0 if kv[0] in LIST_ACTIONS else (1 if kv[0] == "create" else 2)
+                0
+                if kv[0] in LIST_ACTIONS or kv[0] == "get"
+                else (1 if kv[0] == "create" else 2)
             ),
         )
         for action_name, tool_config in ordered_actions:
@@ -761,7 +826,12 @@ def expose_to_mcp(category: str, tools: dict):
                 tool_config = {"name": tool_config}
             try:
                 _register_bridge_tool(
-                    viewset_path, viewset_cls, action_name, tool_config, category
+                    viewset_path,
+                    viewset_cls,
+                    action_name,
+                    tool_config,
+                    category,
+                    verb_map=verb_map,
                 )
             except Exception:
                 logger.exception(
