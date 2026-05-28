@@ -409,7 +409,6 @@ import type {
   EvalSummaryTemplateListResponseApi,
   EvalSummaryTemplateMutationRequestApi,
   EvalSummaryTemplateResponseApi,
-  EvalTaskApi,
   EvalTemplateApi,
   EvalTemplateBulkDeleteRequestApi,
   EvalTemplateBulkDeleteResponseApi,
@@ -545,7 +544,6 @@ import type {
   IntegrationConnectionCreateApi,
   IntegrationConnectionDetailApi,
   IntegrationConnectionDetailResponseApi,
-  IntegrationConnectionListApi,
   IntegrationConnectionListResponseApi,
   IntegrationConnectionUpdateApi,
   IntegrationEmptyRequestApi,
@@ -1109,13 +1107,9 @@ import type {
   TracerDashboardWidgetsListParams,
   TracerDatasetList200,
   TracerDatasetListParams,
-  TracerEvalTaskGetEvalDetails200,
   TracerEvalTaskGetEvalDetailsParams,
-  TracerEvalTaskGetEvalTaskLogs200,
   TracerEvalTaskGetEvalTaskLogsParams,
-  TracerEvalTaskGetUsage200,
   TracerEvalTaskGetUsageParams,
-  TracerEvalTaskList200,
   TracerEvalTaskListEvalTasksParams,
   TracerEvalTaskListEvalTasksWithProjectNameParams,
   TracerEvalTaskListParams,
@@ -1212,8 +1206,6 @@ import type {
   TracerUserAlertLogsListAll200,
   TracerUserAlertLogsListAllParams,
   TracerUserAlertLogsListParams,
-  TracerUserAlertsList200,
-  TracerUserAlertsListMonitors200,
   TracerUserAlertsListMonitorsParams,
   TracerUserAlertsListParams,
   TracerUserAlertsMetricOptionsParams,
@@ -1273,7 +1265,6 @@ import type {
   UsageWorkspaceBreakdownResponseApi,
   UsageWorkspaceEvalSummaryListParams,
   UsageWorkspaceUsageSummaryListParams,
-  UserAlertMonitorApi,
   UserAlertMonitorDuplicateApi,
   UserAlertMonitorDuplicateResponseApi,
   UserAlertMonitorLogApi,
@@ -19423,7 +19414,7 @@ export const integrationsConnectionsRead = async (id: string, options?: RequestI
 
 
 export type integrationsConnectionsUpdateResponse200 = {
-  data: IntegrationConnectionListApi
+  data: IntegrationConnectionDetailResponseApi
   status: 200
 }
 
@@ -19468,7 +19459,7 @@ export const getIntegrationsConnectionsUpdateUrl = (id: string,) => {
  * API endpoints for managing integration connections.
  */
 export const integrationsConnectionsUpdate = async (id: string,
-    integrationConnectionListApi: NonReadonly<IntegrationConnectionListApi>, options?: RequestInit): Promise<integrationsConnectionsUpdateResponse> => {
+    integrationConnectionUpdateApi: IntegrationConnectionUpdateApi, options?: RequestInit): Promise<integrationsConnectionsUpdateResponse> => {
 
   return apiMutator<integrationsConnectionsUpdateResponse>(getIntegrationsConnectionsUpdateUrl(id),
   {
@@ -19476,7 +19467,7 @@ export const integrationsConnectionsUpdate = async (id: string,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      integrationConnectionListApi,)
+      integrationConnectionUpdateApi,)
   }
 );}
 
@@ -25222,15 +25213,40 @@ export type modelHubApiKeysListResponse200 = {
   status: 200
 }
 
+export type modelHubApiKeysListResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubApiKeysListResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubApiKeysListResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubApiKeysListResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubApiKeysListResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
 export type modelHubApiKeysListResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 500>
 }
 
 export type modelHubApiKeysListResponseSuccess = (modelHubApiKeysListResponse200) & {
   headers: Headers;
 };
-export type modelHubApiKeysListResponseError = (modelHubApiKeysListResponseDefault) & {
+export type modelHubApiKeysListResponseError = (modelHubApiKeysListResponse400 | modelHubApiKeysListResponse403 | modelHubApiKeysListResponse404 | modelHubApiKeysListResponse409 | modelHubApiKeysListResponse500 | modelHubApiKeysListResponseDefault) & {
   headers: Headers;
 };
 
@@ -25273,15 +25289,40 @@ export type modelHubApiKeysCreateResponse200 = {
   status: 200
 }
 
+export type modelHubApiKeysCreateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubApiKeysCreateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubApiKeysCreateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubApiKeysCreateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubApiKeysCreateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
 export type modelHubApiKeysCreateResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 500>
 }
 
 export type modelHubApiKeysCreateResponseSuccess = (modelHubApiKeysCreateResponse200) & {
   headers: Headers;
 };
-export type modelHubApiKeysCreateResponseError = (modelHubApiKeysCreateResponseDefault) & {
+export type modelHubApiKeysCreateResponseError = (modelHubApiKeysCreateResponse400 | modelHubApiKeysCreateResponse403 | modelHubApiKeysCreateResponse404 | modelHubApiKeysCreateResponse409 | modelHubApiKeysCreateResponse500 | modelHubApiKeysCreateResponseDefault) & {
   headers: Headers;
 };
 
@@ -25314,15 +25355,40 @@ export type modelHubApiKeysReadResponse200 = {
   status: 200
 }
 
+export type modelHubApiKeysReadResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubApiKeysReadResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubApiKeysReadResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubApiKeysReadResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubApiKeysReadResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
 export type modelHubApiKeysReadResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 500>
 }
 
 export type modelHubApiKeysReadResponseSuccess = (modelHubApiKeysReadResponse200) & {
   headers: Headers;
 };
-export type modelHubApiKeysReadResponseError = (modelHubApiKeysReadResponseDefault) & {
+export type modelHubApiKeysReadResponseError = (modelHubApiKeysReadResponse400 | modelHubApiKeysReadResponse403 | modelHubApiKeysReadResponse404 | modelHubApiKeysReadResponse409 | modelHubApiKeysReadResponse500 | modelHubApiKeysReadResponseDefault) & {
   headers: Headers;
 };
 
@@ -25354,15 +25420,40 @@ export type modelHubApiKeysUpdateResponse200 = {
   status: 200
 }
 
+export type modelHubApiKeysUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubApiKeysUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubApiKeysUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubApiKeysUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubApiKeysUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
 export type modelHubApiKeysUpdateResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 500>
 }
 
 export type modelHubApiKeysUpdateResponseSuccess = (modelHubApiKeysUpdateResponse200) & {
   headers: Headers;
 };
-export type modelHubApiKeysUpdateResponseError = (modelHubApiKeysUpdateResponseDefault) & {
+export type modelHubApiKeysUpdateResponseError = (modelHubApiKeysUpdateResponse400 | modelHubApiKeysUpdateResponse403 | modelHubApiKeysUpdateResponse404 | modelHubApiKeysUpdateResponse409 | modelHubApiKeysUpdateResponse500 | modelHubApiKeysUpdateResponseDefault) & {
   headers: Headers;
 };
 
@@ -25396,15 +25487,40 @@ export type modelHubApiKeysPartialUpdateResponse200 = {
   status: 200
 }
 
+export type modelHubApiKeysPartialUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubApiKeysPartialUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubApiKeysPartialUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubApiKeysPartialUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubApiKeysPartialUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
+}
+
 export type modelHubApiKeysPartialUpdateResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 500>
 }
 
 export type modelHubApiKeysPartialUpdateResponseSuccess = (modelHubApiKeysPartialUpdateResponse200) & {
   headers: Headers;
 };
-export type modelHubApiKeysPartialUpdateResponseError = (modelHubApiKeysPartialUpdateResponseDefault) & {
+export type modelHubApiKeysPartialUpdateResponseError = (modelHubApiKeysPartialUpdateResponse400 | modelHubApiKeysPartialUpdateResponse403 | modelHubApiKeysPartialUpdateResponse404 | modelHubApiKeysPartialUpdateResponse409 | modelHubApiKeysPartialUpdateResponse500 | modelHubApiKeysPartialUpdateResponseDefault) & {
   headers: Headers;
 };
 
@@ -33776,7 +33892,11 @@ export const getModelHubEvalGroupsListUrl = (params?: ModelHubEvalGroupsListPara
 }
 
 /**
- * List all eval groups for the user's organization
+ * Pure routing: three independent bulk reads in this method (main
+EvalGroup queryset, EvalGroup.eval_templates through-table, and
+EvalTemplate) all route to DATABASE_FOR_EVAL_GROUP_LIST when
+"feature:eval_group_list" is opted in. No query semantics change.
+ * @summary List all eval groups for the user's organization.
  */
 export const modelHubEvalGroupsList = async (params?: ModelHubEvalGroupsListParams, options?: RequestInit): Promise<modelHubEvalGroupsListResponse> => {
 
@@ -40782,19 +40902,44 @@ export const modelHubKbUpdate = async (id: string,
 
 
 export type modelHubKbPartialUpdateResponse200 = {
-  data: KnowledgeBaseApi
+  data: KnowledgeBaseResponseApi
   status: 200
+}
+
+export type modelHubKbPartialUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubKbPartialUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubKbPartialUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubKbPartialUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubKbPartialUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubKbPartialUpdateResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 500>
 }
 
 export type modelHubKbPartialUpdateResponseSuccess = (modelHubKbPartialUpdateResponse200) & {
   headers: Headers;
 };
-export type modelHubKbPartialUpdateResponseError = (modelHubKbPartialUpdateResponseDefault) & {
+export type modelHubKbPartialUpdateResponseError = (modelHubKbPartialUpdateResponse400 | modelHubKbPartialUpdateResponse403 | modelHubKbPartialUpdateResponse404 | modelHubKbPartialUpdateResponse409 | modelHubKbPartialUpdateResponse500 | modelHubKbPartialUpdateResponseDefault) & {
   headers: Headers;
 };
 
@@ -40809,7 +40954,8 @@ export const getModelHubKbPartialUpdateUrl = (id: string,) => {
 }
 
 /**
- * ViewSet for handling KnowledgeBase operations.
+ * Partially update a knowledge base.
+ * @summary Partially update a knowledge base.
  */
 export const modelHubKbPartialUpdate = async (id: string,
     knowledgeBaseApi: NonReadonly<KnowledgeBaseApi>, options?: RequestInit): Promise<modelHubKbPartialUpdateResponse> => {
@@ -59711,7 +59857,7 @@ export const tracerDatasetDelete = async (id: string, options?: RequestInit): Pr
 
 
 export type tracerEvalTaskListResponse200 = {
-  data: TracerEvalTaskList200
+  data: void
   status: 200
 }
 
@@ -59762,7 +59908,7 @@ export const tracerEvalTaskList = async (params?: TracerEvalTaskListParams, opti
 
 
 export type tracerEvalTaskCreateResponse201 = {
-  data: EvalTaskApi
+  data: void
   status: 201
 }
 
@@ -59788,22 +59934,21 @@ export const getTracerEvalTaskCreateUrl = () => {
   return `/tracer/eval-task/`
 }
 
-export const tracerEvalTaskCreate = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskCreateResponse> => {
+export const tracerEvalTaskCreate = async ( options?: RequestInit): Promise<tracerEvalTaskCreateResponse> => {
 
   return apiMutator<tracerEvalTaskCreateResponse>(getTracerEvalTaskCreateUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskGetEvalDetailsResponse200 = {
-  data: TracerEvalTaskGetEvalDetails200
+  data: void
   status: 200
 }
 
@@ -59854,7 +59999,7 @@ export const tracerEvalTaskGetEvalDetails = async (params?: TracerEvalTaskGetEva
 
 
 export type tracerEvalTaskGetEvalTaskLogsResponse200 = {
-  data: TracerEvalTaskGetEvalTaskLogs200
+  data: void
   status: 200
 }
 
@@ -59905,7 +60050,7 @@ export const tracerEvalTaskGetEvalTaskLogs = async (params?: TracerEvalTaskGetEv
 
 
 export type tracerEvalTaskGetUsageResponse200 = {
-  data: TracerEvalTaskGetUsage200
+  data: void
   status: 200
 }
 
@@ -59956,7 +60101,7 @@ export const tracerEvalTaskGetUsage = async (params?: TracerEvalTaskGetUsagePara
 
 
 export type tracerEvalTaskListEvalTasksResponse200 = {
-  data: EvalTaskApi[]
+  data: void
   status: 200
 }
 
@@ -60010,7 +60155,7 @@ export const tracerEvalTaskListEvalTasks = async (params?: TracerEvalTaskListEva
 
 
 export type tracerEvalTaskListEvalTasksWithProjectNameResponse200 = {
-  data: EvalTaskApi[]
+  data: void
   status: 200
 }
 
@@ -60064,7 +60209,7 @@ export const tracerEvalTaskListEvalTasksWithProjectName = async (params?: Tracer
 
 
 export type tracerEvalTaskMarkEvalTasksDeletedResponse201 = {
-  data: EvalTaskApi
+  data: void
   status: 201
 }
 
@@ -60090,22 +60235,21 @@ export const getTracerEvalTaskMarkEvalTasksDeletedUrl = () => {
   return `/tracer/eval-task/mark_eval_tasks_deleted/`
 }
 
-export const tracerEvalTaskMarkEvalTasksDeleted = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskMarkEvalTasksDeletedResponse> => {
+export const tracerEvalTaskMarkEvalTasksDeleted = async ( options?: RequestInit): Promise<tracerEvalTaskMarkEvalTasksDeletedResponse> => {
 
   return apiMutator<tracerEvalTaskMarkEvalTasksDeletedResponse>(getTracerEvalTaskMarkEvalTasksDeletedUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskPauseEvalTaskResponse201 = {
-  data: EvalTaskApi
+  data: void
   status: 201
 }
 
@@ -60131,22 +60275,21 @@ export const getTracerEvalTaskPauseEvalTaskUrl = () => {
   return `/tracer/eval-task/pause_eval_task/`
 }
 
-export const tracerEvalTaskPauseEvalTask = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskPauseEvalTaskResponse> => {
+export const tracerEvalTaskPauseEvalTask = async ( options?: RequestInit): Promise<tracerEvalTaskPauseEvalTaskResponse> => {
 
   return apiMutator<tracerEvalTaskPauseEvalTaskResponse>(getTracerEvalTaskPauseEvalTaskUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskUnpauseEvalTaskResponse201 = {
-  data: EvalTaskApi
+  data: void
   status: 201
 }
 
@@ -60172,22 +60315,21 @@ export const getTracerEvalTaskUnpauseEvalTaskUrl = () => {
   return `/tracer/eval-task/unpause_eval_task/`
 }
 
-export const tracerEvalTaskUnpauseEvalTask = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskUnpauseEvalTaskResponse> => {
+export const tracerEvalTaskUnpauseEvalTask = async ( options?: RequestInit): Promise<tracerEvalTaskUnpauseEvalTaskResponse> => {
 
   return apiMutator<tracerEvalTaskUnpauseEvalTaskResponse>(getTracerEvalTaskUnpauseEvalTaskUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskUpdateEvalTaskResponse200 = {
-  data: EvalTaskApi
+  data: void
   status: 200
 }
 
@@ -60218,22 +60360,21 @@ export const getTracerEvalTaskUpdateEvalTaskUrl = () => {
 Edit & Re-run: Preserves existing results and only runs missing evaluations
  * @summary Update an evaluation task with either fresh run or edit & re-run logic.
  */
-export const tracerEvalTaskUpdateEvalTask = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskUpdateEvalTaskResponse> => {
+export const tracerEvalTaskUpdateEvalTask = async ( options?: RequestInit): Promise<tracerEvalTaskUpdateEvalTaskResponse> => {
 
   return apiMutator<tracerEvalTaskUpdateEvalTaskResponse>(getTracerEvalTaskUpdateEvalTaskUrl(),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'PATCH'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskReadResponse200 = {
-  data: EvalTaskApi
+  data: void
   status: 200
 }
 
@@ -60273,7 +60414,7 @@ export const tracerEvalTaskRead = async (id: string, options?: RequestInit): Pro
 
 
 export type tracerEvalTaskUpdateResponse200 = {
-  data: EvalTaskApi
+  data: void
   status: 200
 }
 
@@ -60299,23 +60440,21 @@ export const getTracerEvalTaskUpdateUrl = (id: string,) => {
   return `/tracer/eval-task/${id}/`
 }
 
-export const tracerEvalTaskUpdate = async (id: string,
-    evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskUpdateResponse> => {
+export const tracerEvalTaskUpdate = async (id: string, options?: RequestInit): Promise<tracerEvalTaskUpdateResponse> => {
 
   return apiMutator<tracerEvalTaskUpdateResponse>(getTracerEvalTaskUpdateUrl(id),
   {
     ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'PUT'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskPartialUpdateResponse200 = {
-  data: EvalTaskApi
+  data: void
   status: 200
 }
 
@@ -60341,16 +60480,14 @@ export const getTracerEvalTaskPartialUpdateUrl = (id: string,) => {
   return `/tracer/eval-task/${id}/`
 }
 
-export const tracerEvalTaskPartialUpdate = async (id: string,
-    evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskPartialUpdateResponse> => {
+export const tracerEvalTaskPartialUpdate = async (id: string, options?: RequestInit): Promise<tracerEvalTaskPartialUpdateResponse> => {
 
   return apiMutator<tracerEvalTaskPartialUpdateResponse>(getTracerEvalTaskPartialUpdateUrl(id),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'PATCH'
+
+
   }
 );}
 
@@ -65579,6 +65716,966 @@ export const tracerTraceAnnotationGetAnnotationValues = async (params?: TracerTr
 
 
 
+export type tracerTraceErrorAnalysisReadResponse200 = {
+  data: TraceErrorAnalysisResponseApi
+  status: 200
+}
+
+export type tracerTraceErrorAnalysisReadResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type tracerTraceErrorAnalysisReadResponse403 = {
+  data: ApiErrorResponseApi
+  status: 403
+}
+
+export type tracerTraceErrorAnalysisReadResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type tracerTraceErrorAnalysisReadResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type tracerTraceErrorAnalysisReadResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 500>
+}
+
+export type tracerTraceErrorAnalysisReadResponseSuccess = (tracerTraceErrorAnalysisReadResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceErrorAnalysisReadResponseError = (tracerTraceErrorAnalysisReadResponse400 | tracerTraceErrorAnalysisReadResponse403 | tracerTraceErrorAnalysisReadResponse404 | tracerTraceErrorAnalysisReadResponse500 | tracerTraceErrorAnalysisReadResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceErrorAnalysisReadResponse = (tracerTraceErrorAnalysisReadResponseSuccess | tracerTraceErrorAnalysisReadResponseError)
+
+export const getTracerTraceErrorAnalysisReadUrl = (traceId: string,) => {
+
+
+
+
+  return `/tracer/trace-error-analysis/${traceId}/`
+}
+
+/**
+ * Get error analysis for a specific trace
+GET /api/trace-error-analysis/<trace_id>/
+ */
+export const tracerTraceErrorAnalysisRead = async (traceId: string, options?: RequestInit): Promise<tracerTraceErrorAnalysisReadResponse> => {
+
+  return apiMutator<tracerTraceErrorAnalysisReadResponse>(getTracerTraceErrorAnalysisReadUrl(traceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceErrorTaskReadResponse200 = {
+  data: TraceErrorTaskResponseApi
+  status: 200
+}
+
+export type tracerTraceErrorTaskReadResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type tracerTraceErrorTaskReadResponse403 = {
+  data: ApiErrorResponseApi
+  status: 403
+}
+
+export type tracerTraceErrorTaskReadResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type tracerTraceErrorTaskReadResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type tracerTraceErrorTaskReadResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 500>
+}
+
+export type tracerTraceErrorTaskReadResponseSuccess = (tracerTraceErrorTaskReadResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceErrorTaskReadResponseError = (tracerTraceErrorTaskReadResponse400 | tracerTraceErrorTaskReadResponse403 | tracerTraceErrorTaskReadResponse404 | tracerTraceErrorTaskReadResponse500 | tracerTraceErrorTaskReadResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceErrorTaskReadResponse = (tracerTraceErrorTaskReadResponseSuccess | tracerTraceErrorTaskReadResponseError)
+
+export const getTracerTraceErrorTaskReadUrl = (projectId: string,) => {
+
+
+
+
+  return `/tracer/trace-error-task/${projectId}/`
+}
+
+/**
+ * Get current task configuration for a project
+GET /api/trace-error-task/<project_id>/
+ */
+export const tracerTraceErrorTaskRead = async (projectId: string, options?: RequestInit): Promise<tracerTraceErrorTaskReadResponse> => {
+
+  return apiMutator<tracerTraceErrorTaskReadResponse>(getTracerTraceErrorTaskReadUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceErrorTaskCreateResponse200 = {
+  data: TraceErrorTaskUpdateResponseApi
+  status: 200
+}
+
+export type tracerTraceErrorTaskCreateResponse400 = {
+  data: ApiErrorResponseApi
+  status: 400
+}
+
+export type tracerTraceErrorTaskCreateResponse403 = {
+  data: ApiErrorResponseApi
+  status: 403
+}
+
+export type tracerTraceErrorTaskCreateResponse404 = {
+  data: ApiErrorResponseApi
+  status: 404
+}
+
+export type tracerTraceErrorTaskCreateResponse500 = {
+  data: ApiErrorResponseApi
+  status: 500
+}
+
+export type tracerTraceErrorTaskCreateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 500>
+}
+
+export type tracerTraceErrorTaskCreateResponseSuccess = (tracerTraceErrorTaskCreateResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceErrorTaskCreateResponseError = (tracerTraceErrorTaskCreateResponse400 | tracerTraceErrorTaskCreateResponse403 | tracerTraceErrorTaskCreateResponse404 | tracerTraceErrorTaskCreateResponse500 | tracerTraceErrorTaskCreateResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceErrorTaskCreateResponse = (tracerTraceErrorTaskCreateResponseSuccess | tracerTraceErrorTaskCreateResponseError)
+
+export const getTracerTraceErrorTaskCreateUrl = (projectId: string,) => {
+
+
+
+
+  return `/tracer/trace-error-task/${projectId}/`
+}
+
+/**
+ * Request body:
+{
+    "sampling_rate": 0.2,  // Required: 0-1
+    "status": "waiting"    // Optional: "waiting" or "paused"
+}
+ * @summary Update task configuration for a project
+POST /api/trace-error-task/<project_id>/
+ */
+export const tracerTraceErrorTaskCreate = async (projectId: string,
+    traceErrorTaskUpdateRequestApi: TraceErrorTaskUpdateRequestApi, options?: RequestInit): Promise<tracerTraceErrorTaskCreateResponse> => {
+
+  return apiMutator<tracerTraceErrorTaskCreateResponse>(getTracerTraceErrorTaskCreateUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      traceErrorTaskUpdateRequestApi,)
+  }
+);}
+
+
+
+export type tracerTraceSessionListResponse200 = {
+  data: TracerTraceSessionList200
+  status: 200
+}
+
+export type tracerTraceSessionListResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceSessionListResponseSuccess = (tracerTraceSessionListResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceSessionListResponseError = (tracerTraceSessionListResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionListResponse = (tracerTraceSessionListResponseSuccess | tracerTraceSessionListResponseError)
+
+export const getTracerTraceSessionListUrl = (params?: TracerTraceSessionListParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/tracer/trace-session/?${stringifiedParams}` : `/tracer/trace-session/`
+}
+
+export const tracerTraceSessionList = async (params?: TracerTraceSessionListParams, options?: RequestInit): Promise<tracerTraceSessionListResponse> => {
+
+  return apiMutator<tracerTraceSessionListResponse>(getTracerTraceSessionListUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceSessionCreateResponse201 = {
+  data: TraceSessionApi
+  status: 201
+}
+
+export type tracerTraceSessionCreateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 201>
+}
+
+export type tracerTraceSessionCreateResponseSuccess = (tracerTraceSessionCreateResponse201) & {
+  headers: Headers;
+};
+export type tracerTraceSessionCreateResponseError = (tracerTraceSessionCreateResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionCreateResponse = (tracerTraceSessionCreateResponseSuccess | tracerTraceSessionCreateResponseError)
+
+export const getTracerTraceSessionCreateUrl = () => {
+
+
+
+
+  return `/tracer/trace-session/`
+}
+
+export const tracerTraceSessionCreate = async (traceSessionApi: NonReadonly<TraceSessionApi>, options?: RequestInit): Promise<tracerTraceSessionCreateResponse> => {
+
+  return apiMutator<tracerTraceSessionCreateResponse>(getTracerTraceSessionCreateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      traceSessionApi,)
+  }
+);}
+
+
+
+export type tracerTraceSessionGetSessionFilterValuesResponse200 = {
+  data: TracerTraceSessionGetSessionFilterValues200
+  status: 200
+}
+
+export type tracerTraceSessionGetSessionFilterValuesResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceSessionGetSessionFilterValuesResponseSuccess = (tracerTraceSessionGetSessionFilterValuesResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceSessionGetSessionFilterValuesResponseError = (tracerTraceSessionGetSessionFilterValuesResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionGetSessionFilterValuesResponse = (tracerTraceSessionGetSessionFilterValuesResponseSuccess | tracerTraceSessionGetSessionFilterValuesResponseError)
+
+export const getTracerTraceSessionGetSessionFilterValuesUrl = (params?: TracerTraceSessionGetSessionFilterValuesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/tracer/trace-session/get_session_filter_values/?${stringifiedParams}` : `/tracer/trace-session/get_session_filter_values/`
+}
+
+/**
+ * Return distinct values for a session-level column.
+Used by the filter panel's value picker for session-specific fields
+(session_id, user_id, first_message, etc.).
+
+Query params:
+    project_id: required
+    column: canonical session column name, e.g. "session_id"
+    search: optional search substring
+    page: page number (0-based), default 0
+    page_size: default 50
+ */
+export const tracerTraceSessionGetSessionFilterValues = async (params?: TracerTraceSessionGetSessionFilterValuesParams, options?: RequestInit): Promise<tracerTraceSessionGetSessionFilterValuesResponse> => {
+
+  return apiMutator<tracerTraceSessionGetSessionFilterValuesResponse>(getTracerTraceSessionGetSessionFilterValuesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceSessionGetSessionGraphDataResponse201 = {
+  data: TraceSessionGraphDataRequestApi
+  status: 201
+}
+
+export type tracerTraceSessionGetSessionGraphDataResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 201>
+}
+
+export type tracerTraceSessionGetSessionGraphDataResponseSuccess = (tracerTraceSessionGetSessionGraphDataResponse201) & {
+  headers: Headers;
+};
+export type tracerTraceSessionGetSessionGraphDataResponseError = (tracerTraceSessionGetSessionGraphDataResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionGetSessionGraphDataResponse = (tracerTraceSessionGetSessionGraphDataResponseSuccess | tracerTraceSessionGetSessionGraphDataResponseError)
+
+export const getTracerTraceSessionGetSessionGraphDataUrl = () => {
+
+
+
+
+  return `/tracer/trace-session/get_session_graph_data/`
+}
+
+/**
+ * Supports the same metric types as the trace graph endpoint:
+- SYSTEM_METRIC: latency, tokens, cost, error_rate, session_count,
+  avg_duration, avg_traces_per_session — all aggregated at session level
+- EVAL: eval scores averaged across sessions
+- ANNOTATION: annotation scores averaged across sessions
+
+Response shape matches trace graph: {metric_name, data: [{timestamp, value, primary_traffic}]}
+ * @summary Fetch time-series session metrics for the observe graph.
+ */
+export const tracerTraceSessionGetSessionGraphData = async (traceSessionGraphDataRequestApi: TraceSessionGraphDataRequestApi, options?: RequestInit): Promise<tracerTraceSessionGetSessionGraphDataResponse> => {
+
+  return apiMutator<tracerTraceSessionGetSessionGraphDataResponse>(getTracerTraceSessionGetSessionGraphDataUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      traceSessionGraphDataRequestApi,)
+  }
+);}
+
+
+
+export type tracerTraceSessionGetTraceSessionExportDataResponse200 = {
+  data: TracerTraceSessionGetTraceSessionExportData200
+  status: 200
+}
+
+export type tracerTraceSessionGetTraceSessionExportDataResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceSessionGetTraceSessionExportDataResponseSuccess = (tracerTraceSessionGetTraceSessionExportDataResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceSessionGetTraceSessionExportDataResponseError = (tracerTraceSessionGetTraceSessionExportDataResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionGetTraceSessionExportDataResponse = (tracerTraceSessionGetTraceSessionExportDataResponseSuccess | tracerTraceSessionGetTraceSessionExportDataResponseError)
+
+export const getTracerTraceSessionGetTraceSessionExportDataUrl = (params?: TracerTraceSessionGetTraceSessionExportDataParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/tracer/trace-session/get_trace_session_export_data/?${stringifiedParams}` : `/tracer/trace-session/get_trace_session_export_data/`
+}
+
+/**
+ * Export traces filtered by project ID and project version ID with optimized queries.
+ */
+export const tracerTraceSessionGetTraceSessionExportData = async (params?: TracerTraceSessionGetTraceSessionExportDataParams, options?: RequestInit): Promise<tracerTraceSessionGetTraceSessionExportDataResponse> => {
+
+  return apiMutator<tracerTraceSessionGetTraceSessionExportDataResponse>(getTracerTraceSessionGetTraceSessionExportDataUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceSessionListSessionsResponse200 = {
+  data: TracerTraceSessionListSessions200
+  status: 200
+}
+
+export type tracerTraceSessionListSessionsResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceSessionListSessionsResponseSuccess = (tracerTraceSessionListSessionsResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceSessionListSessionsResponseError = (tracerTraceSessionListSessionsResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionListSessionsResponse = (tracerTraceSessionListSessionsResponseSuccess | tracerTraceSessionListSessionsResponseError)
+
+export const getTracerTraceSessionListSessionsUrl = (params?: TracerTraceSessionListSessionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/tracer/trace-session/list_sessions/?${stringifiedParams}` : `/tracer/trace-session/list_sessions/`
+}
+
+/**
+ * List traces filtered by project ID and project version ID with optimized queries.
+ */
+export const tracerTraceSessionListSessions = async (params?: TracerTraceSessionListSessionsParams, options?: RequestInit): Promise<tracerTraceSessionListSessionsResponse> => {
+
+  return apiMutator<tracerTraceSessionListSessionsResponse>(getTracerTraceSessionListSessionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceSessionReadResponse200 = {
+  data: TraceSessionApi
+  status: 200
+}
+
+export type tracerTraceSessionReadResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceSessionReadResponseSuccess = (tracerTraceSessionReadResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceSessionReadResponseError = (tracerTraceSessionReadResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionReadResponse = (tracerTraceSessionReadResponseSuccess | tracerTraceSessionReadResponseError)
+
+export const getTracerTraceSessionReadUrl = (id: string,) => {
+
+
+
+
+  return `/tracer/trace-session/${id}/`
+}
+
+export const tracerTraceSessionRead = async (id: string, options?: RequestInit): Promise<tracerTraceSessionReadResponse> => {
+
+  return apiMutator<tracerTraceSessionReadResponse>(getTracerTraceSessionReadUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceSessionUpdateResponse200 = {
+  data: TraceSessionApi
+  status: 200
+}
+
+export type tracerTraceSessionUpdateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceSessionUpdateResponseSuccess = (tracerTraceSessionUpdateResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceSessionUpdateResponseError = (tracerTraceSessionUpdateResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionUpdateResponse = (tracerTraceSessionUpdateResponseSuccess | tracerTraceSessionUpdateResponseError)
+
+export const getTracerTraceSessionUpdateUrl = (id: string,) => {
+
+
+
+
+  return `/tracer/trace-session/${id}/`
+}
+
+export const tracerTraceSessionUpdate = async (id: string,
+    traceSessionApi: NonReadonly<TraceSessionApi>, options?: RequestInit): Promise<tracerTraceSessionUpdateResponse> => {
+
+  return apiMutator<tracerTraceSessionUpdateResponse>(getTracerTraceSessionUpdateUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      traceSessionApi,)
+  }
+);}
+
+
+
+export type tracerTraceSessionPartialUpdateResponse200 = {
+  data: TraceSessionApi
+  status: 200
+}
+
+export type tracerTraceSessionPartialUpdateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceSessionPartialUpdateResponseSuccess = (tracerTraceSessionPartialUpdateResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceSessionPartialUpdateResponseError = (tracerTraceSessionPartialUpdateResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionPartialUpdateResponse = (tracerTraceSessionPartialUpdateResponseSuccess | tracerTraceSessionPartialUpdateResponseError)
+
+export const getTracerTraceSessionPartialUpdateUrl = (id: string,) => {
+
+
+
+
+  return `/tracer/trace-session/${id}/`
+}
+
+export const tracerTraceSessionPartialUpdate = async (id: string,
+    traceSessionApi: NonReadonly<TraceSessionApi>, options?: RequestInit): Promise<tracerTraceSessionPartialUpdateResponse> => {
+
+  return apiMutator<tracerTraceSessionPartialUpdateResponse>(getTracerTraceSessionPartialUpdateUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      traceSessionApi,)
+  }
+);}
+
+
+
+export type tracerTraceSessionDeleteResponse204 = {
+  data: void
+  status: 204
+}
+
+export type tracerTraceSessionDeleteResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 204>
+}
+
+export type tracerTraceSessionDeleteResponseSuccess = (tracerTraceSessionDeleteResponse204) & {
+  headers: Headers;
+};
+export type tracerTraceSessionDeleteResponseError = (tracerTraceSessionDeleteResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionDeleteResponse = (tracerTraceSessionDeleteResponseSuccess | tracerTraceSessionDeleteResponseError)
+
+export const getTracerTraceSessionDeleteUrl = (id: string,) => {
+
+
+
+
+  return `/tracer/trace-session/${id}/`
+}
+
+export const tracerTraceSessionDelete = async (id: string, options?: RequestInit): Promise<tracerTraceSessionDeleteResponse> => {
+
+  return apiMutator<tracerTraceSessionDeleteResponse>(getTracerTraceSessionDeleteUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type tracerTraceSessionEvalLogsResponse200 = {
+  data: TraceSessionApi
+  status: 200
+}
+
+export type tracerTraceSessionEvalLogsResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceSessionEvalLogsResponseSuccess = (tracerTraceSessionEvalLogsResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceSessionEvalLogsResponseError = (tracerTraceSessionEvalLogsResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceSessionEvalLogsResponse = (tracerTraceSessionEvalLogsResponseSuccess | tracerTraceSessionEvalLogsResponseError)
+
+export const getTracerTraceSessionEvalLogsUrl = (id: string,) => {
+
+
+
+
+  return `/tracer/trace-session/${id}/eval_logs/`
+}
+
+/**
+ * Session-level eval results are walled off from span/trace surfaces
+by ``target_type='session'`` — this endpoint is the only place
+they appear.
+
+Query params:
+    page (int, 0-indexed, default 0)
+    page_size (int, default 25, max 100)
+ * @summary Session-scoped eval log feed for TracesDrawer's "Evals" tab.
+ */
+export const tracerTraceSessionEvalLogs = async (id: string, options?: RequestInit): Promise<tracerTraceSessionEvalLogsResponse> => {
+
+  return apiMutator<tracerTraceSessionEvalLogsResponse>(getTracerTraceSessionEvalLogsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceListResponse200 = {
+  data: TracerTraceList200
+  status: 200
+}
+
+export type tracerTraceListResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceListResponseSuccess = (tracerTraceListResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceListResponseError = (tracerTraceListResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceListResponse = (tracerTraceListResponseSuccess | tracerTraceListResponseError)
+
+export const getTracerTraceListUrl = (params?: TracerTraceListParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/tracer/trace/?${stringifiedParams}` : `/tracer/trace/`
+}
+
+export const tracerTraceList = async (params?: TracerTraceListParams, options?: RequestInit): Promise<tracerTraceListResponse> => {
+
+  return apiMutator<tracerTraceListResponse>(getTracerTraceListUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceCreateResponse201 = {
+  data: TraceApi
+  status: 201
+}
+
+export type tracerTraceCreateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 201>
+}
+
+export type tracerTraceCreateResponseSuccess = (tracerTraceCreateResponse201) & {
+  headers: Headers;
+};
+export type tracerTraceCreateResponseError = (tracerTraceCreateResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceCreateResponse = (tracerTraceCreateResponseSuccess | tracerTraceCreateResponseError)
+
+export const getTracerTraceCreateUrl = () => {
+
+
+
+
+  return `/tracer/trace/`
+}
+
+export const tracerTraceCreate = async (traceApi: NonReadonly<TraceApi>, options?: RequestInit): Promise<tracerTraceCreateResponse> => {
+
+  return apiMutator<tracerTraceCreateResponse>(getTracerTraceCreateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      traceApi,)
+  }
+);}
+
+
+
+export type tracerTraceAgentGraphResponse200 = {
+  data: TracerTraceAgentGraph200
+  status: 200
+}
+
+export type tracerTraceAgentGraphResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200>
+}
+
+export type tracerTraceAgentGraphResponseSuccess = (tracerTraceAgentGraphResponse200) & {
+  headers: Headers;
+};
+export type tracerTraceAgentGraphResponseError = (tracerTraceAgentGraphResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceAgentGraphResponse = (tracerTraceAgentGraphResponseSuccess | tracerTraceAgentGraphResponseError)
+
+export const getTracerTraceAgentGraphUrl = (params: TracerTraceAgentGraphParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/tracer/trace/agent_graph/?${stringifiedParams}` : `/tracer/trace/agent_graph/`
+}
+
+/**
+ * Computes nodes (distinct span types/names) and edges (parent→child
+transitions) across all traces in the given time window.
+ * @summary Return the aggregate agent graph for a project.
+ */
+export const tracerTraceAgentGraph = async (params: TracerTraceAgentGraphParams, options?: RequestInit): Promise<tracerTraceAgentGraphResponse> => {
+
+  return apiMutator<tracerTraceAgentGraphResponse>(getTracerTraceAgentGraphUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type tracerTraceBulkCreateResponse201 = {
+  data: TraceApi
+  status: 201
+}
+
+export type tracerTraceBulkCreateResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 201>
+}
+
+export type tracerTraceBulkCreateResponseSuccess = (tracerTraceBulkCreateResponse201) & {
+  headers: Headers;
+};
+export type tracerTraceBulkCreateResponseError = (tracerTraceBulkCreateResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceBulkCreateResponse = (tracerTraceBulkCreateResponseSuccess | tracerTraceBulkCreateResponseError)
+
+export const getTracerTraceBulkCreateUrl = () => {
+
+
+
+
+  return `/tracer/trace/bulk_create/`
+}
+
+export const tracerTraceBulkCreate = async (traceApi: NonReadonly<TraceApi>, options?: RequestInit): Promise<tracerTraceBulkCreateResponse> => {
+
+  return apiMutator<tracerTraceBulkCreateResponse>(getTracerTraceBulkCreateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      traceApi,)
+  }
+);}
+
+
+
+export type tracerTraceCompareTracesResponse201 = {
+  data: TraceApi
+  status: 201
+}
+
+export type tracerTraceCompareTracesResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 201>
+}
+
+export type tracerTraceCompareTracesResponseSuccess = (tracerTraceCompareTracesResponse201) & {
+  headers: Headers;
+};
+export type tracerTraceCompareTracesResponseError = (tracerTraceCompareTracesResponseDefault) & {
+  headers: Headers;
+};
+
+export type tracerTraceCompareTracesResponse = (tracerTraceCompareTracesResponseSuccess | tracerTraceCompareTracesResponseError)
+
+export const getTracerTraceCompareTracesUrl = () => {
+
+
+
+
+  return `/tracer/trace/compare_traces/`
+}
+
+/**
+ * Compare traces across project versions with optimized queries.
+ */
+export const tracerTraceCompareTraces = async (traceApi: NonReadonly<TraceApi>, options?: RequestInit): Promise<tracerTraceCompareTracesResponse> => {
+
+  return apiMutator<tracerTraceCompareTracesResponse>(getTracerTraceCompareTracesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      traceApi,)
+  }
+);}
+
+
+
 export type tracerTraceGetEvalNamesResponse200 = {
   data: TracerTraceGetEvalNames200
   status: 200
@@ -66719,7 +67816,7 @@ export const tracerUserAlertLogsListForAlert = async (id: string, options?: Requ
 
 
 export type tracerUserAlertsListResponse200 = {
-  data: TracerUserAlertsList200
+  data: void
   status: 200
 }
 
@@ -66777,7 +67874,7 @@ export const tracerUserAlertsList = async (params?: TracerUserAlertsListParams, 
 
 
 export type tracerUserAlertsCreateResponse201 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 201
 }
 
@@ -66803,22 +67900,21 @@ export const getTracerUserAlertsCreateUrl = () => {
   return `/tracer/user-alerts/`
 }
 
-export const tracerUserAlertsCreate = async (userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsCreateResponse> => {
+export const tracerUserAlertsCreate = async ( options?: RequestInit): Promise<tracerUserAlertsCreateResponse> => {
 
   return apiMutator<tracerUserAlertsCreateResponse>(getTracerUserAlertsCreateUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerUserAlertsBulkMuteResponse201 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 201
 }
 
@@ -66844,15 +67940,14 @@ export const getTracerUserAlertsBulkMuteUrl = () => {
   return `/tracer/user-alerts/bulk-mute/`
 }
 
-export const tracerUserAlertsBulkMute = async (userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsBulkMuteResponse> => {
+export const tracerUserAlertsBulkMute = async ( options?: RequestInit): Promise<tracerUserAlertsBulkMuteResponse> => {
 
   return apiMutator<tracerUserAlertsBulkMuteResponse>(getTracerUserAlertsBulkMuteUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'POST'
+
+
   }
 );}
 
@@ -66915,7 +68010,7 @@ export const tracerUserAlertsDuplicate = async (userAlertMonitorDuplicateApi: Us
 
 
 export type tracerUserAlertsListMonitorsResponse200 = {
-  data: TracerUserAlertsListMonitors200
+  data: void
   status: 200
 }
 
@@ -67032,7 +68127,7 @@ export const tracerUserAlertsMetricOptions = async (params?: TracerUserAlertsMet
 
 
 export type tracerUserAlertsPreviewGraphResponse201 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 201
 }
 
@@ -67062,22 +68157,21 @@ export const getTracerUserAlertsPreviewGraphUrl = () => {
  * Returns time-series data for a temporary monitor's metric, suitable for graphing a preview.
 Accepts monitor configuration in the request body.
  */
-export const tracerUserAlertsPreviewGraph = async (userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsPreviewGraphResponse> => {
+export const tracerUserAlertsPreviewGraph = async ( options?: RequestInit): Promise<tracerUserAlertsPreviewGraphResponse> => {
 
   return apiMutator<tracerUserAlertsPreviewGraphResponse>(getTracerUserAlertsPreviewGraphUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerUserAlertsReadResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 
@@ -67117,7 +68211,7 @@ export const tracerUserAlertsRead = async (id: string, options?: RequestInit): P
 
 
 export type tracerUserAlertsUpdateResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 
@@ -67143,23 +68237,21 @@ export const getTracerUserAlertsUpdateUrl = (id: string,) => {
   return `/tracer/user-alerts/${id}/`
 }
 
-export const tracerUserAlertsUpdate = async (id: string,
-    userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsUpdateResponse> => {
+export const tracerUserAlertsUpdate = async (id: string, options?: RequestInit): Promise<tracerUserAlertsUpdateResponse> => {
 
   return apiMutator<tracerUserAlertsUpdateResponse>(getTracerUserAlertsUpdateUrl(id),
   {
     ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'PUT'
+
+
   }
 );}
 
 
 
 export type tracerUserAlertsPartialUpdateResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 
@@ -67185,16 +68277,14 @@ export const getTracerUserAlertsPartialUpdateUrl = (id: string,) => {
   return `/tracer/user-alerts/${id}/`
 }
 
-export const tracerUserAlertsPartialUpdate = async (id: string,
-    userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsPartialUpdateResponse> => {
+export const tracerUserAlertsPartialUpdate = async (id: string, options?: RequestInit): Promise<tracerUserAlertsPartialUpdateResponse> => {
 
   return apiMutator<tracerUserAlertsPartialUpdateResponse>(getTracerUserAlertsPartialUpdateUrl(id),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'PATCH'
+
+
   }
 );}
 
@@ -67241,7 +68331,7 @@ export const tracerUserAlertsDelete = async (id: string, options?: RequestInit):
 
 
 export type tracerUserAlertsMonitorDetailsResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 
@@ -67281,7 +68371,7 @@ export const tracerUserAlertsMonitorDetails = async (id: string, options?: Reque
 
 
 export type tracerUserAlertsGraphDataResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 

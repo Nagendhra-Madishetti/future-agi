@@ -2700,7 +2700,7 @@ export interface GatewayNameRequestApi {
   name: string;
 }
 
-export type GatewayBudgetSetRequestApiConfig = {[key: string]: unknown};
+export type GatewayBudgetSetRequestApiConfig = {[key: string]: { [key: string]: unknown }};
 
 export interface GatewayBudgetSetRequestApi {
   /** @minLength 1 */
@@ -2708,7 +2708,7 @@ export interface GatewayBudgetSetRequestApi {
   config: GatewayBudgetSetRequestApiConfig;
 }
 
-export type GatewayBatchSubmitRequestApiRequestsItem = {[key: string]: unknown};
+export type GatewayBatchSubmitRequestApiRequestsItem = {[key: string]: { [key: string]: unknown }};
 
 export interface GatewayBatchSubmitRequestApi {
   requests: GatewayBatchSubmitRequestApiRequestsItem[];
@@ -2731,7 +2731,7 @@ export interface GatewayBatchSubmitResponseApi {
   result: GatewayBatchSubmitResultApi;
 }
 
-export type GatewayMCPToolTestRequestApiArguments = {[key: string]: unknown};
+export type GatewayMCPToolTestRequestApiArguments = {[key: string]: { [key: string]: unknown }};
 
 export interface GatewayMCPToolTestRequestApi {
   /** @minLength 1 */
@@ -2812,35 +2812,35 @@ export interface GatewayToggleGuardrailRequestApi {
   enabled: boolean;
 }
 
-export type GatewayConfigPatchRequestApiGuardrails = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiGuardrails = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiRouting = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiRouting = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiCache = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiCache = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiRateLimiting = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiRateLimiting = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiBudgets = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiBudgets = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiCostTracking = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiCostTracking = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiIpAcl = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiIpAcl = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiAlerting = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiAlerting = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiPrivacy = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiPrivacy = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiToolPolicy = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiToolPolicy = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiMcp = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiMcp = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiA2a = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiA2a = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiAudit = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiAudit = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiModelDatabase = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiModelDatabase = {[key: string]: { [key: string]: unknown }};
 
-export type GatewayConfigPatchRequestApiModelMap = {[key: string]: unknown};
+export type GatewayConfigPatchRequestApiModelMap = {[key: string]: { [key: string]: unknown }};
 
 export interface GatewayConfigPatchRequestApi {
   guardrails?: GatewayConfigPatchRequestApiGuardrails;
@@ -2860,7 +2860,7 @@ export interface GatewayConfigPatchRequestApi {
   model_map?: GatewayConfigPatchRequestApiModelMap;
 }
 
-export type GatewayNamedConfigRequestApiConfig = {[key: string]: unknown};
+export type GatewayNamedConfigRequestApiConfig = {[key: string]: { [key: string]: unknown }};
 
 export interface GatewayNamedConfigRequestApi {
   /** @minLength 1 */
@@ -2868,13 +2868,13 @@ export interface GatewayNamedConfigRequestApi {
   config: GatewayNamedConfigRequestApiConfig;
 }
 
-export type GatewayMCPGuardrailsUpdateRequestApiConfig = {[key: string]: unknown};
+export type GatewayMCPGuardrailsUpdateRequestApiConfig = {[key: string]: { [key: string]: unknown }};
 
 export interface GatewayMCPGuardrailsUpdateRequestApi {
   config: GatewayMCPGuardrailsUpdateRequestApiConfig;
 }
 
-export type GatewayMCPServerUpdateRequestApiConfig = {[key: string]: unknown};
+export type GatewayMCPServerUpdateRequestApiConfig = {[key: string]: { [key: string]: unknown }};
 
 export interface GatewayMCPServerUpdateRequestApi {
   /** @minLength 1 */
@@ -2882,7 +2882,7 @@ export interface GatewayMCPServerUpdateRequestApi {
   config: GatewayMCPServerUpdateRequestApiConfig;
 }
 
-export type GatewayProviderUpdateRequestApiConfig = {[key: string]: unknown};
+export type GatewayProviderUpdateRequestApiConfig = {[key: string]: { [key: string]: unknown }};
 
 export interface GatewayProviderUpdateRequestApi {
   /** @minLength 1 */
@@ -6607,6 +6607,7 @@ export interface AnnotationsLabelsApi {
   readonly created_at?: string;
   readonly trace_annotations_count?: number;
   readonly annotation_count?: number;
+  readonly archived?: boolean;
 }
 
 export interface AnnotationLabelRestoreResponseApi {
@@ -6730,20 +6731,24 @@ export interface UpdateAnnotationCellsRequestApi {
   response_field_values?: AnnotationResponseFieldUpdateApi[];
 }
 
-export type ApiKeyApiConfigJson = { [key: string]: unknown };
+export type ApiKeyResponseApiMaskedActualKey = { [key: string]: unknown };
 
-export interface ApiKeyApi {
-  readonly id?: string;
+export interface ApiKeyResponseApi {
+  id?: string;
   /**
      * @minLength 1
      * @maxLength 50
      */
   provider: string;
-  /** @maxLength 2500 */
-  key?: string;
-  readonly organization?: string;
-  readonly masked_actual_key?: string;
-  config_json?: ApiKeyApiConfigJson;
+  organization?: string;
+  masked_actual_key?: ApiKeyResponseApiMaskedActualKey;
+}
+
+export interface ApiKeyListResponseApi {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: ApiKeyResponseApi[];
 }
 
 export type ApiKeyRequestApiConfigJson = { [key: string]: unknown };
@@ -6759,26 +6764,8 @@ export interface ApiKeyRequestApi {
   config_json?: ApiKeyRequestApiConfigJson;
 }
 
-export interface ApiKeyResponseApi {
-  id?: string;
-  /**
-     * @minLength 1
-     * @maxLength 50
-     */
-  provider: string;
-  organization?: string;
-  masked_actual_key?: unknown;
-}
-
-export interface ApiKeyListResponseApi {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: ApiKeyResponseApi[];
-}
-
 export interface ApiKeySuccessResponseApi {
-  status?: boolean;
+  status: boolean;
   result: ApiKeyResponseApi;
 }
 
@@ -8795,6 +8782,9 @@ export type DatasetTableMetadataApiStatus = { [key: string]: unknown };
 export interface DatasetTableMetadataApi {
   /** @minLength 1 */
   dataset_name: string;
+  experiment_id?: string;
+  /** @minLength 1 */
+  experiment_name?: string;
   total_rows?: number;
   total_pages?: number;
   error_messages?: string[];
@@ -8997,11 +8987,13 @@ export interface SyntheticDatasetConfigResponseApi {
   result: SyntheticDatasetConfigResultApi;
 }
 
+export type SyntheticDatasetConfigApiColumnsItem = { [key: string]: unknown };
+
 export type SyntheticDatasetConfigApiDataset = { [key: string]: unknown };
 
 export interface SyntheticDatasetConfigApi {
   num_rows: number;
-  columns: string[];
+  columns: SyntheticDatasetConfigApiColumnsItem[];
   dataset: SyntheticDatasetConfigApiDataset;
   kb_id?: string;
   regenerate?: boolean;
@@ -9283,6 +9275,14 @@ export interface EvalSummaryTemplateDeleteResponseApi {
   result: EvalSummaryTemplateDeleteResponseResultApi;
 }
 
+export type EvalTemplateApiOwner = typeof EvalTemplateApiOwner[keyof typeof EvalTemplateApiOwner];
+
+
+export const EvalTemplateApiOwner = {
+  system: 'system',
+  user: 'user',
+} as const;
+
 export type EvalTemplateApiConfig = { [key: string]: unknown };
 
 export interface EvalTemplateApi {
@@ -9291,11 +9291,7 @@ export interface EvalTemplateApi {
      * @maxLength 50
      */
   name: string;
-  /**
-     * @minLength 1
-     * @maxLength 50
-     */
-  owner?: string;
+  owner?: EvalTemplateApiOwner;
   config: EvalTemplateApiConfig;
   eval_tags?: string[];
 }
@@ -9430,6 +9426,8 @@ export const CompositeEvalCreateRequestApiAggregationFunction = {
 
 export type CompositeEvalCreateRequestApiChildWeights = { [key: string]: unknown };
 
+export type CompositeEvalCreateRequestApiChildPinnedVersions = { [key: string]: unknown };
+
 export type CompositeEvalCreateRequestApiCompositeChildAxis = typeof CompositeEvalCreateRequestApiCompositeChildAxis[keyof typeof CompositeEvalCreateRequestApiCompositeChildAxis];
 
 
@@ -9453,6 +9451,7 @@ export interface CompositeEvalCreateRequestApi {
   aggregation_enabled?: boolean;
   aggregation_function?: CompositeEvalCreateRequestApiAggregationFunction;
   child_weights?: CompositeEvalCreateRequestApiChildWeights;
+  child_pinned_versions?: CompositeEvalCreateRequestApiChildPinnedVersions;
   composite_child_axis?: CompositeEvalCreateRequestApiCompositeChildAxis;
 }
 
@@ -9650,10 +9649,28 @@ export const EvalListFiltersApiEvalTypeItem = {
   agent: 'agent',
 } as const;
 
+export type EvalListFiltersApiEvalTypeNotItem = typeof EvalListFiltersApiEvalTypeNotItem[keyof typeof EvalListFiltersApiEvalTypeNotItem];
+
+
+export const EvalListFiltersApiEvalTypeNotItem = {
+  llm: 'llm',
+  code: 'code',
+  agent: 'agent',
+} as const;
+
 export type EvalListFiltersApiOutputTypeItem = typeof EvalListFiltersApiOutputTypeItem[keyof typeof EvalListFiltersApiOutputTypeItem];
 
 
 export const EvalListFiltersApiOutputTypeItem = {
+  pass_fail: 'pass_fail',
+  percentage: 'percentage',
+  deterministic: 'deterministic',
+} as const;
+
+export type EvalListFiltersApiOutputTypeNotItem = typeof EvalListFiltersApiOutputTypeNotItem[keyof typeof EvalListFiltersApiOutputTypeNotItem];
+
+
+export const EvalListFiltersApiOutputTypeNotItem = {
   pass_fail: 'pass_fail',
   percentage: 'percentage',
   deterministic: 'deterministic',
@@ -9667,13 +9684,27 @@ export const EvalListFiltersApiTemplateTypeItem = {
   composite: 'composite',
 } as const;
 
+export type EvalListFiltersApiTemplateTypeNotItem = typeof EvalListFiltersApiTemplateTypeNotItem[keyof typeof EvalListFiltersApiTemplateTypeNotItem];
+
+
+export const EvalListFiltersApiTemplateTypeNotItem = {
+  single: 'single',
+  composite: 'composite',
+} as const;
+
 export interface EvalListFiltersApi {
   eval_type?: EvalListFiltersApiEvalTypeItem[];
+  eval_type_not?: EvalListFiltersApiEvalTypeNotItem[];
   output_type?: EvalListFiltersApiOutputTypeItem[];
+  output_type_not?: EvalListFiltersApiOutputTypeNotItem[];
   template_type?: EvalListFiltersApiTemplateTypeItem[];
+  template_type_not?: EvalListFiltersApiTemplateTypeNotItem[];
   tags?: string[];
+  tags_not?: string[];
   created_by?: string[];
+  created_by_not?: string[];
   names?: string[];
+  names_not?: string[];
 }
 
 export interface EvalListRequestApi {
@@ -9764,6 +9795,8 @@ export const CompositeEvalUpdateRequestApiAggregationFunction = {
 
 export type CompositeEvalUpdateRequestApiChildWeights = { [key: string]: unknown };
 
+export type CompositeEvalUpdateRequestApiChildPinnedVersions = { [key: string]: unknown };
+
 export type CompositeEvalUpdateRequestApiCompositeChildAxis = typeof CompositeEvalUpdateRequestApiCompositeChildAxis[keyof typeof CompositeEvalUpdateRequestApiCompositeChildAxis];
 
 
@@ -9787,6 +9820,7 @@ export interface CompositeEvalUpdateRequestApi {
   aggregation_function?: CompositeEvalUpdateRequestApiAggregationFunction;
   child_template_ids?: string[];
   child_weights?: CompositeEvalUpdateRequestApiChildWeights;
+  child_pinned_versions?: CompositeEvalUpdateRequestApiChildPinnedVersions;
   composite_child_axis?: CompositeEvalUpdateRequestApiCompositeChildAxis;
 }
 
@@ -13858,10 +13892,6 @@ export interface AgentDefinitionResponseApi {
   readonly knowledge_base?: string;
   /** Organization this agent definition belongs to */
   readonly organization?: string;
-  /**
-     * API key for the agent
-     * @minLength 1
-     */
   readonly api_key?: string;
   readonly observability_provider?: string;
   readonly created_at?: string;
@@ -16055,7 +16085,10 @@ export interface CallExecutionDetailApi {
   /** Call summary from the service */
   call_summary?: string;
   readonly recordings?: string;
+  readonly test_execution_id?: string;
   readonly scenario_id?: string;
+  readonly scenario_graph?: string;
+  readonly scenario_graph_id?: string;
   readonly avg_agent_latency?: number;
   /**
      * Average agent latency in milliseconds (time taken by agent to respond after user's pause)
@@ -16967,6 +17000,8 @@ export interface TestExecutionRerunResultApi {
   readonly failure_count?: number;
   readonly successful_reruns?: readonly string[];
   readonly failed_reruns?: readonly TestExecutionRerunResultApiFailedRerunsItem[];
+  /** @minLength 1 */
+  readonly dispatch_error?: string;
   readonly skipped?: boolean;
   /** @minLength 1 */
   readonly reason?: string;
@@ -17783,6 +17818,8 @@ export interface RerunCallsResponseApi {
   failed_reruns: FailedRerunItemApi[];
   success_count: number;
   failure_count: number;
+  /** @minLength 1 */
+  dispatch_error?: string;
 }
 
 export interface TestExecutionTranscriptCallApi {
@@ -18385,114 +18422,6 @@ export interface DashboardDetailApi {
   readonly widgets?: string;
 }
 
-export type EvalTaskApiFiltersSpanAttributesFiltersItemFilterConfig = {
-  /** Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array. */
-  filter_type: string;
-  /** Canonical operator from api_contracts/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null. */
-  filter_op: string;
-  /** Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type. */
-  filter_value?: unknown;
-  /** Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL. */
-  col_type?: string;
-};
-
-export type EvalTaskApiFiltersSpanAttributesFiltersItem = {
-  /** Column or attribute id to filter on. */
-  column_id: string;
-  /** Optional UI label for chips and saved views. */
-  display_name?: string;
-  /** Optional source surface for mixed-source filters, for example traces, datasets, or simulation. */
-  source?: string;
-  /** Optional metric output type metadata used by eval and annotation filters. */
-  output_type?: string;
-  filter_config: EvalTaskApiFiltersSpanAttributesFiltersItemFilterConfig;
-};
-
-export type EvalTaskApiFilters = {
-  /** Project scope for the evaluation task. */
-  project_id?: string;
-  /**
-     * Inclusive start/end ISO timestamps.
-     * @minItems 2
-     * @maxItems 2
-     */
-  date_range?: string[];
-  /** Lower-bound ISO timestamp for legacy task filters. */
-  created_at?: string;
-  /** Trace session id to constrain the task. */
-  session_id?: string;
-  /** Observation span type(s), for example llm, tool, or chain. */
-  observation_type?: string[];
-  span_attributes_filters?: EvalTaskApiFiltersSpanAttributesFiltersItem[];
-};
-
-export type EvalTaskApiRunType = typeof EvalTaskApiRunType[keyof typeof EvalTaskApiRunType];
-
-
-export const EvalTaskApiRunType = {
-  continuous: 'continuous',
-  historical: 'historical',
-} as const;
-
-export type EvalTaskApiRowType = typeof EvalTaskApiRowType[keyof typeof EvalTaskApiRowType];
-
-
-export const EvalTaskApiRowType = {
-  spans: 'spans',
-  traces: 'traces',
-  sessions: 'sessions',
-  voiceCalls: 'voiceCalls',
-} as const;
-
-export type EvalTaskApiStatus = typeof EvalTaskApiStatus[keyof typeof EvalTaskApiStatus];
-
-
-export const EvalTaskApiStatus = {
-  pending: 'pending',
-  running: 'running',
-  completed: 'completed',
-  failed: 'failed',
-  paused: 'paused',
-  deleted: 'deleted',
-} as const;
-
-export type EvalTaskApiEvalsDetails = { [key: string]: unknown };
-
-export type EvalTaskApiFailedSpans = { [key: string]: unknown };
-
-export interface EvalTaskApi {
-  readonly id?: string;
-  project: string;
-  /**
-     * @minLength 1
-     * @maxLength 255
-     */
-  name: string;
-  filters?: EvalTaskApiFilters;
-  /**
-     * @minimum 1
-     * @maximum 100
-     */
-  sampling_rate: number;
-  last_run?: string;
-  /**
-     * @minimum 1
-     * @maximum 1000000
-     */
-  spans_limit?: number;
-  run_type: EvalTaskApiRunType;
-  row_type?: EvalTaskApiRowType;
-  status?: EvalTaskApiStatus;
-  start_time?: string;
-  end_time?: string;
-  readonly created_at?: string;
-  readonly updated_at?: string;
-  evals_details?: EvalTaskApiEvalsDetails;
-  evals: string[];
-  failed_spans?: EvalTaskApiFailedSpans;
-  readonly progress?: string;
-}
-
 export interface LinearTeamApi {
   /** @minLength 1 */
   id: string;
@@ -18641,6 +18570,7 @@ export interface FeedUpdateBodyApi {
 export interface CreateLinearIssueApi {
   /** @minLength 1 */
   team_id: string;
+  trace_id?: string;
   title?: string;
   description?: string;
   priority?: number;
@@ -20065,19 +19995,6 @@ export interface SharedLinkResolveErrorApi {
   details?: SharedLinkResolveErrorApiDetails;
 }
 
-export interface GetTraceAnnotationApi {
-  /**
-     * @minLength 1
-     * @maxLength 255
-     */
-  observation_span_id?: string;
-  trace_id?: string;
-  /** JSON-encoded UUID list. */
-  annotators?: string;
-  /** JSON-encoded UUID list. */
-  exclude_annotators?: string;
-}
-
 export type TraceAnnotationValueResponseApiAnnotationValue = { [key: string]: unknown };
 
 export type TraceAnnotationValueResponseApiSettings = { [key: string]: unknown };
@@ -20346,100 +20263,6 @@ export interface UserAlertMonitorLogApi {
   link?: string;
   time_window_start?: string;
   time_window_end?: string;
-}
-
-export type UserAlertMonitorApiMetricType = typeof UserAlertMonitorApiMetricType[keyof typeof UserAlertMonitorApiMetricType];
-
-
-export const UserAlertMonitorApiMetricType = {
-  count_of_errors: 'count_of_errors',
-  error_rates_for_function_calling: 'error_rates_for_function_calling',
-  error_free_session_rates: 'error_free_session_rates',
-  service_provider_error_rates: 'service_provider_error_rates',
-  llm_api_failure_rates: 'llm_api_failure_rates',
-  span_response_time: 'span_response_time',
-  llm_response_time: 'llm_response_time',
-  token_usage: 'token_usage',
-  daily_tokens_spent: 'daily_tokens_spent',
-  monthly_tokens_spent: 'monthly_tokens_spent',
-  evaluation_metrics: 'evaluation_metrics',
-} as const;
-
-export type UserAlertMonitorApiThresholdOperator = typeof UserAlertMonitorApiThresholdOperator[keyof typeof UserAlertMonitorApiThresholdOperator];
-
-
-export const UserAlertMonitorApiThresholdOperator = {
-  greater_than: 'greater_than',
-  less_than: 'less_than',
-} as const;
-
-/**
- * Method to set the threshold for the monitor (Static or Percentage change).
- */
-export type UserAlertMonitorApiThresholdType = typeof UserAlertMonitorApiThresholdType[keyof typeof UserAlertMonitorApiThresholdType];
-
-
-export const UserAlertMonitorApiThresholdType = {
-  static: 'static',
-  percentage_change: 'percentage_change',
-} as const;
-
-export type UserAlertMonitorApiFilters = { [key: string]: unknown };
-
-export type UserAlertMonitorApiLogsItem = { [key: string]: unknown };
-
-export interface UserAlertMonitorApi {
-  readonly id?: string;
-  project: string;
-  /** @minLength 1 */
-  name: string;
-  readonly metric_name?: string;
-  readonly created_at?: string;
-  readonly updated_at?: string;
-  deleted?: boolean;
-  deleted_at?: string;
-  metric_type: UserAlertMonitorApiMetricType;
-  /**
-     * Id of the evaluation template.
-     * @maxLength 2556
-     */
-  metric?: string;
-  threshold_operator: UserAlertMonitorApiThresholdOperator;
-  /** Method to set the threshold for the monitor (Static or Percentage change). */
-  threshold_type?: UserAlertMonitorApiThresholdType;
-  /**
-     * For choice and pass/fail evals, the specific metric value to monitor.
-     * @maxLength 255
-     */
-  threshold_metric_value?: string;
-  /** @minimum 0 */
-  critical_threshold_value?: number;
-  /** @minimum 0 */
-  warning_threshold_value?: number;
-  /**
-     * Frequency of alert checks in minutes.
-     * @minimum 5
-     * @maximum 2147483647
-     */
-  alert_frequency?: number;
-  /**
-     * For auto-thresholding. The time window in minutes to calculate the historical mean
-     * @minimum 0
-     * @maximum 2147483647
-     */
-  auto_threshold_time_window?: number;
-  /** The last time the monitor was checked for alerts. */
-  last_checked_at?: string;
-  notification_emails?: string[];
-  /** @maxLength 200 */
-  slack_webhook_url?: string;
-  slack_notes?: string;
-  is_mute?: boolean;
-  filters?: UserAlertMonitorApiFilters;
-  logs?: UserAlertMonitorApiLogsItem[];
-  organization: string;
-  workspace?: string;
-  created_by?: string;
 }
 
 export interface UserAlertMonitorDuplicateApi {
@@ -23060,6 +22883,7 @@ type?: ModelHubAnnotationsLabelsListType;
 search?: string;
 include_usage_count?: boolean;
 include_archived?: boolean;
+archived?: boolean;
 };
 
 export type ModelHubAnnotationsLabelsListType = typeof ModelHubAnnotationsLabelsListType[keyof typeof ModelHubAnnotationsLabelsListType];
@@ -23107,13 +22931,6 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type ModelHubApiKeysList200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: ApiKeyApi[];
 };
 
 export type ModelHubDatasetOptimizationListParams = {
@@ -24463,24 +24280,6 @@ page?: number;
 limit?: number;
 };
 
-export type TracerChartsListParams = {
-/**
- * A page number within the paginated result set.
- */
-page?: number;
-/**
- * Number of results to return per page.
- */
-limit?: number;
-};
-
-export type TracerChartsList200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: FetchGraphApi[];
-};
-
 export type TracerChartsFetchGraphParams = {
 /**
  * A page number within the paginated result set.
@@ -24647,13 +24446,6 @@ page?: number;
 limit?: number;
 };
 
-export type TracerEvalTaskList200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: EvalTaskApi[];
-};
-
 export type TracerEvalTaskGetEvalDetailsParams = {
 /**
  * A page number within the paginated result set.
@@ -24663,13 +24455,6 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type TracerEvalTaskGetEvalDetails200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: EvalTaskApi[];
 };
 
 export type TracerEvalTaskGetEvalTaskLogsParams = {
@@ -24683,13 +24468,6 @@ page?: number;
 limit?: number;
 };
 
-export type TracerEvalTaskGetEvalTaskLogs200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: EvalTaskApi[];
-};
-
 export type TracerEvalTaskGetUsageParams = {
 /**
  * A page number within the paginated result set.
@@ -24699,13 +24477,6 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type TracerEvalTaskGetUsage200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: EvalTaskApi[];
 };
 
 export type TracerEvalTaskListEvalTasksParams = {
@@ -25393,24 +25164,6 @@ export type TracerSharedLinksList200 = {
   results: SharedLinkListApi[];
 };
 
-export type TracerTraceAnnotationListParams = {
-/**
- * A page number within the paginated result set.
- */
-page?: number;
-/**
- * Number of results to return per page.
- */
-limit?: number;
-};
-
-export type TracerTraceAnnotationList200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: GetTraceAnnotationApi[];
-};
-
 export type TracerTraceAnnotationGetAnnotationValuesParams = {
 /**
  * A page number within the paginated result set.
@@ -25821,13 +25574,6 @@ page?: number;
 limit?: number;
 };
 
-export type TracerUserAlertsList200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: UserAlertMonitorApi[];
-};
-
 export type TracerUserAlertsListMonitorsParams = {
 /**
  * A page number within the paginated result set.
@@ -25837,13 +25583,6 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
-};
-
-export type TracerUserAlertsListMonitors200 = {
-  count: number;
-  next?: string;
-  previous?: string;
-  results: UserAlertMonitorApi[];
 };
 
 export type TracerUserAlertsMetricOptionsParams = {
