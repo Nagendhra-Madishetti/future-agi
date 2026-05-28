@@ -478,6 +478,28 @@ describe("OnboardingHomeView", () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
+  it("renders the first trace review panel when the trace arrives", () => {
+    mocks.useActivationState.mockReturnValue({
+      state: normalizedFixture("observeFirstTraceReady"),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView();
+
+    const panel = screen.getByTestId("first-signal-panel");
+    expect(panel).toBeVisible();
+    expect(within(panel).getByText("Review the first trace")).toBeVisible();
+    expect(within(panel).getByText("trace-1")).toBeVisible();
+    expect(within(panel).getByText("Not reviewed")).toBeVisible();
+    expect(
+      within(panel).getByRole("link", { name: /review trace/i }),
+    ).toHaveAttribute("href", "/dashboard/observe/observe-1/trace/trace-1");
+  });
+
   it("opens the sample panel from the waiting state", async () => {
     const mutateAsync = vi
       .fn()
