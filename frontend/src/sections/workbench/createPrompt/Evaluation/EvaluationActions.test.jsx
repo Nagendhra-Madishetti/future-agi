@@ -1,0 +1,144 @@
+import React from "react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import EvaluationActions from "./EvaluationActions";
+import { WorkbenchEvaluationContext } from "./context/WorkbenchEvaluationContext";
+
+vi.mock("src/auth/hooks", () => ({
+  useAuthContext: () => ({ role: "Owner" }),
+}));
+
+vi.mock("src/components/snackbar", () => ({
+  enqueueSnackbar: vi.fn(),
+}));
+
+vi.mock("src/components/svg-color", () => ({
+  default: () => <span data-testid="svg-color" />,
+}));
+
+vi.mock("src/components/Switch/SwitchComponent", () => ({
+  default: ({ checked, label, onChange }) => (
+    <label>
+      {label}
+      <input checked={checked} onChange={onChange} type="checkbox" />
+    </label>
+  ),
+}));
+
+vi.mock("./AddEvalsComparison", () => ({
+  default: () => <div data-testid="add-evals-comparison" />,
+}));
+
+vi.mock("src/sections/common/EvaluationDrawer/EvaluationDrawer", () => ({
+  default: ({ onSuccess, open }) => (
+    <div data-open={open ? "true" : "false"} data-testid="evaluation-drawer">
+      <button onClick={() => onSuccess?.()} type="button">
+        simulate evaluation added
+      </button>
+    </div>
+  ),
+}));
+
+const theme = createTheme();
+
+const LocationProbe = () => {
+  const location = useLocation();
+  return (
+    <div data-testid="location">
+      {location.pathname}
+      {location.search}
+    </div>
+  );
+};
+
+const contextValue = {
+  compareOpen: false,
+  isEvalsCompareOpen: false,
+  isEvaluationDrawerOpen: false,
+  setCompareOpen: vi.fn(),
+  setIsEvalsCompareOpen: vi.fn(),
+  setIsEvaluationDrawerOpen: vi.fn(),
+  setShowPrompts: vi.fn(),
+  setShowVariables: vi.fn(),
+  setVariables: vi.fn(),
+  setVersions: vi.fn(),
+  showPrompts: false,
+  showVariables: true,
+  variables: {},
+  versions: ["v1", "v2"],
+};
+
+const renderActions = (route) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },
+  });
+  const wrapperContext = {
+    ...contextValue,
+    setIsEvaluationDrawerOpen: vi.fn(),
+  };
+
+  return {
+    ...render(
+      <ThemeProvider theme={theme}>
+        <QueryClientProvider client={queryClient}>
+          <WorkbenchEvaluationContext.Provider value={wrapperContext}>
+            <MemoryRouter initialEntries={[route]}>
+              <LocationProbe />
+              <Routes>
+                <Route
+                  element={<EvaluationActions />}
+                  path="/dashboard/workbench/create/:id"
+                />
+              </Routes>
+            </MemoryRouter>
+          </WorkbenchEvaluationContext.Provider>
+        </QueryClientProvider>
+      </ThemeProvider>,
+    ),
+    wrapperContext,
+  };
+};
+
+describe("EvaluationActions prompt onboarding", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows the prompt failure capture panel on guided add-failure routes", async () => {
+    const { wrapperContext } = renderActions(
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=add-failure",
+    );
+
+    expect(screen.getByTestId("prompt-failure-capture-focus")).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /^add evaluation$/i }),
+    );
+
+    expect(wrapperContext.setIsEvaluationDrawerOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("moves guided add-failure routes to metrics after an evaluation is added", async () => {
+    renderActions(
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=add-failure",
+    );
+
+    await userEvent.click(screen.getByText("simulate evaluation added"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=metrics",
+      ),
+    );
+  });
+
+  it("does not show the failure capture panel outside guided routes", () => {
+    renderActions("/dashboard/workbench/create/prompt-1");
+
+    expect(screen.queryByTestId("prompt-failure-capture-focus")).toBeNull();
+  });
+});

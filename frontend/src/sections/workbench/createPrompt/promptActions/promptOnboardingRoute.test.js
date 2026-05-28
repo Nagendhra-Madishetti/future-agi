@@ -4,6 +4,7 @@ import {
   buildPromptCreatedHref,
   buildPromptEditorHref,
   getPromptOnboardingRouteParams,
+  isPromptFailureCaptureOnboarding,
   PROMPT_ONBOARDING_MODES,
   shouldAdvancePromptCompareOnboarding,
   shouldAdvancePromptRunOnboarding,
@@ -160,5 +161,28 @@ describe("promptOnboardingRoute", () => {
       idempotencyKey:
         "prompt_onboarding:prompt_comparison_completed:prompt-1:v1-v2",
     });
+  });
+
+  it("identifies only guided prompt failure capture routes", () => {
+    expect(
+      isPromptFailureCaptureOnboarding({
+        mode: PROMPT_ONBOARDING_MODES.ADD_FAILURE,
+        source: "onboarding",
+      }),
+    ).toBe(true);
+
+    expect(
+      isPromptFailureCaptureOnboarding({
+        mode: PROMPT_ONBOARDING_MODES.ADD_FAILURE,
+        source: "workspace",
+      }),
+    ).toBe(false);
+
+    expect(
+      isPromptFailureCaptureOnboarding({
+        mode: PROMPT_ONBOARDING_MODES.METRICS,
+        source: "onboarding",
+      }),
+    ).toBe(false);
   });
 });

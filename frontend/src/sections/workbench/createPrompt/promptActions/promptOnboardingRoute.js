@@ -87,6 +87,9 @@ export const shouldAdvancePromptCompareOnboarding = ({
   mode === PROMPT_ONBOARDING_MODES.COMPARE &&
   selectedVersionCount > 1;
 
+export const isPromptFailureCaptureOnboarding = ({ mode, source } = {}) =>
+  source === "onboarding" && mode === PROMPT_ONBOARDING_MODES.ADD_FAILURE;
+
 export const buildPromptComparisonCompletedPayload = ({
   promptId,
   versions = [],
