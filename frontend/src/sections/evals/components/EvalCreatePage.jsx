@@ -49,6 +49,7 @@ import EvalOnboardingFocusPanel from "./EvalOnboardingFocusPanel";
 import {
   buildEvalCreateDraftHref,
   buildEvalRouteFocusPayload,
+  buildEvalRunStepHref,
   buildEvalRunCompletedPayload,
   buildEvalScorerCreatedPayload,
   buildEvalSourceSelectedPayload,
@@ -560,10 +561,11 @@ const EvalCreatePage = () => {
       });
       publishedRef.current = true;
       enqueueSnackbar("Evaluation saved successfully", { variant: "success" });
-      if (
+      const shouldContinueToRunStep =
         onboardingParams.isOnboarding &&
-        onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.SCORER
-      ) {
+        onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.SCORER;
+
+      if (shouldContinueToRunStep) {
         recordActivationEvent?.(
           buildEvalScorerCreatedPayload({
             evalId: draftId,
@@ -574,7 +576,15 @@ const EvalCreatePage = () => {
           }),
         );
       }
-      navigate(`/dashboard/evaluations/${draftId}`);
+      navigate(
+        shouldContinueToRunStep
+          ? buildEvalRunStepHref({
+              evalId: draftId,
+              sourceId: onboardingParams.sourceId,
+              sourceType: onboardingParams.sourceType,
+            })
+          : `/dashboard/evaluations/${draftId}`,
+      );
     } catch (error) {
       const message =
         error?.response?.data?.result ||

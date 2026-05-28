@@ -7,6 +7,7 @@ import {
   buildEvalReviewDetailHref,
   buildEvalReviewRouteFocusPayload,
   buildEvalRouteFocusPayload,
+  buildEvalRunStepHref,
   buildEvalRunCompletedPayload,
   buildEvalScorerCreatedPayload,
   buildEvalScorerSourceHref,
@@ -56,6 +57,15 @@ describe("evalCreateOnboarding", () => {
     );
     expect(buildEvalScorerSourceHref({ sourceId: "data-1" })).toBe(
       "/dashboard/evaluations/create?source=onboarding&step=scorer&source_type=dataset&source_id=data-1",
+    );
+    expect(
+      buildEvalRunStepHref({
+        evalId: "eval-1",
+        sourceId: "data-1",
+        sourceType: "dataset",
+      }),
+    ).toBe(
+      "/dashboard/evaluations/create/eval-1?source=onboarding&step=run&source_type=dataset&source_id=data-1",
     );
   });
 

@@ -177,6 +177,16 @@ export const buildEvalScorerSourceHref = ({ sourceId } = {}) => {
   return `/dashboard/evaluations/create?${params.toString()}`;
 };
 
+export const buildEvalRunStepHref = ({ evalId, sourceId, sourceType } = {}) => {
+  const params = new URLSearchParams();
+  params.set("source", "onboarding");
+  params.set("step", EVAL_CREATE_ONBOARDING_STEPS.RUN);
+  if (sourceType) params.set("source_type", sourceType);
+  if (sourceId) params.set("source_id", sourceId);
+
+  return `/dashboard/evaluations/create/${evalId}?${params.toString()}`;
+};
+
 export const getEvalReviewOnboardingParams = (search = "") => {
   const params = toSearchParams(search);
   const step = params.get("step");
