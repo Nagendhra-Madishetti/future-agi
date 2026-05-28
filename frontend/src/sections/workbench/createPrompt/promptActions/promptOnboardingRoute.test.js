@@ -5,6 +5,7 @@ import {
   getPromptOnboardingRouteParams,
   PROMPT_ONBOARDING_MODES,
   shouldAdvancePromptRunOnboarding,
+  shouldAdvancePromptSaveOnboarding,
 } from "./promptOnboardingRoute";
 
 describe("promptOnboardingRoute", () => {
@@ -93,6 +94,29 @@ describe("promptOnboardingRoute", () => {
         loadingPrompt: false,
         mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
         source: "onboarding",
+      }),
+    ).toBe(false);
+  });
+
+  it("advances save-version onboarding only from the guided save route", () => {
+    expect(
+      shouldAdvancePromptSaveOnboarding({
+        mode: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+        source: "onboarding",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldAdvancePromptSaveOnboarding({
+        mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
+        source: "onboarding",
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldAdvancePromptSaveOnboarding({
+        mode: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+        source: "workspace",
       }),
     ).toBe(false);
   });

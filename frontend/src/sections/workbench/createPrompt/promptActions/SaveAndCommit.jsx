@@ -22,7 +22,7 @@ import FormTextFieldV2 from "src/components/FormTextField/FormTextFieldV2";
 import VersionStyle from "./VersionStyle";
 import { Events, PropertyName, trackEvent } from "src/utils/Mixpanel";
 
-const SaveAndCommit = ({ open, onClose, data, promptName }) => {
+const SaveAndCommit = ({ open, onClose, onCommitted, data, promptName }) => {
   const { id } = useParams();
   const [messageType, setMessageType] = useState(null);
 
@@ -85,6 +85,7 @@ const SaveAndCommit = ({ open, onClose, data, promptName }) => {
         [PropertyName.promptId]: id,
       });
       handleOnClose();
+      onCommitted?.();
     },
   });
 
@@ -192,6 +193,7 @@ export default SaveAndCommit;
 SaveAndCommit.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
+  onCommitted: PropTypes.func,
   data: PropTypes.object,
   promptName: PropTypes.string,
 };

@@ -14,7 +14,13 @@ import {
   useTheme,
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, {
+  useMemo,
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { useNavigate, useParams } from "react-router";
 import Iconify from "src/components/iconify";
 import { ShowComponent } from "src/components/show";
@@ -55,6 +61,7 @@ import {
   buildPromptEditorHref,
   PROMPT_ONBOARDING_MODES,
   shouldAdvancePromptRunOnboarding,
+  shouldAdvancePromptSaveOnboarding,
 } from "./promptOnboardingRoute";
 
 const PromptActions = () => {
@@ -359,6 +366,26 @@ const PromptActions = () => {
     onboardingMode,
     onboardingSource,
   ]);
+
+  const handlePromptVersionCommitted = useCallback(() => {
+    if (
+      !id ||
+      !shouldAdvancePromptSaveOnboarding({
+        mode: onboardingMode,
+        source: onboardingSource,
+      })
+    ) {
+      return;
+    }
+
+    navigate(
+      buildPromptEditorHref({
+        promptId: id,
+        mode: PROMPT_ONBOARDING_MODES.COMPARE,
+      }),
+      { replace: true },
+    );
+  }, [id, navigate, onboardingMode, onboardingSource]);
 
   const handleRunPrompt = () => {
     if (buttonTooltip) {
@@ -894,6 +921,7 @@ const PromptActions = () => {
       <SaveAndCommit
         open={saveCommitOpen}
         onClose={() => setSaveCommitOpen(false)}
+        onCommitted={handlePromptVersionCommitted}
         data={baseVersion}
         promptName={promptName}
       />

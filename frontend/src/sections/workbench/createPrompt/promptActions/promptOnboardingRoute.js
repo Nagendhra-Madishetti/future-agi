@@ -69,3 +69,6 @@ export const shouldAdvancePromptRunOnboarding = ({
   !loadingPrompt &&
   !isGenerating &&
   !isContentEmpty;
+
+export const shouldAdvancePromptSaveOnboarding = ({ mode, source } = {}) =>
+  source === "onboarding" && mode === PROMPT_ONBOARDING_MODES.SAVE_VERSION;
