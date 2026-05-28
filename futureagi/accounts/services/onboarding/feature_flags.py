@@ -93,6 +93,7 @@ def get_onboarding_flags(*, user, organization, workspace):
     if not use_cloud_flags:
         flags.update(SELF_HOST_ONBOARDING_DEFAULTS)
 
+    remote_flag_names = []
     for flag_name in ONBOARDING_FLAG_NAMES:
         if flag_name in overrides:
             flags[flag_name] = bool(overrides[flag_name])
@@ -103,18 +104,17 @@ def get_onboarding_flags(*, user, organization, workspace):
             continue
         if not use_cloud_flags:
             continue
-        try:
-            user_id = getattr(user, "id", None)
-            if user_id:
-                flags[flag_name] = bool(
-                    posthog_tracker.is_feature_enabled(
-                        flag_name,
-                        user_id,
-                        groups=groups,
-                    )
-                )
-        except Exception:
-            flags[flag_name] = False
+        remote_flag_names.append(flag_name)
+
+    user_id = getattr(user, "id", None)
+    if user_id and remote_flag_names:
+        remote_flags = posthog_tracker.get_feature_flags(
+            remote_flag_names,
+            user_id,
+            groups=groups,
+        )
+        for flag_name in remote_flag_names:
+            flags[flag_name] = bool(remote_flags.get(flag_name, False))
 
     for alias, source_flag in CONTRACT_FLAG_ALIASES.items():
         flags[alias] = bool(flags.get(source_flag, False))

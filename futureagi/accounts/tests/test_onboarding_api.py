@@ -59,8 +59,8 @@ def test_cloud_defaults_keep_core_first_run_onboarding_enabled(
     user,
 ):
     monkeypatch.setattr(
-        "accounts.services.onboarding.feature_flags.posthog_tracker.is_feature_enabled",
-        lambda *args, **kwargs: False,
+        "accounts.services.onboarding.feature_flags.posthog_tracker.get_feature_flags",
+        lambda *args, **kwargs: {},
     )
 
     flags = get_onboarding_flags(
@@ -75,6 +75,49 @@ def test_cloud_defaults_keep_core_first_run_onboarding_enabled(
     assert flags["onboarding_observe_route_modes"] is True
     assert flags["onboarding_eval_path"] is True
     assert flags["onboarding_lifecycle_send_enabled"] is False
+
+
+@pytest.mark.django_db
+@override_settings(CLOUD_DEPLOYMENT="US")
+def test_cloud_flags_fetch_optional_onboarding_flags_in_one_batch(
+    monkeypatch,
+    organization,
+    workspace,
+    user,
+):
+    captured = {}
+
+    def fake_get_feature_flags(flag_names, user_id, groups=None):
+        captured["flag_names"] = tuple(flag_names)
+        captured["user_id"] = str(user_id)
+        captured["groups"] = groups
+        return {
+            "onboarding_prompt_path": True,
+            "onboarding_email_prompt_enabled": True,
+        }
+
+    monkeypatch.setattr(
+        "accounts.services.onboarding.feature_flags.posthog_tracker.get_feature_flags",
+        fake_get_feature_flags,
+    )
+
+    flags = get_onboarding_flags(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+    )
+
+    assert flags["onboarding_activation_state_api"] is True
+    assert flags["onboarding_prompt_path"] is True
+    assert flags["onboarding_email_prompt_enabled"] is True
+    assert "onboarding_activation_state_api" not in captured["flag_names"]
+    assert "onboarding_sample_project" not in captured["flag_names"]
+    assert "onboarding_prompt_path" in captured["flag_names"]
+    assert captured["user_id"] == str(user.id)
+    assert captured["groups"] == {
+        "organization": str(organization.id),
+        "workspace": str(workspace.id),
+    }
 
 
 @pytest.mark.django_db
