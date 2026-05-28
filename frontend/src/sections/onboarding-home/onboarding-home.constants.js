@@ -218,9 +218,10 @@ export const ONBOARDING_STAGE_COPY = {
     description: "Turn the reviewed trace into a repeatable quality check.",
   },
   activated: {
-    eyebrow: "Activated",
-    title: "First quality loop is ready",
-    description: "The workspace has completed a first meaningful loop.",
+    eyebrow: "Aha moment reached",
+    title: "Your first quality loop is live",
+    description:
+      "Review daily quality next and keep improving the loop from real signals.",
   },
   daily_review: {
     eyebrow: "Daily quality",

@@ -976,7 +976,22 @@ async function main() {
     await expectVisibleTestId(page, "onboarding-home-view", {
       timeout: 45000,
     });
-    await expectVisibleText(page, "First quality loop is ready", {
+    await expectVisibleTestId(page, "first-loop-complete-panel", {
+      timeout: 45000,
+    });
+    await expectVisibleText(page, "Aha moment reached", {
+      timeout: 60000,
+    });
+    await expectVisibleText(page, "Your first quality loop is live", {
+      timeout: 60000,
+    });
+    const dailyQualityCtaHref = await expectVisibleActionHref(
+      page,
+      "Review daily quality",
+      "/dashboard/home?mode=daily-quality",
+      { timeout: 45000 },
+    );
+    await expectVisibleText(page, "Next best step", {
       timeout: 60000,
     });
     const evalPostRepairHomeUrl = page.url();
@@ -1165,6 +1180,7 @@ async function main() {
             eval_repair_review_url: evalRepairReviewUrl,
             eval_repair_run_id: repairEvalRunId,
             eval_post_repair_home_url: evalPostRepairHomeUrl,
+            daily_quality_cta_href: dailyQualityCtaHref,
             eval_first_quality_loop_completed_event:
               evidence.activationEventPosts.find(
                 (payload) =>
