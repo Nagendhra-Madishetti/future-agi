@@ -52,6 +52,7 @@ import {
   buildEvalRunCompletedPayload,
   buildEvalScorerCreatedPayload,
   buildEvalSourceSelectedPayload,
+  buildEvalSourceSetupHref,
   EVAL_CREATE_ONBOARDING_STEPS,
   getEvalCreateInitialSourceTab,
   getEvalCreateOnboardingCopy,
@@ -176,6 +177,15 @@ const EvalCreatePage = () => {
     () => getEvalCreateInitialSourceTab(onboardingParams),
     [onboardingParams],
   );
+  const onboardingSourceSetupHref = useMemo(() => {
+    if (
+      onboardingParams.isOnboarding &&
+      onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.DATA
+    ) {
+      return buildEvalSourceSetupHref();
+    }
+    return null;
+  }, [onboardingParams]);
 
   // Mode: single or composite
   const [mode, setMode] = useState("single");
@@ -418,6 +428,11 @@ const EvalCreatePage = () => {
     },
     [draftId, onboardingParams, recordActivationEvent],
   );
+
+  const handleCreateOnboardingSource = useCallback(() => {
+    if (!onboardingSourceSetupHref) return;
+    navigate(onboardingSourceSetupHref);
+  }, [navigate, onboardingSourceSetupHref]);
 
   // Auto-save config to draft (debounced, skip initial load)
   const autoSaveTimer = useRef(null);
@@ -1384,6 +1399,11 @@ const EvalCreatePage = () => {
                   showVersions={false}
                   onTestResult={handleTestResult}
                   onColumnsLoaded={handleColumnsLoaded}
+                  onCreateSourceClick={
+                    onboardingSourceSetupHref
+                      ? handleCreateOnboardingSource
+                      : undefined
+                  }
                   errorLocalizerEnabled={
                     mode === "composite" ? false : errorLocalizerEnabled
                   }

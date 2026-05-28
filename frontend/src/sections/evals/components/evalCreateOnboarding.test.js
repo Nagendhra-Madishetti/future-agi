@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEvalCreateDraftHref,
+  buildEvalDatasetCreatedPayload,
   buildEvalFailureActionCreatedPayload,
   buildEvalFailuresReviewedPayload,
   buildEvalReviewDetailHref,
@@ -8,7 +9,9 @@ import {
   buildEvalRouteFocusPayload,
   buildEvalRunCompletedPayload,
   buildEvalScorerCreatedPayload,
+  buildEvalScorerSourceHref,
   buildEvalSourceSelectedPayload,
+  buildEvalSourceSetupHref,
   EVAL_CREATE_ONBOARDING_STEPS,
   EVAL_CREATE_SOURCE_TABS,
   evalCreateOnboardingStage,
@@ -43,6 +46,15 @@ describe("evalCreateOnboarding", () => {
       ),
     ).toBe(
       "/dashboard/evaluations/create/eval-1?source=onboarding&step=scorer&source_type=dataset&source_id=data-1",
+    );
+  });
+
+  it("builds eval source setup and scorer continuation hrefs", () => {
+    expect(buildEvalSourceSetupHref()).toBe(
+      "/dashboard/develop?source=onboarding&action=create-eval-dataset",
+    );
+    expect(buildEvalScorerSourceHref({ sourceId: "data-1" })).toBe(
+      "/dashboard/evaluations/create?source=onboarding&step=scorer&source_type=dataset&source_id=data-1",
     );
   });
 
@@ -139,6 +151,33 @@ describe("evalCreateOnboarding", () => {
     expect(payload.metadata).not.toHaveProperty("rows");
     expect(payload.metadata).not.toHaveProperty("trace");
     expect(payload.metadata).not.toHaveProperty("prompt");
+  });
+
+  it("builds an eval dataset-created payload without dataset content", () => {
+    const payload = buildEvalDatasetCreatedPayload({
+      datasetId: "data-1",
+      sourceMethod: "manual",
+    });
+
+    expect(payload).toMatchObject({
+      eventName: "eval_dataset_created",
+      primaryPath: "evals",
+      stage: "create_eval_dataset",
+      source: "eval_create_onboarding",
+      artifactType: "eval_source",
+      artifactId: "data-1",
+      metadata: {
+        dataset_id: "data-1",
+        source_id: "data-1",
+        source_method: "manual",
+        source_type: "dataset",
+        step: "data",
+      },
+      idempotencyKey: "eval_dataset_created:dataset:data-1",
+    });
+    expect(payload.metadata).not.toHaveProperty("rows");
+    expect(payload.metadata).not.toHaveProperty("columns");
+    expect(payload.metadata).not.toHaveProperty("name");
   });
 
   it("builds a scorer-created payload without source content", () => {

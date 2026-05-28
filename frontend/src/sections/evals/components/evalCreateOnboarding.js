@@ -137,6 +137,19 @@ export const buildEvalCreateDraftHref = (draftId, search = "") => {
   return `/dashboard/evaluations/create/${draftId}${query ? `?${query}` : ""}`;
 };
 
+export const buildEvalSourceSetupHref = () =>
+  "/dashboard/develop?source=onboarding&action=create-eval-dataset";
+
+export const buildEvalScorerSourceHref = ({ sourceId } = {}) => {
+  const params = new URLSearchParams();
+  params.set("source", "onboarding");
+  params.set("step", EVAL_CREATE_ONBOARDING_STEPS.SCORER);
+  params.set("source_type", "dataset");
+  if (sourceId) params.set("source_id", sourceId);
+
+  return `/dashboard/evaluations/create?${params.toString()}`;
+};
+
 export const getEvalReviewOnboardingParams = (search = "") => {
   const params = toSearchParams(search);
   const step = params.get("step");
@@ -255,6 +268,31 @@ export const buildEvalSourceSelectedPayload = ({
       safeKeyPart(sourceType, "source"),
       artifactId,
     ].join(":"),
+    isSample: false,
+  };
+};
+
+export const buildEvalDatasetCreatedPayload = ({
+  datasetId,
+  sourceMethod,
+} = {}) => {
+  const artifactId = safeKeyPart(datasetId, "eval-source");
+
+  return {
+    eventName: "eval_dataset_created",
+    primaryPath: "evals",
+    stage: "create_eval_dataset",
+    source: "eval_create_onboarding",
+    artifactType: "eval_source",
+    artifactId,
+    metadata: compactMetadata({
+      dataset_id: datasetId,
+      source_id: datasetId,
+      source_method: sourceMethod,
+      source_type: "dataset",
+      step: EVAL_CREATE_ONBOARDING_STEPS.DATA,
+    }),
+    idempotencyKey: ["eval_dataset_created", "dataset", artifactId].join(":"),
     isSample: false,
   };
 };

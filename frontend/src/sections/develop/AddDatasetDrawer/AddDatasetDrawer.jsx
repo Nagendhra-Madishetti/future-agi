@@ -77,7 +77,7 @@ const options = [
   // },
 ];
 
-const AddDatasetDrawer = ({ open, onClose, refreshGrid }) => {
+const AddDatasetDrawer = ({ open, onClose, onDatasetCreated, refreshGrid }) => {
   const [uploadFileModalOpen, setUploadFileModalOpen] = useState(false);
   const [addSDK, setAddSDK] = useState(false);
   const [manuallyCreateDatasetModalOpen, setManuallyCreateDatasetModalOpen] =
@@ -107,16 +107,19 @@ const AddDatasetDrawer = ({ open, onClose, refreshGrid }) => {
           setUploadFileModalOpen(false);
           onClose();
         }}
+        onDatasetCreated={onDatasetCreated}
         refreshGrid={refreshGrid}
       />
       <ManuallyCreateDataset
         open={manuallyCreateDatasetModalOpen}
         onClose={() => setManuallyCreateDatasetModalOpen(false)}
+        onDatasetCreated={onDatasetCreated}
         refreshGrid={refreshGrid}
       />
       <ImportFromHuggingFace
         open={importFromHuggingFaceModalOpen}
         onClose={() => setImportFromHuggingFaceModalOpen(false)}
+        onDatasetCreated={onDatasetCreated}
         refreshGrid={refreshGrid}
       />
       {/* <CloneDevelopDataset
@@ -265,6 +268,7 @@ const AddDatasetDrawer = ({ open, onClose, refreshGrid }) => {
             onClose={() => {
               setCloneDevelopDatasetModalOpen(false);
             }}
+            onDatasetCreated={onDatasetCreated}
             refreshGrid={refreshGrid}
             datasetId={null}
             closeDrawer={onClose}
@@ -278,6 +282,7 @@ const AddDatasetDrawer = ({ open, onClose, refreshGrid }) => {
 AddDatasetDrawer.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
+  onDatasetCreated: PropTypes.func,
   refreshGrid: PropTypes.func,
 };
 

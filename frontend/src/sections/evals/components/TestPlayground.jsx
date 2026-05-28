@@ -625,6 +625,7 @@ const TestPlayground = React.forwardRef(
       onTestResult,
       onColumnsLoaded,
       onVersionSelect,
+      onCreateSourceClick,
       onSourceTabChange,
       onSourceSelected,
       onClearResult,
@@ -1386,6 +1387,7 @@ const TestPlayground = React.forwardRef(
                   codeParams={codeParams}
                   onTestResult={onTestResult}
                   onColumnsLoaded={onColumnsLoaded}
+                  onCreateSourceClick={onCreateSourceClick}
                   onSourceSelected={onSourceSelected}
                   onClearResult={onClearResult}
                   errorLocalizerEnabled={errorLocalizerEnabled}
@@ -1878,6 +1880,7 @@ TestPlayground.propTypes = {
   onTestResult: PropTypes.func,
   onColumnsLoaded: PropTypes.func,
   onVersionSelect: PropTypes.func,
+  onCreateSourceClick: PropTypes.func,
   errorLocalizerEnabled: PropTypes.bool,
   isComposite: PropTypes.bool,
   compositeAdhocConfig: PropTypes.object,

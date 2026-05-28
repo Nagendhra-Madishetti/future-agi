@@ -2,6 +2,7 @@
 import {
   Autocomplete,
   Box,
+  Button,
   Chip,
   ClickAwayListener,
   CircularProgress,
@@ -577,6 +578,7 @@ const DatasetTestMode = React.forwardRef(
       codeParams = {},
       onTestResult,
       onColumnsLoaded,
+      onCreateSourceClick,
       onSourceSelected,
       initialDatasetId = "",
       onReadyChange,
@@ -1383,6 +1385,18 @@ const DatasetTestMode = React.forwardRef(
                 />
               )}
             />
+            {onCreateSourceClick && !selectedDatasetId && (
+              <Box sx={{ mt: 1, display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<Iconify icon="octicon:plus-24" width={16} />}
+                  onClick={onCreateSourceClick}
+                >
+                  Create dataset
+                </Button>
+              </Box>
+            )}
           </Box>
         )}
 
@@ -1829,6 +1843,7 @@ DatasetTestMode.propTypes = {
   codeParams: PropTypes.object,
   onTestResult: PropTypes.func,
   onColumnsLoaded: PropTypes.func,
+  onCreateSourceClick: PropTypes.func,
   onSourceSelected: PropTypes.func,
   initialDatasetId: PropTypes.string,
   onReadyChange: PropTypes.func,
