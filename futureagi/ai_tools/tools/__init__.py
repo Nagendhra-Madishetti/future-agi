@@ -29,6 +29,7 @@ from ai_tools.tools.annotation_queues import (
 # list_annotations, get_annotation
 # DRF bridges programmatically applied for legacy lint-debt files:
 from ai_tools.tools.bridge import (
+    _agentcc,  # noqa: F401  17 agentcc ViewSets (analytics, api_key, blocklist, etc.)
     _agents,  # noqa: F401  list/get/create/update/delete_agent
     _annotation_queues,  # noqa: F401  list/get/create/update/delete_annotation_queue
     _annotations,  # noqa: F401  list/get/create/update/delete_annotation_label + list/get_annotation
@@ -39,6 +40,7 @@ from ai_tools.tools.bridge import (
     _prompt_folders,  # noqa: F401  list/get/create/update/delete_prompt_folder
     _prompt_labels,  # noqa: F401  list/get/create/update/delete_prompt_label
     _prompt_templates,  # noqa: F401  list/get/create/update/delete_prompt_template
+    _tracing,  # noqa: F401  list/get_trace, list/get_span, list/get_session, list/get/update_eval_task, list/get/create/update/delete_alert_monitor, project versions
 )
 
 # Context tools (5) — memory tools (save/list/delete) are EE and registered
@@ -189,28 +191,19 @@ from ai_tools.tools.tracing import (
     add_trace_tags,  # noqa: F401
     analyze_error_cluster,  # noqa: F401
     check_eval_config_exists,  # noqa: F401
-    create_eval_task,  # noqa: F401
-    delete_alert_monitor,  # noqa: F401
     explore_trace,  # noqa: F401
     get_error_cluster_detail,  # noqa: F401
-    get_eval_task,  # noqa: F401
     get_eval_task_logs,  # noqa: F401
     get_eval_template_by_name,  # noqa: F401
     get_project_eval_attributes,  # noqa: F401
-    get_span,  # noqa: F401
     get_span_tree,  # noqa: F401
-    get_trace,  # noqa: F401
     get_trace_analytics,  # noqa: F401
     get_trace_error_analysis,  # noqa: F401
     get_trace_span_children,  # noqa: F401
     get_trace_spans_by_type,  # noqa: F401
     get_trace_timeline,  # noqa: F401
-    list_alert_monitors,  # noqa: F401
     list_custom_eval_configs,  # noqa: F401
     list_error_clusters,  # noqa: F401
-    list_eval_tasks,  # noqa: F401
-    list_sessions,  # noqa: F401
-    list_spans,  # noqa: F401
     list_trace_scores,  # noqa: F401
     list_trace_tags,  # noqa: F401
     pause_eval_task,  # noqa: F401
@@ -220,10 +213,11 @@ from ai_tools.tools.tracing import (
     search_trace_spans,  # noqa: F401
     search_traces,  # noqa: F401
     submit_trace_finding,  # noqa: F401
-    update_alert_monitor,  # noqa: F401
-    update_eval_task,  # noqa: F401
 )
 
+# DRF bridges (see _tracing.py): list/get_trace, list/get_span, list/get_session,
+# list/get/create/update/delete_eval_task,
+# list/get/create/update/delete_alert_monitor, project_versions
 # update_project — replaced by DRF bridge on ProjectView (registers same name)
 # update_trace_annotation: unregistered (see comment above on
 # create_trace_annotation). Use create_score / submit_trace_scores instead.
