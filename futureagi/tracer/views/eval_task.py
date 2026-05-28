@@ -618,6 +618,14 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
             # Soft-deleted rows are excluded (intentional departure from the
             # legacy path) so rollups reflect the user's current view of
             # the data. ``period`` is not applied — these are task-wide.
+            #
+            # Spans-only semantics: session-target rows (``observation_span_id
+            # IS NULL``) are excluded from both aggregations so the row set
+            # is consistent whether or not a date range is supplied.
+            #
+            # Optional ``start_date`` / ``end_date`` (ISO-8601) scope the
+            # rollup to spans whose ``observation_span.created_at`` falls
+            # in the range.
             eval_aggregation = _truthy(
                 self.request.query_params.get("eval_aggregation")
             )
@@ -628,10 +636,26 @@ class EvalTaskView(BaseModelViewSetMixin, ModelViewSet):
                 agg_base_qs = EvalLogger.objects.filter(
                     eval_task_id=str(eval_task_id),
                     deleted=False,
+                    observation_span_id__isnull=False,
                 )
                 if eval_id_filter:
                     agg_base_qs = agg_base_qs.filter(
                         custom_eval_config_id=eval_id_filter
+                    )
+
+                start_date_str = self.request.query_params.get("start_date")
+                end_date_str = self.request.query_params.get("end_date")
+                if start_date_str:
+                    agg_base_qs = agg_base_qs.filter(
+                        observation_span__created_at__gte=datetime.fromisoformat(
+                            start_date_str
+                        )
+                    )
+                if end_date_str:
+                    agg_base_qs = agg_base_qs.filter(
+                        observation_span__created_at__lte=datetime.fromisoformat(
+                            end_date_str
+                        )
                     )
 
                 agg_response = {"eval_task_id": str(eval_task_id)}

@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 import PropTypes from "prop-types";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { useParams, useLocation, useNavigate } from "react-router";
 import { Helmet } from "react-helmet-async";
 import { formatDate } from "src/utils/report-utils";
@@ -766,8 +766,6 @@ const UsersView = ({
     searchState === "searching" ||
     hasActiveFilter;
 
-  const shouldShowLoading = isLoading && hasData === null;
-
   return (
     <>
       {!observeId && (
@@ -909,20 +907,6 @@ const UsersView = ({
           pt: 1,
         }}
       >
-        {/* Loading spinner */}
-        {shouldShowLoading && (
-          <Box
-            sx={{
-              flex: 1,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <CircularProgress />
-          </Box>
-        )}
-
         {/* Empty state */}
         {shouldShowEmptyLayout && (
           <Box

@@ -159,6 +159,16 @@ const EvalDetailPage = () => {
   const [testError, setTestError] = useState(null);
   const [isTesting, setIsTesting] = useState(false);
   const [isPlaygroundReady, setIsPlaygroundReady] = useState(false);
+  // Variable→column mapping from the active test-panel tab. Used by the
+  // InstructionEditor / LLMPromptEditor to highlight mapped variables in
+  // green instead of leaving them red after the user binds them.
+  const [playgroundMapping, setPlaygroundMapping] = useState({});
+  const handlePlaygroundReadyChange = useCallback((ready, mapping) => {
+    setIsPlaygroundReady(!!ready);
+    if (mapping && typeof mapping === "object") {
+      setPlaygroundMapping(mapping);
+    }
+  }, []);
 
   // Auto-dismiss test error after 6 seconds
   useEffect(() => {
@@ -270,8 +280,9 @@ const EvalDetailPage = () => {
         setViewingVersion(null);
         setSearchParams(
           (prev) => {
-            prev.delete("v");
-            return prev;
+            const next = new URLSearchParams(prev);
+            next.delete("v");
+            return next;
           },
           { replace: true },
         );
@@ -362,7 +373,16 @@ const EvalDetailPage = () => {
       isPopulatingRef.current = true;
       setViewingVersion(versionToLoad);
       setSearchParams(
-        { v: versionToLoad.version_number ?? versionToLoad.versionNumber },
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set(
+            "v",
+            String(
+              versionToLoad.version_number ?? versionToLoad.versionNumber,
+            ),
+          );
+          return next;
+        },
         { replace: true },
       );
       const config =
@@ -486,6 +506,30 @@ const EvalDetailPage = () => {
   const initialLoadDone = useRef(false);
   useEffect(() => {
     if (evalData && !viewingVersion) {
+
+      const isCustom = evalData.owner !== "system";
+      const urlVersion = searchParams.get("v");
+      if (urlVersion && !initialLoadDone.current) {
+        if (!versionsData) return;
+        const match = (versionsData?.versions || []).find(
+          (ver) =>
+            String(ver.version_number ?? ver.versionNumber) ===
+            String(urlVersion),
+        );
+        if (match) {
+          initialLoadDone.current = true;
+          handleVersionSelect(match);
+          return;
+        }
+      }
+      if (isCustom && !urlVersion && !initialLoadDone.current) {
+        if (!versionsData) return;
+        if (defaultVersion) {
+          initialLoadDone.current = true;
+          handleVersionSelect(defaultVersion);
+          return;
+        }
+      }
       // On initial load, always populate. On subsequent refetches, only populate
       // if the user hasn't made edits (isDirty).
       if (!initialLoadDone.current || !isDirty) {
@@ -590,7 +634,7 @@ const EvalDetailPage = () => {
         }, 100);
       }
     }
-  }, [evalData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [evalData, versionsData, defaultVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const evalType = evalData?.eval_type || "llm";
   const isSystemEval = evalData?.owner === "system";
@@ -770,7 +814,14 @@ const EvalDetailPage = () => {
       if (newVersion?.version_number ?? newVersion?.versionNumber) {
         setViewingVersion({ ...newVersion, config_snapshot: configSnapshot });
         setSearchParams(
-          { v: newVersion.version_number ?? newVersion.versionNumber },
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set(
+              "v",
+              String(newVersion.version_number ?? newVersion.versionNumber),
+            );
+            return next;
+          },
           { replace: true },
         );
         // Switch to versions tab and highlight the new version
@@ -1392,6 +1443,7 @@ const EvalDetailPage = () => {
                     onTemplateFormatChange={setTemplateFormat}
                     datasetColumns={datasetColumns}
                     datasetJsonSchemas={datasetJsonSchemas}
+                    mappedVariables={playgroundMapping}
                     disabled={isSystemEval}
                     modelSelectorDisabled={false}
                     mode={agentMode}
@@ -1778,7 +1830,7 @@ const EvalDetailPage = () => {
                       setTestError(null);
                       setTestPassed(false);
                     }}
-                    onReadyChange={setIsPlaygroundReady}
+                    onReadyChange={handlePlaygroundReadyChange}
                   />
                 </Box>
 
