@@ -32,6 +32,7 @@ const STATUS = {
 };
 
 const TYPE_COLORS = {
+  reasoning: "secondary.main",
   tool_call: "info.main",
   tool_result: "text.secondary",
   finding: "warning.main",
@@ -369,6 +370,33 @@ AnalyzeTab.propTypes = {
 function EventRow({ event }) {
   const { type, payload = {} } = event;
   const color = TYPE_COLORS[type] ?? "text.primary";
+
+  // Reasoning is the model's native thinking — show it in full (wrapped,
+  // dimmed, italic) rather than the one-line truncated preview, so it reads
+  // like a thought bubble streaming in alongside the actions.
+  if (type === "reasoning") {
+    const text = payload.reasoning || payload.content || "";
+    if (!text) return null;
+    return (
+      <Stack direction="row" gap={1} alignItems="flex-start">
+        <Box sx={{ minWidth: 80, color, fontWeight: 600, flexShrink: 0, fontSize: 11 }}>
+          🧠 thinking{payload.turn ? ` t${payload.turn}` : ""}
+        </Box>
+        <Box
+          sx={{
+            flex: 1,
+            fontStyle: "italic",
+            color: "text.secondary",
+            fontSize: 12,
+            whiteSpace: "pre-wrap",
+            opacity: 0.85,
+          }}
+        >
+          {text}
+        </Box>
+      </Stack>
+    );
+  }
 
   let preview;
   if (type === "tool_call") {
