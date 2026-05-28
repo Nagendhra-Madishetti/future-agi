@@ -213,6 +213,97 @@ def list_attributes_for_trace(trace_id: str) -> list[TraceAttribute]:
     ]
 
 
+@dataclass(frozen=True)
+class AttributeBucket:
+    """One value of an attribute key with its occurrence count across a
+    trace set — the count is span occurrences or distinct traces depending
+    on the caller's request."""
+
+    value: str
+    count: int
+
+
+def aggregate_attribute_over_traces(
+    trace_ids: Iterable[str],
+    attr_key: str,
+    distinct_traces: bool = True,
+) -> list[AttributeBucket]:
+    """Value distribution of one attribute key across a set of traces.
+
+    The killer cluster-RCA primitive: "of the failing traces, how do they
+    split across attr.<key>?". Walks the three shredded Map columns,
+    extracts the value of `attr_key` per span, groups by value.
+
+    distinct_traces=True  → count distinct trace_ids per value (trace_count)
+    distinct_traces=False → count span occurrences per value (span_count)
+
+    Returns [] (with a log) if ClickHouse is unavailable.
+    """
+    ids = [str(t) for t in trace_ids if t]
+    if not ids or not attr_key:
+        return []
+    if not is_clickhouse_enabled():
+        logger.info(
+            "ch_unavailable_for_attribute_aggregation",
+            attr_key=attr_key,
+        )
+        return []
+
+    count_expr = "uniqExact(trace_id)" if distinct_traces else "count()"
+    # Pull (trace_id, value) for the key from whichever typed Map holds it,
+    # then group by value. mapContains guards the key's presence per Map.
+    query = f"""
+        WITH vals AS (
+            SELECT toString(trace_id) AS trace_id,
+                   toString(span_attr_str[%(key)s]) AS value
+            FROM spans
+            WHERE toString(trace_id) IN %(trace_ids)s
+              AND mapContains(span_attr_str, %(key)s)
+
+            UNION ALL
+
+            SELECT toString(trace_id) AS trace_id,
+                   toString(span_attr_num[%(key)s]) AS value
+            FROM spans
+            WHERE toString(trace_id) IN %(trace_ids)s
+              AND mapContains(span_attr_num, %(key)s)
+
+            UNION ALL
+
+            SELECT toString(trace_id) AS trace_id,
+                   toString(span_attr_bool[%(key)s]) AS value
+            FROM spans
+            WHERE toString(trace_id) IN %(trace_ids)s
+              AND mapContains(span_attr_bool, %(key)s)
+        )
+        SELECT value, {count_expr} AS cnt
+        FROM vals
+        GROUP BY value
+        ORDER BY cnt DESC
+    """
+    params = {"key": attr_key, "trace_ids": ids}
+
+    try:
+        client = ClickHouseClient()
+        rows, _column_types, query_time_ms = client.execute_read(query, params)
+    except Exception as e:
+        logger.warning(
+            "ch_attribute_aggregation_failed",
+            error=str(e),
+            attr_key=attr_key,
+        )
+        return []
+
+    logger.info(
+        "attribute_aggregation_fetched",
+        attr_key=attr_key,
+        bucket_count=len(rows),
+        distinct_traces=distinct_traces,
+        query_time_ms=query_time_ms,
+    )
+    return [AttributeBucket(value=row[0], count=row[1]) for row in rows]
+
+
 def trace_ids_with_simulator_call_execution_id(
     trace_ids: Iterable[str],
 ) -> set[str]:
