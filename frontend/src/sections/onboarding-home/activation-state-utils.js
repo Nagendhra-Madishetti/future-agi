@@ -34,7 +34,7 @@ const PRODUCT_PATHS = new Set([
   "sample",
 ]);
 
-const ACTIVATION_STAGES = new Set([
+export const ACTIVATION_STAGE_NAMES = Object.freeze([
   "feature_disabled",
   "workspace_missing",
   "permission_limited",
@@ -79,6 +79,8 @@ const ACTIVATION_STAGES = new Set([
   "review_sample_signal",
   "connect_real_data",
 ]);
+
+const ACTIVATION_STAGES = new Set(ACTIVATION_STAGE_NAMES);
 
 const isObject = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);

@@ -1,4 +1,5 @@
 import { paths } from "src/routes/paths";
+import { ACTIVATION_STAGE_NAMES } from "../activation-state-utils";
 
 export const POST_LOGIN_REQUIRED_FLAGS = Object.freeze([
   "onboarding_activation_state_api",
@@ -6,17 +7,9 @@ export const POST_LOGIN_REQUIRED_FLAGS = Object.freeze([
   "onboarding_release_0_internal",
 ]);
 
-export const POST_LOGIN_HOME_STAGES = Object.freeze([
-  "choose_goal",
-  "connect_observability",
-  "waiting_for_first_trace",
-  "waiting_for_first_trace_sample_available",
-  "review_first_trace",
-  "create_trace_evaluator",
-  "first_loop_complete",
-  "activated",
-  "permission_limited",
-]);
+export const POST_LOGIN_HOME_STAGES = Object.freeze(
+  ACTIVATION_STAGE_NAMES.filter((stage) => stage !== "feature_disabled"),
+);
 
 const LEGACY_POST_LOGIN_FALLBACK_PATHS = Object.freeze([
   paths.dashboard.falconAI,

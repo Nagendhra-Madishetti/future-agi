@@ -147,6 +147,48 @@ describe("post-login routing", () => {
     ).toBe(paths.dashboard.home);
   });
 
+  it("routes all product-path first-run stages to the onboarding home", () => {
+    [
+      "start_prompt",
+      "run_prompt_test",
+      "save_prompt_version",
+      "compare_prompt_versions",
+      "prompt_next_loop",
+      "create_agent",
+      "run_agent_scenario",
+      "review_agent_trace",
+      "save_agent_eval",
+      "agent_create_eval",
+      "configure_gateway_provider",
+      "create_gateway_key",
+      "run_gateway_request",
+      "review_gateway_log",
+      "fix_gateway_failure",
+      "add_gateway_policy",
+      "create_eval_dataset",
+      "add_eval_scorer",
+      "run_eval",
+      "review_eval_failures",
+      "eval_next_loop",
+      "create_voice_agent",
+      "run_voice_test_call",
+      "review_voice_call",
+      "add_voice_success_criteria",
+      "voice_monitor_calls",
+    ].forEach((stage) => {
+      const destination = resolve({
+        activationState: {
+          stage,
+          isActivated: false,
+          permissions: {},
+        },
+      });
+
+      expect(destination.href).toBe(paths.dashboard.home);
+      expect(destination.reason).toBe("internal_onboarding_home");
+    });
+  });
+
   it("routes activated users to daily quality when that flag is enabled", () => {
     const destination = resolve({
       flags: {
