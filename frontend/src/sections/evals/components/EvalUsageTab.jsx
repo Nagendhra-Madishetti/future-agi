@@ -626,18 +626,23 @@ const EvalUsageTab = ({
     ({ row } = {}) => {
       if (!sourceFixHref) return;
 
-      recordActivationEvent?.(
-        buildEvalSourceFixCtaClickedPayload({
-          evalId: templateId,
-          evalLogId: getEvalUsageLogId(row),
-          fixRoute: sourceFixHref,
-          rowSource: row?.source,
-          runId: failureActionOnboardingParams.runId,
-          sourceId: failureActionOnboardingParams.sourceId,
-          sourceType: failureActionOnboardingParams.sourceType,
-        }),
-      );
-      navigate(sourceFixHref);
+      const navigateToFix = () => navigate(sourceFixHref);
+      if (recordActivationEvent) {
+        recordActivationEvent(
+          buildEvalSourceFixCtaClickedPayload({
+            evalId: templateId,
+            evalLogId: getEvalUsageLogId(row),
+            fixRoute: sourceFixHref,
+            rowSource: row?.source,
+            runId: failureActionOnboardingParams.runId,
+            sourceId: failureActionOnboardingParams.sourceId,
+            sourceType: failureActionOnboardingParams.sourceType,
+          }),
+          { onSettled: navigateToFix },
+        );
+      } else {
+        navigateToFix();
+      }
     },
     [
       failureActionOnboardingParams.runId,
@@ -653,18 +658,23 @@ const EvalUsageTab = ({
     ({ row } = {}) => {
       if (!scorerEditHref) return;
 
-      recordActivationEvent?.(
-        buildEvalScorerEditCtaClickedPayload({
-          editRoute: scorerEditHref,
-          evalId: templateId,
-          evalLogId: getEvalUsageLogId(row),
-          rowSource: row?.source,
-          runId: failureActionOnboardingParams.runId,
-          sourceId: failureActionOnboardingParams.sourceId,
-          sourceType: failureActionOnboardingParams.sourceType,
-        }),
-      );
-      navigate(scorerEditHref);
+      const navigateToScorer = () => navigate(scorerEditHref);
+      if (recordActivationEvent) {
+        recordActivationEvent(
+          buildEvalScorerEditCtaClickedPayload({
+            editRoute: scorerEditHref,
+            evalId: templateId,
+            evalLogId: getEvalUsageLogId(row),
+            rowSource: row?.source,
+            runId: failureActionOnboardingParams.runId,
+            sourceId: failureActionOnboardingParams.sourceId,
+            sourceType: failureActionOnboardingParams.sourceType,
+          }),
+          { onSettled: navigateToScorer },
+        );
+      } else {
+        navigateToScorer();
+      }
     },
     [
       failureActionOnboardingParams.runId,

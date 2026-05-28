@@ -551,7 +551,7 @@ describe("evalCreateOnboarding", () => {
         sourceType: "trace_project",
       }),
     ).toBe(
-      "/dashboard/observe/project-1?source=onboarding&step=fix-eval-failure&source_type=trace_project&source_id=project-1&run_id=run-1",
+      "/dashboard/observe/project-1/llm-tracing?source=onboarding&step=fix-eval-failure&source_type=trace_project&source_id=project-1&run_id=run-1",
     );
     expect(
       buildEvalSourceFixHref({

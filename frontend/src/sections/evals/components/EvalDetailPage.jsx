@@ -60,7 +60,12 @@ import { buildDataInjection } from "src/sections/common/EvalPicker/evalPickerCon
 import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/useRecordActivationEvent";
 import EvalOnboardingFocusPanel from "./EvalOnboardingFocusPanel";
 import {
+  buildEvalScorerEditCtaClickedPayload,
+  buildEvalScorerEditHref,
   buildEvalReviewRouteFocusPayload,
+  buildEvalSourceFixCtaClickedPayload,
+  buildEvalSourceFixHref,
+  EVAL_FIX_RERUN_ORIGINS,
   getEvalReviewOnboardingCopy,
   getEvalReviewOnboardingParams,
 } from "./evalCreateOnboarding";
@@ -208,6 +213,39 @@ const EvalDetailPage = () => {
     () => getEvalReviewOnboardingCopy(reviewOnboardingParams),
     [reviewOnboardingParams],
   );
+  const reviewSourceFixHref = useMemo(() => {
+    if (!reviewOnboardingParams.isOnboarding) return null;
+
+    return buildEvalSourceFixHref({
+      evalId,
+      runId: reviewOnboardingParams.runId,
+      sourceId: reviewOnboardingParams.sourceId,
+      sourceType: reviewOnboardingParams.sourceType,
+    });
+  }, [
+    evalId,
+    reviewOnboardingParams.isOnboarding,
+    reviewOnboardingParams.runId,
+    reviewOnboardingParams.sourceId,
+    reviewOnboardingParams.sourceType,
+  ]);
+  const reviewScorerEditHref = useMemo(() => {
+    if (!reviewOnboardingParams.isOnboarding) return null;
+
+    return buildEvalScorerEditHref({
+      evalId,
+      previousRunId: reviewOnboardingParams.runId,
+      rerunFrom: EVAL_FIX_RERUN_ORIGINS.SCORER_EDIT,
+      sourceId: reviewOnboardingParams.sourceId,
+      sourceType: reviewOnboardingParams.sourceType,
+    });
+  }, [
+    evalId,
+    reviewOnboardingParams.isOnboarding,
+    reviewOnboardingParams.runId,
+    reviewOnboardingParams.sourceId,
+    reviewOnboardingParams.sourceType,
+  ]);
 
   useEffect(() => {
     if (!reviewOnboardingParams.isOnboarding) return;
@@ -243,6 +281,74 @@ const EvalDetailPage = () => {
     },
     [setSearchParams],
   );
+  const handleReviewPrimaryAction = useCallback(() => {
+    if (reviewSourceFixHref) {
+      const navigateToFix = () => navigate(reviewSourceFixHref);
+      if (recordActivationEvent) {
+        recordActivationEvent(
+          buildEvalSourceFixCtaClickedPayload({
+            evalId,
+            fixRoute: reviewSourceFixHref,
+            runId: reviewOnboardingParams.runId,
+            sourceId: reviewOnboardingParams.sourceId,
+            sourceType: reviewOnboardingParams.sourceType,
+          }),
+          { onSettled: navigateToFix },
+        );
+      } else {
+        navigateToFix();
+      }
+      return;
+    }
+
+    if (reviewScorerEditHref) {
+      const navigateToScorer = () => navigate(reviewScorerEditHref);
+      if (recordActivationEvent) {
+        recordActivationEvent(
+          buildEvalScorerEditCtaClickedPayload({
+            editRoute: reviewScorerEditHref,
+            evalId,
+            runId: reviewOnboardingParams.runId,
+            sourceId: reviewOnboardingParams.sourceId,
+            sourceType: reviewOnboardingParams.sourceType,
+          }),
+          { onSettled: navigateToScorer },
+        );
+      } else {
+        navigateToScorer();
+      }
+    }
+  }, [
+    evalId,
+    navigate,
+    recordActivationEvent,
+    reviewOnboardingParams.runId,
+    reviewOnboardingParams.sourceId,
+    reviewOnboardingParams.sourceType,
+    reviewScorerEditHref,
+    reviewSourceFixHref,
+  ]);
+  const reviewPrimaryAction = useMemo(() => {
+    if (!reviewOnboardingParams.isOnboarding) return null;
+    if (reviewSourceFixHref) {
+      return {
+        label: "Open source fix",
+        onClick: handleReviewPrimaryAction,
+      };
+    }
+    if (reviewScorerEditHref) {
+      return {
+        label: "Edit scorer",
+        onClick: handleReviewPrimaryAction,
+      };
+    }
+    return null;
+  }, [
+    handleReviewPrimaryAction,
+    reviewOnboardingParams.isOnboarding,
+    reviewScorerEditHref,
+    reviewSourceFixHref,
+  ]);
 
   // Track dirty state
   const [isDirty, setIsDirty] = useState(false);
@@ -1216,6 +1322,7 @@ const EvalDetailPage = () => {
 
       <EvalOnboardingFocusPanel
         hidden={!reviewOnboardingParams.isOnboarding}
+        primaryAction={reviewPrimaryAction}
         {...reviewOnboardingCopy}
       />
 

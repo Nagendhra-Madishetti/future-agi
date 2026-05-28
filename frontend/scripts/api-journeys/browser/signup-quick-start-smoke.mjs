@@ -858,6 +858,40 @@ async function main() {
     );
     await expectVisibleText(page, "Next action", { timeout: 60000 });
     const evalReviewOnboardingUrl = page.url();
+    const evalId = new URL(evalReviewOnboardingUrl).pathname
+      .split("/")
+      .filter(Boolean)
+      .pop();
+    await expectVisibleText(page, "Open source fix", { timeout: 45000 });
+    await clickVisibleButtonText(page, "Open source fix", 45000);
+    await page.waitForFunction(
+      ({ evalId: expectedEvalId, projectId, runId }) => {
+        const params = new URLSearchParams(window.location.search);
+        return (
+          window.location.pathname ===
+            `/dashboard/observe/${projectId}/llm-tracing` &&
+          params.get("source") === "onboarding" &&
+          params.get("step") === "fix-eval-failure" &&
+          params.get("source_type") === "trace_project" &&
+          params.get("source_id") === projectId &&
+          params.get("eval_id") === expectedEvalId &&
+          params.get("run_id") === runId
+        );
+      },
+      { timeout: 60000 },
+      {
+        evalId,
+        projectId: realProject.projectId,
+        runId: firstEvalRunId,
+      },
+    );
+    await expectVisibleText(
+      page,
+      "Review the traces or project setup that produced this eval result, then rerun the eval.",
+      { timeout: 45000 },
+    );
+    await expectVisibleText(page, "Rerun eval", { timeout: 45000 });
+    const evalSourceFixUrl = page.url();
 
     assert(evidence.signupPosts.length === 1, "Expected one signup POST.");
     assert(evidence.tokenPosts.length === 1, "Expected one token POST.");
@@ -1017,6 +1051,19 @@ async function main() {
                 payload?.artifact_id === firstEvalRunId,
             ),
             eval_review_onboarding_url: evalReviewOnboardingUrl,
+            eval_source_fix_url: evalSourceFixUrl,
+            eval_source_fix_cta_event: evidence.activationEventPosts.find(
+              (payload) =>
+                payload?.event_name ===
+                  "onboarding_eval_source_fix_cta_clicked" &&
+                payload?.metadata?.run_id === firstEvalRunId,
+            ),
+            eval_source_fix_route_event: evidence.activationEventPosts.find(
+              (payload) =>
+                payload?.event_name ===
+                  "onboarding_eval_source_fix_route_viewed" &&
+                payload?.metadata?.run_id === firstEvalRunId,
+            ),
             eval_usage_responses: evidence.evalUsageResponses,
             post_review_home_url: postReviewHomeUrl,
             post_review_state: summarizeActivationState(postReviewState),

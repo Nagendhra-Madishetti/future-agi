@@ -509,7 +509,7 @@ export const buildEvalSourceFixHref = ({
   if (sourceType === "dataset") {
     basePath = `/dashboard/develop/${sourceId}`;
   } else if (["trace", "trace_project"].includes(sourceType)) {
-    basePath = `/dashboard/observe/${sourceId}`;
+    basePath = `/dashboard/observe/${sourceId}/llm-tracing`;
   }
   if (!basePath) return null;
 
