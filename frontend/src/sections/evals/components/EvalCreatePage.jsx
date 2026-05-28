@@ -14,10 +14,16 @@ import {
   Typography,
 } from "@mui/material";
 import CustomTooltip from "src/components/tooltip/CustomTooltip";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Iconify from "src/components/iconify";
 import axios, { endpoints } from "src/utils/axios";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useSnackbar } from "notistack";
 import { useDeploymentMode } from "src/hooks/useDeploymentMode";
 import { FAGI_MODEL_VALUES } from "./ModelSelector";
@@ -33,13 +39,21 @@ import ResizablePanels from "src/components/resizablePanels/ResizablePanels";
 import TestPlayground from "./TestPlayground";
 import { buildCompositeChildConfigs } from "../Helpers/compositeRuntimeConfig";
 import { useCompositeChildrenUnionKeys } from "../hooks/useCompositeChildrenKeys";
-import CodeEvalEditor, {
-  PYTHON_CODE_TEMPLATE,
-} from "./CodeEvalEditor";
+import CodeEvalEditor, { PYTHON_CODE_TEMPLATE } from "./CodeEvalEditor";
 import CompositeDetailPanel from "./CompositeDetailPanel";
 import UnsavedChangesDialog from "src/sections/projects/MonitorsView/UnsavedChangesDialog";
 import { extractVariables } from "src/utils/utils";
 import { buildDataInjection } from "src/sections/common/EvalPicker/evalPickerConfigUtils";
+import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/useRecordActivationEvent";
+import EvalOnboardingFocusPanel from "./EvalOnboardingFocusPanel";
+import {
+  buildEvalCreateDraftHref,
+  buildEvalRouteFocusPayload,
+  buildEvalScorerCreatedPayload,
+  EVAL_CREATE_ONBOARDING_STEPS,
+  getEvalCreateOnboardingCopy,
+  getEvalCreateOnboardingParams,
+} from "./evalCreateOnboarding";
 
 const EVAL_TYPE_TABS = [
   { value: "agent", label: "Agents" },
@@ -137,12 +151,23 @@ const resolveContextOptions = (dataInjection) => {
 
 const EvalCreatePage = () => {
   const { draftId: urlDraftId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { isOSS } = useDeploymentMode();
   const createEval = useCreateEval();
   const createComposite = useCreateCompositeEval();
+  const { mutate: recordActivationEvent } = useRecordActivationEvent();
   const testPlaygroundRef = useRef(null);
+  const recordedOnboardingFocusRef = useRef(false);
+  const onboardingParams = useMemo(
+    () => getEvalCreateOnboardingParams(location.search),
+    [location.search],
+  );
+  const onboardingCopy = useMemo(
+    () => getEvalCreateOnboardingCopy(onboardingParams),
+    [onboardingParams],
+  );
 
   // Mode: single or composite
   const [mode, setMode] = useState("single");
@@ -307,7 +332,9 @@ const EvalCreatePage = () => {
           const id = data?.result?.id;
           if (id) {
             setDraftId(id);
-            navigate(`/dashboard/evaluations/create/${id}`, { replace: true });
+            navigate(buildEvalCreateDraftHref(id, location.search), {
+              replace: true,
+            });
           }
         } catch {
           // ignore — user can retry
@@ -315,6 +342,22 @@ const EvalCreatePage = () => {
       })();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!onboardingParams.isOnboarding || recordedOnboardingFocusRef.current) {
+      return;
+    }
+    recordedOnboardingFocusRef.current = true;
+    recordActivationEvent?.(
+      buildEvalRouteFocusPayload({
+        draftId,
+        runId: onboardingParams.runId,
+        sourceId: onboardingParams.sourceId,
+        sourceType: onboardingParams.sourceType,
+        step: onboardingParams.step,
+      }),
+    );
+  }, [draftId, onboardingParams, recordActivationEvent]);
 
   // Auto-save config to draft (debounced, skip initial load)
   const autoSaveTimer = useRef(null);
@@ -437,6 +480,20 @@ const EvalCreatePage = () => {
       });
       publishedRef.current = true;
       enqueueSnackbar("Evaluation saved successfully", { variant: "success" });
+      if (
+        onboardingParams.isOnboarding &&
+        onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.SCORER
+      ) {
+        recordActivationEvent?.(
+          buildEvalScorerCreatedPayload({
+            evalId: draftId,
+            evalType,
+            sourceId: onboardingParams.sourceId,
+            sourceType: onboardingParams.sourceType,
+            step: onboardingParams.step,
+          }),
+        );
+      }
       navigate(`/dashboard/evaluations/${draftId}`);
     } catch (error) {
       const message =
@@ -462,6 +519,8 @@ const EvalCreatePage = () => {
     isOSS,
     evalType,
     model,
+    onboardingParams,
+    recordActivationEvent,
   ]);
 
   const handleSaveComposite = useCallback(async () => {
@@ -496,6 +555,21 @@ const EvalCreatePage = () => {
       enqueueSnackbar("Composite evaluation created successfully", {
         variant: "success",
       });
+      if (
+        onboardingParams.isOnboarding &&
+        onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.SCORER
+      ) {
+        recordActivationEvent?.(
+          buildEvalScorerCreatedPayload({
+            evalId: result.id,
+            evalType: "composite",
+            isComposite: true,
+            sourceId: onboardingParams.sourceId,
+            sourceType: onboardingParams.sourceType,
+            step: onboardingParams.step,
+          }),
+        );
+      }
       navigate(`/dashboard/evaluations/${result.id}`);
     } catch (error) {
       const message =
@@ -520,6 +594,8 @@ const EvalCreatePage = () => {
     createComposite,
     enqueueSnackbar,
     navigate,
+    onboardingParams,
+    recordActivationEvent,
   ]);
 
   // Test Evaluation: draft is always auto-saved, just run it
@@ -673,6 +749,14 @@ const EvalCreatePage = () => {
         </Box>
       </Box>
 
+      <EvalOnboardingFocusPanel
+        currentStep={onboardingCopy.currentStep}
+        description={onboardingCopy.description}
+        hidden={!onboardingParams.isOnboarding}
+        steps={onboardingCopy.steps}
+        title={onboardingCopy.title}
+      />
+
       {/* Two-panel layout — resizable, fills remaining height */}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <ResizablePanels
@@ -789,7 +873,13 @@ const EvalCreatePage = () => {
                       fontWeight={600}
                       sx={{ mb: 0.5 }}
                     >
-                      Eval Name<Box component="span" sx={{ color: "error.main", ml: 0.25 }}>*</Box>
+                      Eval Name
+                      <Box
+                        component="span"
+                        sx={{ color: "error.main", ml: 0.25 }}
+                      >
+                        *
+                      </Box>
                     </Typography>
                     <TextField
                       fullWidth
