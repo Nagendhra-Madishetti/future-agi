@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Box,
   Stack,
@@ -70,13 +76,13 @@ const MemberRow = React.memo(
     if (!editable) {
       return (
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           alignItems="center"
           sx={{
             position: "relative",
-            gap: 2,
+            gap: { xs: 1, sm: 2 },
             width: "100%",
-            pr: 5,
+            pr: { xs: 0, sm: 5 },
             pt: 0,
             mt: 2,
           }}
@@ -104,13 +110,13 @@ const MemberRow = React.memo(
     }
     return (
       <Stack
-        direction="row"
+        direction={{ xs: "column", sm: "row" }}
         alignItems="flex-start"
         sx={{
           position: "relative",
-          gap: 2,
+          gap: { xs: 1, sm: 2 },
           width: "100%",
-          pr: 5,
+          pr: { xs: 0, sm: 5 },
           pt: 0,
           mt: 2,
         }}
@@ -259,6 +265,7 @@ const useOrganizationInitialData = (isOwner, user) => {
 
 const SetupOrganization = ({ getStarted = false }) => {
   const queryClient = useQueryClient();
+  const quickStartRequestedRef = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeStep = parseInt(searchParams.get("step") || "0", 10);
   const finishSetup = useCallback(() => {
@@ -356,6 +363,7 @@ const SetupOrganization = ({ getStarted = false }) => {
       }
     },
     onError: (error) => {
+      quickStartRequestedRef.current = false;
       enqueueSnackbar(error?.message || "Failed to save profile", {
         variant: "error",
       });
@@ -381,15 +389,25 @@ const SetupOrganization = ({ getStarted = false }) => {
   const customRoleValue = userForm.watch("customRole");
   const roleValue = userForm.watch("role");
   const handleObserveQuickStart = useCallback(() => {
-    if (isSavingUserData) {
+    if (isSavingUserData || quickStartRequestedRef.current) {
       return;
     }
 
+    quickStartRequestedRef.current = true;
     saveUserData({
       role: customRoleValue || roleValue || QUICK_START_ROLE,
       goals: [QUICK_START_GOAL_LABEL],
     });
   }, [customRoleValue, isSavingUserData, roleValue, saveUserData]);
+  const handleObserveQuickStartPointerUp = useCallback(
+    (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+      handleObserveQuickStart();
+    },
+    [handleObserveQuickStart],
+  );
   const orgForm = useForm({
     resolver: zodResolver(organizationSchema),
     mode: "onChange",
@@ -756,7 +774,7 @@ const SetupOrganization = ({ getStarted = false }) => {
     switch (activeStep) {
       case 0:
         return (
-          <Stack spacing={2} width="440px">
+          <Stack spacing={2} sx={{ width: { xs: "100%", sm: 440 } }}>
             <Box>
               <Typography
                 fontWeight={"fontWeightSemiBold"}
@@ -831,6 +849,7 @@ const SetupOrganization = ({ getStarted = false }) => {
               variant="outlined"
               loading={isSavingUserData}
               onClick={handleObserveQuickStart}
+              onPointerUp={handleObserveQuickStartPointerUp}
               color="primary"
             >
               Connect observability first
@@ -840,7 +859,7 @@ const SetupOrganization = ({ getStarted = false }) => {
 
       case 1:
         return (
-          <Stack spacing={2} width="440px">
+          <Stack spacing={2} sx={{ width: { xs: "100%", sm: 440 } }}>
             <Box>
               <Typography
                 fontWeight={"fontWeightSemiBold"}
@@ -915,6 +934,7 @@ const SetupOrganization = ({ getStarted = false }) => {
               variant="outlined"
               loading={isSavingUserData}
               onClick={handleObserveQuickStart}
+              onPointerUp={handleObserveQuickStartPointerUp}
               color="primary"
             >
               Connect observability first
@@ -996,11 +1016,11 @@ const SetupOrganization = ({ getStarted = false }) => {
   }
 
   return (
-    <Box sx={{ width: "100%", height: "100vh", display: "flex" }}>
+    <Box sx={{ width: "100%", minHeight: "100dvh", display: "flex" }}>
       <Box
         sx={{
-          width: "50%",
-          height: "100vh",
+          width: { xs: "100%", md: "50%" },
+          minHeight: "100dvh",
           bgcolor: "background.paper",
           display: "flex",
           flexDirection: "column",
@@ -1012,8 +1032,8 @@ const SetupOrganization = ({ getStarted = false }) => {
           sx={{
             maxWidth: "640px",
             width: "100%",
-            px: 10,
-            paddingY: "100px",
+            px: { xs: 3, sm: 6, md: 10 },
+            py: { xs: 4, md: "100px" },
             display: "flex",
             flexDirection: "column",
             gap: 2,
@@ -1033,7 +1053,8 @@ const SetupOrganization = ({ getStarted = false }) => {
       <Box
         sx={{
           width: "50%",
-          height: "100%",
+          minHeight: "100dvh",
+          display: { xs: "none", md: "block" },
           backgroundColor: "background.neutral",
         }}
       >

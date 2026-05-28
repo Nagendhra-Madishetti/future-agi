@@ -545,14 +545,19 @@ export default function JwtRegisterView() {
   );
 
   return (
-    <Box sx={{ display: "flex", width: "100%", height: "100vh" }}>
+    <Box
+      sx={{
+        display: "flex",
+        width: "100%",
+        minHeight: "100dvh",
+      }}
+    >
       <Box
         sx={{
-          width: "50%",
-          height: "100%",
+          width: { xs: "100%", md: "50%" },
+          minHeight: "100dvh",
           display: "flex",
           justifyContent: "center",
-
           bgcolor: "background.paper",
           overflowY: "auto",
         }}
@@ -561,8 +566,8 @@ export default function JwtRegisterView() {
           sx={{
             maxWidth: "640px",
             width: "100%",
-            px: 10,
-            paddingY: "100px",
+            px: { xs: 3, sm: 6, md: 10 },
+            py: { xs: 4, md: "100px" },
             height: "fit-content",
           }}
         >
@@ -588,7 +593,8 @@ export default function JwtRegisterView() {
       <Box
         sx={{
           width: "50%",
-          height: "100%",
+          minHeight: "100dvh",
+          display: { xs: "none", md: "block" },
           backgroundColor: "background.neutral",
         }}
       >

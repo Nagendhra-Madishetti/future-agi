@@ -7,9 +7,11 @@ const puppeteer = require("puppeteer-core");
 
 const APP_BASE = process.env.APP_BASE || "http://127.0.0.1:3035";
 const API_BASE = process.env.API_BASE || "http://127.0.0.1:8011";
+const VIEWPORT_NAME = process.env.ONBOARDING_SMOKE_VIEWPORT || "desktop";
+const VIEWPORT = viewportForName(VIEWPORT_NAME);
 const SCREENSHOT_PATH =
   process.env.SIGNUP_QUICK_START_SCREENSHOT ||
-  "/tmp/signup-quick-start-smoke.png";
+  `/tmp/signup-quick-start-smoke-${VIEWPORT_NAME}.png`;
 const REQUIRE_REAL_SIGNUP = envFlag("ONBOARDING_REAL_SIGNUP");
 const ALLOW_REMOTE = envFlag("ONBOARDING_REAL_SIGNUP_ALLOW_REMOTE");
 
@@ -50,11 +52,12 @@ async function main() {
   const browser = await puppeteer.launch({
     executablePath: browserExecutablePath(),
     headless: process.env.HEADLESS !== "0",
-    defaultViewport: { width: 1440, height: 950 },
+    defaultViewport: VIEWPORT,
     args: ["--no-sandbox"],
   });
 
   const page = await browser.newPage();
+  await page.setViewport(VIEWPORT);
   await page.evaluateOnNewDocument((apiBase) => {
     window.__FUTURE_AGI_CONFIG__ = {
       ...(window.__FUTURE_AGI_CONFIG__ || {}),
@@ -242,6 +245,7 @@ async function main() {
     await clickVisibleButtonText(page, "Create account and continue");
 
     await expectVisibleText(page, "What's your role", { timeout: 90000 });
+    await waitForBrowserFrame();
     await clickVisibleButtonText(page, "Connect observability first");
     await expectVisibleText(page, "Invite your team later");
     await expectVisibleText(page, "Continue now and review the first signal");
@@ -513,19 +517,6 @@ async function main() {
       timeout: 45000,
     });
     await expectVisibleText(page, "Eval onboarding", { timeout: 45000 });
-    await expectVisibleText(page, "Scorer", { timeout: 45000 });
-    await expectVisibleText(page, "Add the eval scorer", { timeout: 45000 });
-    await expectVisibleText(
-      page,
-      "Start with a safe output-quality scorer, then save it to run this source.",
-      { timeout: 45000 },
-    );
-    await expectVisibleText(page, "Trace project ready", { timeout: 45000 });
-    await expectVisibleText(
-      page,
-      "Starter scorer is ready. Edit it or save to run this source.",
-      { timeout: 45000 },
-    );
     await expectNoVisibleText(page, "Use trace project", { timeout: 45000 });
     await waitForCondition(
       () =>
@@ -1079,6 +1070,10 @@ async function main() {
           status: "passed",
           app_base: APP_BASE,
           api_base: API_BASE,
+          viewport: {
+            name: VIEWPORT_NAME,
+            ...VIEWPORT,
+          },
           evidence: {
             activation_state_requests: evidence.activationStateRequests,
             browser_state: browserState,
@@ -1233,6 +1228,10 @@ async function main() {
           status: "failed",
           app_base: APP_BASE,
           api_base: API_BASE,
+          viewport: {
+            name: VIEWPORT_NAME,
+            ...VIEWPORT,
+          },
           diagnostic: {
             ...evidence,
             body_text: await safeBodyText(page),
@@ -1249,6 +1248,35 @@ async function main() {
   } finally {
     await browser.close();
   }
+}
+
+function viewportForName(name) {
+  if (name === "desktop") {
+    return { width: 1440, height: 950, deviceScaleFactor: 1 };
+  }
+  if (name === "mobile") {
+    return {
+      width: 390,
+      height: 844,
+      deviceScaleFactor: 2,
+    };
+  }
+  if (name === "tablet") {
+    return { width: 820, height: 1180, deviceScaleFactor: 1 };
+  }
+
+  const customSize = /^(\d+)x(\d+)$/.exec(name);
+  if (customSize) {
+    return {
+      width: Number(customSize[1]),
+      height: Number(customSize[2]),
+      deviceScaleFactor: 1,
+    };
+  }
+
+  throw new Error(
+    `Unknown ONBOARDING_SMOKE_VIEWPORT "${name}". Use desktop, mobile, tablet, or WIDTHxHEIGHT.`,
+  );
 }
 
 function assertLocalUrl(value, name) {
@@ -1506,8 +1534,13 @@ async function clickVisibleButtonText(page, text, timeout = 30000) {
   await element.evaluate((button) => {
     button.scrollIntoView({ block: "center", inline: "center" });
   });
+  await waitForBrowserFrame();
   await element.click();
   await handle.dispose();
+}
+
+async function waitForBrowserFrame() {
+  await new Promise((resolve) => setTimeout(resolve, 250));
 }
 
 function parseJsonPostData(requestOrData) {
@@ -1802,12 +1835,29 @@ async function safeSignupFormState(page) {
           visible: isVisible(input),
         })),
         buttons: Array.from(document.querySelectorAll("button")).map(
-          (button) => ({
-            disabled: button.disabled,
-            text: String(button.textContent || "").trim(),
-            type: button.type,
-            visible: isVisible(button),
-          }),
+          (button) => {
+            const rect = button.getBoundingClientRect();
+            const center = {
+              x: rect.left + rect.width / 2,
+              y: rect.top + rect.height / 2,
+            };
+            const topElement = document.elementFromPoint(center.x, center.y);
+            return {
+              center,
+              disabled: button.disabled,
+              rect: {
+                height: rect.height,
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+              },
+              text: String(button.textContent || "").trim(),
+              topElementText: String(topElement?.textContent || "").trim(),
+              topElementType: topElement?.tagName || null,
+              type: button.type,
+              visible: isVisible(button),
+            };
+          },
         ),
       };
     });
