@@ -209,6 +209,56 @@ export const buildEvalScorerCreatedPayload = ({
   };
 };
 
+export const buildEvalRunCompletedPayload = ({
+  evalId,
+  evalType,
+  isComposite = false,
+  mode,
+  result = {},
+  runId,
+  sourceId,
+  sourceType,
+} = {}) => {
+  const resultRunId =
+    result?.run_id ||
+    result?.eval_run_id ||
+    result?.eval_task_id ||
+    result?.evaluation_id ||
+    result?.log_id;
+  const artifactId = safeKeyPart(runId || resultRunId || evalId, "eval-run");
+
+  return {
+    eventName: "eval_run_completed",
+    primaryPath: "evals",
+    stage: "run_eval",
+    source: "eval_create_onboarding",
+    artifactType: "eval_run",
+    artifactId,
+    metadata: compactMetadata({
+      eval_id: evalId,
+      eval_type: evalType,
+      eval_log_id: result?.eval_log_id,
+      eval_task_id: result?.eval_task_id,
+      evaluation_id: result?.evaluation_id,
+      is_composite: Boolean(isComposite),
+      log_id: result?.log_id,
+      mode,
+      run_id: runId || resultRunId,
+      source_id: sourceId,
+      source_type: sourceType,
+      status: result?.status || "completed",
+      step: EVAL_CREATE_ONBOARDING_STEPS.RUN,
+    }),
+    idempotencyKey: [
+      "eval_run_completed",
+      safeKeyPart(sourceId, "no-source"),
+      safeKeyPart(evalId, "no-eval"),
+      artifactId,
+    ].join(":"),
+    isSample: false,
+  };
+};
+
 export const buildEvalReviewRouteFocusPayload = ({
   evalId,
   route = "eval_detail",

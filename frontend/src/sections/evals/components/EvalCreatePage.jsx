@@ -49,6 +49,7 @@ import EvalOnboardingFocusPanel from "./EvalOnboardingFocusPanel";
 import {
   buildEvalCreateDraftHref,
   buildEvalRouteFocusPayload,
+  buildEvalRunCompletedPayload,
   buildEvalScorerCreatedPayload,
   EVAL_CREATE_ONBOARDING_STEPS,
   getEvalCreateOnboardingCopy,
@@ -241,19 +242,41 @@ const EvalCreatePage = () => {
   // Hook for updating the draft template
   const updateDraft = useUpdateEval(draftId);
 
-  const handleTestResult = useCallback((success, result) => {
-    // Stale result from a test that was invalidated by a mode switch — drop it.
-    if (activeTestEpochRef.current !== testEpochRef.current) return;
-    setTestPassed(true);
-    setTestError(
-      success
-        ? null
-        : typeof result === "string"
-          ? result
-          : JSON.stringify(result),
-    );
-    setIsTesting(false);
-  }, []);
+  const handleTestResult = useCallback(
+    (success, result) => {
+      // Stale result from a test that was invalidated by a mode switch — drop it.
+      if (activeTestEpochRef.current !== testEpochRef.current) return;
+      setTestPassed(true);
+      setTestError(
+        success
+          ? null
+          : typeof result === "string"
+            ? result
+            : JSON.stringify(result),
+      );
+      setIsTesting(false);
+
+      if (
+        success &&
+        onboardingParams.isOnboarding &&
+        onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.RUN
+      ) {
+        recordActivationEvent?.(
+          buildEvalRunCompletedPayload({
+            evalId: draftId,
+            evalType: mode === "composite" ? "composite" : evalType,
+            isComposite: mode === "composite",
+            mode,
+            result,
+            runId: onboardingParams.runId,
+            sourceId: onboardingParams.sourceId,
+            sourceType: onboardingParams.sourceType,
+          }),
+        );
+      }
+    },
+    [draftId, evalType, mode, onboardingParams, recordActivationEvent],
+  );
 
   // Load existing draft from URL, or create a new one
   const draftLoaded = useRef(false);

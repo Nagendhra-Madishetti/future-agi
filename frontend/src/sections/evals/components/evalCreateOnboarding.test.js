@@ -5,6 +5,7 @@ import {
   buildEvalReviewDetailHref,
   buildEvalReviewRouteFocusPayload,
   buildEvalRouteFocusPayload,
+  buildEvalRunCompletedPayload,
   buildEvalScorerCreatedPayload,
   EVAL_CREATE_ONBOARDING_STEPS,
   evalCreateOnboardingStage,
@@ -105,6 +106,45 @@ describe("evalCreateOnboarding", () => {
       },
       idempotencyKey: "eval_scorer_created:data-1:eval-1",
     });
+  });
+
+  it("builds a run-completed payload without result content", () => {
+    const payload = buildEvalRunCompletedPayload({
+      evalId: "eval-1",
+      evalType: "agent",
+      mode: "single",
+      result: {
+        log_id: "log-1",
+        output: "Failed",
+        reason: "Do not include result content",
+      },
+      sourceId: "data-1",
+      sourceType: "dataset",
+    });
+
+    expect(payload).toMatchObject({
+      eventName: "eval_run_completed",
+      primaryPath: "evals",
+      stage: "run_eval",
+      source: "eval_create_onboarding",
+      artifactType: "eval_run",
+      artifactId: "log-1",
+      metadata: {
+        eval_id: "eval-1",
+        eval_type: "agent",
+        is_composite: false,
+        log_id: "log-1",
+        mode: "single",
+        run_id: "log-1",
+        source_id: "data-1",
+        source_type: "dataset",
+        status: "completed",
+        step: "run",
+      },
+      idempotencyKey: "eval_run_completed:data-1:eval-1:log-1",
+    });
+    expect(payload.metadata).not.toHaveProperty("output");
+    expect(payload.metadata).not.toHaveProperty("reason");
   });
 
   it("parses eval review onboarding query params", () => {
