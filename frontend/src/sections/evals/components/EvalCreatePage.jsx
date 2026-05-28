@@ -65,6 +65,7 @@ import {
   getEvalOnboardingSourceSummary,
   getEvalRunResultId,
   getEvalStarterScorer,
+  shouldAutoConfirmEvalOnboardingSource,
 } from "./evalCreateOnboarding";
 
 const EVAL_TYPE_TABS = [
@@ -174,6 +175,7 @@ const EvalCreatePage = () => {
   const testPlaygroundRef = useRef(null);
   const recordedOnboardingFocusRef = useRef(new Set());
   const recordedSourceSelectionRef = useRef(new Set());
+  const autoConfirmedSourceRef = useRef(new Set());
   const onboardingParams = useMemo(
     () => getEvalCreateOnboardingParams(location.search),
     [location.search],
@@ -188,6 +190,10 @@ const EvalCreatePage = () => {
   );
   const onboardingSourceSummary = useMemo(
     () => getEvalOnboardingSourceSummary(onboardingParams),
+    [onboardingParams],
+  );
+  const shouldAutoConfirmOnboardingSource = useMemo(
+    () => shouldAutoConfirmEvalOnboardingSource(onboardingParams),
     [onboardingParams],
   );
   const onboardingSourceSetupHref = useMemo(() => {
@@ -536,6 +542,28 @@ const EvalCreatePage = () => {
       }),
     );
   }, [draftId, handleOnboardingSourceSelected, navigate, onboardingParams]);
+
+  useEffect(() => {
+    if (!draftId || !shouldAutoConfirmOnboardingSource) return;
+
+    const autoConfirmKey = [
+      draftId,
+      onboardingParams.sourceType,
+      onboardingParams.sourceId,
+    ].join(":");
+    if (autoConfirmedSourceRef.current.has(autoConfirmKey)) return;
+    autoConfirmedSourceRef.current.add(autoConfirmKey);
+
+    handleOnboardingFocusViewed();
+    handleConfirmOnboardingSource();
+  }, [
+    draftId,
+    handleConfirmOnboardingSource,
+    handleOnboardingFocusViewed,
+    onboardingParams.sourceId,
+    onboardingParams.sourceType,
+    shouldAutoConfirmOnboardingSource,
+  ]);
 
   const handleUseStarterScorer = useCallback(() => {
     if (
@@ -984,6 +1012,10 @@ const EvalCreatePage = () => {
       return null;
     }
 
+    if (shouldAutoConfirmOnboardingSource) {
+      return null;
+    }
+
     return {
       disabled: !draftId,
       label:
@@ -1004,6 +1036,7 @@ const EvalCreatePage = () => {
     isLoading,
     mode,
     onboardingParams,
+    shouldAutoConfirmOnboardingSource,
   ]);
 
   return (

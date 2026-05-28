@@ -227,6 +227,19 @@ export const getEvalCreateOnboardingParams = (search = "") => {
   };
 };
 
+export const shouldAutoConfirmEvalOnboardingSource = ({
+  isOnboarding,
+  sourceId,
+  sourceType,
+  step,
+} = {}) =>
+  Boolean(
+    isOnboarding &&
+      step === EVAL_CREATE_ONBOARDING_STEPS.DATA &&
+      sourceType === "trace_project" &&
+      sourceId,
+  );
+
 export const getEvalCreateOnboardingCopy = ({ rerunFrom, step } = {}) => {
   if (step === EVAL_CREATE_ONBOARDING_STEPS.RUN && rerunFrom) {
     return EVAL_RERUN_COPY;

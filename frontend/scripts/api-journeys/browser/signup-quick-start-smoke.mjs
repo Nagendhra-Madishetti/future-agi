@@ -496,15 +496,12 @@ async function main() {
     await page.waitForFunction(
       ({ projectId }) => {
         const params = new URLSearchParams(window.location.search);
-        const isEvalCreateRoute =
-          window.location.pathname === "/dashboard/evaluations/create" ||
+        return (
           /^\/dashboard\/evaluations\/create\/[^/]+$/.test(
             window.location.pathname,
-          );
-        return (
-          isEvalCreateRoute &&
+          ) &&
           params.get("source") === "onboarding" &&
-          params.get("step") === "data" &&
+          params.get("step") === "scorer" &&
           params.get("source_type") === "trace_project" &&
           params.get("source_id") === projectId
         );
@@ -516,21 +513,20 @@ async function main() {
       timeout: 45000,
     });
     await expectVisibleText(page, "Eval onboarding", { timeout: 45000 });
-    await expectVisibleText(page, "Source", { timeout: 45000 });
-    await expectVisibleText(page, "Create the eval source", {
-      timeout: 45000,
-    });
+    await expectVisibleText(page, "Scorer", { timeout: 45000 });
+    await expectVisibleText(page, "Add the eval scorer", { timeout: 45000 });
     await expectVisibleText(
       page,
-      "Choose the data or trace source before adding the scorer.",
+      "Start with a safe output-quality scorer, then save it to run this source.",
       { timeout: 45000 },
     );
-    await expectVisibleText(page, "Trace project selected", {
-      timeout: 45000,
-    });
-    await expectVisibleText(page, "Use this source to add a scorer next.", {
-      timeout: 45000,
-    });
+    await expectVisibleText(page, "Trace project ready", { timeout: 45000 });
+    await expectVisibleText(
+      page,
+      "Starter scorer is ready. Edit it or save to run this source.",
+      { timeout: 45000 },
+    );
+    await expectNoVisibleText(page, "Use trace project", { timeout: 45000 });
     await waitForCondition(
       () =>
         evidence.activationEventPosts.some(
@@ -549,42 +545,6 @@ async function main() {
       45000,
     );
     const evalCreateOnboardingUrl = page.url();
-    await clickVisibleButtonText(page, "Use trace project", 45000);
-    await page.waitForFunction(
-      ({ projectId }) => {
-        const params = new URLSearchParams(window.location.search);
-        const isEvalCreateRoute =
-          window.location.pathname === "/dashboard/evaluations/create" ||
-          /^\/dashboard\/evaluations\/create\/[^/]+$/.test(
-            window.location.pathname,
-          );
-        return (
-          isEvalCreateRoute &&
-          params.get("source") === "onboarding" &&
-          params.get("step") === "scorer" &&
-          params.get("source_type") === "trace_project" &&
-          params.get("source_id") === projectId
-        );
-      },
-      { timeout: 45000 },
-      { projectId: realProject.projectId },
-    );
-    await expectVisibleTestId(page, "eval-onboarding-focus", {
-      timeout: 45000,
-    });
-    await expectVisibleText(page, "Scorer", { timeout: 45000 });
-    await expectVisibleText(page, "Add the eval scorer", { timeout: 45000 });
-    await expectVisibleText(
-      page,
-      "Start with a safe output-quality scorer, then save it to run this source.",
-      { timeout: 45000 },
-    );
-    await expectVisibleText(page, "Trace project ready", { timeout: 45000 });
-    await expectVisibleText(
-      page,
-      "Starter scorer is ready. Edit it or save to run this source.",
-      { timeout: 45000 },
-    );
     await waitForCondition(
       () =>
         evidence.activationEventPosts.some(

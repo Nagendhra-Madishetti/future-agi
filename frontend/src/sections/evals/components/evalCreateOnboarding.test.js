@@ -43,6 +43,7 @@ import {
   getEvalStarterScorer,
   getEvalSourceFixOnboardingCopy,
   getEvalSourceFixOnboardingParams,
+  shouldAutoConfirmEvalOnboardingSource,
 } from "./evalCreateOnboarding";
 
 describe("evalCreateOnboarding", () => {
@@ -192,6 +193,35 @@ describe("evalCreateOnboarding", () => {
         step: EVAL_CREATE_ONBOARDING_STEPS.DATA,
       }),
     ).toBe(EVAL_CREATE_SOURCE_TABS.CUSTOM);
+  });
+
+  it("auto-confirms only trace-project sources on the onboarding data step", () => {
+    expect(
+      shouldAutoConfirmEvalOnboardingSource({
+        isOnboarding: true,
+        sourceId: "project-1",
+        sourceType: "trace_project",
+        step: EVAL_CREATE_ONBOARDING_STEPS.DATA,
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldAutoConfirmEvalOnboardingSource({
+        isOnboarding: true,
+        sourceId: "dataset-1",
+        sourceType: "dataset",
+        step: EVAL_CREATE_ONBOARDING_STEPS.DATA,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldAutoConfirmEvalOnboardingSource({
+        isOnboarding: true,
+        sourceId: "project-1",
+        sourceType: "trace_project",
+        step: EVAL_CREATE_ONBOARDING_STEPS.SCORER,
+      }),
+    ).toBe(false);
   });
 
   it("summarizes a completed onboarding eval source without source content", () => {
