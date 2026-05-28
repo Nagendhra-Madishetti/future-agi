@@ -365,8 +365,6 @@ const TaskConfigPanel = ({
     keyName: "_fieldId",
   });
 
-
-
   const [pendingProject, setPendingProject] = useState(null);
 
   const handleProjectFieldChange = useCallback(
@@ -449,7 +447,6 @@ const TaskConfigPanel = ({
 
       const serialized = serializeEvalConfig(evalConfig);
 
-
       const corePayload = {
         eval_template: tplId,
         name: evalConfig.name,
@@ -496,13 +493,14 @@ const TaskConfigPanel = ({
               ...corePayload.config,
             },
             mapping: evalConfig.mapping || {},
+            is_customized: resp?.result?.is_customized ?? false,
           };
         }
       } catch (error) {
         enqueueSnackbar(
           error?.response?.data?.result ||
-          error?.response?.data?.error ||
-          "Failed to save evaluation",
+            error?.response?.data?.error ||
+            "Failed to save evaluation",
           { variant: "error" },
         );
         throw error;
@@ -549,7 +547,8 @@ const TaskConfigPanel = ({
     if (!stored) return null;
     // API response uses `eval_template` for the template FK;
     // locally-added evals use `templateId` / `template_id`.
-    const tplId = stored.templateId || stored.template_id || stored.eval_template;
+    const tplId =
+      stored.templateId || stored.template_id || stored.eval_template;
 
     const savedErrorLocalizer =
       stored.error_localizer_enabled ?? stored.error_localizer;
@@ -701,16 +700,16 @@ const TaskConfigPanel = ({
                         bgcolor:
                           rowType === t.value
                             ? (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.12)"
-                                : "background.paper"
+                                theme.palette.mode === "dark"
+                                  ? "rgba(255,255,255,0.12)"
+                                  : "background.paper"
                             : "transparent",
                         boxShadow:
                           rowType === t.value
                             ? (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "none"
-                                : "0 1px 3px rgba(0,0,0,0.08)"
+                                theme.palette.mode === "dark"
+                                  ? "none"
+                                  : "0 1px 3px rgba(0,0,0,0.08)"
                             : "none",
                         borderRadius: "6px",
                         fontWeight: rowType === t.value ? 600 : 400,

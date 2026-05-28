@@ -34,8 +34,10 @@ class CustomEvalConfigView(BaseModelViewSetMixin, ModelViewSet):
 
     def get_queryset(self):
         custom_eval_config_id = self.kwargs.get("pk")
-        # Get base queryset with automatic filtering from mixin
-        queryset = super().get_queryset()
+        # Get base queryset with automatic filtering from mixin.
+        # select_related the template so the serializer's is_customized
+        # flag (which reads eval_template.config/criteria) doesn't N+1.
+        queryset = super().get_queryset().select_related("eval_template")
 
         if custom_eval_config_id:
             queryset = queryset.filter(id=custom_eval_config_id)

@@ -414,14 +414,6 @@ def create_eval_instance(
     # Apply version overrides
     config, criteria = apply_version_overrides(config, resolved_version, criteria)
 
-    # Per-attachment rule_prompt override wins over template + version.
-    # `runtime_config` is UserEvalMetric.config (dataset path) or
-    # CustomEvalConfig.config (tracer path). If the user has set their
-    # own `rule_prompt` on the attachment, honor it. Empty string falls
-    # back via the `or` short-circuit.
-    if runtime_config and (runtime_config.get("rule_prompt") or None):
-        config["rule_prompt"] = runtime_config["rule_prompt"]
-
     # Runtime override merge.
     #
     # Priority (lowest to highest): template default → UserEvalMetric.run_config
@@ -462,6 +454,17 @@ def create_eval_instance(
         and eval_type_id_check != "CustomCodeEval"
     ):
         config = eval_template.config.get("config")
+
+    # Per-attachment rule_prompt override wins over template + version.
+    # `runtime_config` is UserEvalMetric.config (dataset path) or
+    # CustomEvalConfig.config (tracer path). Applied AFTER the function-eval
+    # config reassignments above, otherwise those wipe the override for
+    # function-param / function_eval templates. Blank / whitespace-only
+    # values fall back to the template (matching is_rule_prompt_customized).
+    if config is not None and runtime_config:
+        _rule_prompt_override = runtime_config.get("rule_prompt")
+        if _rule_prompt_override and _rule_prompt_override.strip():
+            config["rule_prompt"] = _rule_prompt_override
 
     # Add knowledge base if provided
     if kb_id and config:
