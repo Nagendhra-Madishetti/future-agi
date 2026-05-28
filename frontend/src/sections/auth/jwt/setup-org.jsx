@@ -15,7 +15,6 @@ import { LoadingButton } from "@mui/lab";
 import axios, { endpoints } from "src/utils/axios";
 import { Events, trackEvent, PropertyName } from "src/utils/Mixpanel";
 import PropTypes from "prop-types";
-import { paths } from "src/routes/paths";
 import { FormSearchSelectFieldState } from "src/components/FromSearchSelectField";
 import RightSectionAuth from "./RightSectionAuth";
 import { Controller, useForm, useFieldArray, useWatch } from "react-hook-form";
@@ -34,6 +33,10 @@ import { generateNameFromEmail } from "./common";
 import FormTextFieldV2 from "src/components/FormTextField/FormTextFieldV2";
 import SvgColor from "src/components/svg-color";
 import { useSearchParams } from "react-router-dom";
+import {
+  isSafeSetupReturnTo,
+  resolveSetupCompletionHref,
+} from "./setup-org-routing";
 
 const DotsStepper = styled(MobileStepper)(({ theme }) => ({
   background: "transparent",
@@ -238,12 +241,16 @@ const SetupOrganization = ({ getStarted = false }) => {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeStep = parseInt(searchParams.get("step") || "0", 10);
-  // Where to land once org setup finishes — honor an internal `returnTo`
-  // persisted in localStorage over the default dashboard page.
+  // Honor an internal return target, otherwise enter the first-run home.
   const returnTo = (() => {
     const rt = localStorage.getItem("redirectUrl");
-    return rt && rt.startsWith("/") && !rt.startsWith("//") ? rt : null;
+    return isSafeSetupReturnTo(rt) ? rt : null;
   })();
+  const finishSetup = useCallback(() => {
+    localStorage.setItem("initial-render", "done");
+    localStorage.removeItem("redirectUrl");
+    window.location.href = resolveSetupCompletionHref(returnTo);
+  }, [returnTo]);
 
   const setActiveStep = useCallback(
     (newStep) => {
@@ -330,13 +337,7 @@ const SetupOrganization = ({ getStarted = false }) => {
       if (isOwner) {
         setActiveStep(2);
       } else {
-        // Non-owners (invited users) should go straight to dashboard
-        // They're already part of an org, no need for additional onboarding
-        if (returnTo) {
-          localStorage.setItem("initial-render", "done");
-          localStorage.removeItem("redirectUrl");
-        }
-        window.location.href = returnTo || paths.dashboard.develop;
+        finishSetup();
       }
     },
     onError: (error) => {
@@ -507,12 +508,7 @@ const SetupOrganization = ({ getStarted = false }) => {
       orgForm.reset();
 
       if (!getStarted) {
-        // After creating org during onboarding, redirect to get-started
-        if (returnTo) {
-          localStorage.setItem("initial-render", "done");
-          localStorage.removeItem("redirectUrl");
-        }
-        window.location.href = returnTo || paths.dashboard.getstarted;
+        finishSetup();
       }
     },
 
@@ -726,25 +722,6 @@ const SetupOrganization = ({ getStarted = false }) => {
           >
             Continue
           </LoadingButton>
-
-          {/* {!getStarted && (
-            <Typography
-              textAlign="center"
-              onClick={() => {
-                router.push(paths.dashboard.getstarted);
-              }}
-              sx={{
-                cursor: isCreating ? "not-allowed" : "pointer",
-                opacity: isCreating ? 0.6 : 1,
-                width: "414px",
-              }}
-              color="primary.main"
-              fontSize={"15px"}
-              fontWeight="fontWeightMedium"
-            >
-              Skip for now
-            </Typography>
-          )} */}
         </Stack>
       </form>
     </Box>

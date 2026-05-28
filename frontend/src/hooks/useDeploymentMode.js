@@ -32,8 +32,8 @@ export function useDeploymentMode() {
   };
 }
 
-export function getDeploymentPostLoginPath(mode) {
-  return mode === "oss" ? paths.dashboard.develop : paths.dashboard.falconAI;
+export function getDeploymentPostLoginPath(_mode) {
+  return paths.dashboard.home;
 }
 
 export function usePostLoginPath() {

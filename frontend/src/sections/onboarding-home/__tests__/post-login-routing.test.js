@@ -39,10 +39,10 @@ const state = (name) =>
 
 const resolve = (overrides = {}) =>
   resolvePostLoginDestination({
-    currentPath: paths.dashboard.falconAI,
+    currentPath: paths.dashboard.home,
     user: baseUser,
     deploymentMode: "cloud",
-    fallbackDestination: paths.dashboard.falconAI,
+    fallbackDestination: paths.dashboard.home,
     flags: flagsOn,
     activationState: state("observeNoSetup"),
     ...overrides,
@@ -92,7 +92,7 @@ describe("post-login routing", () => {
     expect(destination.shouldReplace).toBe(false);
   });
 
-  it("does not preserve the old fallback when the home rollout is eligible", () => {
+  it("does not preserve legacy fallback routes when the home rollout is eligible", () => {
     const destination = resolve({
       currentPath: paths.dashboard.falconAI,
     });
@@ -102,34 +102,33 @@ describe("post-login routing", () => {
     expect(destination.shouldReplace).toBe(true);
   });
 
-  it("uses the deployment fallback when a required flag is off", () => {
+  it("uses the first-run home fallback when a required flag is off", () => {
     const destination = resolve({
       flags: flagsOff,
     });
 
-    expect(destination.href).toBe(paths.dashboard.falconAI);
+    expect(destination.href).toBe(paths.dashboard.home);
     expect(destination.reason).toBe("required_flag_off");
   });
 
-  it("preserves OSS fallback when flags are off", () => {
+  it("preserves direct product routes when flags are off", () => {
     const destination = resolve({
       currentPath: paths.dashboard.develop,
       deploymentMode: "oss",
-      fallbackDestination: paths.dashboard.develop,
       flags: flagsOff,
     });
 
     expect(destination.href).toBe(paths.dashboard.develop);
-    expect(destination.reason).toBe("required_flag_off");
+    expect(destination.reason).toBe("direct_dashboard_route");
   });
 
-  it("uses the deployment fallback when activation state fails", () => {
+  it("uses the first-run home fallback when activation state fails", () => {
     const destination = resolve({
       activationState: null,
       activationStateError: new Error("offline"),
     });
 
-    expect(destination.href).toBe(paths.dashboard.falconAI);
+    expect(destination.href).toBe(paths.dashboard.home);
     expect(destination.reason).toBe("activation_state_error");
   });
 
@@ -142,6 +141,9 @@ describe("post-login routing", () => {
     ).toBe(paths.dashboard.home);
     expect(
       resolve({ activationState: state("observeFirstTraceReady") }).href,
+    ).toBe(paths.dashboard.home);
+    expect(
+      resolve({ activationState: state("observeNeedsEvaluator") }).href,
     ).toBe(paths.dashboard.home);
   });
 
@@ -198,7 +200,7 @@ describe("post-login routing", () => {
   });
 
   it("keeps viewer fallback unless activation state supports permission-limited home", () => {
-    expect(resolve({ user: viewerUser }).href).toBe(paths.dashboard.falconAI);
+    expect(resolve({ user: viewerUser }).href).toBe(paths.dashboard.home);
 
     const permissionLimited = resolve({
       user: viewerUser,

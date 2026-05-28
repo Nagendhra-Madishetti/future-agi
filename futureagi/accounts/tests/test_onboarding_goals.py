@@ -27,6 +27,11 @@ def test_normalize_accepted_alias():
 
 
 @pytest.mark.django_db
+def test_normalize_legacy_setup_goal_label():
+    assert normalize_goal("Monitor LLMs and Agents") == "monitor_production_ai_app"
+
+
+@pytest.mark.django_db
 def test_unknown_goal_rejected():
     with pytest.raises(ValidationError):
         normalize_goal("unknown_goal")
@@ -187,7 +192,7 @@ def test_legacy_fallback_read_maps_unambiguous_goal(organization, workspace, use
 
 
 @pytest.mark.django_db
-def test_ambiguous_legacy_fallback_returns_no_goal(organization, workspace, user):
+def test_legacy_fallback_uses_first_supported_goal(organization, workspace, user):
     user.goals = ["test_and_improve_prompts", "monitor_production_ai_app"]
     user.save(update_fields=["goals"])
 
@@ -197,8 +202,27 @@ def test_ambiguous_legacy_fallback_returns_no_goal(organization, workspace, user
         workspace=workspace,
     )
 
-    assert goal_context["goal"] is None
-    assert goal_context["primary_path"] is None
+    assert goal_context["goal"] == "improve_prompts"
+    assert goal_context["primary_path"] == "prompt"
+
+
+@pytest.mark.django_db
+def test_legacy_setup_goals_can_skip_second_goal_picker(
+    organization,
+    workspace,
+    user,
+):
+    user.goals = ["Monitor LLMs and Agents", "Run Evaluations"]
+    user.save(update_fields=["goals"])
+
+    goal_context = resolve_goal_for_context(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+    )
+
+    assert goal_context["goal"] == "monitor_production_ai_app"
+    assert goal_context["primary_path"] == "observe"
 
 
 @pytest.mark.django_db

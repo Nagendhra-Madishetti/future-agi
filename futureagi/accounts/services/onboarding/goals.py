@@ -104,7 +104,7 @@ def _legacy_goal_for_user(user):
         canonical = canonical_goal(goal)
         if canonical in ONBOARDING_GOALS and canonical not in canonical_goals:
             canonical_goals.append(canonical)
-    if len(canonical_goals) == 1:
+    if canonical_goals:
         goal = canonical_goals[0]
         return {
             "goal": goal,

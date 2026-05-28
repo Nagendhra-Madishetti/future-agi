@@ -9,9 +9,7 @@ import { normalizeActivationState } from "../activation-state-utils";
 import { getActivationStateFixture } from "../fixtures/activation-state.fixtures";
 
 vi.mock("src/hooks/useDeploymentMode", () => ({
-  getDeploymentPostLoginPath: vi.fn((mode) =>
-    mode === "oss" ? "/dashboard/develop" : "/dashboard/falcon-ai",
-  ),
+  getDeploymentPostLoginPath: vi.fn(() => "/dashboard/home"),
   useDeploymentMode: vi.fn(() => ({
     mode: "cloud",
     isCloud: true,
@@ -105,7 +103,7 @@ describe("usePostLoginDestination", () => {
     );
 
     expect(fetchActivationState).not.toHaveBeenCalled();
-    expect(result.current.destination.href).toBe(paths.dashboard.falconAI);
+    expect(result.current.destination.href).toBe(paths.dashboard.home);
     expect(result.current.reason).toBe("required_flag_off");
   });
 
@@ -173,6 +171,6 @@ describe("usePostLoginDestination", () => {
     await waitFor(() =>
       expect(result.current.reason).toBe("activation_state_error"),
     );
-    expect(result.current.destination.href).toBe(paths.dashboard.falconAI);
+    expect(result.current.destination.href).toBe(paths.dashboard.home);
   });
 });

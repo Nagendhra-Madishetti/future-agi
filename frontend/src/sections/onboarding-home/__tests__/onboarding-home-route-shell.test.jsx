@@ -31,14 +31,14 @@ describe("onboarding home route shell", () => {
     expect(homeRoute.element).toBeTruthy();
   });
 
-  it("keeps the existing dashboard index and Get Started routes unchanged", () => {
+  it("routes the dashboard index to the first-run home and keeps Get Started available", () => {
     const children = dashboardChildren();
     const indexRoute = children.find((route) => route.index);
     const getStartedRoute = children.find(
       (route) => route.path === "/dashboard/get-started",
     );
 
-    expect(indexRoute.element.props.to).toBe("/dashboard/prototype");
+    expect(indexRoute.element.props.to).toBe(paths.dashboard.home);
     expect(getStartedRoute.children[0].index).toBe(true);
     expect(paths.dashboard.getstarted).toBe("/dashboard/get-started");
   });

@@ -12,9 +12,15 @@ export const POST_LOGIN_HOME_STAGES = Object.freeze([
   "waiting_for_first_trace",
   "waiting_for_first_trace_sample_available",
   "review_first_trace",
+  "create_trace_evaluator",
   "first_loop_complete",
   "activated",
   "permission_limited",
+]);
+
+const LEGACY_POST_LOGIN_FALLBACK_PATHS = Object.freeze([
+  paths.dashboard.falconAI,
+  paths.dashboard.getstarted,
 ]);
 
 const AUTH_ROUTE_PREFIXES = Object.freeze([
@@ -67,6 +73,13 @@ export const shouldPreserveCurrentDashboardRoute = ({
   if (!pathname.startsWith(paths.dashboard.root)) return false;
   if (routesMatch(pathname, paths.dashboard.root)) return false;
   if (routesMatch(pathname, paths.dashboard.home)) return false;
+  if (
+    LEGACY_POST_LOGIN_FALLBACK_PATHS.some((legacyPath) =>
+      routesMatch(pathname, legacyPath),
+    )
+  ) {
+    return false;
+  }
   if (fallbackDestination && routesMatch(pathname, fallbackDestination)) {
     return false;
   }
@@ -115,17 +128,13 @@ export function resolvePostLoginDestination({
   currentPath,
   returnTo,
   user,
-  deploymentMode,
+  deploymentMode: _deploymentMode,
   fallbackDestination,
   flags,
   activationState,
   activationStateError,
 } = {}) {
-  const fallbackHref =
-    fallbackDestination ||
-    (deploymentMode === "oss"
-      ? paths.dashboard.develop
-      : paths.dashboard.falconAI);
+  const fallbackHref = fallbackDestination || paths.dashboard.home;
 
   if (isSafePostLoginReturnTo(returnTo)) {
     return makeDestination({

@@ -7,6 +7,7 @@ import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import { AuthGuard } from "src/auth/guard";
 import { useAuthContext } from "src/auth/hooks";
 import DashboardLayout from "src/layouts/dashboard";
+import { paths } from "src/routes/paths";
 
 import { LoadingScreen } from "src/components/loading-screen";
 import { Events, getPageViewEvent, trackEvent } from "src/utils/Mixpanel";
@@ -863,7 +864,7 @@ export const dashboardRoutes = (
   const dashboardChildren = [
     {
       index: true,
-      element: <Navigate to="/dashboard/prototype" replace />,
+      element: <Navigate to={paths.dashboard.home} replace />,
     },
     {
       path: "home",
