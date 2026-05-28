@@ -36,6 +36,7 @@ from ai_tools.tools.bridge import (
     _datasets,  # noqa: F401  list/get/create/update/delete_dataset
     _eval_groups,  # noqa: F401  list/get/create/update/delete_eval_group
     _knowledge_bases,  # noqa: F401  list/get/create/update/delete_knowledge_base
+    _misc_viewsets,  # noqa: F401  15 misc ViewSets (dashboards, scores, secrets, observability, etc.)
     _personas,  # noqa: F401  list/get/create/update/delete_persona
     _prompt_folders,  # noqa: F401  list/get/create/update/delete_prompt_folder
     _prompt_labels,  # noqa: F401  list/get/create/update/delete_prompt_label
@@ -202,7 +203,7 @@ from ai_tools.tools.tracing import (
     get_trace_span_children,  # noqa: F401
     get_trace_spans_by_type,  # noqa: F401
     get_trace_timeline,  # noqa: F401
-    list_custom_eval_configs,  # noqa: F401
+    # list_custom_eval_configs -> DRF bridge (see _misc_viewsets.py)
     list_error_clusters,  # noqa: F401
     list_trace_scores,  # noqa: F401
     list_trace_tags,  # noqa: F401
@@ -227,17 +228,17 @@ from ai_tools.tools.usage import get_cost_breakdown  # noqa: F401
 # User & Workspace tools (17)
 from ai_tools.tools.users import (
     add_workspace_member,  # noqa: F401
-    create_api_key,  # noqa: F401
+    # create_api_key -> DRF bridge (see _misc_viewsets.py via ApiKeyViewSet)
     deactivate_user,  # noqa: F401
     get_organization,  # noqa: F401
     get_user_permissions,  # noqa: F401
     invite_users,  # noqa: F401
-    list_api_keys,  # noqa: F401
+    # list_api_keys -> DRF bridge (see _misc_viewsets.py via ApiKeyViewSet)
     # list_org_members — removed, duplicate of list_users bridge tool
     list_organizations,  # noqa: F401
     # list_users — replaced by DRF bridge on UserListAPIView
     list_workspace_members,  # noqa: F401
-    revoke_api_key,  # noqa: F401
+    # revoke_api_key -> DRF bridge via ApiKeyViewSet destroy action (delete_api_key)
     update_user_role,  # noqa: F401
     update_workspace,  # noqa: F401
 )
