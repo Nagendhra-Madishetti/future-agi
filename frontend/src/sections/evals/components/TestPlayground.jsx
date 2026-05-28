@@ -20,6 +20,7 @@ import React, {
   useState,
 } from "react";
 import { useSnackbar } from "notistack";
+import { useSearchParams } from "react-router-dom";
 import { CreditExhaustionBanner } from "src/components/CreditExhaustionBanner";
 import Iconify from "src/components/iconify";
 import SvgColor from "src/components/svg-color";
@@ -664,7 +665,25 @@ const TestPlayground = React.forwardRef(
     const [hoveredVersionId, setHoveredVersionId] = useState(null);
     const [menuVersion, setMenuVersion] = useState(null);
     const [selectedVersionId, setSelectedVersionId] = useState(null);
+    const [searchParams] = useSearchParams();
 
+    const urlVersionParam = searchParams.get("v");
+    useEffect(() => {
+      const list = versionsData?.versions || [];
+      if (!list.length) return;
+      if (urlVersionParam) {
+        const match = list.find(
+      ver =>
+            String(ver.version_number ?? ver.versionNumber) ===
+            String(urlVersionParam),
+        );
+        if (match && match.id !== selectedVersionId) {
+          setSelectedVersionId(match.id);
+        }
+      } else if (selectedVersionId) {
+        setSelectedVersionId(null);
+      }
+    }, [urlVersionParam, versionsData]);
     const handleVersionMenuOpen = useCallback((e, version) => {
       e.stopPropagation();
       setVersionMenuAnchor(e.currentTarget);
