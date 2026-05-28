@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEvalCreateDraftHref,
+  buildEvalFailuresReviewedPayload,
+  buildEvalReviewDetailHref,
+  buildEvalReviewRouteFocusPayload,
   buildEvalRouteFocusPayload,
   buildEvalScorerCreatedPayload,
   EVAL_CREATE_ONBOARDING_STEPS,
   evalCreateOnboardingStage,
   getEvalCreateOnboardingCopy,
   getEvalCreateOnboardingParams,
+  getEvalReviewOnboardingCopy,
+  getEvalReviewOnboardingParams,
 } from "./evalCreateOnboarding";
 
 describe("evalCreateOnboarding", () => {
@@ -99,6 +104,95 @@ describe("evalCreateOnboarding", () => {
         step: "scorer",
       },
       idempotencyKey: "eval_scorer_created:data-1:eval-1",
+    });
+  });
+
+  it("parses eval review onboarding query params", () => {
+    expect(
+      getEvalReviewOnboardingParams(
+        "?tab=usage&source=onboarding&step=review&run_id=run-1",
+      ),
+    ).toEqual({
+      isOnboarding: true,
+      runId: "run-1",
+      step: "review",
+      tab: "usage",
+    });
+  });
+
+  it("returns review copy for the review route focus panel", () => {
+    expect(getEvalReviewOnboardingCopy()).toMatchObject({
+      currentStep: "Review",
+      title: "Review the eval result",
+      steps: [
+        { label: "Source", complete: true },
+        { label: "Scorer", complete: true },
+        { label: "Run", complete: true },
+        { label: "Review", complete: false },
+      ],
+    });
+  });
+
+  it("preserves review onboarding params when moving from usage list to detail", () => {
+    expect(
+      buildEvalReviewDetailHref(
+        "eval-1",
+        "?tab=usage&source=onboarding&step=review&run_id=run-1",
+      ),
+    ).toBe(
+      "/dashboard/evaluations/eval-1?tab=usage&source=onboarding&step=review&run_id=run-1",
+    );
+
+    expect(buildEvalReviewDetailHref("eval-1", "?tab=usage")).toBe(
+      "/dashboard/evaluations/eval-1",
+    );
+  });
+
+  it("builds a review route focus payload", () => {
+    expect(
+      buildEvalReviewRouteFocusPayload({
+        evalId: "eval-1",
+        route: "eval_detail",
+        runId: "run-1",
+      }),
+    ).toMatchObject({
+      eventName: "onboarding_eval_route_focus_viewed",
+      primaryPath: "evals",
+      stage: "review_eval_failures",
+      source: "eval_review_onboarding",
+      artifactType: "eval_review_route",
+      artifactId: "run-1",
+      metadata: {
+        eval_id: "eval-1",
+        route: "eval_detail",
+        run_id: "run-1",
+        step: "review",
+        tab: "usage",
+      },
+      idempotencyKey: "onboarding_eval_route_focus_viewed:review:run-1",
+    });
+  });
+
+  it("builds an eval failures reviewed payload without captured content", () => {
+    expect(
+      buildEvalFailuresReviewedPayload({
+        evalId: "eval-1",
+        runId: "run-1",
+      }),
+    ).toMatchObject({
+      eventName: "eval_failures_reviewed",
+      primaryPath: "evals",
+      stage: "review_eval_failures",
+      source: "eval_review_onboarding",
+      artifactType: "eval_run",
+      artifactId: "run-1",
+      metadata: {
+        eval_id: "eval-1",
+        run_id: "run-1",
+        step: "review",
+        tab: "usage",
+      },
+      idempotencyKey: "eval_failures_reviewed:run-1:eval-1",
     });
   });
 });

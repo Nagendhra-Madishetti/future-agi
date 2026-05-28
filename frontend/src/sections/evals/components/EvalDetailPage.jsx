@@ -57,6 +57,14 @@ import VersionBadge from "./VersionBadge";
 import { EVAL_TAGS } from "../constant";
 import { FAGI_MODEL_VALUES } from "./ModelSelector";
 import { buildDataInjection } from "src/sections/common/EvalPicker/evalPickerConfigUtils";
+import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/useRecordActivationEvent";
+import EvalOnboardingFocusPanel from "./EvalOnboardingFocusPanel";
+import {
+  buildEvalFailuresReviewedPayload,
+  buildEvalReviewRouteFocusPayload,
+  getEvalReviewOnboardingCopy,
+  getEvalReviewOnboardingParams,
+} from "./evalCreateOnboarding";
 
 const extract_selected_tools = (tools) => {
   if (Array.isArray(tools)) return tools;
@@ -116,6 +124,7 @@ const EvalDetailPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { enqueueSnackbar } = useSnackbar();
   const { isOSS } = useDeploymentMode();
+  const { mutate: recordActivationEvent } = useRecordActivationEvent();
 
   const {
     data: evalData,
@@ -126,6 +135,8 @@ const EvalDetailPage = () => {
   const createVersion = useCreateEvalVersion(evalId);
   const { data: versionsData } = useEvalVersions(evalId);
   const testPlaygroundRef = useRef(null);
+  const recordedOnboardingFocusRef = useRef(false);
+  const recordedReviewRef = useRef(false);
 
   // Editable fields
   const [instructions, setInstructions] = useState("");
@@ -191,6 +202,36 @@ const EvalDetailPage = () => {
   const [activeTab, setActiveTab] = useState(
     () => searchParams.get("tab") || "details",
   );
+  const reviewOnboardingParams = useMemo(
+    () => getEvalReviewOnboardingParams(searchParams),
+    [searchParams],
+  );
+  const reviewOnboardingCopy = useMemo(() => getEvalReviewOnboardingCopy(), []);
+
+  useEffect(() => {
+    if (!reviewOnboardingParams.isOnboarding) return;
+
+    if (!recordedOnboardingFocusRef.current) {
+      recordedOnboardingFocusRef.current = true;
+      recordActivationEvent?.(
+        buildEvalReviewRouteFocusPayload({
+          evalId,
+          route: "eval_detail",
+          runId: reviewOnboardingParams.runId,
+        }),
+      );
+    }
+
+    if (activeTab !== "usage" || recordedReviewRef.current) return;
+
+    recordedReviewRef.current = true;
+    recordActivationEvent?.(
+      buildEvalFailuresReviewedPayload({
+        evalId,
+        runId: reviewOnboardingParams.runId,
+      }),
+    );
+  }, [activeTab, evalId, recordActivationEvent, reviewOnboardingParams]);
 
   const handleTabChange = useCallback(
     (_, val) => {
@@ -830,7 +871,8 @@ const EvalDetailPage = () => {
       compositeChildren.forEach((c) => {
         const w = compositeChildWeights[c.child_id];
         if (w != null) weights[c.child_id] = w;
-        if (c.pinned_version_id) pinnedVersions[c.child_id] = c.pinned_version_id;
+        if (c.pinned_version_id)
+          pinnedVersions[c.child_id] = c.pinned_version_id;
       });
       const payload = {
         name: compositeName?.trim() || undefined,
@@ -1178,6 +1220,11 @@ const EvalDetailPage = () => {
           </Menu>
         </Box>
       </Box>
+
+      <EvalOnboardingFocusPanel
+        hidden={!reviewOnboardingParams.isOnboarding}
+        {...reviewOnboardingCopy}
+      />
 
       {/* Top Tabs */}
       <Tabs
@@ -1568,7 +1615,7 @@ const EvalDetailPage = () => {
                   ))}
 
                 {/* Error Localization */}
-                {!isComposite && evalType !== "code"  && (
+                {!isComposite && evalType !== "code" && (
                   <Box>
                     <FormControlLabel
                       control={

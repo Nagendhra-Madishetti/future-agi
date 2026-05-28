@@ -1,4 +1,7 @@
 const DEFAULT_ARTIFACT_ID = "eval-onboarding";
+const EVAL_REVIEW_ARTIFACT_ID = "eval-review";
+const EVAL_REVIEW_STEP = "review";
+const EVAL_REVIEW_STAGE = "review_eval_failures";
 
 export const EVAL_CREATE_ONBOARDING_STEPS = {
   DATA: "data",
@@ -45,6 +48,18 @@ const STEP_COPY = {
   },
 };
 
+const EVAL_REVIEW_COPY = {
+  currentStep: "Review",
+  description: "Inspect failures or summary before deciding what to fix next.",
+  title: "Review the eval result",
+  steps: [
+    { label: "Source", complete: true },
+    { label: "Scorer", complete: true },
+    { label: "Run", complete: true },
+    { label: "Review", complete: false },
+  ],
+};
+
 const validSteps = new Set(Object.values(EVAL_CREATE_ONBOARDING_STEPS));
 
 const compactMetadata = (metadata = {}) =>
@@ -59,8 +74,13 @@ const safeKeyPart = (value, fallback) =>
     .replace(/[^a-zA-Z0-9_-]/g, "-")
     .slice(0, 56);
 
+const toSearchParams = (search = "") =>
+  search instanceof URLSearchParams
+    ? new URLSearchParams(search)
+    : new URLSearchParams(search);
+
 export const getEvalCreateOnboardingParams = (search = "") => {
-  const params = new URLSearchParams(search);
+  const params = toSearchParams(search);
   const rawStep = params.get("step");
   const step = validSteps.has(rawStep)
     ? rawStep
@@ -79,8 +99,39 @@ export const getEvalCreateOnboardingCopy = ({ step } = {}) =>
   STEP_COPY[step] || STEP_COPY[EVAL_CREATE_ONBOARDING_STEPS.SCORER];
 
 export const buildEvalCreateDraftHref = (draftId, search = "") => {
-  const query = new URLSearchParams(search).toString();
+  const query = toSearchParams(search).toString();
   return `/dashboard/evaluations/create/${draftId}${query ? `?${query}` : ""}`;
+};
+
+export const getEvalReviewOnboardingParams = (search = "") => {
+  const params = toSearchParams(search);
+  const step = params.get("step");
+  const tab = params.get("tab") || "usage";
+
+  return {
+    isOnboarding:
+      params.get("source") === "onboarding" && step === EVAL_REVIEW_STEP,
+    runId: params.get("run_id"),
+    step,
+    tab,
+  };
+};
+
+export const getEvalReviewOnboardingCopy = () => EVAL_REVIEW_COPY;
+
+export const buildEvalReviewDetailHref = (evalId, search = "") => {
+  const reviewParams = getEvalReviewOnboardingParams(search);
+  const basePath = `/dashboard/evaluations/${evalId}`;
+
+  if (!reviewParams.isOnboarding) return basePath;
+
+  const params = new URLSearchParams();
+  params.set("tab", "usage");
+  params.set("source", "onboarding");
+  params.set("step", EVAL_REVIEW_STEP);
+  if (reviewParams.runId) params.set("run_id", reviewParams.runId);
+
+  return `${basePath}?${params.toString()}`;
 };
 
 export const evalCreateOnboardingStage = (step) =>
@@ -153,6 +204,61 @@ export const buildEvalScorerCreatedPayload = ({
       "eval_scorer_created",
       safeKeyPart(sourceId, "no-source"),
       artifactId,
+    ].join(":"),
+    isSample: false,
+  };
+};
+
+export const buildEvalReviewRouteFocusPayload = ({
+  evalId,
+  route = "eval_detail",
+  runId,
+} = {}) => {
+  const artifactId = safeKeyPart(runId || evalId, EVAL_REVIEW_ARTIFACT_ID);
+
+  return {
+    eventName: "onboarding_eval_route_focus_viewed",
+    primaryPath: "evals",
+    stage: EVAL_REVIEW_STAGE,
+    source: "eval_review_onboarding",
+    artifactType: "eval_review_route",
+    artifactId,
+    metadata: compactMetadata({
+      eval_id: evalId,
+      route,
+      run_id: runId,
+      step: EVAL_REVIEW_STEP,
+      tab: "usage",
+    }),
+    idempotencyKey: [
+      "onboarding_eval_route_focus_viewed",
+      EVAL_REVIEW_STEP,
+      artifactId,
+    ].join(":"),
+    isSample: false,
+  };
+};
+
+export const buildEvalFailuresReviewedPayload = ({ evalId, runId } = {}) => {
+  const artifactId = safeKeyPart(runId || evalId, EVAL_REVIEW_ARTIFACT_ID);
+
+  return {
+    eventName: "eval_failures_reviewed",
+    primaryPath: "evals",
+    stage: EVAL_REVIEW_STAGE,
+    source: "eval_review_onboarding",
+    artifactType: "eval_run",
+    artifactId,
+    metadata: compactMetadata({
+      eval_id: evalId,
+      run_id: runId,
+      step: EVAL_REVIEW_STEP,
+      tab: "usage",
+    }),
+    idempotencyKey: [
+      "eval_failures_reviewed",
+      safeKeyPart(runId, "no-run"),
+      safeKeyPart(evalId, "no-eval"),
     ].join(":"),
     isSample: false,
   };
