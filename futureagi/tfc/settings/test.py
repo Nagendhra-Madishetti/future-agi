@@ -215,6 +215,8 @@ if os.environ.get("ONBOARDING_TEST_FLAGS_ENABLED", "").lower() in {
         "daily_quality_home_enabled": False,
         "onboarding_activation_state_api": True,
         "onboarding_daily_quality_home": False,
+        "onboarding_eval_path": True,
+        "onboarding_eval_route_modes": True,
         "onboarding_goal_picker": True,
         "onboarding_home_enabled": True,
         "onboarding_lifecycle_dry_run_enabled": False,

@@ -51,6 +51,29 @@ const SOURCE_TYPE_ARTIFACT_TYPES = {
   trace_project: "observe_project",
 };
 
+const EVAL_STARTER_SCORER_CODE = `from typing import Any
+
+def _text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+def evaluate(input: Any, output: Any, expected: Any, context: dict, **kwargs):
+    context = context or {}
+    span = context.get("span") or {}
+    trace = context.get("trace") or {}
+    candidate_output = (
+        _text(output)
+        or _text(span.get("output"))
+        or _text(trace.get("output"))
+    )
+
+    if not candidate_output:
+        return {"score": 0.0, "reason": "No model output was found for this run."}
+    if len(candidate_output) < 20:
+        return {"score": 0.5, "reason": "Output exists but is short enough to review."}
+    return {"score": 1.0, "reason": "Output exists and is ready for review."}`;
+
 const STEP_COPY = {
   [EVAL_CREATE_ONBOARDING_STEPS.DATA]: {
     currentStep: "Source",
@@ -64,7 +87,8 @@ const STEP_COPY = {
   },
   [EVAL_CREATE_ONBOARDING_STEPS.SCORER]: {
     currentStep: "Scorer",
-    description: "Save one scorer so FutureAGI can evaluate this source.",
+    description:
+      "Start with a safe output-quality scorer, then save it to run this source.",
     title: "Add the eval scorer",
     steps: [
       { label: "Source", complete: true },
@@ -146,6 +170,9 @@ const safeKeyPart = (value, fallback) =>
     .replace(/[^a-zA-Z0-9_-]/g, "-")
     .slice(0, 56);
 
+const artifactTypeForSource = (sourceType, fallback = "eval") =>
+  SOURCE_TYPE_ARTIFACT_TYPES[sourceType] || fallback;
+
 const toSearchParams = (search = "") =>
   search instanceof URLSearchParams
     ? new URLSearchParams(search)
@@ -219,9 +246,32 @@ export const getEvalOnboardingSourceSummary = ({
     };
   }
 
+  if (step === EVAL_CREATE_ONBOARDING_STEPS.SCORER) {
+    return {
+      description:
+        "Starter scorer is ready. Edit it or save to run this source.",
+      label: `${SOURCE_TYPE_LABELS[sourceType] || "Source"} ready`,
+    };
+  }
+
   return {
-    description: "The next scorer you save will evaluate this source.",
+    description: "Run the saved scorer on this source.",
     label: `${SOURCE_TYPE_LABELS[sourceType] || "Source"} ready`,
+  };
+};
+
+export const getEvalStarterScorer = ({ sourceId, sourceType } = {}) => {
+  const sourceSlug = safeKeyPart(sourceId || sourceType, "source").slice(0, 12);
+  const sourceLabel = SOURCE_TYPE_LABELS[sourceType] || "source";
+
+  return {
+    code: EVAL_STARTER_SCORER_CODE,
+    codeLanguage: "python",
+    description: `Starter scorer for ${sourceLabel.toLowerCase()} onboarding.`,
+    evalType: "code",
+    name: `output-quality-${sourceSlug}`.toLowerCase(),
+    outputType: "percentage",
+    passThreshold: 0.7,
   };
 };
 
@@ -563,7 +613,7 @@ export const buildEvalDatasetCreatedPayload = ({
     primaryPath: "evals",
     stage: "create_eval_dataset",
     source: "eval_create_onboarding",
-    artifactType: "eval_source",
+    artifactType: "dataset",
     artifactId,
     metadata: compactMetadata({
       dataset_id: datasetId,
@@ -720,7 +770,7 @@ export const buildEvalReviewRouteFocusPayload = ({
     primaryPath: "evals",
     stage: EVAL_REVIEW_STAGE,
     source: "eval_review_onboarding",
-    artifactType: "eval_review_route",
+    artifactType: runId ? "eval_run" : "eval",
     artifactId,
     metadata: compactMetadata({
       eval_id: evalId,
@@ -757,7 +807,7 @@ export const buildEvalSourceFixRouteFocusPayload = ({
     primaryPath: "evals",
     stage: "fix_eval_source",
     source: "eval_review_onboarding",
-    artifactType: "eval_source_fix_route",
+    artifactType: artifactTypeForSource(sourceType, "eval_run"),
     artifactId,
     metadata: compactMetadata({
       eval_id: evalId,
@@ -794,7 +844,7 @@ export const buildEvalSourceFixRerunClickedPayload = ({
     primaryPath: "evals",
     stage: "fix_eval_source",
     source: "eval_review_onboarding",
-    artifactType: "eval_source_fix_route",
+    artifactType: artifactTypeForSource(sourceType, "eval_run"),
     artifactId,
     metadata: compactMetadata({
       eval_id: evalId,
@@ -924,7 +974,7 @@ export const buildEvalFailureActionCreatedPayload = ({
     primaryPath: "evals",
     stage: "fix_eval_source",
     source: "eval_review_onboarding",
-    artifactType: "eval_feedback",
+    artifactType: "eval_run",
     artifactId,
     metadata: compactMetadata({
       action_type: actionType,
@@ -966,7 +1016,7 @@ export const buildEvalSourceFixCtaClickedPayload = ({
     primaryPath: "evals",
     stage: "fix_eval_source",
     source: "eval_review_onboarding",
-    artifactType: "eval_source_fix_route",
+    artifactType: artifactTypeForSource(sourceType, "eval_run"),
     artifactId,
     metadata: compactMetadata({
       eval_id: evalId,

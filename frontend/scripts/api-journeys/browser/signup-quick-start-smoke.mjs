@@ -32,6 +32,8 @@ async function main() {
     activationEventPosts: [],
     activationStateRequests: [],
     apiFailures: [],
+    evalTemplateRequests: [],
+    evalTemplateResponses: [],
     onboardingPosts: [],
     sampleProjectPosts: [],
     sampleProjectResponses: [],
@@ -104,6 +106,15 @@ async function main() {
     if (path === "/accounts/sample-project/" && request.method() === "POST") {
       evidence.sampleProjectPosts.push(parseJsonPostData(request.postData()));
     }
+    if (isEvalTemplatePath(path) && isMutationMethod(request.method())) {
+      evidence.evalTemplateRequests.push({
+        method: request.method(),
+        path,
+        payload: summarizeEvalTemplatePayload(
+          parseJsonPostData(request.postData()),
+        ),
+      });
+    }
     if (/^\/tracer\/trace\/[^/]+\/$/.test(path) && request.method() === "GET") {
       evidence.traceDetailRequests.push(path);
     }
@@ -131,6 +142,24 @@ async function main() {
       } catch {
         evidence.sampleProjectResponses.push({ parse_error: true });
       }
+    }
+    if (
+      url &&
+      url.origin === new URL(API_BASE).origin &&
+      isEvalTemplatePath(path) &&
+      isMutationMethod(response.request().method())
+    ) {
+      const item = {
+        method: response.request().method(),
+        path,
+        status: response.status(),
+      };
+      try {
+        item.body = await response.json();
+      } catch {
+        item.body = { parse_error: true };
+      }
+      evidence.evalTemplateResponses.push(item);
     }
   });
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -170,7 +199,7 @@ async function main() {
     );
     await clickVisibleButtonText(page, "Create account and continue");
 
-    await expectVisibleText(page, "What's your role");
+    await expectVisibleText(page, "What's your role", { timeout: 90000 });
     await clickVisibleButtonText(page, "Connect observability first");
     await expectVisibleText(page, "Invite your team later");
     await expectVisibleText(page, "Continue now and review the first signal");
@@ -557,13 +586,13 @@ async function main() {
     await expectVisibleText(page, "Add the eval scorer", { timeout: 45000 });
     await expectVisibleText(
       page,
-      "Save one scorer so FutureAGI can evaluate this source.",
+      "Start with a safe output-quality scorer, then save it to run this source.",
       { timeout: 45000 },
     );
     await expectVisibleText(page, "Trace project ready", { timeout: 45000 });
     await expectVisibleText(
       page,
-      "The next scorer you save will evaluate this source.",
+      "Starter scorer is ready. Edit it or save to run this source.",
       { timeout: 45000 },
     );
     await waitForCondition(
@@ -603,6 +632,82 @@ async function main() {
       45000,
     );
     const evalScorerOnboardingUrl = page.url();
+    const starterScorerName =
+      `output-quality-${realProject.projectId.slice(0, 12)}`.toLowerCase();
+    await page.waitForFunction(
+      (expectedName) =>
+        Array.from(document.querySelectorAll("input")).some(
+          (element) => element.value === expectedName,
+        ),
+      { timeout: 45000 },
+      starterScorerName,
+    );
+    await clickVisibleButtonText(page, "Save starter scorer", 45000);
+    await page.waitForFunction(
+      ({ projectId }) => {
+        const params = new URLSearchParams(window.location.search);
+        return (
+          /^\/dashboard\/evaluations\/create\/[^/]+$/.test(
+            window.location.pathname,
+          ) &&
+          params.get("source") === "onboarding" &&
+          params.get("step") === "run" &&
+          params.get("source_type") === "trace_project" &&
+          params.get("source_id") === projectId
+        );
+      },
+      { timeout: 45000 },
+      { projectId: realProject.projectId },
+    );
+    await expectVisibleTestId(page, "eval-onboarding-focus", {
+      timeout: 45000,
+    });
+    await expectVisibleText(page, "Run", { timeout: 45000 });
+    await expectVisibleText(page, "Run the first eval", { timeout: 45000 });
+    await expectVisibleText(
+      page,
+      "Run the scorer once so the first eval result is reviewable.",
+      { timeout: 45000 },
+    );
+    await expectVisibleText(page, "Trace project ready", { timeout: 45000 });
+    await expectVisibleText(page, "Run the saved scorer on this source.", {
+      timeout: 45000,
+    });
+    await waitForCondition(
+      () =>
+        evidence.activationEventPosts.some(
+          (payload) =>
+            payload?.event_name === "eval_scorer_created" &&
+            payload?.primary_path === "evals" &&
+            payload?.stage === "add_eval_scorer" &&
+            payload?.source === "eval_create_onboarding" &&
+            payload?.artifact_type === "eval_scorer" &&
+            payload?.metadata?.source_id === realProject.projectId &&
+            payload?.metadata?.source_type === "trace_project" &&
+            payload?.metadata?.eval_type === "code" &&
+            payload?.metadata?.step === "scorer",
+        ),
+      "Expected eval scorer created activation event.",
+      45000,
+    );
+    await waitForCondition(
+      () =>
+        evidence.activationEventPosts.some(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_route_focus_viewed" &&
+            payload?.primary_path === "evals" &&
+            payload?.stage === "run_eval" &&
+            payload?.source === "eval_create_onboarding" &&
+            payload?.artifact_type === "eval" &&
+            payload?.artifact_id === realProject.projectId &&
+            payload?.metadata?.source_id === realProject.projectId &&
+            payload?.metadata?.source_type === "trace_project" &&
+            payload?.metadata?.step === "run",
+        ),
+      "Expected focused eval run activation event.",
+      45000,
+    );
+    const evalRunOnboardingUrl = page.url();
 
     assert(evidence.signupPosts.length === 1, "Expected one signup POST.");
     assert(evidence.tokenPosts.length === 1, "Expected one token POST.");
@@ -729,6 +834,20 @@ async function main() {
                 payload?.artifact_id === realProject.projectId,
             ),
             eval_scorer_onboarding_url: evalScorerOnboardingUrl,
+            eval_scorer_created_event: evidence.activationEventPosts.find(
+              (payload) =>
+                payload?.event_name === "eval_scorer_created" &&
+                payload?.metadata?.source_id === realProject.projectId,
+            ),
+            eval_template_requests: evidence.evalTemplateRequests,
+            eval_template_responses: evidence.evalTemplateResponses,
+            eval_run_focus_event: evidence.activationEventPosts.find(
+              (payload) =>
+                payload?.event_name === "onboarding_eval_route_focus_viewed" &&
+                payload?.stage === "run_eval" &&
+                payload?.artifact_id === realProject.projectId,
+            ),
+            eval_run_onboarding_url: evalRunOnboardingUrl,
             post_review_home_url: postReviewHomeUrl,
             post_review_state: summarizeActivationState(postReviewState),
             real_observe_project: realProject,
@@ -865,7 +984,7 @@ async function fillVisibleInput(
   value,
   { timeout = 30000 } = {},
 ) {
-  await page.waitForFunction(
+  const handle = await page.waitForFunction(
     (targetSelector) => {
       const isVisible = (element) => {
         const style = window.getComputedStyle(element);
@@ -880,37 +999,19 @@ async function fillVisibleInput(
       };
       return Array.from(document.querySelectorAll(targetSelector)).some(
         isVisible,
-      );
+      )
+        ? Array.from(document.querySelectorAll(targetSelector)).find(isVisible)
+        : false;
     },
     { timeout },
     selector,
   );
-  await page.evaluate(
-    ({ targetSelector, nextValue }) => {
-      const isVisible = (element) => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return (
-          style.visibility !== "hidden" &&
-          style.display !== "none" &&
-          rect.width > 0 &&
-          rect.height > 0 &&
-          !element.disabled
-        );
-      };
-      const input = Array.from(document.querySelectorAll(targetSelector)).find(
-        isVisible,
-      );
-      const valueSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        "value",
-      )?.set;
-      valueSetter?.call(input, nextValue);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    },
-    { targetSelector: selector, nextValue: value },
-  );
+  const input = handle.asElement();
+  assert(input, `Expected visible input: ${selector}`);
+  await input.click({ clickCount: 3 });
+  await page.keyboard.press("Backspace");
+  await input.type(value);
+  await handle.dispose();
 }
 
 async function expectVisibleTestId(page, testId, { timeout = 30000 } = {}) {
@@ -1052,24 +1153,23 @@ async function clickVisibleButtonText(page, text, timeout = 30000) {
           !element.disabled
         );
       };
-      return (
-        Array.from(document.querySelectorAll("button")).find(
-          (element) =>
-            isVisible(element) &&
-            normalized(element.textContent) === expectedText,
-        ) || false
+      const button = Array.from(document.querySelectorAll("button")).find(
+        (element) =>
+          isVisible(element) &&
+          normalized(element.textContent) === expectedText,
       );
+      return button || false;
     },
     { timeout },
     text,
   );
-  const button = handle.asElement();
-  assert(button, `Expected visible button: ${text}`);
-  await button.click();
-  await handle.dispose();
+  const element = handle.asElement();
+  assert(element, `Expected visible button for ${text}.`);
+  await element.click();
 }
 
 function parseJsonPostData(requestOrData) {
+  if (!requestOrData) return {};
   const value =
     typeof requestOrData === "string"
       ? requestOrData
@@ -1248,8 +1348,31 @@ function isTrackedApiPath(path) {
     path === "/accounts/activation-events/" ||
     path === "/accounts/activation-state/" ||
     path === "/accounts/user-info/" ||
+    isEvalTemplatePath(path) ||
     /^\/tracer\/trace\/[^/]+\/$/.test(path)
   );
+}
+
+function isEvalTemplatePath(path) {
+  return (
+    path === "/model-hub/eval-templates/create-v2/" ||
+    /^\/model-hub\/eval-templates\/[^/]+\/update\/$/.test(path)
+  );
+}
+
+function isMutationMethod(method) {
+  return ["POST", "PUT", "PATCH", "DELETE"].includes(String(method || ""));
+}
+
+function summarizeEvalTemplatePayload(payload = {}) {
+  return {
+    eval_type: payload.eval_type,
+    has_code: typeof payload.code === "string" && payload.code.length > 0,
+    is_draft: payload.is_draft,
+    name: payload.name,
+    output_type: payload.output_type,
+    publish: payload.publish,
+  };
 }
 
 async function waitForCondition(condition, message, timeout = 30000) {
@@ -1265,7 +1388,7 @@ async function safeBodyText(page) {
   try {
     return String(
       await page.evaluate(() => document.body?.innerText || ""),
-    ).slice(0, 1600);
+    ).slice(0, 5000);
   } catch (error) {
     return error.message;
   }

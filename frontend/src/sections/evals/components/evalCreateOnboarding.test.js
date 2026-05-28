@@ -37,6 +37,7 @@ import {
   getEvalReviewOnboardingCopy,
   getEvalReviewOnboardingParams,
   getEvalRunResultId,
+  getEvalStarterScorer,
   getEvalSourceFixOnboardingCopy,
   getEvalSourceFixOnboardingParams,
 } from "./evalCreateOnboarding";
@@ -181,7 +182,20 @@ describe("evalCreateOnboarding", () => {
         step: EVAL_CREATE_ONBOARDING_STEPS.SCORER,
       }),
     ).toEqual({
-      description: "The next scorer you save will evaluate this source.",
+      description:
+        "Starter scorer is ready. Edit it or save to run this source.",
+      label: "Dataset ready",
+    });
+
+    expect(
+      getEvalOnboardingSourceSummary({
+        isOnboarding: true,
+        sourceId: "data-1",
+        sourceType: "dataset",
+        step: EVAL_CREATE_ONBOARDING_STEPS.RUN,
+      }),
+    ).toEqual({
+      description: "Run the saved scorer on this source.",
       label: "Dataset ready",
     });
 
@@ -196,6 +210,24 @@ describe("evalCreateOnboarding", () => {
       description: "Use this source to add a scorer next.",
       label: "Dataset selected",
     });
+  });
+
+  it("builds an OSS-safe starter scorer for the scorer step", () => {
+    const starter = getEvalStarterScorer({
+      sourceId: "project-1",
+      sourceType: "trace_project",
+    });
+
+    expect(starter).toMatchObject({
+      codeLanguage: "python",
+      description: "Starter scorer for trace project onboarding.",
+      evalType: "code",
+      name: "output-quality-project-1",
+      outputType: "percentage",
+      passThreshold: 0.7,
+    });
+    expect(starter.code).toContain("def evaluate(");
+    expect(starter.code).toContain('context.get("span")');
   });
 
   it("builds a safe route focus payload", () => {
@@ -266,7 +298,7 @@ describe("evalCreateOnboarding", () => {
       primaryPath: "evals",
       stage: "create_eval_dataset",
       source: "eval_create_onboarding",
-      artifactType: "eval_source",
+      artifactType: "dataset",
       artifactId: "data-1",
       metadata: {
         dataset_id: "data-1",
@@ -633,7 +665,7 @@ describe("evalCreateOnboarding", () => {
       primaryPath: "evals",
       stage: "review_eval_failures",
       source: "eval_review_onboarding",
-      artifactType: "eval_review_route",
+      artifactType: "eval_run",
       artifactId: "run-1",
       metadata: {
         eval_id: "eval-1",
@@ -765,7 +797,7 @@ describe("evalCreateOnboarding", () => {
       primaryPath: "evals",
       stage: "fix_eval_source",
       source: "eval_review_onboarding",
-      artifactType: "eval_feedback",
+      artifactType: "eval_run",
       artifactId: "feedback-1",
       metadata: {
         action_type: "recalculate",
@@ -802,7 +834,7 @@ describe("evalCreateOnboarding", () => {
       primaryPath: "evals",
       stage: "fix_eval_source",
       source: "eval_review_onboarding",
-      artifactType: "eval_source_fix_route",
+      artifactType: "dataset",
       artifactId: "data-1",
       metadata: {
         eval_id: "eval-1",
@@ -834,7 +866,7 @@ describe("evalCreateOnboarding", () => {
       primaryPath: "evals",
       stage: "fix_eval_source",
       source: "eval_review_onboarding",
-      artifactType: "eval_source_fix_route",
+      artifactType: "dataset",
       artifactId: "data-1",
       metadata: {
         eval_id: "eval-1",
@@ -867,7 +899,7 @@ describe("evalCreateOnboarding", () => {
       primaryPath: "evals",
       stage: "fix_eval_source",
       source: "eval_review_onboarding",
-      artifactType: "eval_source_fix_route",
+      artifactType: "dataset",
       artifactId: "data-1",
       metadata: {
         eval_id: "eval-1",

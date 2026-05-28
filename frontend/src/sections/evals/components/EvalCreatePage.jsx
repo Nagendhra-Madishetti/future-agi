@@ -63,6 +63,7 @@ import {
   getEvalCreateOnboardingParams,
   getEvalOnboardingSourceSummary,
   getEvalRunResultId,
+  getEvalStarterScorer,
 } from "./evalCreateOnboarding";
 
 const EVAL_TYPE_TABS = [
@@ -263,8 +264,13 @@ const EvalCreatePage = () => {
   const [testPassed, setTestPassed] = useState(false);
   const [testError, setTestError] = useState(null);
   const [draftId, setDraftId] = useState(urlDraftId || null);
+  const [draftLoadComplete, setDraftLoadComplete] = useState(!urlDraftId);
   const [isTesting, setIsTesting] = useState(false);
   const draftCreating = useRef(false);
+  const autoSaveTimer = useRef(null);
+  const autoSaveSkipFirst = useRef(!!urlDraftId);
+  const skipNextAutoSaveRef = useRef(false);
+  const appliedStarterScorerRef = useRef(null);
 
   // Warn before switching modes if there's in-flight work we'd lose.
   const [pendingMode, setPendingMode] = useState(null);
@@ -404,6 +410,8 @@ const EvalCreatePage = () => {
         } catch {
           // Draft not found — create a new one
           setDraftId(null);
+        } finally {
+          setDraftLoadComplete(true);
         }
       })();
       return;
@@ -516,25 +524,59 @@ const EvalCreatePage = () => {
     );
   }, [draftId, handleOnboardingSourceSelected, navigate, onboardingParams]);
 
-  const onboardingPrimaryAction = useMemo(() => {
+  const handleUseStarterScorer = useCallback(() => {
     if (
       !onboardingParams.isOnboarding ||
-      onboardingParams.step !== EVAL_CREATE_ONBOARDING_STEPS.DATA ||
-      !onboardingParams.sourceId ||
-      !onboardingParams.sourceType
+      onboardingParams.step !== EVAL_CREATE_ONBOARDING_STEPS.SCORER
     ) {
-      return null;
+      return;
     }
 
-    return {
-      disabled: !draftId,
-      label:
-        onboardingParams.sourceType === "trace_project"
-          ? "Use trace project"
-          : "Use source",
-      onClick: handleConfirmOnboardingSource,
-    };
-  }, [draftId, handleConfirmOnboardingSource, onboardingParams]);
+    const starter = getEvalStarterScorer({
+      sourceId: onboardingParams.sourceId,
+      sourceType: onboardingParams.sourceType,
+    });
+    skipNextAutoSaveRef.current = true;
+    setMode("single");
+    setEvalType(starter.evalType);
+    setName(starter.name);
+    setDescription(starter.description);
+    setCode(starter.code);
+    setCodeLanguage(starter.codeLanguage);
+    setOutputType(starter.outputType);
+    setPassThreshold(starter.passThreshold);
+    setTestPassed(false);
+    setTestError(null);
+  }, [onboardingParams]);
+
+  useEffect(() => {
+    const shouldApplyStarter =
+      draftLoadComplete &&
+      onboardingParams.isOnboarding &&
+      onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.SCORER &&
+      onboardingParams.sourceId &&
+      onboardingParams.sourceType &&
+      !name.trim() &&
+      evalType === "agent" &&
+      code === PYTHON_CODE_TEMPLATE &&
+      !description.trim();
+
+    if (!shouldApplyStarter) return;
+
+    const starterKey = `${onboardingParams.sourceType}:${onboardingParams.sourceId}`;
+    if (appliedStarterScorerRef.current === starterKey) return;
+
+    appliedStarterScorerRef.current = starterKey;
+    handleUseStarterScorer();
+  }, [
+    code,
+    description,
+    draftLoadComplete,
+    evalType,
+    handleUseStarterScorer,
+    name,
+    onboardingParams,
+  ]);
 
   const handleCreateOnboardingSource = useCallback(() => {
     if (!onboardingSourceSetupHref) return;
@@ -542,8 +584,6 @@ const EvalCreatePage = () => {
   }, [navigate, onboardingSourceSetupHref]);
 
   // Auto-save config to draft (debounced, skip initial load)
-  const autoSaveTimer = useRef(null);
-  const autoSaveSkipFirst = useRef(!!urlDraftId); // skip first trigger when loading existing draft
   const buildUpdatePayload = useCallback(() => {
     const dataInjection = buildDataInjection(contextOptions);
 
@@ -558,7 +598,7 @@ const EvalCreatePage = () => {
       eval_type: evalType,
       instructions:
         evalType === "code"
-          ? ""
+          ? undefined
           : evalType === "llm"
             ? instructions ||
               messages.find((m) => m.role === "system")?.content ||
@@ -616,6 +656,10 @@ const EvalCreatePage = () => {
       autoSaveSkipFirst.current = false;
       return;
     }
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return;
+    }
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       updateDraft.mutate(buildUpdatePayload());
@@ -638,7 +682,7 @@ const EvalCreatePage = () => {
       );
       return;
     }
-    if (isOSS && FAGI_MODEL_VALUES.has(model)) {
+    if (isOSS && evalType !== "code" && FAGI_MODEL_VALUES.has(model)) {
       enqueueSnackbar(
         "Turing models are not available in OSS. Please select your own model.",
         { variant: "error" },
@@ -886,6 +930,46 @@ const EvalCreatePage = () => {
   // don't have a test flow in the create page — their children already exist
   // and can be tested individually.
   const canSave = mode === "single" ? canSaveSingle : canSaveComposite;
+
+  const onboardingPrimaryAction = useMemo(() => {
+    if (
+      !onboardingParams.isOnboarding ||
+      !onboardingParams.sourceId ||
+      !onboardingParams.sourceType
+    ) {
+      return null;
+    }
+
+    if (onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.SCORER) {
+      return {
+        disabled: !draftId || isLoading || !canSave,
+        label: "Save starter scorer",
+        onClick: mode === "single" ? handleSaveSingle : handleSaveComposite,
+      };
+    }
+
+    if (onboardingParams.step !== EVAL_CREATE_ONBOARDING_STEPS.DATA) {
+      return null;
+    }
+
+    return {
+      disabled: !draftId,
+      label:
+        onboardingParams.sourceType === "trace_project"
+          ? "Use trace project"
+          : "Use source",
+      onClick: handleConfirmOnboardingSource,
+    };
+  }, [
+    canSave,
+    draftId,
+    handleConfirmOnboardingSource,
+    handleSaveComposite,
+    handleSaveSingle,
+    isLoading,
+    mode,
+    onboardingParams,
+  ]);
 
   return (
     <Box
