@@ -1,5 +1,7 @@
 const DEFAULT_ARTIFACT_ID = "eval-onboarding";
 const EVAL_REVIEW_ARTIFACT_ID = "eval-review";
+const EVAL_FIX_ARTIFACT_ID = "eval-failure-action";
+const EVAL_FIX_STEP = "fix-eval-failure";
 const EVAL_REVIEW_STEP = "review";
 const EVAL_REVIEW_STAGE = "review_eval_failures";
 
@@ -146,6 +148,19 @@ export const getEvalReviewOnboardingParams = (search = "") => {
     runId: params.get("run_id"),
     step,
     tab,
+  };
+};
+
+export const getEvalFailureActionOnboardingParams = (search = "") => {
+  const params = toSearchParams(search);
+  const step = params.get("step");
+
+  return {
+    isOnboarding:
+      params.get("source") === "onboarding" &&
+      [EVAL_REVIEW_STEP, EVAL_FIX_STEP].includes(step),
+    runId: params.get("run_id"),
+    step,
   };
 };
 
@@ -340,6 +355,45 @@ export const buildEvalFailuresReviewedPayload = ({ evalId, runId } = {}) => {
     idempotencyKey: [
       "eval_failures_reviewed",
       safeKeyPart(runId, "no-run"),
+      safeKeyPart(evalId, "no-eval"),
+    ].join(":"),
+    isSample: false,
+  };
+};
+
+export const buildEvalFailureActionCreatedPayload = ({
+  actionType,
+  evalId,
+  evalLogId,
+  feedbackId,
+  rowSource,
+  runId,
+  step,
+} = {}) => {
+  const artifactId = safeKeyPart(
+    feedbackId || evalLogId || runId || evalId,
+    EVAL_FIX_ARTIFACT_ID,
+  );
+
+  return {
+    eventName: "eval_failure_action_created",
+    primaryPath: "evals",
+    stage: "fix_eval_source",
+    source: "eval_review_onboarding",
+    artifactType: "eval_feedback",
+    artifactId,
+    metadata: compactMetadata({
+      action_type: actionType,
+      eval_id: evalId,
+      eval_log_id: evalLogId,
+      feedback_id: feedbackId,
+      row_source: rowSource,
+      run_id: runId,
+      step: step || EVAL_FIX_STEP,
+    }),
+    idempotencyKey: [
+      "eval_failure_action_created",
+      safeKeyPart(feedbackId || evalLogId, "no-feedback"),
       safeKeyPart(evalId, "no-eval"),
     ].join(":"),
     isSample: false,

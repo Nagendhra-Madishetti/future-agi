@@ -15,12 +15,12 @@ import PropTypes from "prop-types";
 import React, { useCallback, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router";
 import { DataTable, DataTablePagination } from "src/components/data-table";
 import FormSearchField from "src/components/FormSearchField/FormSearchField";
 import Iconify from "src/components/iconify";
 import CustomTooltip from "src/components/tooltip";
 import { useDebounce } from "src/hooks/use-debounce";
-import axios, { endpoints } from "src/utils/axios";
 import DateTimeRangePicker from "src/sections/projects/DateTimeRangePicker";
 import AddEvalsFeedbackDrawer from "src/sections/evals/EvalDetails/EvalsFeedback/AddEvalsFeedbackDrawer";
 
@@ -31,6 +31,11 @@ import PartialInputWarningDetails, {
 import { useEvalUsageChart, useEvalUsageLogs } from "../hooks/useEvalUsage";
 import { isEditableElement } from "src/utils/keyboardUtils";
 import UsageChart from "./UsageChart";
+import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/useRecordActivationEvent";
+import {
+  buildEvalFailureActionCreatedPayload,
+  getEvalFailureActionOnboardingParams,
+} from "./evalCreateOnboarding";
 
 // ── Inline stat ──
 const StatPill = ({ label, value, color }) => (
@@ -387,6 +392,8 @@ const EvalUsageTab = ({
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const { mutate: recordActivationEvent } = useRecordActivationEvent();
 
   const [dateOption, setDateOption] = useState("30D");
   const [dateFilter, setDateFilter] = useState(null);
@@ -397,6 +404,10 @@ const EvalUsageTab = ({
   const debouncedSearch = useDebounce(searchQuery.trim(), 400);
 
   const period = DATE_OPTION_TO_PERIOD[dateOption] || "30d";
+  const failureActionOnboardingParams = useMemo(
+    () => getEvalFailureActionOnboardingParams(location.search),
+    [location.search],
+  );
 
   // Split queries
   const { data: chartData, isLoading: chartLoading } = useEvalUsageChart(
@@ -442,6 +453,24 @@ const EvalUsageTab = ({
       queryKey: ["evals", "usage-logs", templateId],
     });
   }, [queryClient, templateId]);
+  const handleFailureActionSubmitted = useCallback(
+    ({ actionType, feedbackId, logId, row } = {}) => {
+      if (!failureActionOnboardingParams.isOnboarding) return;
+
+      recordActivationEvent?.(
+        buildEvalFailureActionCreatedPayload({
+          actionType,
+          evalId: templateId,
+          evalLogId: logId || row?.id,
+          feedbackId,
+          rowSource: row?.source,
+          runId: failureActionOnboardingParams.runId,
+          step: failureActionOnboardingParams.step,
+        }),
+      );
+    },
+    [failureActionOnboardingParams, recordActivationEvent, templateId],
+  );
 
   // Keyboard shortcuts for prev/next when panel is open
   React.useEffect(() => {
@@ -626,7 +655,7 @@ const EvalUsageTab = ({
               />
             </Box>
           </Box>
-          <Box sx={{ flex: 1,overflowY: "auto", minHeight: 0 }}>
+          <Box sx={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
             <DataTable
               columns={columns}
               data={filteredLogs}
@@ -780,6 +809,7 @@ const EvalUsageTab = ({
               templateId={templateId}
               evalType={evalType}
               onFeedbackSubmitted={handleFeedbackSubmitted}
+              onFailureActionSubmitted={handleFailureActionSubmitted}
             />
           )}
         </Box>
@@ -788,13 +818,13 @@ const EvalUsageTab = ({
   );
 };
 
-
 // ── Detail panel content with Formatted/JSON tabs + feedback ──
 const DetailPanelContent = ({
   row,
   isDark,
   templateId,
   evalType = "llm",
+  onFailureActionSubmitted,
   onFeedbackSubmitted,
 }) => {
   const [viewMode, setViewMode] = useState("formatted");
@@ -1212,6 +1242,9 @@ const DetailPanelContent = ({
                   setFeedbackOpen(false);
                   if (submitted) onFeedbackSubmitted?.();
                 }}
+                onSubmitted={(submission) =>
+                  onFailureActionSubmitted?.({ ...submission, row })
+                }
                 selectedAddFeedback={{ id: row.id }}
                 output={{ reason: row.reason || "" }}
                 evalsId={templateId}

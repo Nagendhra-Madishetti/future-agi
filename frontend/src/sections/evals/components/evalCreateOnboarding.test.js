@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEvalCreateDraftHref,
+  buildEvalFailureActionCreatedPayload,
   buildEvalFailuresReviewedPayload,
   buildEvalReviewDetailHref,
   buildEvalReviewRouteFocusPayload,
@@ -13,6 +14,7 @@ import {
   getEvalCreateInitialSourceTab,
   getEvalCreateOnboardingCopy,
   getEvalCreateOnboardingParams,
+  getEvalFailureActionOnboardingParams,
   getEvalReviewOnboardingCopy,
   getEvalReviewOnboardingParams,
 } from "./evalCreateOnboarding";
@@ -260,5 +262,57 @@ describe("evalCreateOnboarding", () => {
       },
       idempotencyKey: "eval_failures_reviewed:run-1:eval-1",
     });
+  });
+
+  it("parses eval failure action onboarding query params", () => {
+    expect(
+      getEvalFailureActionOnboardingParams(
+        "?source=onboarding&step=fix-eval-failure&run_id=run-1",
+      ),
+    ).toEqual({
+      isOnboarding: true,
+      runId: "run-1",
+      step: "fix-eval-failure",
+    });
+
+    expect(getEvalFailureActionOnboardingParams("?source=onboarding")).toEqual({
+      isOnboarding: false,
+      runId: null,
+      step: null,
+    });
+  });
+
+  it("builds an eval failure action payload without feedback content", () => {
+    const payload = buildEvalFailureActionCreatedPayload({
+      actionType: "recalculate",
+      evalId: "eval-1",
+      evalLogId: "log-1",
+      feedbackId: "feedback-1",
+      rowSource: "eval_playground",
+      runId: "run-1",
+      step: "review",
+    });
+
+    expect(payload).toMatchObject({
+      eventName: "eval_failure_action_created",
+      primaryPath: "evals",
+      stage: "fix_eval_source",
+      source: "eval_review_onboarding",
+      artifactType: "eval_feedback",
+      artifactId: "feedback-1",
+      metadata: {
+        action_type: "recalculate",
+        eval_id: "eval-1",
+        eval_log_id: "log-1",
+        feedback_id: "feedback-1",
+        row_source: "eval_playground",
+        run_id: "run-1",
+        step: "review",
+      },
+      idempotencyKey: "eval_failure_action_created:feedback-1:eval-1",
+    });
+    expect(payload.metadata).not.toHaveProperty("value");
+    expect(payload.metadata).not.toHaveProperty("explanation");
+    expect(payload.metadata).not.toHaveProperty("reason");
   });
 });
