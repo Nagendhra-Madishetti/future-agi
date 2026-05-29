@@ -246,7 +246,7 @@ thumbs-down `False`, empty text `""`.
 Add a test in `test_annotation_e2e_gaps.py`: submit all required labels on
 item A, call `next-item`, assert returned item is B (not A).
 
-### P3 #14 — CH-unavailable fallback test (codex bonus)
+### P3 #14 — CH-unavailable fallback test
 
 Force-disable ClickHouse via env, assert PG fallback works for trace
 annotation reads. Catches "silently using PG" config drift.
