@@ -194,7 +194,8 @@ describe("observeOnboardingRoute", () => {
       getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE),
     ).toMatchObject({
       currentStep: "First trace",
-      primaryLabel: "Refresh traces",
+      primaryLabel: "Open setup",
+      secondaryLabel: "Refresh traces",
       title: "Send the first trace",
     });
     expect(

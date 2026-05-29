@@ -625,7 +625,8 @@ const ObservePage = React.memo(() => {
     if (
       observeOnboardingParams.mode === OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE
     ) {
-      refreshOnboardingFirstTrace();
+      navigate("/dashboard/observe?setup=true&source=onboarding");
+      return;
     }
     refreshObserveData?.();
   }, [
@@ -633,7 +634,6 @@ const ObservePage = React.memo(() => {
     navigate,
     observeId,
     observeOnboardingParams.mode,
-    refreshOnboardingFirstTrace,
     refreshObserveData,
   ]);
 
@@ -650,11 +650,16 @@ const ObservePage = React.memo(() => {
       return;
     }
 
-    navigate("/dashboard/observe?setup=true&source=onboarding");
+    if (
+      observeOnboardingParams.mode === OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE
+    ) {
+      refreshOnboardingFirstTrace();
+      refreshObserveData?.();
+    }
   }, [
     firstTraceReviewTarget,
-    navigate,
     observeOnboardingParams.mode,
+    refreshOnboardingFirstTrace,
     refreshObserveData,
   ]);
 
@@ -664,10 +669,17 @@ const ObservePage = React.memo(() => {
       observeOnboardingParams.mode ===
       OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR;
     const isReviewReady = Boolean(firstTraceReviewTarget);
+    const isWaitingForFirstTrace =
+      observeOnboardingParams.mode ===
+      OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE;
     return {
       label: observeOnboardingCopy.primaryLabel,
       onClick: handleObservePrimaryAction,
-      disabled: !isCreateEvaluator && !isReviewReady && !refreshObserveData,
+      disabled:
+        !isCreateEvaluator &&
+        !isReviewReady &&
+        !isWaitingForFirstTrace &&
+        !refreshObserveData,
     };
   }, [
     firstTraceReviewTarget,
@@ -683,10 +695,16 @@ const ObservePage = React.memo(() => {
       observeOnboardingParams.mode ===
       OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR;
     const isReviewReady = Boolean(firstTraceReviewTarget);
+    const isWaitingForFirstTrace =
+      observeOnboardingParams.mode ===
+      OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE;
     return {
       label: observeOnboardingCopy.secondaryLabel,
       onClick: handleObserveSecondaryAction,
-      disabled: (isCreateEvaluator || isReviewReady) && !refreshObserveData,
+      disabled:
+        (isCreateEvaluator || isReviewReady) &&
+        !isWaitingForFirstTrace &&
+        !refreshObserveData,
     };
   }, [
     firstTraceReviewTarget,

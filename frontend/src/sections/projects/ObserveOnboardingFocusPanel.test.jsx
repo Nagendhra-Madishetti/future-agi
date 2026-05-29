@@ -24,8 +24,8 @@ describe("ObserveOnboardingFocusPanel", () => {
       <ObserveOnboardingFocusPanel
         currentStep="First trace"
         description="Send one trace to unlock review."
-        primaryAction={{ label: "Refresh traces", onClick: onPrimary }}
-        secondaryAction={{ label: "Open setup", onClick: onSecondary }}
+        primaryAction={{ label: "Open setup", onClick: onPrimary }}
+        secondaryAction={{ label: "Refresh traces", onClick: onSecondary }}
         steps={[
           { label: "Project", complete: true },
           { label: "Trace", complete: false },

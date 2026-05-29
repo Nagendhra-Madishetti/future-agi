@@ -326,6 +326,23 @@ async function main() {
       );
       evidence.first_trace_step_url = relativeUrl(page.url());
       await expectSelector(page, '[data-testid="observe-onboarding-focus"]');
+      const firstTraceStepActions = await visibleActionTexts(page, {
+        rootSelector: '[data-testid="observe-onboarding-focus"]',
+      });
+      assert(
+        firstTraceStepActions.includes("Refresh traces"),
+        `Expected refresh action to remain available. Actions: ${firstTraceStepActions.join(
+          ", ",
+        )}`,
+      );
+      assert(
+        firstTraceStepActions.at(-1) ===
+          (EXISTING_TRACE ? "Review trace" : "Open setup"),
+        `Unexpected first-trace primary action. Actions: ${firstTraceStepActions.join(
+          ", ",
+        )}`,
+      );
+      evidence.first_trace_step_actions = firstTraceStepActions;
       if (EXISTING_TRACE) {
         await expectVisibleText(page, "First trace received", {
           exact: true,

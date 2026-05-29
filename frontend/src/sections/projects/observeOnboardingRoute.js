@@ -130,8 +130,8 @@ export const getObserveOnboardingCopy = (mode, { source } = {}) => {
       currentStep: "First trace",
       description:
         "Send one production or test trace to unlock the first review step.",
-      primaryLabel: "Refresh traces",
-      secondaryLabel: "Open setup",
+      primaryLabel: "Open setup",
+      secondaryLabel: "Refresh traces",
       steps: [
         { label: "Project", complete: true },
         { label: "Trace", complete: false },
