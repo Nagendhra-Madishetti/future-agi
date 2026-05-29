@@ -11,7 +11,6 @@ import {
   Select,
   Slider,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import CustomTooltip from "src/components/tooltip/CustomTooltip";
@@ -552,8 +551,8 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
       }
       setErrorLocalizerEnabled(
         config.error_localizer_enabled ??
-        fullEval.error_localizer_enabled ??
-        false,
+          fullEval.error_localizer_enabled ??
+          false,
       );
 
       // Edit mode: keep the saved name. Create mode: generate a unique name
@@ -648,8 +647,8 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
         setUseInternet(fullEval.config?.check_internet ?? false);
         setErrorLocalizerEnabled(
           fullEval.error_localizer_enabled ??
-          fullEval.config?.error_localizer_enabled ??
-          false,
+            fullEval.config?.error_localizer_enabled ??
+            false,
         );
         setIsDirty(false);
         return;
@@ -1414,8 +1413,10 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
                       This prompt is customized for this evaluation. The
                       template default is different.
                     </Typography>
-                    <Tooltip
-                      placement="top"
+                    <CustomTooltip
+                      show
+                      type=""
+                      arrow
                       title={
                         <Box
                           sx={{
@@ -1429,19 +1430,21 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
                         </Box>
                       }
                     >
-                      <Button
-                        size="small"
-                        variant="text"
-                        sx={{
-                          textTransform: "none",
-                          fontSize: "11px",
-                          py: 0.25,
-                          minWidth: 0,
-                        }}
-                      >
-                        View template
-                      </Button>
-                    </Tooltip>
+                      <span>
+                        <Button
+                          size="small"
+                          variant="text"
+                          sx={{
+                            textTransform: "none",
+                            fontSize: "11px",
+                            py: 0.25,
+                            minWidth: 0,
+                          }}
+                        >
+                          View template
+                        </Button>
+                      </span>
+                    </CustomTooltip>
                     <Button
                       size="small"
                       variant="outlined"
@@ -1601,7 +1604,10 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
                     Code evaluator returns a score between 0 and 1. Set a pass
                     threshold below.
                   </Typography>
-                  <Typography variant="subtitle2"  sx={{ mb: 0.5,color:"text.primary" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ mb: 0.5, color: "text.primary" }}
+                  >
                     Pass Threshold
                   </Typography>
                   <Typography
@@ -1765,27 +1771,27 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
                   source === "workbench" ||
                   source === "run-experiment" ||
                   source === "run-optimization") && (
-                    <DatasetTestMode
-                      ref={sourceRef}
-                      templateId={templateId}
-                      variables={variables}
-                      model={model}
-                      codeParams={codeParams}
-                      onTestResult={handleTestResult}
-                      onClearResult={handleClearTestResult}
-                      onColumnsLoaded={handleColumnsLoaded}
-                      initialDatasetId={sourceId}
-                      onReadyChange={handleSourceReadyChange}
-                      contextOptions={contextOptions}
-                      errorLocalizerEnabled={errorLocalizerEnabled}
-                      initialMapping={evalData?.mapping}
-                      {...compositeSourceModeProps}
-                      sourceColumns={
-                        source === "workbench" ? sourceColumns : null
-                      }
-                      extraColumns={extraColumns}
-                    />
-                  )}
+                  <DatasetTestMode
+                    ref={sourceRef}
+                    templateId={templateId}
+                    variables={variables}
+                    model={model}
+                    codeParams={codeParams}
+                    onTestResult={handleTestResult}
+                    onClearResult={handleClearTestResult}
+                    onColumnsLoaded={handleColumnsLoaded}
+                    initialDatasetId={sourceId}
+                    onReadyChange={handleSourceReadyChange}
+                    contextOptions={contextOptions}
+                    errorLocalizerEnabled={errorLocalizerEnabled}
+                    initialMapping={evalData?.mapping}
+                    {...compositeSourceModeProps}
+                    sourceColumns={
+                      source === "workbench" ? sourceColumns : null
+                    }
+                    extraColumns={extraColumns}
+                  />
+                )}
                 {source === "tracing" && (
                   <TracingTestMode
                     ref={sourceRef}
@@ -1894,49 +1900,51 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
                   />
                 )}
 
-                {source !== "composite" && visibleCodeParamEntries.length > 0 && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                      Parameters
-                    </Typography>
-                    {visibleCodeParamEntries.map(([key, schema]) => (
-                      <TextField
-                        key={key}
-                        fullWidth
-                        size="small"
-                        type={
-                          schema?.type === "integer" || schema?.type === "number"
-                            ? "number"
-                            : "text"
-                        }
-                        label={key}
-                        value={codeParams[key] ?? ""}
-                        onChange={(e) => {
-                          // BE's `type: number` schema rejects strings; coerce here.
-                          const raw = e.target.value;
-                          const isNumeric =
+                {source !== "composite" &&
+                  visibleCodeParamEntries.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Parameters
+                      </Typography>
+                      {visibleCodeParamEntries.map(([key, schema]) => (
+                        <TextField
+                          key={key}
+                          fullWidth
+                          size="small"
+                          type={
                             schema?.type === "integer" ||
-                            schema?.type === "number";
-                          let next = raw;
-                          if (isNumeric && raw !== "") {
-                            const n = Number(raw);
-                            if (!Number.isNaN(n)) next = n;
+                            schema?.type === "number"
+                              ? "number"
+                              : "text"
                           }
-                          handleCodeParamChange(key, next);
-                        }}
-                        helperText={
-                          configParamsDesc?.[key] || schema?.description || ""
-                        }
-                        placeholder={
-                          schema?.nullable
-                            ? "optional"
-                            : String(schema?.default ?? "")
-                        }
-                        sx={{ mb: 1 }}
-                      />
-                    ))}
-                  </Box>
-                )}
+                          label={key}
+                          value={codeParams[key] ?? ""}
+                          onChange={(e) => {
+                            // BE's `type: number` schema rejects strings; coerce here.
+                            const raw = e.target.value;
+                            const isNumeric =
+                              schema?.type === "integer" ||
+                              schema?.type === "number";
+                            let next = raw;
+                            if (isNumeric && raw !== "") {
+                              const n = Number(raw);
+                              if (!Number.isNaN(n)) next = n;
+                            }
+                            handleCodeParamChange(key, next);
+                          }}
+                          helperText={
+                            configParamsDesc?.[key] || schema?.description || ""
+                          }
+                          placeholder={
+                            schema?.nullable
+                              ? "optional"
+                              : String(schema?.default ?? "")
+                          }
+                          sx={{ mb: 1 }}
+                        />
+                      ))}
+                    </Box>
+                  )}
               </Box>
             </Box>
           }
@@ -2068,37 +2076,37 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
             testDisabledReason = "Map all variables before running a test.";
           }
 
-          return (
-            <ShowComponent condition={!hasDataInjection}>
-              <CustomTooltip
-                show={testDisabled && !!testDisabledReason}
-                type=""
-                title={testDisabledReason}
-                arrow
-              >
-                <span>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    onClick={handleTestEvaluation}
-                    disabled={testDisabled}
-                    startIcon={
-                      isTesting ? (
-                        <CircularProgress size={14} />
-                      ) : (
-                        <Iconify icon="mdi:play-circle-outline" width={16} />
-                      )
-                    }
-                    sx={{ textTransform: "none" }}
-                  >
-                    {isTesting ? "Testing..." : "Test Evaluation"}
-                  </Button>
-                </span>
-              </CustomTooltip>
-            </ShowComponent>
-          );
-        })()}
+            return (
+              <ShowComponent condition={!hasDataInjection}>
+                <CustomTooltip
+                  show={testDisabled && !!testDisabledReason}
+                  type=""
+                  title={testDisabledReason}
+                  arrow
+                >
+                  <span>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      onClick={handleTestEvaluation}
+                      disabled={testDisabled}
+                      startIcon={
+                        isTesting ? (
+                          <CircularProgress size={14} />
+                        ) : (
+                          <Iconify icon="mdi:play-circle-outline" width={16} />
+                        )
+                      }
+                      sx={{ textTransform: "none" }}
+                    >
+                      {isTesting ? "Testing..." : "Test Evaluation"}
+                    </Button>
+                  </span>
+                </CustomTooltip>
+              </ShowComponent>
+            );
+          })()}
 
         {(() => {
           const hasInstructions = !!(instructions || "").trim();

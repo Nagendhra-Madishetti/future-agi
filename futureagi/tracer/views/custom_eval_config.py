@@ -23,6 +23,7 @@ from tracer.serializers.custom_eval_config import (
     CustomEvalConfigSerializer,
     GetCustomEvalTemplateSerializer,
     RunEvaluationSerializer,
+    is_rule_prompt_customized,
 )
 from tracer.utils.eval import evaluate_observation_span
 
@@ -88,7 +89,12 @@ class CustomEvalConfigView(BaseModelViewSetMixin, ModelViewSet):
             serializer.validated_data["mapping"] = mapping
             custom_eval_config = serializer.save()
 
-            return self._gm.success_response({"id": str(custom_eval_config.id)})
+            return self._gm.success_response(
+                {
+                    "id": str(custom_eval_config.id),
+                    "is_customized": is_rule_prompt_customized(custom_eval_config),
+                }
+            )
 
         except Exception as e:
             traceback.print_exc()
@@ -147,9 +153,14 @@ class CustomEvalConfigView(BaseModelViewSetMixin, ModelViewSet):
                         mapping.pop(key)
                 serializer.validated_data["mapping"] = mapping
 
-            serializer.save()
+            custom_eval_config = serializer.save()
 
-            return self._gm.success_response({"id": str(custom_eval_config.id)})
+            return self._gm.success_response(
+                {
+                    "id": str(custom_eval_config.id),
+                    "is_customized": is_rule_prompt_customized(custom_eval_config),
+                }
+            )
 
         except Exception as e:
             traceback.print_exc()
