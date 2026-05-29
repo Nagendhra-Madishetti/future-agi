@@ -1,4 +1,6 @@
+import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { dirname } from "node:path";
 import process from "node:process";
 import { assert, envFlag } from "../lib/api-client.mjs";
 
@@ -17,11 +19,13 @@ const SCREENSHOT_PATH =
 const REQUIRE_REAL_SIGNUP = envFlag("ONBOARDING_REAL_SIGNUP");
 const ALLOW_REMOTE = envFlag("ONBOARDING_REAL_SIGNUP_ALLOW_REMOTE");
 const SAMPLE_ONLY = envFlag("ONBOARDING_REAL_SIGNUP_SAMPLE_ONLY");
+const REPORT_OUTPUT = process.env.ONBOARDING_SMOKE_REPORT_OUTPUT || "";
 
 async function main() {
   assert(REQUIRE_REAL_SIGNUP, "Set ONBOARDING_REAL_SIGNUP=1 for this smoke.");
   assertLocalUrl(APP_BASE, "APP_BASE");
   assertLocalUrl(API_BASE, "API_BASE");
+  const smokeMode = SAMPLE_ONLY ? "sample_open" : "full_quality_loop";
 
   const runId = `${Date.now().toString(36)}-${Math.random()
     .toString(36)
@@ -424,40 +428,30 @@ async function main() {
       assert(pageErrors.length === 0, `Page errors: ${pageErrors.join("; ")}`);
 
       await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
-      console.log(
-        JSON.stringify(
-          {
-            status: "passed",
-            app_base: APP_BASE,
-            api_base: API_BASE,
-            viewport: {
-              name: VIEWPORT_NAME,
-              ...VIEWPORT,
-            },
-            evidence: {
-              activation_state_requests: evidence.activationStateRequests,
-              browser_state: browserState,
-              email: user.email,
-              onboarding_post: evidence.onboardingPosts[0],
-              observe_cta_href: observeCtaHref,
-              observe_setup_url: observeSetupUrl,
-              sample_open_state: summarizeActivationState(sampleOpenState),
-              sample_project_post: evidence.sampleProjectPosts[0],
-              sample_project_response: evidence.sampleProjectResponses[0],
-              sample_trace_activation_event: evidence.activationEventPosts.find(
-                (payload) =>
-                  payload?.event_name === "sample_trace_detail_opened",
-              ),
-              sample_trace_url: sampleTraceUrl,
-              screenshot: SCREENSHOT_PATH,
-              signup_post: evidence.signupPosts[0],
-              token_post: evidence.tokenPosts[0],
-            },
-          },
-          null,
-          2,
-        ),
-      );
+      const report = smokeReportPayload({
+        status: "passed",
+        mode: smokeMode,
+        evidence: {
+          activation_state_requests: evidence.activationStateRequests,
+          browser_state: browserState,
+          email: user.email,
+          onboarding_post: evidence.onboardingPosts[0],
+          observe_cta_href: observeCtaHref,
+          observe_setup_url: observeSetupUrl,
+          sample_open_state: summarizeActivationState(sampleOpenState),
+          sample_project_post: evidence.sampleProjectPosts[0],
+          sample_project_response: evidence.sampleProjectResponses[0],
+          sample_trace_activation_event: evidence.activationEventPosts.find(
+            (payload) => payload?.event_name === "sample_trace_detail_opened",
+          ),
+          sample_trace_url: sampleTraceUrl,
+          screenshot: SCREENSHOT_PATH,
+          signup_post: evidence.signupPosts[0],
+          token_post: evidence.tokenPosts[0],
+        },
+      });
+      await writeSmokeReport(report);
+      console.log(JSON.stringify(report, null, 2));
       return;
     }
     await clickVisibleButtonText(page, "Connect your app", 45000);
@@ -1199,191 +1193,201 @@ async function main() {
     assert(pageErrors.length === 0, `Page errors: ${pageErrors.join("; ")}`);
 
     await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
-    console.log(
-      JSON.stringify(
-        {
-          status: "passed",
-          app_base: APP_BASE,
-          api_base: API_BASE,
-          viewport: {
-            name: VIEWPORT_NAME,
-            ...VIEWPORT,
-          },
-          evidence: {
-            activation_state_requests: evidence.activationStateRequests,
-            browser_state: browserState,
-            email: user.email,
-            onboarding_post: evidence.onboardingPosts[0],
-            observe_cta_href: observeCtaHref,
-            observe_setup_url: observeSetupUrl,
-            eval_create_onboarding_url: evalCreateOnboardingUrl,
-            eval_create_focus_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "onboarding_eval_route_focus_viewed" &&
-                payload?.stage === "create_eval_dataset" &&
-                payload?.artifact_id === realProject.projectId,
-            ),
-            eval_source_selected_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "onboarding_eval_source_selected" &&
-                payload?.artifact_id === realProject.projectId,
-            ),
-            eval_scorer_focus_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "onboarding_eval_route_focus_viewed" &&
-                payload?.stage === "add_eval_scorer" &&
-                payload?.artifact_id === realProject.projectId,
-            ),
-            eval_scorer_onboarding_url: evalScorerOnboardingUrl,
-            eval_scorer_created_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "eval_scorer_created" &&
-                payload?.metadata?.source_id === realProject.projectId,
-            ),
-            eval_template_requests: evidence.evalTemplateRequests,
-            eval_template_responses: evidence.evalTemplateResponses,
-            eval_playground_requests: evidence.evalPlaygroundRequests,
-            eval_playground_responses: evidence.evalPlaygroundResponses,
-            eval_run_focus_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "onboarding_eval_route_focus_viewed" &&
-                payload?.stage === "run_eval" &&
-                payload?.artifact_id === realProject.projectId,
-            ),
-            eval_run_onboarding_url: evalRunOnboardingUrl,
-            eval_run_completed_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "eval_run_completed" &&
-                payload?.metadata?.run_id === firstEvalRunId,
-            ),
-            eval_review_focus_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "onboarding_eval_route_focus_viewed" &&
-                payload?.stage === "review_eval_failures" &&
-                payload?.artifact_id === firstEvalRunId,
-            ),
-            eval_result_reviewed_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "eval_failures_reviewed" &&
-                payload?.artifact_id === firstEvalRunId,
-            ),
-            eval_review_onboarding_url: evalReviewOnboardingUrl,
-            eval_source_fix_url: evalSourceFixUrl,
-            eval_fix_rerun_url: evalFixRerunUrl,
-            eval_source_fix_rerun_clicked_event:
-              evidence.activationEventPosts.find(
-                (payload) =>
-                  payload?.event_name ===
-                    "onboarding_eval_source_fix_rerun_clicked" &&
-                  payload?.metadata?.run_id === firstEvalRunId,
-              ),
-            eval_fix_rerun_review_focus_event:
-              evidence.activationEventPosts.find(
-                (payload) =>
-                  payload?.event_name ===
-                    "onboarding_eval_route_focus_viewed" &&
-                  payload?.artifact_id === repairEvalRunId &&
-                  payload?.metadata?.rerun_from === "source_fix",
-              ),
-            eval_fix_rerun_completed_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "onboarding_eval_fix_rerun_completed" &&
-                payload?.metadata?.run_id === repairEvalRunId,
-            ),
-            eval_fix_rerun_reviewed_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "onboarding_eval_fix_rerun_reviewed" &&
-                payload?.metadata?.run_id === repairEvalRunId,
-            ),
-            eval_repair_review_url: evalRepairReviewUrl,
-            eval_repair_run_id: repairEvalRunId,
-            eval_post_repair_home_url: evalPostRepairHomeUrl,
-            daily_quality_cta_href: dailyQualityCtaHref,
-            eval_first_quality_loop_completed_event:
-              evidence.activationEventPosts.find(
-                (payload) =>
-                  payload?.event_name === "first_quality_loop_completed" &&
-                  payload?.metadata?.run_id === repairEvalRunId,
-              ),
-            eval_source_fix_cta_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name ===
-                  "onboarding_eval_source_fix_cta_clicked" &&
-                payload?.metadata?.run_id === firstEvalRunId,
-            ),
-            eval_source_fix_route_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name ===
-                  "onboarding_eval_source_fix_route_viewed" &&
-                payload?.metadata?.run_id === firstEvalRunId,
-            ),
-            eval_usage_responses: evidence.evalUsageResponses,
-            post_review_state: summarizeActivationState(postReviewState),
-            real_observe_project: realProject,
-            real_trace: realTrace,
-            real_trace_home_url: realTraceHomeUrl,
-            real_trace_review_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "trace_detail_opened" &&
-                payload?.artifact_id === realTrace.traceId,
-            ),
-            real_trace_review_state:
-              summarizeActivationState(realTraceReviewState),
-            real_trace_review_url: realTraceReviewUrl,
-            sample_project_post: evidence.sampleProjectPosts[0],
-            sample_trace_activation_event: evidence.activationEventPosts.find(
-              (payload) => payload?.event_name === "sample_trace_detail_opened",
-            ),
-            sample_to_real_setup_event: evidence.activationEventPosts.find(
-              (payload) =>
-                payload?.event_name === "sample_to_real_setup_clicked",
-            ),
-            sample_review_return_focus_event:
-              evidence.activationEventPosts.find(
-                (payload) =>
-                  payload?.event_name ===
-                    "onboarding_observe_route_focus_viewed" &&
-                  payload?.source === "sample_trace_review",
-              ),
-            sample_trace_url: sampleTraceUrl,
-            real_setup_return_url: realSetupReturnUrl,
-            screenshot: SCREENSHOT_PATH,
-            setup_posts: evidence.setupPosts,
-            signup_post: evidence.signupPosts[0],
-            token_post: evidence.tokenPosts[0],
-          },
-        },
-        null,
-        2,
-      ),
-    );
+    const report = smokeReportPayload({
+      status: "passed",
+      mode: smokeMode,
+      evidence: {
+        activation_state_requests: evidence.activationStateRequests,
+        browser_state: browserState,
+        email: user.email,
+        onboarding_post: evidence.onboardingPosts[0],
+        observe_cta_href: observeCtaHref,
+        observe_setup_url: observeSetupUrl,
+        eval_create_onboarding_url: evalCreateOnboardingUrl,
+        eval_create_focus_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_route_focus_viewed" &&
+            payload?.stage === "create_eval_dataset" &&
+            payload?.artifact_id === realProject.projectId,
+        ),
+        eval_source_selected_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_source_selected" &&
+            payload?.artifact_id === realProject.projectId,
+        ),
+        eval_scorer_focus_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_route_focus_viewed" &&
+            payload?.stage === "add_eval_scorer" &&
+            payload?.artifact_id === realProject.projectId,
+        ),
+        eval_scorer_onboarding_url: evalScorerOnboardingUrl,
+        eval_scorer_created_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "eval_scorer_created" &&
+            payload?.metadata?.source_id === realProject.projectId,
+        ),
+        eval_template_requests: evidence.evalTemplateRequests,
+        eval_template_responses: evidence.evalTemplateResponses,
+        eval_playground_requests: evidence.evalPlaygroundRequests,
+        eval_playground_responses: evidence.evalPlaygroundResponses,
+        eval_run_focus_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_route_focus_viewed" &&
+            payload?.stage === "run_eval" &&
+            payload?.artifact_id === realProject.projectId,
+        ),
+        eval_run_onboarding_url: evalRunOnboardingUrl,
+        eval_run_completed_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "eval_run_completed" &&
+            payload?.metadata?.run_id === firstEvalRunId,
+        ),
+        eval_review_focus_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_route_focus_viewed" &&
+            payload?.stage === "review_eval_failures" &&
+            payload?.artifact_id === firstEvalRunId,
+        ),
+        eval_result_reviewed_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "eval_failures_reviewed" &&
+            payload?.artifact_id === firstEvalRunId,
+        ),
+        eval_review_onboarding_url: evalReviewOnboardingUrl,
+        eval_source_fix_url: evalSourceFixUrl,
+        eval_fix_rerun_url: evalFixRerunUrl,
+        eval_source_fix_rerun_clicked_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name ===
+              "onboarding_eval_source_fix_rerun_clicked" &&
+            payload?.metadata?.run_id === firstEvalRunId,
+        ),
+        eval_fix_rerun_review_focus_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_route_focus_viewed" &&
+            payload?.artifact_id === repairEvalRunId &&
+            payload?.metadata?.rerun_from === "source_fix",
+        ),
+        eval_fix_rerun_completed_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_fix_rerun_completed" &&
+            payload?.metadata?.run_id === repairEvalRunId,
+        ),
+        eval_fix_rerun_reviewed_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_fix_rerun_reviewed" &&
+            payload?.metadata?.run_id === repairEvalRunId,
+        ),
+        eval_repair_review_url: evalRepairReviewUrl,
+        eval_repair_run_id: repairEvalRunId,
+        eval_post_repair_home_url: evalPostRepairHomeUrl,
+        daily_quality_cta_href: dailyQualityCtaHref,
+        eval_first_quality_loop_completed_event:
+          evidence.activationEventPosts.find(
+            (payload) =>
+              payload?.event_name === "first_quality_loop_completed" &&
+              payload?.metadata?.run_id === repairEvalRunId,
+          ),
+        eval_source_fix_cta_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_source_fix_cta_clicked" &&
+            payload?.metadata?.run_id === firstEvalRunId,
+        ),
+        eval_source_fix_route_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_source_fix_route_viewed" &&
+            payload?.metadata?.run_id === firstEvalRunId,
+        ),
+        eval_usage_responses: evidence.evalUsageResponses,
+        post_review_state: summarizeActivationState(postReviewState),
+        real_observe_project: realProject,
+        real_trace: realTrace,
+        real_trace_home_url: realTraceHomeUrl,
+        real_trace_review_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "trace_detail_opened" &&
+            payload?.artifact_id === realTrace.traceId,
+        ),
+        real_trace_review_state: summarizeActivationState(realTraceReviewState),
+        real_trace_review_url: realTraceReviewUrl,
+        sample_project_post: evidence.sampleProjectPosts[0],
+        sample_trace_activation_event: evidence.activationEventPosts.find(
+          (payload) => payload?.event_name === "sample_trace_detail_opened",
+        ),
+        sample_to_real_setup_event: evidence.activationEventPosts.find(
+          (payload) => payload?.event_name === "sample_to_real_setup_clicked",
+        ),
+        sample_review_return_focus_event: evidence.activationEventPosts.find(
+          (payload) =>
+            payload?.event_name === "onboarding_observe_route_focus_viewed" &&
+            payload?.source === "sample_trace_review",
+        ),
+        sample_trace_url: sampleTraceUrl,
+        real_setup_return_url: realSetupReturnUrl,
+        screenshot: SCREENSHOT_PATH,
+        setup_posts: evidence.setupPosts,
+        signup_post: evidence.signupPosts[0],
+        token_post: evidence.tokenPosts[0],
+      },
+    });
+    await writeSmokeReport(report);
+    console.log(JSON.stringify(report, null, 2));
   } catch (error) {
-    console.error(
-      JSON.stringify(
-        {
-          status: "failed",
-          app_base: APP_BASE,
-          api_base: API_BASE,
-          viewport: {
-            name: VIEWPORT_NAME,
-            ...VIEWPORT,
-          },
-          diagnostic: {
-            ...evidence,
-            body_text: await safeBodyText(page),
-            signup_form_state: await safeSignupFormState(page),
-            page_errors: pageErrors,
-            url: page.url(),
-          },
-        },
-        null,
-        2,
-      ),
-    );
+    const report = smokeReportPayload({
+      status: "failed",
+      mode: smokeMode,
+      diagnostic: {
+        ...evidence,
+        body_text: await safeBodyText(page),
+        error_message: error?.message || String(error),
+        page_errors: pageErrors,
+        signup_form_state: await safeSignupFormState(page),
+        url: page.url(),
+      },
+    });
+    console.error(JSON.stringify(report, null, 2));
+    await writeSmokeReport(report);
     throw error;
   } finally {
     await browser.close();
   }
+}
+
+function smokeReportPayload({ status, mode, evidence, diagnostic }) {
+  const report = {
+    schema_version: "onboarding-real-signup-smoke-report-2026-05-29.v1",
+    source: "onboarding_real_signup_smoke",
+    generated_at: new Date().toISOString(),
+    status,
+    mode,
+    app_base: APP_BASE,
+    api_base: API_BASE,
+    report_output: REPORT_OUTPUT || null,
+    viewport: {
+      name: VIEWPORT_NAME,
+      ...VIEWPORT,
+    },
+  };
+
+  if (evidence !== undefined) {
+    report.evidence = evidence;
+  }
+  if (diagnostic !== undefined) {
+    report.diagnostic = diagnostic;
+  }
+
+  return report;
+}
+
+async function writeSmokeReport(report) {
+  if (!REPORT_OUTPUT) return;
+  await mkdir(dirname(REPORT_OUTPUT), { recursive: true });
+  await writeFile(
+    REPORT_OUTPUT,
+    `${JSON.stringify(report, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 function viewportForName(name) {

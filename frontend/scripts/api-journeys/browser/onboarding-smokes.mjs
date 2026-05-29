@@ -230,8 +230,25 @@ if (selected.length === 0) {
   throw new Error("No onboarding smoke scripts matched the requested filters.");
 }
 
+if (args.reportOutput) {
+  if (selected.length !== 1 || selected[0].suite) {
+    throw new Error(
+      "--report-output can only be used with one non-suite smoke.",
+    );
+  }
+  if (selected[0].mode !== "real-signup") {
+    throw new Error(
+      "--report-output can only be used with real-signup smokes.",
+    );
+  }
+}
+
+const runnerEnv = args.reportOutput
+  ? { ONBOARDING_SMOKE_REPORT_OUTPUT: args.reportOutput }
+  : {};
+
 for (const smoke of selected) {
-  await runSmoke(smoke, [], {});
+  await runSmoke(smoke, [], runnerEnv);
 }
 
 function parseArgs(argv) {
@@ -239,6 +256,7 @@ function parseArgs(argv) {
     list: false,
     mode: "",
     only: new Set(),
+    reportOutput: "",
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -251,6 +269,12 @@ function parseArgs(argv) {
       for (const id of String(argv[++index] || "").split(",")) {
         if (id.trim()) parsed.only.add(id.trim());
       }
+    } else if (arg === "--report-output") {
+      const output = argv[++index] || "";
+      if (!output.trim()) {
+        throw new Error("--report-output requires a non-empty path.");
+      }
+      parsed.reportOutput = output;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
