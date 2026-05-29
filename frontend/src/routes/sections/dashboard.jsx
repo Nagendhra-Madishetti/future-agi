@@ -450,16 +450,24 @@ const ErrorBoundaryTest = () => {
   throw new Error("This is a test error to preview the error boundary UI");
 };
 
+const normalizeDashboardPathname = (pathname = "") =>
+  pathname.replace(/\/+$/, "") || "/";
+
+export const shouldTrackMixpanelPageView = (pathname) =>
+  normalizeDashboardPathname(pathname) !== paths.dashboard.home;
+
 const DashboardRoutes = () => {
   const location = useLocation();
   const { user } = useAuthContext();
 
   React.useEffect(() => {
-    const { eventName, extras = {} } = getPageViewEvent(
-      location.pathname,
-      location.search,
-    ) || { eventName: Events.pageView, extras: {} };
-    trackEvent(eventName, { path: location.pathname, ...extras });
+    if (shouldTrackMixpanelPageView(location.pathname)) {
+      const { eventName, extras = {} } = getPageViewEvent(
+        location.pathname,
+        location.search,
+      ) || { eventName: Events.pageView, extras: {} };
+      trackEvent(eventName, { path: location.pathname, ...extras });
+    }
     if (!user) return;
 
     const context = buildCurrentFlowContext({

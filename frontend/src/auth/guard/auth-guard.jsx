@@ -257,9 +257,18 @@ function Container({ children }) {
       return;
     }
 
-    // Onboarding not finished — let the setup-org effect below handle routing.
+    // Onboarding not finished: keep every authenticated entry point on setup.
     if (!user?.onboarding_completed) {
-      trackPostLoginDecision("onboarding_incomplete", window.location.pathname);
+      const targetRoute =
+        postLoginDestination?.href || paths.auth.jwt.setup_org;
+      trackPostLoginDecision("onboarding_incomplete", targetRoute);
+      trackPostLoginDestination(postLoginDestination, targetRoute);
+      if (postLoginDestination?.shouldClearReturnTo) {
+        localStorage.removeItem("redirectUrl");
+      }
+      if (postLoginDestination?.shouldReplace !== false) {
+        router.replace(targetRoute);
+      }
       return;
     }
 

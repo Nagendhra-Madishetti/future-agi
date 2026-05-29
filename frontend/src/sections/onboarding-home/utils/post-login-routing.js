@@ -155,15 +155,18 @@ export function resolvePostLoginDestination({
   }
 
   if (!user?.onboarding_completed) {
+    const href = routesMatch(currentPath, paths.auth.jwt.setup_org)
+      ? currentPath
+      : paths.auth.jwt.setup_org;
     return makeDestination({
-      href: currentPath || fallbackHref,
+      href,
       reason: "onboarding_incomplete",
       currentPath,
       returnTo,
       fallbackDestination: fallbackHref,
       activationState,
       activationStateError,
-      shouldReplace: false,
+      shouldReplace: !routesMatch(currentPath, href),
     });
   }
 

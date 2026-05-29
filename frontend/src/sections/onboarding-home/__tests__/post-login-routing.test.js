@@ -239,6 +239,16 @@ describe("post-login routing", () => {
     });
     expect(incomplete.href).toBe("/auth/jwt/setup-org");
     expect(incomplete.shouldReplace).toBe(false);
+
+    const incompleteDashboard = resolve({
+      currentPath: paths.dashboard.home,
+      user: {
+        ...baseUser,
+        onboarding_completed: false,
+      },
+    });
+    expect(incompleteDashboard.href).toBe(paths.auth.jwt.setup_org);
+    expect(incompleteDashboard.shouldReplace).toBe(true);
   });
 
   it("keeps viewer fallback unless activation state supports permission-limited home", () => {

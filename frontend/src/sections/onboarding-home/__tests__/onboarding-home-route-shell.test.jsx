@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { paths } from "src/routes/paths";
-import { dashboardRoutes } from "src/routes/sections/dashboard";
+import {
+  dashboardRoutes,
+  shouldTrackMixpanelPageView,
+} from "src/routes/sections/dashboard";
 
 vi.mock("src/utils/Mixpanel", () => ({
   Events: {},
@@ -41,5 +44,11 @@ describe("onboarding home route shell", () => {
     expect(indexRoute.element.props.to).toBe(paths.dashboard.home);
     expect(getStartedRoute.children[0].index).toBe(true);
     expect(paths.dashboard.getstarted).toBe("/dashboard/get-started");
+  });
+
+  it("keeps first-run home out of generic pageview analytics", () => {
+    expect(shouldTrackMixpanelPageView("/dashboard/home")).toBe(false);
+    expect(shouldTrackMixpanelPageView("/dashboard/home/")).toBe(false);
+    expect(shouldTrackMixpanelPageView("/dashboard/get-started")).toBe(true);
   });
 });

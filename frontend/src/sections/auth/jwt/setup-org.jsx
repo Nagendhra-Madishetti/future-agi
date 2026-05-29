@@ -19,7 +19,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "src/components/snackbar";
 import { LoadingButton } from "@mui/lab";
 import axios, { endpoints } from "src/utils/axios";
-import { Events, trackEvent, PropertyName } from "src/utils/Mixpanel";
 import PropTypes from "prop-types";
 import { FormSearchSelectFieldState } from "src/components/FromSearchSelectField";
 import RightSectionAuth from "./RightSectionAuth";
@@ -43,6 +42,10 @@ import {
   resolveSetupCompletionHref,
   shouldShowInviteStepAfterProfileSave,
 } from "./setup-org-routing";
+import {
+  trackSetupOrgInvitesSaved,
+  trackSetupOrgProfileSaved,
+} from "./setup-org-analytics";
 
 const QUICK_START_ROLE = "AI Builder";
 const QUICK_START_GOAL_LABEL =
@@ -355,11 +358,11 @@ const SetupOrganization = ({ getStarted = false }) => {
       quickStartRequestedRef.current = false;
       enqueueSnackbar("Profile updated successfully", { variant: "success" });
       const provider = localStorage.getItem("signupProvider");
-      trackEvent(Events.signUpCompleted, {
-        [PropertyName.email]: user?.email,
-        [PropertyName.role]: variables?.role,
-        [PropertyName.goals]: variables?.goals,
-        [PropertyName.method]: provider,
+      trackSetupOrgProfileSaved({
+        goals: variables?.goals,
+        provider,
+        quickStartRequested: shouldFinishQuickStart,
+        role: variables?.role,
       });
       localStorage.removeItem("signupProvider");
       if (
@@ -554,26 +557,7 @@ const SetupOrganization = ({ getStarted = false }) => {
 
     onSuccess: (_, variables) => {
       refetchInvites();
-      const membersToTrack = variables?.members?.filter(
-        (m) => !m?.disabled && m?.email?.trim(),
-      );
-
-      trackEvent(Events.setupOrganizationClicked, {
-        [PropertyName.click]: true,
-        [PropertyName.email_list]: membersToTrack,
-      });
-
-      trackEvent(Events.pageView, {
-        [PropertyName.click]: {
-          org_name: variables?.orgName,
-          members_added: membersToTrack?.length,
-          roles_assigned: [
-            ...new Set(membersToTrack.map((m) => m?.organization_role)),
-          ],
-          create_org_clicked: true,
-        },
-        [PropertyName.count]: membersToTrack.length,
-      });
+      trackSetupOrgInvitesSaved({ members: variables?.members });
 
       orgForm.reset();
 

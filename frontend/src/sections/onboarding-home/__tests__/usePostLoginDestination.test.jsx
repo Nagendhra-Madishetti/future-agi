@@ -158,6 +158,23 @@ describe("usePostLoginDestination", () => {
     expect(result.current.reason).toBe("direct_dashboard_route");
   });
 
+  it("routes incomplete onboarding users back to setup without activation state", () => {
+    const { result } = renderWithQueryClient(() =>
+      usePostLoginDestination({
+        currentPath: paths.dashboard.home,
+        user: {
+          ...baseUser,
+          onboarding_completed: false,
+        },
+      }),
+    );
+
+    expect(fetchActivationState).not.toHaveBeenCalled();
+    expect(result.current.destination.href).toBe(paths.auth.jwt.setup_org);
+    expect(result.current.reason).toBe("onboarding_incomplete");
+    expect(result.current.destination.shouldReplace).toBe(true);
+  });
+
   it("falls back when activation state fails", async () => {
     fetchActivationState.mockRejectedValueOnce(new Error("offline"));
 
