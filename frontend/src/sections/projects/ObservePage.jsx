@@ -31,6 +31,7 @@ import { useTabStoreShallow } from "./LLMTracing/tabStore";
 import { useGetProjectDetails } from "src/api/project/project-detail";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetSavedViews, SAVED_VIEWS_KEY } from "src/api/project/saved-views";
+import axios, { endpoints } from "src/utils/axios";
 import ReplayDrawer from "./ReplayDrawer/ReplayDrawer";
 import {
   resetReplaySessionsStore,
@@ -53,6 +54,7 @@ import {
   buildObserveEvaluatorCreateHref,
   buildObserveRouteFocusPayload,
   buildObserveTraceReviewHref,
+  getFirstTraceIdFromTraceListResult,
   getObserveFirstTraceReviewTarget,
   getObserveOnboardingCopy,
   getObserveOnboardingParams,
@@ -95,6 +97,9 @@ const TAB_TO_ROUTE = {
   sessions: { route: "sessions", params: {} },
   users: { route: "users", params: {} },
 };
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const ObservePage = React.memo(() => {
   const { headerConfig, setActiveViewConfig } = useObserveHeader();
@@ -162,6 +167,9 @@ const ObservePage = React.memo(() => {
   );
   const showObserveOnboardingFocus =
     observeOnboardingParams.isOnboarding && Boolean(observeOnboardingCopy);
+  const isWaitingForFirstTraceOnboarding =
+    showObserveOnboardingFocus &&
+    observeOnboardingParams.mode === OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE;
   const sourceFixOnboardingParams = useMemo(
     () => getEvalSourceFixOnboardingParams(location.search),
     [location.search],
@@ -493,6 +501,57 @@ const ObservePage = React.memo(() => {
     setLoadedTraceId(null);
   }, [observeId, observeOnboardingParams.mode]);
 
+  const fetchOnboardingFirstTraceId = useCallback(async () => {
+    if (!observeId) return null;
+    const params = {
+      page_number: 0,
+      page_size: 1,
+      filters: "[]",
+    };
+    if (UUID_RE.test(String(observeId))) {
+      params.project_id = observeId;
+    }
+    const response = await axios.get(
+      endpoints.project.getTracesForObserveProject(),
+      {
+        params,
+      },
+    );
+    return getFirstTraceIdFromTraceListResult(response?.data?.result);
+  }, [observeId]);
+
+  const refreshOnboardingFirstTrace = useCallback(() => {
+    void fetchOnboardingFirstTraceId()
+      .then((traceId) => {
+        if (traceId) setLoadedTraceId(traceId);
+      })
+      .catch(() => undefined);
+  }, [fetchOnboardingFirstTraceId]);
+
+  useEffect(() => {
+    if (!isWaitingForFirstTraceOnboarding || firstTraceReviewTarget) return;
+    let mounted = true;
+
+    const verifyFirstTrace = () => {
+      void fetchOnboardingFirstTraceId()
+        .then((traceId) => {
+          if (mounted && traceId) setLoadedTraceId(traceId);
+        })
+        .catch(() => undefined);
+    };
+
+    verifyFirstTrace();
+    const intervalId = window.setInterval(verifyFirstTrace, 5000);
+    return () => {
+      mounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [
+    fetchOnboardingFirstTraceId,
+    firstTraceReviewTarget,
+    isWaitingForFirstTraceOnboarding,
+  ]);
+
   useEffect(() => {
     if (
       !showObserveOnboardingFocus ||
@@ -563,12 +622,18 @@ const ObservePage = React.memo(() => {
       return;
     }
 
+    if (
+      observeOnboardingParams.mode === OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE
+    ) {
+      refreshOnboardingFirstTrace();
+    }
     refreshObserveData?.();
   }, [
     firstTraceReviewTarget,
     navigate,
     observeId,
     observeOnboardingParams.mode,
+    refreshOnboardingFirstTrace,
     refreshObserveData,
   ]);
 

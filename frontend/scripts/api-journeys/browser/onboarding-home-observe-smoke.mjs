@@ -197,6 +197,14 @@ async function main() {
           },
           { timeout: 30000 },
         );
+        await waitForCondition(
+          () =>
+            stubbedApiRequests.some((entry) =>
+              entry.includes("/tracer/trace/list_traces_of_session/"),
+            ),
+          "Trace list was not requested for first trace verification.",
+          30000,
+        );
         evidence.first_trace_review_url = relativeUrl(page.url());
       } else {
         await expectVisibleText(page, "Send the first trace", { exact: true });
@@ -242,6 +250,9 @@ async function main() {
       stage: payload.stage,
       route_mode: payload.metadata?.route_mode,
     }));
+    evidence.trace_list_requests = stubbedApiRequests.filter((entry) =>
+      entry.includes("/tracer/trace/list_traces_of_session/"),
+    );
 
     assert(apiFailures.length === 0, `API failures: ${apiFailures.join("; ")}`);
     assert(pageErrors.length === 0, `Page errors: ${pageErrors.join("; ")}`);
@@ -383,16 +394,12 @@ async function installRuntime(
       stubbedApiRequests.push(`${request.method()} ${normalizedPath}`);
       const payload = parseJsonPostData(request.postData());
       activationEventPosts.push(payload);
-      const shouldReturnFirstTraceReady =
-        EXISTING_TRACE && payload?.metadata?.route_mode === "send-first-trace";
       await respondJson(request, {
         status: true,
         result: {
           event_id: "00000000-0000-4000-8000-000000000188",
           event_name: payload?.event_name || "onboarding_home_viewed",
-          activation_state: stubbedActivationState(auth, {
-            firstTraceReady: shouldReturnFirstTraceReady,
-          }),
+          activation_state: stubbedActivationState(auth),
         },
       });
       return;

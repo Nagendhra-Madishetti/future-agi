@@ -4,6 +4,7 @@ import {
   buildObserveProjectOnboardingHref,
   buildObserveRouteFocusPayload,
   buildObserveTraceReviewHref,
+  getFirstTraceIdFromTraceListResult,
   getObserveFirstTraceReviewTarget,
   getObserveOnboardingCopy,
   getObserveOnboardingParams,
@@ -144,6 +145,26 @@ describe("observeOnboardingRoute", () => {
         observeId: "project-1",
       }),
     ).toBeNull();
+  });
+
+  it("reads the first trace id from trace list data", () => {
+    expect(
+      getFirstTraceIdFromTraceListResult({
+        table: [
+          { name: "missing id" },
+          { trace_id: "trace-1" },
+          { traceId: "trace-2" },
+        ],
+      }),
+    ).toBe("trace-1");
+
+    expect(
+      getFirstTraceIdFromTraceListResult({
+        table: [{ traceId: "trace-2" }],
+      }),
+    ).toBe("trace-2");
+
+    expect(getFirstTraceIdFromTraceListResult({ table: [] })).toBeNull();
   });
 
   it("maps modes to activation stages", () => {

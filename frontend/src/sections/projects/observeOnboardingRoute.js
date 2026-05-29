@@ -223,6 +223,12 @@ export const getObserveFirstTraceReviewTarget = ({
   return { observeId, traceId };
 };
 
+export const getFirstTraceIdFromTraceListResult = (result = {}) => {
+  const rows = Array.isArray(result?.table) ? result.table : [];
+  const firstTrace = rows.find((row) => row?.trace_id || row?.traceId);
+  return firstTrace?.trace_id || firstTrace?.traceId || null;
+};
+
 export const buildObserveRouteFocusPayload = ({
   observeId,
   mode,
