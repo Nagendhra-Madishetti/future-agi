@@ -205,14 +205,26 @@ class ProjectNameUpdateSerializer(serializers.Serializer):
     sampling_rate = serializers.FloatField(
         required=False,
         min_value=0.0,
-        max_value=1.0,
+        max_value=100.0,
         help_text=(
-            "Optional. Trace sampling rate as a fraction from 0.0 to 1.0. "
-            "Examples: 1.0 = scan all traces, 0.1 = scan 10%, 0.0 = scan none. "
-            "Controls what fraction of ingested traces are run through evaluators. "
-            "Default is 0.1 if not previously set. Omit to leave unchanged."
+            "Optional. Trace sampling rate. Accepts EITHER a fraction (0.0-1.0) or "
+            "a percentage (1-100); values above 1 are treated as a percentage and "
+            "normalized. Examples: 0.5 or 50 both = scan 50% of traces; 1.0 or 100 "
+            "= scan all; 0.0 = scan none. Controls what fraction of ingested traces "
+            "are run through evaluators. Default is 0.1 if not previously set. Omit "
+            "to leave unchanged."
         ),
     )
+
+    def validate_sampling_rate(self, value):
+        # Stored model value is a 0.0-1.0 fraction (TraceScanConfig.sampling_rate),
+        # but users and the UI think in percentages ("set sampling to 50"). Accept
+        # both: values in (1, 100] are interpreted as a percentage (TH-5416).
+        if value is None:
+            return value
+        if value > 1.0:
+            value = value / 100.0
+        return value
 
 
 class ProjectVersionExportSerializer(StrictInputSerializer):
