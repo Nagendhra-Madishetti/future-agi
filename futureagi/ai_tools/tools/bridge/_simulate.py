@@ -10,7 +10,7 @@ hand-written tools, so MCP and the UI share one source of truth:
 """
 
 from ai_tools.drf_bridge import expose_to_mcp
-from simulate.views.run_test import CallExecutionDetailView
+from simulate.views.run_test import CallExecutionDetailView, CSVExportView
 from simulate.views.scenarios import ScenarioDetailView
 
 # Detail GET handlers take the id as a named URL kwarg (call_execution_id /
@@ -28,3 +28,46 @@ expose_to_mcp(
     category="simulation",
     tools={"retrieve": {"name": "get_scenario", "pk_kwarg": "scenario_id"}},
 )(ScenarioDetailView)
+
+# export_test_execution_csv -> CSVExportView.get(request, item_id): the same
+# "Export Data" CSV the Simulate UI offers (TH-5386). It's a detail GET keyed by
+# item_id with a required `type` (runtest|testexecution) plus optional
+# search/status. The bridge collects the id + those query params (detail +
+# query_params), routes item_id to the URL kwarg, and the CSV body is returned
+# as text via _unwrap_response.
+expose_to_mcp(
+    category="agents",
+    tools={
+        "retrieve": {
+            "name": "export_test_execution_csv",
+            "pk_kwarg": "item_id",
+            "entity": "run test or test execution",
+            "description": (
+                "Export a run test's or test execution's call data as CSV "
+                "(the same export the Simulate UI offers). Provide `id` (the "
+                "run test id or test execution id) and `type` to say which it "
+                "is. Returns CSV text."
+            ),
+            "query_params": {
+                "type": {
+                    "type": str,
+                    "required": True,
+                    "description": (
+                        "Export source type: 'runtest' (id is a run test id) "
+                        "or 'testexecution' (id is a test execution id)."
+                    ),
+                },
+                "search": {
+                    "type": str,
+                    "required": False,
+                    "description": "Optional call-execution search term.",
+                },
+                "status": {
+                    "type": str,
+                    "required": False,
+                    "description": "Optional call-execution status filter.",
+                },
+            },
+        }
+    },
+)(CSVExportView)

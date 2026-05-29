@@ -35,7 +35,14 @@ expose_to_mcp(
         "list": {"name": "list_custom_eval_configs"},
         "retrieve": {"name": "get_custom_eval_config"},
         "create": {"name": "create_custom_eval_config"},
-        "update": {"name": "update_custom_eval_config"},
+        # PATCH (partial_update) is the maintained write path that runs the
+        # optional-key mapping normalization; the view has no PUT handler, so the
+        # old "update" fell through to DRF's full-update (required every field)
+        # and was uncallable for a simple {id, mapping} edit (TH-5442).
+        "partial_update": {
+            "name": "update_custom_eval_config",
+            "include_fields": ["mapping"],
+        },
         "destroy": {"name": "delete_custom_eval_config"},
     },
 )(CustomEvalConfigView)
@@ -49,7 +56,60 @@ expose_to_mcp(category="users")(ApiKeyViewSet)
 expose_to_mcp(category="datasets")(SecretViewSet)
 expose_to_mcp(category="prompts")(ToolsViewSet)
 expose_to_mcp(category="simulation")(TTSVoiceViewSet)
-expose_to_mcp(category="evaluations")(ScoreViewSet)
+# ScoreViewSet is the canonical DRF API the Annotations UI uses for the unified
+# Score model (GET /model-hub/scores/?source_type=trace&source_id=<uuid>).
+# Expose the list action's real source filters so `list_scores` can return the
+# scores for a specific trace/span/etc. — this replaces the hand-written
+# `list_trace_scores` tool (TH-5405): one API, one source of truth.
+expose_to_mcp(
+    category="evaluations",
+    tools={
+        "list": {
+            "description": (
+                "List human/annotation scores for a source, from the unified "
+                "Score model the Annotations UI uses. For a trace's scores pass "
+                "source_type='trace' and source_id=<trace_id>; for a span use "
+                "source_type='observation_span'. NOTE: automated EVALUATION "
+                "scores (faithfulness, instruction adherence, privacy & safety, "
+                "optimal-plan execution, overall) are stored separately — use "
+                "get_trace_error_analysis for those."
+            ),
+            "query_params": {
+                "source_type": {
+                    "type": str,
+                    "required": False,
+                    "description": (
+                        "Source kind, paired with source_id: 'trace', "
+                        "'observation_span', 'trace_session', 'call_execution', "
+                        "'dataset_row', or 'prototype_run'."
+                    ),
+                },
+                "source_id": {
+                    "type": str,
+                    "required": False,
+                    "description": (
+                        "UUID of the source (e.g. the trace id when "
+                        "source_type='trace')."
+                    ),
+                },
+                "label_id": {
+                    "type": str,
+                    "required": False,
+                    "description": "Optional annotation-label UUID filter.",
+                },
+                "annotator_id": {
+                    "type": str,
+                    "required": False,
+                    "description": "Optional annotator (user) UUID filter.",
+                },
+            },
+        },
+        "retrieve": {},
+        "create": {},
+        "update": {},
+        "destroy": {},
+    },
+)(ScoreViewSet)
 
 # Simulation
 expose_to_mcp(category="optimization")(AgentPromptOptimiserRunViewSet)

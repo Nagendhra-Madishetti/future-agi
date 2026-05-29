@@ -24,6 +24,21 @@ class CustomEvalConfigSerializer(serializers.ModelSerializer):
 
     eval_group = serializers.SerializerMethodField()
 
+    # Explicit field so the help_text flows into the generated MCP tool schema
+    # (auto-derived JSONFields render as a bare "Mapping" with an empty object,
+    # which left Falcon unable to do eval variable mapping — TH-5442).
+    mapping = serializers.JSONField(
+        required=False,
+        help_text=(
+            "Variable mapping for the eval. JSON object whose KEYS are the eval "
+            "template's input variables (call get_eval_template or "
+            "get_eval_template_by_name to list its required_keys / optional_keys) "
+            "and whose VALUES are span attribute paths that exist in this project "
+            "(call get_project_eval_attributes for the available paths). "
+            'Example: {"input": "llm.input", "output": "llm.output"}.'
+        ),
+    )
+
     class Meta:
         model = CustomEvalConfig
         fields = [

@@ -316,6 +316,28 @@ def _resolve_apiview_handler(view, method: str, action_name: str):
 
 
 def _unwrap_response(response) -> tuple[Any, bool]:
+    # Non-DRF responses (FileResponse / HttpResponse text/csv) have no `.data`
+    # attribute — DRF Response objects always do. Bridged export actions (CSV /
+    # file downloads) return these, so extract the body as text instead of
+    # collapsing to {} (TH-5415 / TH-5386). JSON tools return DRF Responses and
+    # are unaffected (they have `.data`, so this branch is skipped).
+    if not hasattr(response, "data"):
+        try:
+            if getattr(response, "streaming", False) or hasattr(
+                response, "streaming_content"
+            ):
+                body = b"".join(response.streaming_content)
+            else:
+                body = getattr(response, "content", b"")
+            text = (
+                body.decode("utf-8", errors="replace")
+                if isinstance(body, (bytes, bytearray))
+                else str(body)
+            )
+        except Exception:
+            text = ""
+        return text, getattr(response, "status_code", 200) >= 400
+
     data = getattr(response, "data", None) or {}
     status_code = getattr(response, "status_code", 200)
     is_error = status_code >= 400
@@ -344,9 +366,24 @@ def _format_result_for_llm(data: Any, action: str) -> str:
 
         pairs = []
         for k, v in data.items():
-            if isinstance(v, (dict, list)):
-                continue
             label = k.replace("_", " ").title()
+            if isinstance(v, (dict, list)):
+                # Render nested values as compact (truncated) JSON instead of
+                # dropping them — otherwise fields like an eval config's
+                # `mapping`, `config`, or `filters` are invisible to Falcon,
+                # since it only ever sees ToolResult.content (TH-5442).
+                if not v:
+                    continue
+                import json as _json
+
+                try:
+                    rendered = _json.dumps(v, default=str)
+                except Exception:
+                    rendered = str(v)
+                if len(rendered) > 800:
+                    rendered = rendered[:800] + "…"
+                pairs.append((label, rendered))
+                continue
             if "id" in k.lower() and v:
                 pairs.append((label, f"`{v}`"))
             else:
@@ -697,6 +734,18 @@ def _register_bridge_tool(
     if query_params:
         annotations = {}
         fields_dict = {}
+        # Detail actions still need their pk/id input even when query_params are
+        # declared — execute() pops it and routes it to the URL kwarg, then the
+        # remaining params become query-string params. Without this, a detail +
+        # query_params tool (e.g. a CSV export keyed by id with a required
+        # `type` filter) would lose its id field entirely (TH-5386).
+        if detail and pk_field:
+            annotations[pk_field] = str
+            fields_dict[pk_field] = PydanticField(
+                description=(
+                    f"UUID of the {entity_name} to {action_name} (UUID v4 format)."
+                )
+            )
         for param_name, param_info in query_params.items():
             if isinstance(param_info, str):
                 param_info = {"type": str, "description": param_info, "required": False}
