@@ -109,7 +109,79 @@ class ListTraceScoresTool(BaseTool):
 
         total = scores.count()
 
-        if not scores:
+        # submit_trace_scores stores trace-level scores as a TraceErrorAnalysis
+        # record (the source read by get_trace_error_analysis), NOT as Score
+        # rows — so they were invisible here, making list_trace_scores return
+        # "No annotations found" right after a successful submit (TH-5405).
+        # Surface the latest analysis's per-category scores too.
+        analysis_rows = []
+        analysis_data = []
+        if params.trace_id:
+            from tracer.models.trace_error_analysis import TraceErrorAnalysis
+
+            analysis = (
+                TraceErrorAnalysis.objects.filter(
+                    trace=trace, project__organization=context.organization
+                )
+                .order_by("-analysis_date")
+                .first()
+            )
+            if analysis:
+                _analysis_fields = [
+                    ("overall", "overall_score", None),
+                    (
+                        "factual_grounding",
+                        "factual_grounding_score",
+                        "factual_grounding_reason",
+                    ),
+                    (
+                        "privacy_and_safety",
+                        "privacy_and_safety_score",
+                        "privacy_and_safety_reason",
+                    ),
+                    (
+                        "instruction_adherence",
+                        "instruction_adherence_score",
+                        "instruction_adherence_reason",
+                    ),
+                    (
+                        "optimal_plan_execution",
+                        "optimal_plan_execution_score",
+                        "optimal_plan_execution_reason",
+                    ),
+                ]
+                for label_name, score_field, reason_field in _analysis_fields:
+                    val = getattr(analysis, score_field, None)
+                    if val is None:
+                        continue
+                    reason = (
+                        getattr(analysis, reason_field, None) if reason_field else None
+                    )
+                    analysis_rows.append(
+                        [
+                            f"`analysis-{label_name}`",
+                            label_name,
+                            "numeric",
+                            format_number(val),
+                            "—",
+                            "falcon (analysis)",
+                            format_datetime(analysis.analysis_date),
+                        ]
+                    )
+                    analysis_data.append(
+                        {
+                            "id": f"analysis-{analysis.id}-{label_name}",
+                            "label_name": label_name,
+                            "label_type": "numeric",
+                            "value": {"value": val},
+                            "reason": reason,
+                            "source": "trace_error_analysis",
+                            "observation_span_id": None,
+                            "annotation_label_id": None,
+                        }
+                    )
+
+        if not scores and not analysis_data:
             return ToolResult(
                 content=section(
                     "Trace Annotations",
@@ -190,18 +262,24 @@ class ListTraceScoresTool(BaseTool):
                 }
             )
 
+        # Append the trace-level analysis scores (submit_trace_scores source).
+        rows.extend(analysis_rows)
+        data_list.extend(analysis_data)
+        combined_total = total + len(analysis_data)
+
         table = markdown_table(
             ["ID", "Label", "Type", "Value", "Span", "By", "Created"], rows
         )
 
         content = section(
-            f"Annotations for Trace `{str(params.trace_id)}` ({total})",
+            f"Annotations for Trace `{str(params.trace_id)}` ({combined_total})",
             table,
         )
 
         if total > 50:
-            content += f"\n\n_Showing 50 of {total} annotations._"
+            content += f"\n\n_Showing 50 of {total} annotations (plus analysis scores)._"
 
         return ToolResult(
-            content=content, data={"annotations": data_list, "total": total}
+            content=content,
+            data={"annotations": data_list, "total": combined_total},
         )
