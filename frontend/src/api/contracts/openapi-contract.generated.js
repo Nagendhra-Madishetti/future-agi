@@ -529,6 +529,56 @@ export const OPENAPI_CONTRACT = Object.freeze({
               "type": "string"
             }
           },
+          "send_log_id": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "email_status": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "link_issued_at": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "stale_reason": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          "context_status": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "current",
+                "stale",
+                "expired",
+                "invalid",
+                "complete",
+                "route_unavailable"
+              ]
+            }
+          },
+          "mode": {
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           "debug": {
             "required": false,
             "schema": {
@@ -91997,11 +92047,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
     },
     "ActivationEmailContext": {
       "required": [
-        "campaign_key",
-        "email_key",
-        "target_stage",
-        "target_event",
-        "target_route",
         "context_status",
         "resolved_href"
       ],
@@ -92010,12 +92055,27 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "campaign_key": {
           "title": "Campaign key",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
         },
         "email_key": {
           "title": "Email key",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
+        },
+        "send_log_id": {
+          "title": "Send log id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "email_status": {
+          "title": "Email status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "link_issued_at": {
+          "title": "Link issued at",
+          "type": "string",
+          "x-nullable": true
         },
         "target_stage": {
           "title": "Target stage",
@@ -92064,17 +92124,18 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "eval_next_loop",
             "open_sample_project",
             "connect_real_data"
-          ]
+          ],
+          "x-nullable": true
         },
         "target_event": {
           "title": "Target event",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
         },
         "target_route": {
           "title": "Target route",
           "type": "string",
-          "minLength": 1
+          "x-nullable": true
         },
         "context_status": {
           "title": "Context status",

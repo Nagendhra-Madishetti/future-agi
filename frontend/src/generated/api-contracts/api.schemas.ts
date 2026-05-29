@@ -1773,15 +1773,14 @@ export const ActivationEmailContextApiContextStatus = {
 } as const;
 
 export interface ActivationEmailContextApi {
-  /** @minLength 1 */
-  campaign_key: string;
-  /** @minLength 1 */
-  email_key: string;
-  target_stage: ActivationEmailContextApiTargetStage;
-  /** @minLength 1 */
-  target_event: string;
-  /** @minLength 1 */
-  target_route: string;
+  campaign_key?: string;
+  email_key?: string;
+  send_log_id?: string;
+  email_status?: string;
+  link_issued_at?: string;
+  target_stage?: ActivationEmailContextApiTargetStage;
+  target_event?: string;
+  target_route?: string;
   context_status: ActivationEmailContextApiContextStatus;
   stale_reason?: string;
   /** @minLength 1 */
@@ -24450,6 +24449,13 @@ email_key?: string;
 target_stage?: AccountsActivationStateListTargetStage;
 target_event?: string;
 target_route?: string;
+send_log_id?: string;
+email_status?: string;
+status?: string;
+link_issued_at?: string;
+stale_reason?: string;
+context_status?: AccountsActivationStateListContextStatus;
+mode?: string;
 debug?: boolean;
 };
 
@@ -24500,6 +24506,18 @@ export const AccountsActivationStateListTargetStage = {
   eval_next_loop: 'eval_next_loop',
   open_sample_project: 'open_sample_project',
   connect_real_data: 'connect_real_data',
+} as const;
+
+export type AccountsActivationStateListContextStatus = typeof AccountsActivationStateListContextStatus[keyof typeof AccountsActivationStateListContextStatus];
+
+
+export const AccountsActivationStateListContextStatus = {
+  current: 'current',
+  stale: 'stale',
+  expired: 'expired',
+  invalid: 'invalid',
+  complete: 'complete',
+  route_unavailable: 'route_unavailable',
 } as const;
 
 export type AccountsAwsMarketplaceLaunchSoftwareCreateBody = {
