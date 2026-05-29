@@ -573,6 +573,13 @@ async function installRuntime(
           projects: EXISTING_PROJECT
             ? [
                 {
+                  id: "observe-distractor-project",
+                  name: "Older observe project",
+                  project_type: "observe",
+                  source: "prototype",
+                  trace_type: "observe",
+                },
+                {
                   id: "observe-smoke-project",
                   name: "Observe smoke project",
                   project_type: "observe",
@@ -626,6 +633,11 @@ async function installRuntime(
         result: {
           projects: EXISTING_PROJECT
             ? [
+                {
+                  id: "observe-distractor-project",
+                  name: "Older observe project",
+                  trace_type: "observe",
+                },
                 {
                   id: "observe-smoke-project",
                   name: "Observe smoke project",
@@ -770,11 +782,11 @@ function stubbedActivationState(auth, { firstTraceReady = false } = {}) {
     user_id: auth.user.id,
     signals: {
       ...activationState.signals,
-      observe_projects: firstTraceReady
-        ? 1
+      observe_projects: EXISTING_PROJECT
+        ? 2
         : activationState.signals?.observe_projects,
       traces: firstTraceReady ? 1 : activationState.signals?.traces,
-      first_observe_id: firstTraceReady
+      first_observe_id: EXISTING_PROJECT
         ? "observe-smoke-project"
         : activationState.signals?.first_observe_id,
       first_trace_id: firstTraceReady

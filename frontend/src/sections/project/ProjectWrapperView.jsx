@@ -36,6 +36,7 @@ import ProjectFtux from "./ProjectFtux";
 import ProjectFilterPanel from "./ProjectFilterPanel";
 import NewProjectDrawer from "./NewProject/NewProjectDrawer";
 import { canOpenSample } from "src/sections/onboarding-home/activation-state-utils";
+import { useActivationState } from "src/sections/onboarding-home/hooks/useActivationState";
 import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/useRecordActivationEvent";
 import { useSampleProject } from "src/sections/onboarding-home/hooks/useSampleProject";
 import ObserveOnboardingFocusPanel from "src/sections/projects/ObserveOnboardingFocusPanel";
@@ -88,6 +89,11 @@ const ProjectWrapperView = () => {
     OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW;
   const { data: observeSetupFocusState, mutate: recordActivationEvent } =
     useRecordActivationEvent();
+  const { state: observeActivationState } = useActivationState({
+    enabled: showObserveSetupFocus,
+    requireWorkspaceContext: false,
+    source: observeSetupOnboardingParams.source,
+  });
   const {
     openSampleProject: {
       isPending: isOpeningSampleTrace,
@@ -121,9 +127,21 @@ const ProjectWrapperView = () => {
     data?.result?.table?.length > 0
       ? data.result.table
       : data?.result?.projects || [];
+  const activationFirstObserveProjectId =
+    observeSetupFocusState?.signals?.firstObserveId ||
+    observeSetupFocusState?.signals?.first_observe_id ||
+    observeActivationState?.signals?.firstObserveId ||
+    observeActivationState?.signals?.first_observe_id ||
+    null;
   const firstObserveProjectId =
     currentTab === "observe"
-      ? observeProjectRows.find((project) => project?.id)?.id || null
+      ? observeProjectRows.find(
+          (project) =>
+            activationFirstObserveProjectId &&
+            String(project?.id) === String(activationFirstObserveProjectId),
+        )?.id ||
+        observeProjectRows.find((project) => project?.id)?.id ||
+        null
       : null;
 
   const observeSetupCopy = useMemo(
@@ -137,7 +155,10 @@ const ProjectWrapperView = () => {
   );
   const canOpenObserveSetupSample =
     !isSampleReviewReturn &&
-    canOpenSample(observeSetupFocusState?.sampleProject);
+    canOpenSample(
+      observeSetupFocusState?.sampleProject ||
+        observeActivationState?.sampleProject,
+    );
 
   useEffect(() => {
     if (!showObserveSetupFocus || recordedObserveSetupFocusRef.current) return;

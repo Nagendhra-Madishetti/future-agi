@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import ProjectWrapperView from "./ProjectWrapperView";
 
 const mocks = vi.hoisted(() => ({
+  activationState: null,
   openSampleProject: vi.fn(),
   recordActivationEvent: vi.fn(),
   recordActivationState: null,
@@ -40,6 +41,15 @@ vi.mock("src/sections/onboarding-home/hooks/useRecordActivationEvent", () => ({
   useRecordActivationEvent: () => ({
     data: mocks.recordActivationState,
     mutate: (...args) => mocks.recordActivationEvent(...args),
+  }),
+}));
+
+vi.mock("src/sections/onboarding-home/hooks/useActivationState", () => ({
+  useActivationState: () => ({
+    state: mocks.activationState,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
   }),
 }));
 
@@ -97,6 +107,7 @@ vi.mock("src/utils/axios", () => ({
 describe("ProjectWrapperView observe setup onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.activationState = null;
     mocks.recordActivationState = {
       sampleProject: {
         available: true,
@@ -118,6 +129,42 @@ describe("ProjectWrapperView observe setup onboarding", () => {
         },
       },
       isLoading: false,
+    });
+  });
+
+  it("uses the activation-state Observe project when the list has multiple projects", async () => {
+    const user = userEvent.setup();
+    mocks.activationState = {
+      signals: {
+        firstObserveId: "project-2",
+      },
+    };
+    mocks.useQuery.mockReturnValue({
+      data: {
+        result: {
+          metadata: { total_rows: 2 },
+          projects: [{ id: "project-1" }, { id: "project-2" }],
+        },
+      },
+      isLoading: false,
+    });
+
+    renderWithRouter(<ProjectWrapperView />, {
+      route: "/dashboard/observe?setup=true&source=onboarding",
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: /open first trace step/i }),
+    );
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe(
+        "/dashboard/observe/project-2/llm-tracing",
+      );
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get("source")).toBe("onboarding");
+      expect(params.get("onboarding")).toBe("send-first-trace");
+      expect(params.get("selectedTab")).toBe("trace");
     });
   });
 
