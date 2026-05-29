@@ -7,6 +7,7 @@ from datetime import timedelta
 from urllib.parse import urlsplit
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -73,6 +74,7 @@ class LifecycleSendBatchResult:
     status_counts: dict
     suppression_counts: dict
     approval_manifest_sha256: str | None = None
+    approval_record_sha256: str | None = None
 
     def to_payload(self):
         return {
@@ -85,6 +87,7 @@ class LifecycleSendBatchResult:
             "status_counts": self.status_counts,
             "suppression_counts": self.suppression_counts,
             "approval_manifest_sha256": self.approval_manifest_sha256,
+            "approval_record_sha256": self.approval_record_sha256,
         }
 
 
@@ -730,6 +733,11 @@ def queue_onboarding_lifecycle_email(
     return send_log
 
 
+def _has_preview_approval_metadata(send_log):
+    metadata = (send_log.metadata or {}).get(APPROVAL_METADATA_KEY)
+    return isinstance(metadata, dict) and bool(metadata.get("approval_record_sha256"))
+
+
 def send_onboarding_lifecycle_email(send_log, *, now=None):
     now = now or timezone.now()
     if send_log.status in SUCCESS_SEND_STATUSES:
@@ -738,6 +746,8 @@ def send_onboarding_lifecycle_email(send_log, *, now=None):
         return send_log
     if _target_success_event_completed(send_log):
         return _mark_suppressed(send_log, "target_success_event_completed", now)
+    if not _has_preview_approval_metadata(send_log):
+        return _mark_suppressed(send_log, PREVIEW_APPROVAL_MISSING_REASON, now)
     campaign = send_log.evaluation_log.registry_snapshot or {}
     if not campaign:
         send_log.status = OnboardingLifecycleSendLog.STATUS_FAILED
@@ -830,6 +840,12 @@ def send_limited_onboarding_lifecycle_batch(
     preview_approval=None,
 ):
     now = now or timezone.now()
+    if not dry_run and (
+        not preview_approval or not preview_approval.approval_record_sha256
+    ):
+        raise ImproperlyConfigured(
+            "Lifecycle preview approval record is required for sends."
+        )
     run_id = uuid.uuid4()
     queryset = OnboardingLifecycleEvaluationLog.no_workspace_objects.filter(
         status=OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE,
@@ -894,6 +910,9 @@ def send_limited_onboarding_lifecycle_batch(
         suppression_counts=dict(suppression_counts),
         approval_manifest_sha256=(
             preview_approval.manifest_sha256 if preview_approval else None
+        ),
+        approval_record_sha256=(
+            preview_approval.approval_record_sha256 if preview_approval else None
         ),
     )
 

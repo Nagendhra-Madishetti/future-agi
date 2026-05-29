@@ -19,6 +19,7 @@ from accounts.models.workspace import Workspace
 from accounts.services.onboarding.lifecycle_preview_approval import (
     APPROVAL_METADATA_KEY,
     PREVIEW_APPROVAL_MISSING_REASON,
+    write_lifecycle_preview_approval_record,
 )
 from accounts.services.onboarding.lifecycle_preview_snapshots import (
     write_lifecycle_preview_snapshots,
@@ -106,13 +107,31 @@ def _eligible_campaign_log(user, organization, workspace, campaign_key):
 
 
 def _approval_manifest_path(tmp_path, campaign_key="welcome_resume_goal"):
-    output_dir = tmp_path / campaign_key
+    output_dir = tmp_path / (campaign_key or "all")
     write_lifecycle_preview_snapshots(
         output_dir=output_dir,
         campaign_key=campaign_key,
         now=timezone.now(),
     )
     return output_dir / "manifest.json"
+
+
+def _approval_paths(
+    tmp_path,
+    *,
+    campaign_key="welcome_resume_goal",
+    approved_campaign_keys=None,
+):
+    manifest_path = _approval_manifest_path(tmp_path, campaign_key)
+    record_path = manifest_path.parent / "approval-record.json"
+    write_lifecycle_preview_approval_record(
+        manifest_path=manifest_path,
+        output_path=record_path,
+        approved_by="Lifecycle reviewer <reviewer@example.com>",
+        approved_at=timezone.now(),
+        campaign_keys=approved_campaign_keys,
+    )
+    return manifest_path, record_path
 
 
 @pytest.mark.django_db
@@ -144,7 +163,7 @@ def test_send_command_respects_limit_and_sends_allowlisted(
     tmp_path,
 ):
     _eligible_log(user, organization, workspace)
-    approval_manifest = _approval_manifest_path(tmp_path)
+    approval_manifest, approval_record = _approval_paths(tmp_path)
     OnboardingLifecycleSendAllowlist.no_workspace_objects.create(
         scope_type=OnboardingLifecycleSendAllowlist.SCOPE_USER,
         scope_value=str(user.id),
@@ -161,11 +180,14 @@ def test_send_command_respects_limit_and_sends_allowlisted(
             "1",
             "--approval-manifest",
             str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
             stdout=output,
         )
 
     value = output.getvalue()
     assert "approval_manifest_sha256=" in value
+    assert "approval_record_sha256=" in value
     assert "sent=1" in value
     send_log = OnboardingLifecycleSendLog.no_workspace_objects.get(
         status=OnboardingLifecycleSendLog.STATUS_SENT
@@ -175,6 +197,11 @@ def test_send_command_respects_limit_and_sends_allowlisted(
         "welcome_resume_goal"
     )
     assert len(send_log.metadata[APPROVAL_METADATA_KEY]["manifest_sha256"]) == 64
+    assert len(send_log.metadata[APPROVAL_METADATA_KEY]["approval_record_sha256"]) == 64
+    assert (
+        send_log.metadata[APPROVAL_METADATA_KEY]["approved_by"]
+        == "Lifecycle reviewer <reviewer@example.com>"
+    )
 
 
 @pytest.mark.django_db
@@ -202,7 +229,7 @@ def test_send_command_requires_approval_manifest_for_real_send(
 
 @pytest.mark.django_db
 @override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
-def test_send_command_rejects_stale_approval_manifest(
+def test_send_command_requires_approval_record_for_real_send(
     organization,
     workspace,
     user,
@@ -210,12 +237,9 @@ def test_send_command_rejects_stale_approval_manifest(
 ):
     _eligible_log(user, organization, workspace)
     approval_manifest = _approval_manifest_path(tmp_path)
-    manifest = json.loads(approval_manifest.read_text())
-    manifest["campaigns"][0]["subject"] = "Stale subject"
-    approval_manifest.write_text(json.dumps(manifest), encoding="utf-8")
     output = StringIO()
 
-    with pytest.raises(CommandError, match="does not match current registry"):
+    with pytest.raises(CommandError, match="--approval-record is required"):
         call_command(
             "run_onboarding_lifecycle_send",
             "--cohort",
@@ -232,14 +256,86 @@ def test_send_command_rejects_stale_approval_manifest(
 
 @pytest.mark.django_db
 @override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
-def test_send_command_suppresses_campaign_missing_from_approval_manifest(
+def test_send_command_rejects_stale_approval_manifest(
     organization,
     workspace,
     user,
     tmp_path,
 ):
     _eligible_log(user, organization, workspace)
-    approval_manifest = _approval_manifest_path(tmp_path, "prompt_create_first")
+    approval_manifest, approval_record = _approval_paths(tmp_path)
+    manifest = json.loads(approval_manifest.read_text())
+    manifest["campaigns"][0]["subject"] = "Stale subject"
+    approval_manifest.write_text(json.dumps(manifest), encoding="utf-8")
+    output = StringIO()
+
+    with pytest.raises(CommandError, match="does not match current registry"):
+        call_command(
+            "run_onboarding_lifecycle_send",
+            "--cohort",
+            "internal",
+            "--limit",
+            "1",
+            "--approval-manifest",
+            str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
+            stdout=output,
+        )
+
+    assert not OnboardingLifecycleSendLog.no_workspace_objects.exists()
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_send_command_rejects_stale_approval_record(
+    organization,
+    workspace,
+    user,
+    tmp_path,
+):
+    _eligible_log(user, organization, workspace)
+    approval_manifest, approval_record = _approval_paths(tmp_path)
+    record = json.loads(approval_record.read_text())
+    record["manifest_sha256"] = "0" * 64
+    approval_record.write_text(json.dumps(record), encoding="utf-8")
+    output = StringIO()
+
+    with pytest.raises(CommandError, match="manifest_sha256 does not match"):
+        call_command(
+            "run_onboarding_lifecycle_send",
+            "--cohort",
+            "internal",
+            "--limit",
+            "1",
+            "--approval-manifest",
+            str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
+            stdout=output,
+        )
+
+    assert not OnboardingLifecycleSendLog.no_workspace_objects.exists()
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_send_command_suppresses_campaign_missing_from_approval_record(
+    organization,
+    workspace,
+    user,
+    tmp_path,
+):
+    _eligible_log(user, organization, workspace)
+    approval_manifest = _approval_manifest_path(tmp_path, None)
+    approval_record = approval_manifest.parent / "approval-record.json"
+    write_lifecycle_preview_approval_record(
+        manifest_path=approval_manifest,
+        output_path=approval_record,
+        approved_by="Lifecycle reviewer <reviewer@example.com>",
+        approved_at=timezone.now(),
+        campaign_keys=["prompt_create_first"],
+    )
     OnboardingLifecycleSendAllowlist.no_workspace_objects.create(
         scope_type=OnboardingLifecycleSendAllowlist.SCOPE_USER,
         scope_value=str(user.id),
@@ -256,6 +352,8 @@ def test_send_command_suppresses_campaign_missing_from_approval_manifest(
             "1",
             "--approval-manifest",
             str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
             stdout=output,
         )
 
@@ -279,7 +377,7 @@ def test_send_command_suppresses_real_send_when_not_cloud(
     tmp_path,
 ):
     _eligible_log(user, organization, workspace)
-    approval_manifest = _approval_manifest_path(tmp_path)
+    approval_manifest, approval_record = _approval_paths(tmp_path)
     OnboardingLifecycleSendAllowlist.no_workspace_objects.create(
         scope_type=OnboardingLifecycleSendAllowlist.SCOPE_USER,
         scope_value=str(user.id),
@@ -302,6 +400,8 @@ def test_send_command_suppresses_real_send_when_not_cloud(
             "1",
             "--approval-manifest",
             str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
             stdout=output,
         )
 
@@ -352,7 +452,7 @@ def test_welcome_email_beta_send_requires_explicit_flag_and_allowlist(
     tmp_path,
 ):
     _eligible_campaign_log(user, organization, workspace, "welcome_resume_goal")
-    approval_manifest = _approval_manifest_path(tmp_path)
+    approval_manifest, approval_record = _approval_paths(tmp_path)
     OnboardingLifecycleSendAllowlist.no_workspace_objects.create(
         scope_type=OnboardingLifecycleSendAllowlist.SCOPE_USER,
         scope_value=str(user.id),
@@ -369,6 +469,8 @@ def test_welcome_email_beta_send_requires_explicit_flag_and_allowlist(
             "1",
             "--approval-manifest",
             str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
             stdout=output,
         )
 
@@ -393,7 +495,7 @@ def test_welcome_email_beta_requires_welcome_specific_allowlist(
     tmp_path,
 ):
     _eligible_campaign_log(user, organization, workspace, "welcome_resume_goal")
-    approval_manifest = _approval_manifest_path(tmp_path)
+    approval_manifest, approval_record = _approval_paths(tmp_path)
     OnboardingLifecycleSendAllowlist.no_workspace_objects.create(
         scope_type=OnboardingLifecycleSendAllowlist.SCOPE_USER,
         scope_value=str(user.id),
@@ -409,6 +511,8 @@ def test_welcome_email_beta_requires_welcome_specific_allowlist(
             "1",
             "--approval-manifest",
             str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
             stdout=output,
         )
 

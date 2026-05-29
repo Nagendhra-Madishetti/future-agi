@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
 
 from accounts.services.onboarding.lifecycle_preview_approval import (
-    load_lifecycle_preview_approval_manifest,
+    load_lifecycle_preview_approval,
 )
 from accounts.services.onboarding.lifecycle_sender import (
     send_limited_onboarding_lifecycle_batch,
@@ -23,6 +23,7 @@ class Command(BaseCommand):
         parser.add_argument("--user-id")
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--approval-manifest")
+        parser.add_argument("--approval-record")
         parser.add_argument("--now")
 
     def handle(self, *args, **options):
@@ -36,13 +37,20 @@ class Command(BaseCommand):
         preview_approval = None
         if options.get("approval_manifest"):
             try:
-                preview_approval = load_lifecycle_preview_approval_manifest(
-                    options["approval_manifest"]
+                preview_approval = load_lifecycle_preview_approval(
+                    options["approval_manifest"],
+                    approval_record_path=options.get("approval_record"),
                 )
             except ImproperlyConfigured as exc:
                 raise CommandError(str(exc)) from exc
+        elif options.get("approval_record"):
+            raise CommandError(
+                "--approval-manifest is required with --approval-record."
+            )
         elif not options["dry_run"]:
             raise CommandError("--approval-manifest is required for sends.")
+        if not options["dry_run"] and not options.get("approval_record"):
+            raise CommandError("--approval-record is required for sends.")
 
         result = send_limited_onboarding_lifecycle_batch(
             cohort=options["cohort"],
@@ -58,6 +66,10 @@ class Command(BaseCommand):
         if payload["approval_manifest_sha256"]:
             self.stdout.write(
                 f"approval_manifest_sha256={payload['approval_manifest_sha256']}"
+            )
+        if payload["approval_record_sha256"]:
+            self.stdout.write(
+                f"approval_record_sha256={payload['approval_record_sha256']}"
             )
         self.stdout.write(f"run_id={payload['run_id']}")
         self.stdout.write(f"evaluated={payload['evaluated']}")

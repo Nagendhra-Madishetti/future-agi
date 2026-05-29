@@ -12,6 +12,10 @@ from accounts.models import (
     OnboardingLifecycleEvaluationLog,
     OnboardingLifecycleSendLog,
 )
+from accounts.services.onboarding.lifecycle_preview_approval import (
+    APPROVAL_RECORD_SCHEMA_VERSION,
+    APPROVAL_RECORD_SOURCE,
+)
 from accounts.services.onboarding.lifecycle_registry import (
     lifecycle_campaign_by_key,
     lifecycle_campaigns,
@@ -234,6 +238,69 @@ def test_lifecycle_preview_command_writes_no_send_snapshot(tmp_path):
     )
     assert entry["digest_preview_required"] is False
     assert entry["generated_at"] == "2026-05-29T10:00:00+00:00"
+
+
+def test_lifecycle_preview_approval_command_writes_review_record(tmp_path):
+    manifest_output = StringIO()
+    call_command(
+        "generate_onboarding_lifecycle_previews",
+        "--output-dir",
+        str(tmp_path),
+        "--campaign-key",
+        "welcome_resume_goal",
+        "--now",
+        "2026-05-29T10:00:00Z",
+        stdout=manifest_output,
+    )
+    output = StringIO()
+    approval_path = tmp_path / "approval-record.json"
+
+    call_command(
+        "approve_onboarding_lifecycle_previews",
+        "--manifest",
+        str(tmp_path / "manifest.json"),
+        "--output",
+        str(approval_path),
+        "--approved-by",
+        "Lifecycle reviewer <reviewer@example.com>",
+        "--approved-at",
+        "2026-05-29T10:05:00Z",
+        "--note",
+        "Reviewed welcome copy and route target.",
+        stdout=output,
+    )
+
+    command_output = output.getvalue()
+    manifest_text = (tmp_path / "manifest.json").read_text()
+    record_text = approval_path.read_text()
+    record = json.loads(record_text)
+    assert "approval_record_sha256=" in command_output
+    assert "Lifecycle reviewer <reviewer@example.com>" in command_output
+    assert record == {
+        "schema_version": APPROVAL_RECORD_SCHEMA_VERSION,
+        "source": APPROVAL_RECORD_SOURCE,
+        "decision": "approved",
+        "approved_by": "Lifecycle reviewer <reviewer@example.com>",
+        "approved_at": "2026-05-29T10:05:00+00:00",
+        "manifest_sha256": sha256(manifest_text.encode("utf-8")).hexdigest(),
+        "manifest_generated_at": "2026-05-29T10:00:00+00:00",
+        "campaign_count": 1,
+        "campaigns": [
+            {
+                "campaign_key": "welcome_resume_goal",
+                "html_sha256": sha256(
+                    (tmp_path / "welcome_resume_goal.html").read_text().encode("utf-8")
+                ).hexdigest(),
+                "text_sha256": sha256(
+                    (tmp_path / "welcome_resume_goal.txt").read_text().encode("utf-8")
+                ).hexdigest(),
+            }
+        ],
+        "note": "Reviewed welcome copy and route target.",
+    }
+    assert "FutureAGI onboarding" not in record_text
+    assert "Connect the first observe project" not in record_text
+    assert "reviewer@example.com" in record_text
 
 
 def test_lifecycle_preview_command_writes_all_campaign_snapshots(tmp_path):

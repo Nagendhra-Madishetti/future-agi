@@ -3,6 +3,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 from django.utils import timezone
 
@@ -20,9 +21,14 @@ from accounts.models import (
 )
 from accounts.models.workspace import Workspace
 from accounts.services.onboarding.activation_events import record_event
+from accounts.services.onboarding.lifecycle_preview_approval import (
+    APPROVAL_METADATA_KEY,
+    PREVIEW_APPROVAL_MISSING_REASON,
+)
 from accounts.services.onboarding.lifecycle_registry import lifecycle_campaign_by_key
 from accounts.services.onboarding.lifecycle_sender import (
     queue_onboarding_lifecycle_email,
+    send_limited_onboarding_lifecycle_batch,
     send_onboarding_lifecycle_email,
 )
 from accounts.services.onboarding.notification_preferences import (
@@ -78,6 +84,34 @@ def _allow_user(user):
         environment="local",
         reason="test",
     )
+
+
+def _approval_metadata(campaign_key):
+    return {
+        APPROVAL_METADATA_KEY: {
+            "manifest_path": "/tmp/manifest.json",
+            "manifest_sha256": "a" * 64,
+            "manifest_generated_at": "2026-05-29T10:00:00+00:00",
+            "approval_record_path": "/tmp/approval-record.json",
+            "approval_record_sha256": "b" * 64,
+            "approved_by": "Lifecycle reviewer <reviewer@example.com>",
+            "approved_at": "2026-05-29T10:05:00+00:00",
+            "campaign_key": campaign_key,
+            "html_file": f"{campaign_key}.html",
+            "text_file": f"{campaign_key}.txt",
+            "html_sha256": "c" * 64,
+            "text_sha256": "d" * 64,
+        }
+    }
+
+
+def _mark_preview_approved(send_log):
+    send_log.metadata = {
+        **(send_log.metadata or {}),
+        **_approval_metadata(send_log.campaign_key),
+    }
+    send_log.save(update_fields=["metadata", "updated_at"])
+    return send_log
 
 
 def _activated_observe_workspace(organization, workspace, user, *, now):
@@ -231,7 +265,10 @@ def _queued_daily_quality_send_log(user, organization, workspace, *, now):
         target_route="/dashboard/home?mode=daily-quality",
         status=OnboardingLifecycleSendLog.STATUS_QUEUED,
         queued_at=now,
-        metadata={"digest_preview": preview},
+        metadata={
+            "digest_preview": preview,
+            **_approval_metadata(campaign["campaign_key"]),
+        },
     )
 
 
@@ -334,6 +371,46 @@ def test_user_not_allowlisted_suppresses(
 
 @pytest.mark.django_db
 @override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_batch_real_send_requires_preview_approval_record(
+    organization,
+    workspace,
+    user,
+):
+    _allow_user(user)
+    _eligible_log(user, organization, workspace)
+
+    with pytest.raises(
+        ImproperlyConfigured,
+        match="approval record is required",
+    ):
+        send_limited_onboarding_lifecycle_batch(
+            cohort="internal",
+            limit=1,
+        )
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_provider_send_requires_preview_approval_metadata(
+    organization,
+    workspace,
+    user,
+):
+    _allow_user(user)
+    log = _eligible_log(user, organization, workspace)
+    send_log = queue_onboarding_lifecycle_email(log)
+
+    with patch("accounts.services.onboarding.lifecycle_sender.email_helper") as helper:
+        suppressed_log = send_onboarding_lifecycle_email(send_log)
+
+    assert suppressed_log.status == OnboardingLifecycleSendLog.STATUS_SUPPRESSED
+    assert suppressed_log.suppression_reason == PREVIEW_APPROVAL_MISSING_REASON
+    assert not suppressed_log.click_url
+    helper.assert_not_called()
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
 def test_helper_success_records_sent_log(
     organization,
     workspace,
@@ -344,6 +421,7 @@ def test_helper_success_records_sent_log(
 
     with patch("accounts.services.onboarding.lifecycle_sender.email_helper") as helper:
         send_log = queue_onboarding_lifecycle_email(log)
+        _mark_preview_approved(send_log)
         sent_log = send_onboarding_lifecycle_email(send_log)
 
     assert sent_log.status == OnboardingLifecycleSendLog.STATUS_SENT
@@ -368,6 +446,7 @@ def test_non_cloud_delivery_suppresses_queued_send(
     _allow_user(user)
     log = _eligible_log(user, organization, workspace)
     send_log = queue_onboarding_lifecycle_email(log)
+    _mark_preview_approved(send_log)
     assert send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED
 
     with (
@@ -452,6 +531,7 @@ def test_daily_quality_digest_send_log_carries_safe_preview(
     )
 
     send_log = queue_onboarding_lifecycle_email(log, now=now)
+    _mark_preview_approved(send_log)
 
     assert send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED
     preview = send_log.metadata["digest_preview"]
@@ -777,6 +857,7 @@ def test_helper_failure_records_failed_send(
         side_effect=RuntimeError("provider unavailable"),
     ):
         send_log = queue_onboarding_lifecycle_email(log)
+        _mark_preview_approved(send_log)
         failed_log = send_onboarding_lifecycle_email(send_log)
 
     assert failed_log.status == OnboardingLifecycleSendLog.STATUS_FAILED
@@ -796,7 +877,7 @@ def test_duplicate_send_does_not_call_helper_twice(
 
     with patch("accounts.services.onboarding.lifecycle_sender.email_helper") as helper:
         first = send_onboarding_lifecycle_email(
-            queue_onboarding_lifecycle_email(log),
+            _mark_preview_approved(queue_onboarding_lifecycle_email(log)),
         )
         second = send_onboarding_lifecycle_email(
             queue_onboarding_lifecycle_email(log),
@@ -897,7 +978,7 @@ def test_completion_event_marks_send_completed(
     log = _eligible_log(user, organization, workspace)
     with patch("accounts.services.onboarding.lifecycle_sender.email_helper"):
         send_log = send_onboarding_lifecycle_email(
-            queue_onboarding_lifecycle_email(log),
+            _mark_preview_approved(queue_onboarding_lifecycle_email(log)),
         )
 
     record_event(
