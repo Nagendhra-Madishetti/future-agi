@@ -5,6 +5,7 @@ import requests
 import structlog
 from django.contrib.auth.hashers import check_password
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
@@ -43,6 +44,12 @@ from accounts.serializers.contracts import (
     UserOnboardingSaveResponseSerializer,
 )
 from accounts.serializers.user import UserOnboardingSerializer
+from accounts.services.onboarding.context import resolve_onboarding_context
+from accounts.services.onboarding.goals import (
+    OnboardingGoalConflict,
+    normalize_goal,
+    save_onboarding_goal,
+)
 
 # from accounts.user_onboard import upload_demo_dataset
 from accounts.views.signup import verify_recaptcha
@@ -64,6 +71,56 @@ from tfc.utils.general_methods import GeneralMethods
 from tracer.models.project import Project
 
 logger = structlog.get_logger(__name__)
+
+
+def _select_profile_activation_goal(goals):
+    fallback_goal = None
+    for goal in goals or []:
+        if not goal:
+            continue
+        try:
+            canonical = normalize_goal(goal)
+        except ValidationError:
+            continue
+        if canonical == "monitor_production_ai_app":
+            return goal
+        if fallback_goal is None:
+            fallback_goal = goal
+    return fallback_goal
+
+
+def _save_profile_onboarding_goal(request, user, goals):
+    selected_goal = _select_profile_activation_goal(goals)
+    if not selected_goal:
+        return None
+
+    try:
+        context = resolve_onboarding_context(request)
+        return save_onboarding_goal(
+            user=user,
+            organization=context.organization,
+            workspace=context.workspace,
+            goal=selected_goal,
+            source="setup_org_profile",
+            reason="profile_completed",
+            metadata={"persona": user.role},
+        )
+    except (OnboardingGoalConflict, ValidationError) as exc:
+        logger.warning(
+            "Profile onboarding goal sync skipped",
+            error=str(exc),
+            user_id=str(getattr(user, "id", "")),
+            goal=selected_goal,
+        )
+        return None
+    except Exception as exc:
+        logger.exception(
+            "Profile onboarding goal sync failed",
+            error=str(exc),
+            user_id=str(getattr(user, "id", "")),
+            goal=selected_goal,
+        )
+        return None
 
 
 @swagger_auto_schema(
@@ -138,7 +195,10 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
     @validated_request(
         request_serializer=LoginRequestSerializer,
-        responses={200: AccountsTokenPairResponseSerializer, **ACCOUNTS_ERROR_RESPONSES},
+        responses={
+            200: AccountsTokenPairResponseSerializer,
+            **ACCOUNTS_ERROR_RESPONSES,
+        },
         reject_unknown_fields=True,
     )
     def post(self, request, *args, **kwargs):
@@ -1097,6 +1157,9 @@ def user_onboarding(request):
             user.config["onboarding_completed_at"] = timezone.now().isoformat()
 
             user.save(update_fields=["role", "goals", "config"])
+            _save_profile_onboarding_goal(
+                request, user, validated_data.get("goals", [])
+            )
 
             # Track event
             try:

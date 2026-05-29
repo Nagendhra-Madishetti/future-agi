@@ -396,6 +396,39 @@ class TestUserOnboardingAPI:
         )
         assert response.status_code == status.HTTP_200_OK
 
+    def test_post_onboarding_persists_activation_goal(
+        self,
+        auth_client,
+        workspace,
+    ):
+        """Profile save picks the first supported goal as the activation path."""
+        from accounts.models import OnboardingActivationEvent, OnboardingGoal
+
+        response = auth_client.post(
+            "/accounts/onboarding/",
+            {
+                "role": "AI Builder",
+                "goals": ["Monitor LLMs and Agents", "Run Evaluations"],
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        goal = OnboardingGoal.no_workspace_objects.get(
+            workspace=workspace,
+            is_active=True,
+        )
+        assert goal.goal == "monitor_production_ai_app"
+        assert goal.primary_path == "observe"
+        assert goal.source == "setup_org_profile"
+        assert goal.reason == "profile_completed"
+        assert goal.metadata["persona"] == "AI Builder"
+        assert OnboardingActivationEvent.no_workspace_objects.filter(
+            event_name="onboarding_goal_selected",
+            product_path="observe",
+            workspace=workspace,
+        ).exists()
+
     def test_post_onboarding_rejects_unknown_request_fields(self, auth_client):
         response = auth_client.post(
             "/accounts/onboarding/",
