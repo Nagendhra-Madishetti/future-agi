@@ -106,6 +106,52 @@ const SMOKES = [
     },
   },
   {
+    id: "onboarding-home-evals-path-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed auth proof that Home shows the eval first-run path focus.",
+    env: {
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+      ONBOARDING_SMOKE_PATH_FOCUS: "evals",
+    },
+  },
+  {
+    id: "onboarding-home-voice-path-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed auth proof that Home shows the voice first-run path focus.",
+    env: {
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+      ONBOARDING_SMOKE_PATH_FOCUS: "voice",
+    },
+  },
+  {
+    id: "onboarding-home-evals-path-mobile-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Mobile stubbed proof that Home shows the eval first-run path focus.",
+    env: {
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+      ONBOARDING_SMOKE_PATH_FOCUS: "evals",
+      ONBOARDING_SMOKE_VIEWPORT: "mobile",
+    },
+  },
+  {
+    id: "onboarding-home-voice-path-mobile-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Mobile stubbed proof that Home shows the voice first-run path focus.",
+    env: {
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+      ONBOARDING_SMOKE_PATH_FOCUS: "voice",
+      ONBOARDING_SMOKE_VIEWPORT: "mobile",
+    },
+  },
+  {
     id: "onboarding-first-signup-aha-coverage-controlled",
     mode: "controlled",
     suite: true,

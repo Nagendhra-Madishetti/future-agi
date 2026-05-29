@@ -20,6 +20,7 @@ const EXISTING_TRACE =
 const OPEN_SAMPLE_HOME = envFlag("ONBOARDING_SMOKE_OPEN_SAMPLE");
 const POST_AHA_HOME = envFlag("ONBOARDING_SMOKE_POST_AHA_HOME");
 const FEATURE_DISABLED_HOME = envFlag("ONBOARDING_SMOKE_FEATURE_DISABLED_HOME");
+const PATH_FOCUS = process.env.ONBOARDING_SMOKE_PATH_FOCUS || "";
 const SCREENSHOT_PATH =
   process.env.ONBOARDING_HOME_OBSERVE_SCREENSHOT ||
   `/tmp/onboarding-home-observe-smoke-${VIEWPORT_NAME}${
@@ -28,7 +29,9 @@ const SCREENSHOT_PATH =
     OPEN_SAMPLE_HOME ? "-sample-open" : ""
   }${
     POST_AHA_HOME ? "-post-aha-fallback" : ""
-  }${FEATURE_DISABLED_HOME ? "-get-started-fallback" : ""}.png`;
+  }${FEATURE_DISABLED_HOME ? "-get-started-fallback" : ""}${
+    PATH_FOCUS ? `-${PATH_FOCUS}-path-focus` : ""
+  }.png`;
 const HOME_SCREENSHOT_PATH =
   process.env.ONBOARDING_HOME_SCREENSHOT ||
   SCREENSHOT_PATH.replace(/\.png$/, "-home.png");
@@ -58,6 +61,7 @@ async function main() {
     open_sample_home: OPEN_SAMPLE_HOME,
     post_aha_home: POST_AHA_HOME,
     feature_disabled_home: FEATURE_DISABLED_HOME,
+    path_focus: PATH_FOCUS,
   };
 
   const browser = await puppeteer.launch({
@@ -225,6 +229,90 @@ async function main() {
         `Unexpected post-Aha Observe CTA href: ${openObserveHref}`,
       );
       evidence.post_aha_open_observe_href = openObserveHref;
+      await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
+      evidence.screenshot = SCREENSHOT_PATH;
+      evidence.activation_state_requests = activationStateRequests.length;
+      assert(
+        apiFailures.length === 0,
+        `API failures: ${apiFailures.join("; ")}`,
+      );
+      assert(pageErrors.length === 0, `Page errors: ${pageErrors.join("; ")}`);
+      console.log(
+        JSON.stringify(
+          {
+            status: "passed",
+            app_base: APP_BASE,
+            api_base: auth.apiBase,
+            organization_id: auth.organizationId,
+            workspace_id: auth.workspaceId,
+            evidence,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+
+    if (PATH_FOCUS) {
+      const pathProfile = pathFocusProfile(PATH_FOCUS);
+
+      await page.goto(`${APP_BASE}/dashboard/home?source=onboarding`, {
+        waitUntil: "domcontentloaded",
+      });
+      await page.waitForFunction(
+        () =>
+          window.location.pathname === "/dashboard/home" &&
+          new URLSearchParams(window.location.search).get("source") ===
+            "onboarding",
+        { timeout: 30000 },
+      );
+
+      await expectSelector(
+        page,
+        `[data-testid="path-focus-panel-${pathProfile.primaryPath}"]`,
+      );
+      await expectVisibleText(page, pathProfile.stageEyebrow, {
+        exact: true,
+      });
+      await expectVisibleText(page, pathProfile.stageTitle, { exact: true });
+      await expectVisibleText(page, pathProfile.stageDescription, {
+        exact: true,
+      });
+      await expectVisibleText(page, pathProfile.panelEyebrow, { exact: true });
+      await expectVisibleText(page, pathProfile.panelTitle, { exact: true });
+      await expectVisibleText(page, pathProfile.currentStepText, {
+        exact: true,
+      });
+      const getStartedVisible = await visibleActionExists(
+        page,
+        "Open Get Started",
+      );
+      assert(
+        !getStartedVisible,
+        "Path focus state should not show the generic Get Started action.",
+      );
+      if (pathProfile.disabled) {
+        const isDisabled = await visibleActionDisabled(page, pathProfile.cta, {
+          rootSelector: `[data-testid="path-focus-panel-${pathProfile.primaryPath}"]`,
+        });
+        assert(
+          isDisabled,
+          `Expected ${pathProfile.cta} CTA to be disabled for unavailable route.`,
+        );
+        evidence.home_cta_disabled = true;
+      } else {
+        const ctaHref = await visibleLinkHrefByText(page, pathProfile.cta, {
+          rootSelector: `[data-testid="path-focus-panel-${pathProfile.primaryPath}"]`,
+        });
+        assert(
+          ctaHref === pathProfile.href,
+          `Unexpected path-focus CTA href: ${ctaHref}`,
+        );
+        assert(!ctaHref.startsWith("//"), `Unsafe CTA href: ${ctaHref}`);
+        evidence.home_cta_href = ctaHref;
+      }
+      await waitForNoVisibleText(page, "Invalid Date");
       await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
       evidence.screenshot = SCREENSHOT_PATH;
       evidence.activation_state_requests = activationStateRequests.length;
@@ -858,6 +946,10 @@ async function installRuntime(
 }
 
 function stubbedActivationState(auth, { firstTraceReady = false } = {}) {
+  if (PATH_FOCUS) {
+    return pathFocusActivationState(auth, PATH_FOCUS);
+  }
+
   const fixtureName = FEATURE_DISABLED_HOME
     ? "featureDisabled"
     : POST_AHA_HOME
@@ -925,6 +1017,143 @@ function stubbedActivationState(auth, { firstTraceReady = false } = {}) {
       first_trace_id: firstTraceReady
         ? "trace-smoke-1"
         : activationState.signals?.first_trace_id,
+    },
+  };
+}
+
+function pathFocusProfile(pathFocus) {
+  const profiles = {
+    evals: {
+      primaryPath: "evals",
+      goal: "evaluate_quality",
+      stage: "run_eval",
+      stageEyebrow: "Eval run",
+      stageTitle: "Run the first eval",
+      stageDescription: "Run the eval once so the first result is reviewable.",
+      panelEyebrow: "Eval loop",
+      panelTitle: "Create one eval and review the first failure",
+      pathLabel: "Evaluate quality",
+      pathDescription: "Create a small eval and review the first failure.",
+      flagName: "onboarding_eval_path",
+      actionId: "run_eval",
+      actionKind: "test",
+      actionTitle: "Run eval",
+      actionDescription: "Run the first eval and review the result.",
+      cta: "Run eval",
+      href: "/dashboard/evaluations/create?source=onboarding&step=run",
+      completionEvent: "eval_run_completed",
+      currentStepText: "Run eval: run eval",
+      disabled: false,
+    },
+    voice: {
+      primaryPath: "voice",
+      goal: "connect_voice_ai_agent",
+      stage: "create_voice_agent",
+      stageEyebrow: "Voice",
+      stageTitle: "Create a voice agent",
+      stageDescription:
+        "Create or connect one voice agent before running a test call.",
+      panelEyebrow: "Voice loop",
+      panelTitle: "Connect a voice agent quality loop",
+      pathLabel: "Connect a voice AI agent",
+      pathDescription: "Run or review a call with clear success criteria.",
+      flagName: "onboarding_voice_path",
+      actionId: "create_voice_agent",
+      actionKind: "setup",
+      actionTitle: "Create voice agent",
+      actionDescription:
+        "Create or connect one voice agent before the first test call.",
+      cta: "Create agent",
+      href: "/dashboard/simulate/agent-definitions/create-new-agent-definition?source=onboarding&onboarding=create-voice-agent",
+      completionEvent: "voice_agent_created",
+      currentStepText: "Create agent: create voice agent",
+      disabled: false,
+    },
+  };
+  const profile = profiles[pathFocus];
+  assert(
+    profile,
+    `Unsupported ONBOARDING_SMOKE_PATH_FOCUS value: ${pathFocus}`,
+  );
+  return profile;
+}
+
+function pathFocusActivationState(auth, pathFocus) {
+  const profile = pathFocusProfile(pathFocus);
+  const activationState = getActivationStateFixture("observeNoSetup");
+  const pathHref = `/dashboard/home?path=${profile.primaryPath}`;
+
+  return {
+    ...activationState,
+    request_id: `onboarding_home_${profile.primaryPath}_path_smoke`,
+    organization_id: auth.organizationId,
+    workspace_id: auth.workspaceId,
+    user_id: auth.user.id,
+    goal: profile.goal,
+    primary_path: profile.primaryPath,
+    stage: profile.stage,
+    progress: {
+      build: "complete",
+      test: "selected",
+      observe: "not_started",
+      ship: "not_started",
+      improve: "not_started",
+    },
+    recommended_action: {
+      id: profile.actionId,
+      kind: profile.actionKind,
+      title: profile.actionTitle,
+      description: profile.actionDescription,
+      href: profile.href,
+      cta_label: profile.cta,
+      estimated_minutes: 3,
+      priority: 100,
+      blocked: false,
+      blocked_reason: null,
+      requires_permission: null,
+      completion_event: profile.completionEvent,
+      is_sample: false,
+      route_available: !profile.disabled,
+      fallback_href: "/dashboard/get-started",
+      analytics: {
+        event_name: "onboarding_recommended_action_clicked",
+        source: "home",
+        target_path: profile.primaryPath,
+      },
+    },
+    available_paths: [
+      {
+        id: profile.primaryPath,
+        label: profile.pathLabel,
+        description: profile.pathDescription,
+        status: "selected",
+        href: pathHref,
+        is_available: true,
+        blocked_reason: null,
+        requires_permission: null,
+        first_action_id: profile.actionId,
+      },
+    ],
+    feature_flags: {
+      ...activationState.feature_flags,
+      [profile.flagName]: true,
+    },
+    route_availability: {
+      ...activationState.route_availability,
+      [`path_${profile.primaryPath}`]: {
+        href: pathHref,
+        is_available: true,
+        reason: null,
+      },
+      [profile.actionId]: {
+        href: profile.href,
+        is_available: !profile.disabled,
+        reason: profile.disabled ? "route_not_available" : null,
+      },
+    },
+    sample_project: {
+      ...activationState.sample_project,
+      available: false,
     },
   };
 }
@@ -1298,6 +1527,39 @@ async function visibleActionExists(page, text, { rootSelector } = {}) {
         (candidate) =>
           isVisible(candidate) &&
           normalized(candidate.textContent) === expectedText,
+      );
+    },
+    { expectedText: text, selector: rootSelector },
+  );
+}
+
+async function visibleActionDisabled(page, text, { rootSelector } = {}) {
+  await expectVisibleText(page, text, { exact: true });
+  return page.evaluate(
+    ({ expectedText, selector }) => {
+      const normalized = (value) => String(value || "").trim();
+      const isVisible = (element) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.visibility !== "hidden" &&
+          style.display !== "none" &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      const root = selector ? document.querySelector(selector) : document.body;
+      const element = Array.from(
+        root?.querySelectorAll("button,[role='button'],a[href]") || [],
+      ).find(
+        (candidate) =>
+          isVisible(candidate) &&
+          normalized(candidate.textContent) === expectedText,
+      );
+      return Boolean(
+        element?.disabled ||
+          element?.getAttribute("aria-disabled") === "true" ||
+          element?.classList.contains("Mui-disabled"),
       );
     },
     { expectedText: text, selector: rootSelector },
