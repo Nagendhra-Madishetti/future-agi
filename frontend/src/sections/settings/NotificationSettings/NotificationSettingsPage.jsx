@@ -43,21 +43,65 @@ const FAMILY_ORDER = [
   "workspace_admin",
 ];
 
+const EXTERNAL_CHANNEL_TYPES = {
+  slack_webhook: "slack",
+  webhook: "webhook",
+};
+
+const EXTERNAL_CHANNEL_FAMILIES = new Set([
+  "daily_quality_digest",
+  "usage_budget",
+  "gateway_alert",
+  "observe_monitor",
+  "eval_quality_alert",
+]);
+
 function decisionKey(family, channel) {
   return `${family}:${channel}`;
 }
 
-function preferencePayload({ family, channel, enabled }) {
+function preferencePayload({ family, channel, enabled, scope }) {
   return {
     preferences: [
       {
-        scope: "user_workspace",
+        scope,
         family,
         channel,
         enabled,
       },
     ],
   };
+}
+
+function preferenceScopeForFamily(family, canManageWorkspace) {
+  if (family.user_controllable) return "user_workspace";
+  if (family.workspace_controllable && canManageWorkspace) return "workspace";
+  return "user_workspace";
+}
+
+function toggleDisabledForFamily(family, canManageWorkspace, isPending) {
+  if (isPending) return true;
+  if (family.user_controllable) return false;
+  return !(family.workspace_controllable && canManageWorkspace);
+}
+
+function configuredExternalChannels(channels) {
+  return Array.from(
+    new Set(
+      channels
+        .filter((channel) => channel.is_active !== false)
+        .map((channel) => EXTERNAL_CHANNEL_TYPES[channel.type])
+        .filter(Boolean),
+    ),
+  );
+}
+
+function channelsForFamily(family, externalChannels) {
+  const channels = new Set(family.default_channels || []);
+  if (EXTERNAL_CHANNEL_FAMILIES.has(family.id)) {
+    externalChannels.forEach((channel) => channels.add(channel));
+  }
+  return Array.from(channels);
 }
 
 export default function NotificationSettingsPage() {
@@ -108,12 +152,21 @@ export default function NotificationSettingsPage() {
     return FAMILY_ORDER.map((id) => byId.get(id)).filter(Boolean);
   }, [data]);
 
-  const channels = data?.channels || [];
+  const channels = useMemo(() => data?.channels || [], [data?.channels]);
   const canManageWorkspace = Boolean(data?.can_manage_workspace);
+  const externalChannels = useMemo(
+    () => configuredExternalChannels(channels),
+    [channels],
+  );
 
   const handleToggle = (family, channel, checked) => {
     patchMutation.mutate(
-      preferencePayload({ family, channel, enabled: checked }),
+      preferencePayload({
+        family: family.id,
+        channel,
+        enabled: checked,
+        scope: preferenceScopeForFamily(family, canManageWorkspace),
+      }),
     );
   };
 
@@ -182,7 +235,11 @@ export default function NotificationSettingsPage() {
         <Paper variant="outlined" sx={{ borderRadius: 1 }}>
           <Stack spacing={0} divider={<Divider />}>
             {families.map((family) => (
-              <Box key={family.id} sx={{ p: 2.25 }}>
+              <Box
+                key={family.id}
+                data-testid={`notification-family-${family.id}`}
+                sx={{ p: 2.25 }}
+              >
                 <Stack
                   direction={{ xs: "column", md: "row" }}
                   spacing={2}
@@ -210,48 +267,63 @@ export default function NotificationSettingsPage() {
                     spacing={2}
                     flexWrap="wrap"
                   >
-                    {family.default_channels.map((channel) => {
-                      const decision = decisions.get(
-                        decisionKey(family.id, channel),
-                      );
-                      const checked = decision?.allowed !== false;
-                      return (
-                        <FormControlLabel
-                          key={channel}
-                          control={
-                            <Switch
-                              checked={checked}
-                              onChange={(event) =>
-                                handleToggle(
-                                  family.id,
-                                  channel,
-                                  event.target.checked,
-                                )
-                              }
-                              disabled={
-                                patchMutation.isPending ||
-                                !family.user_controllable
-                              }
-                            />
-                          }
-                          label={
-                            <Stack
-                              direction="row"
-                              spacing={0.75}
-                              alignItems="center"
-                            >
-                              <Iconify
-                                icon={CHANNEL_ICONS[channel]}
-                                width={18}
+                    {channelsForFamily(family, externalChannels).map(
+                      (channel) => {
+                        const decision = decisions.get(
+                          decisionKey(family.id, channel),
+                        );
+                        const checked = decision?.allowed !== false;
+                        const isOptional =
+                          !family.default_channels.includes(channel);
+                        return (
+                          <FormControlLabel
+                            key={channel}
+                            control={
+                              <Switch
+                                checked={checked}
+                                onChange={(event) =>
+                                  handleToggle(
+                                    family,
+                                    channel,
+                                    event.target.checked,
+                                  )
+                                }
+                                disabled={toggleDisabledForFamily(
+                                  family,
+                                  canManageWorkspace,
+                                  patchMutation.isPending,
+                                )}
+                                inputProps={{
+                                  "aria-label": `${family.label} ${CHANNEL_LABELS[channel]}`,
+                                }}
                               />
-                              <Typography variant="body2">
-                                {CHANNEL_LABELS[channel]}
-                              </Typography>
-                            </Stack>
-                          }
-                        />
-                      );
-                    })}
+                            }
+                            label={
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                alignItems="center"
+                              >
+                                <Iconify
+                                  icon={CHANNEL_ICONS[channel]}
+                                  width={18}
+                                />
+                                <Typography variant="body2">
+                                  {CHANNEL_LABELS[channel]}
+                                </Typography>
+                                {isOptional && (
+                                  <Chip
+                                    label="Opt-in"
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                )}
+                              </Stack>
+                            }
+                          />
+                        );
+                      },
+                    )}
                   </Stack>
                 </Stack>
               </Box>
