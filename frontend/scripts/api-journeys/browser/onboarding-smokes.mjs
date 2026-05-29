@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +23,27 @@ const SMOKES = [
     file: "onboarding-home-observe-smoke.mjs",
     description:
       "Stubbed auth proof for Home Observe CTA into Observe setup focus.",
+    env: {
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "onboarding-home-observe-existing-project-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed auth proof for Home Observe CTA into the existing-project first trace step.",
+    env: {
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+      ONBOARDING_SMOKE_EXISTING_PROJECT: "1",
+    },
+  },
+  {
+    id: "onboarding-first-trace-review-controlled",
+    mode: "controlled",
+    file: "onboarding-first-trace-review-smoke.mjs",
+    description:
+      "Stubbed auth proof for first trace ready state into trace review.",
     env: {
       ONBOARDING_SMOKE_STUB_AUTH: "1",
     },

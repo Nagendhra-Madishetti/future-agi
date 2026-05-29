@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { Buffer } from "node:buffer";
 import { createRequire } from "node:module";
 import process from "node:process";

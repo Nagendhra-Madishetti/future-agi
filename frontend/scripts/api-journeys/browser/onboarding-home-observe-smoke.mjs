@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { Buffer } from "node:buffer";
 import { createRequire } from "node:module";
 import process from "node:process";
@@ -153,11 +154,43 @@ async function main() {
     await expectVisibleText(page, "Connect Observe to your app", {
       exact: true,
     });
-    await expectVisibleText(page, "Install Dependencies", { exact: true });
-    await expectVisibleText(page, "Setup Telemetry", { exact: true });
-    await expectVisibleText(page, "Setup Instrumentation", { exact: true });
     if (EXISTING_PROJECT) {
-      await expectVisibleText(page, "New Projects", { exact: true });
+      await expectVisibleText(page, "Open first trace step", { exact: true });
+      await clickVisibleText(page, "Open first trace step", {
+        rootSelector: '[data-testid="observe-onboarding-focus"]',
+      });
+      await page.waitForFunction(
+        () => {
+          const params = new URLSearchParams(window.location.search);
+          return (
+            window.location.pathname ===
+              "/dashboard/observe/observe-smoke-project/llm-tracing" &&
+            params.get("source") === "onboarding" &&
+            params.get("onboarding") === "send-first-trace"
+          );
+        },
+        { timeout: 30000 },
+      );
+      evidence.first_trace_step_url = relativeUrl(page.url());
+      await expectSelector(page, '[data-testid="observe-onboarding-focus"]');
+      await expectVisibleText(page, "Send the first trace", { exact: true });
+      await waitForCondition(
+        () =>
+          activationEventPosts.some(
+            (payload) =>
+              payload?.event_name === "onboarding_observe_route_focus_viewed" &&
+              payload?.primary_path === "observe" &&
+              payload?.stage === "waiting_for_first_trace" &&
+              payload?.project_id === "observe-smoke-project" &&
+              payload?.metadata?.route_mode === "send-first-trace",
+          ),
+        "Observe first trace step activation event was not posted.",
+        30000,
+      );
+    } else {
+      await expectVisibleText(page, "Install Dependencies", { exact: true });
+      await expectVisibleText(page, "Setup Telemetry", { exact: true });
+      await expectVisibleText(page, "Setup Instrumentation", { exact: true });
     }
     await waitForNoVisibleText(page, "Invalid Date");
 
@@ -373,6 +406,67 @@ async function installRuntime(
       return;
     }
 
+    if (
+      STUB_ONBOARDING &&
+      normalizedPath === "/tracer/project/observe-smoke-project/"
+    ) {
+      stubbedApiRequests.push(`${request.method()} ${normalizedPath}`);
+      await respondJson(request, {
+        status: true,
+        result: {
+          id: "observe-smoke-project",
+          name: "Observe smoke project",
+          project_type: "observe",
+          source: null,
+        },
+      });
+      return;
+    }
+
+    if (STUB_ONBOARDING && normalizedPath === "/tracer/saved-views/") {
+      stubbedApiRequests.push(`${request.method()} ${normalizedPath}`);
+      await respondJson(request, {
+        status: true,
+        result: {
+          custom_views: [],
+          customViews: [],
+        },
+      });
+      return;
+    }
+
+    if (
+      STUB_ONBOARDING &&
+      normalizedPath === "/tracer/trace/list_traces_of_session/"
+    ) {
+      stubbedApiRequests.push(`${request.method()} ${normalizedPath}`);
+      await respondJson(request, {
+        status: true,
+        result: {
+          config: [],
+          metadata: {
+            total_rows: 0,
+            page_number: 0,
+            page_size: 100,
+          },
+          table: [],
+        },
+      });
+      return;
+    }
+
+    if (
+      STUB_ONBOARDING &&
+      normalizedPath === "/tracer/observation-span/get_eval_attributes_list/"
+    ) {
+      stubbedApiRequests.push(`${request.method()} ${normalizedPath}`);
+      await respondJson(request, {
+        status: true,
+        result: [],
+      });
+      return;
+    }
+
     await request.continue();
   });
 }
@@ -476,6 +570,11 @@ function parseJsonPostData(value) {
   } catch {
     return {};
   }
+}
+
+function relativeUrl(value) {
+  const url = new URL(value);
+  return `${url.pathname}${url.search}`;
 }
 
 async function respondJson(request, body, status = 200) {
@@ -661,7 +760,13 @@ async function captureFailureDiagnostic(page) {
 }
 
 function isStubbedApiPath(path) {
-  return path.startsWith("/accounts/") || path.startsWith("/tracer/project/");
+  return (
+    path.startsWith("/accounts/") ||
+    path.startsWith("/tracer/project/") ||
+    path.startsWith("/tracer/saved-views/") ||
+    path.startsWith("/tracer/trace/") ||
+    path.startsWith("/tracer/observation-span/get_eval_attributes_list/")
+  );
 }
 
 function isApiPath(path) {
@@ -677,7 +782,11 @@ function isOnboardingSmokeApiUrl(url) {
     url.includes("/accounts/activation-state/") ||
     url.includes("/accounts/activation-events/") ||
     url.includes("/tracer/project/list_projects/") ||
-    url.includes("/tracer/project/project_sdk_code/")
+    url.includes("/tracer/project/project_sdk_code/") ||
+    url.includes("/tracer/project/observe-smoke-project/") ||
+    url.includes("/tracer/saved-views/") ||
+    url.includes("/tracer/trace/list_traces_of_session/") ||
+    url.includes("/tracer/observation-span/get_eval_attributes_list/")
   );
 }
 
