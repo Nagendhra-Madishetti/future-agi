@@ -95,6 +95,20 @@ const SMOKES = [
     },
   },
   {
+    id: "onboarding-first-signup-aha-coverage-controlled",
+    mode: "controlled",
+    suite: true,
+    sequence: [
+      "setup-org-completion-controlled",
+      "onboarding-home-observe-controlled",
+      "onboarding-observe-project-first-trace-controlled",
+      "onboarding-first-trace-review-controlled",
+      "onboarding-post-aha-fallback-controlled",
+    ],
+    description:
+      "Composite controlled proof for the first-signup Aha screen sequence.",
+  },
+  {
     id: "signup-quick-start-real",
     mode: "real-signup",
     file: "signup-quick-start-smoke.mjs",
@@ -110,14 +124,10 @@ const args = parseArgs(process.argv.slice(2));
 
 if (args.list) {
   for (const smoke of SMOKES) {
-    console.log(
-      [
-        smoke.id,
-        smoke.mode,
-        `node scripts/api-journeys/browser/${smoke.file}`,
-        smoke.description,
-      ].join("\t"),
-    );
+    const target = smoke.sequence
+      ? `suite:${smoke.sequence.join(",")}`
+      : `node scripts/api-journeys/browser/${smoke.file}`;
+    console.log([smoke.id, smoke.mode, target, smoke.description].join("\t"));
   }
   process.exit(0);
 }
@@ -125,6 +135,7 @@ if (args.list) {
 const selected = SMOKES.filter((smoke) => {
   if (args.mode && smoke.mode !== args.mode) return false;
   if (args.only.size && !args.only.has(smoke.id)) return false;
+  if (smoke.suite && !args.only.has(smoke.id)) return false;
   return true;
 });
 
@@ -133,7 +144,7 @@ if (selected.length === 0) {
 }
 
 for (const smoke of selected) {
-  await runSmoke(smoke);
+  await runSmoke(smoke, []);
 }
 
 function parseArgs(argv) {
@@ -165,7 +176,23 @@ function parseArgs(argv) {
   return parsed;
 }
 
-async function runSmoke(smoke) {
+async function runSmoke(smoke, stack) {
+  if (smoke.sequence) {
+    if (stack.includes(smoke.id)) {
+      throw new Error(`Onboarding smoke suite cycle: ${stack.join(" -> ")}`);
+    }
+    console.log(`RUN ${smoke.id} ${smoke.description}`);
+    for (const childId of smoke.sequence) {
+      const child = SMOKES.find((candidate) => candidate.id === childId);
+      if (!child) {
+        throw new Error(`Unknown onboarding smoke in suite: ${childId}`);
+      }
+      await runSmoke(child, [...stack, smoke.id]);
+    }
+    console.log(`PASS ${smoke.id}`);
+    return;
+  }
+
   const scriptPath = resolve(SCRIPT_DIR, smoke.file);
   console.log(`RUN ${smoke.id} ${smoke.description}`);
 
