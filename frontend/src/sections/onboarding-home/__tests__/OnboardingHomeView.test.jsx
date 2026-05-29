@@ -275,6 +275,67 @@ describe("OnboardingHomeView", () => {
     );
   });
 
+  it("tracks lifecycle email attribution on Home views and CTA clicks", async () => {
+    mocks.useActivationState.mockReturnValue({
+      state: normalizedFixture("observeNoSetup"),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView(
+      "/dashboard/home?source=onboarding_email&campaign_key=observe_waiting_for_first_trace&email_key=observe_waiting_v1&target_stage=waiting_for_first_trace&target_event=trace_received&send_log_id=send-123&status=stale&stale_reason=target_complete",
+    );
+
+    expect(mocks.useActivationState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "onboarding_email",
+        campaignKey: "observe_waiting_for_first_trace",
+        emailKey: "observe_waiting_v1",
+        targetStage: "waiting_for_first_trace",
+        targetEvent: "trace_received",
+        sendLogId: "send-123",
+        emailStatus: "stale",
+        staleReason: "target_complete",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.trackOnboardingHomeEvent).toHaveBeenCalledWith(
+        "onboarding_home_viewed",
+        expect.objectContaining({
+          source: "onboarding_email",
+          campaign_key: "observe_waiting_for_first_trace",
+          email_key: "observe_waiting_v1",
+          target_stage: "waiting_for_first_trace",
+          target_event: "trace_received",
+          send_log_id: "send-123",
+          email_status: "stale",
+          stale_reason: "target_complete",
+        }),
+      ),
+    );
+
+    await userEvent.click(
+      screen.getByRole("link", { name: /connect observability/i }),
+    );
+
+    expect(mocks.trackOnboardingHomeEvent).toHaveBeenCalledWith(
+      "onboarding_recommended_action_clicked",
+      expect.objectContaining({
+        action_id: "create_observe_project",
+        source: "onboarding_email",
+        campaign_key: "observe_waiting_for_first_trace",
+        email_key: "observe_waiting_v1",
+        target_event: "trace_received",
+        send_log_id: "send-123",
+        email_status: "stale",
+        stale_reason: "target_complete",
+      }),
+    );
+  });
+
   it("renders the observe setup panel for the observe MVP path", () => {
     mocks.useActivationState.mockReturnValue({
       state: normalizedFixture("observeNoSetup"),

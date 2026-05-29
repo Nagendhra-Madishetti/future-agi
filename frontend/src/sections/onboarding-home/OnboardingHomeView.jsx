@@ -108,6 +108,9 @@ export default function OnboardingHomeView() {
       targetEvent: params.get("target_event"),
       targetRoute: params.get("target_route"),
       linkIssuedAt: params.get("link_issued_at"),
+      sendLogId: params.get("send_log_id"),
+      emailStatus: params.get("status"),
+      staleReason: params.get("stale_reason"),
       mode: params.get("mode"),
     };
   }, [location.search]);
@@ -146,6 +149,13 @@ export default function OnboardingHomeView() {
       organization_id: renderedState.organizationId || organizationId,
       user_id: renderedState.userId || user?.id,
       source: searchContext.source,
+      campaign_key: searchContext.campaignKey,
+      email_key: searchContext.emailKey,
+      target_stage: searchContext.targetStage,
+      target_event: searchContext.targetEvent,
+      send_log_id: searchContext.sendLogId,
+      email_status: searchContext.emailStatus,
+      stale_reason: searchContext.staleReason,
       recommended_action_id: recommendedAction?.id,
       target_success_event: recommendedAction?.completionEvent,
       feature_flag_variant:
@@ -159,7 +169,14 @@ export default function OnboardingHomeView() {
   }, [
     organizationId,
     renderedState,
+    searchContext.campaignKey,
+    searchContext.emailKey,
+    searchContext.emailStatus,
+    searchContext.sendLogId,
     searchContext.source,
+    searchContext.staleReason,
+    searchContext.targetEvent,
+    searchContext.targetStage,
     user?.id,
     workspaceId,
   ]);
@@ -184,6 +201,13 @@ export default function OnboardingHomeView() {
         primaryAction?.routeAvailable ??
         renderedState.recommendedAction?.routeAvailable,
       is_sample: Boolean(topSignal?.isSample || primaryAction?.isSample),
+      campaign_key: searchContext.campaignKey,
+      email_key: searchContext.emailKey,
+      target_stage: searchContext.targetStage,
+      target_event: searchContext.targetEvent,
+      send_log_id: searchContext.sendLogId,
+      email_status: searchContext.emailStatus,
+      stale_reason: searchContext.staleReason,
       digest_context_id: searchContext.campaignKey,
       feature_flag_state: renderedState.featureFlags
         ?.onboarding_daily_quality_home
@@ -197,9 +221,14 @@ export default function OnboardingHomeView() {
     renderedState?.recommendedAction?.id,
     renderedState?.recommendedAction?.routeAvailable,
     searchContext.campaignKey,
+    searchContext.emailKey,
+    searchContext.emailStatus,
+    searchContext.sendLogId,
+    searchContext.staleReason,
+    searchContext.targetEvent,
+    searchContext.targetStage,
     trackContext,
   ]);
-
   useEffect(() => {
     setSelectedGoal(renderedState?.goal || null);
   }, [renderedState?.goal]);
