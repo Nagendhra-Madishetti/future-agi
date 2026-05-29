@@ -52,6 +52,7 @@ from ai_tools.tools.context import (
     read_schema,  # noqa: F401
     read_taxonomy,  # noqa: F401
     search,  # noqa: F401
+    search_tools,  # noqa: F401  smart tool/capability discovery over the full registry
     whoami,  # noqa: F401
 )
 
