@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
 
+from accounts.services.onboarding.lifecycle_preview_approval import (
+    load_lifecycle_preview_approval_manifest,
+)
 from accounts.services.onboarding.lifecycle_sender import (
     send_limited_onboarding_lifecycle_batch,
 )
@@ -18,6 +22,7 @@ class Command(BaseCommand):
         parser.add_argument("--workspace-id")
         parser.add_argument("--user-id")
         parser.add_argument("--dry-run", action="store_true")
+        parser.add_argument("--approval-manifest")
         parser.add_argument("--now")
 
     def handle(self, *args, **options):
@@ -28,6 +33,16 @@ class Command(BaseCommand):
             now = parse_datetime(options["now"])
             if now is None:
                 raise CommandError("--now must be an ISO datetime.")
+        preview_approval = None
+        if options.get("approval_manifest"):
+            try:
+                preview_approval = load_lifecycle_preview_approval_manifest(
+                    options["approval_manifest"]
+                )
+            except ImproperlyConfigured as exc:
+                raise CommandError(str(exc)) from exc
+        elif not options["dry_run"]:
+            raise CommandError("--approval-manifest is required for sends.")
 
         result = send_limited_onboarding_lifecycle_batch(
             cohort=options["cohort"],
@@ -37,8 +52,13 @@ class Command(BaseCommand):
             user_id=options.get("user_id"),
             dry_run=options["dry_run"],
             now=now,
+            preview_approval=preview_approval,
         )
         payload = result.to_payload()
+        if payload["approval_manifest_sha256"]:
+            self.stdout.write(
+                f"approval_manifest_sha256={payload['approval_manifest_sha256']}"
+            )
         self.stdout.write(f"run_id={payload['run_id']}")
         self.stdout.write(f"evaluated={payload['evaluated']}")
         self.stdout.write(f"sent={payload['sent']}")

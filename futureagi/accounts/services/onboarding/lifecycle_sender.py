@@ -29,6 +29,10 @@ from accounts.services.onboarding.lifecycle_eligibility import (
     evaluate_lifecycle_decision,
 )
 from accounts.services.onboarding.lifecycle_preferences import lifecycle_preference_for
+from accounts.services.onboarding.lifecycle_preview_approval import (
+    APPROVAL_METADATA_KEY,
+    PREVIEW_APPROVAL_MISSING_REASON,
+)
 from accounts.services.onboarding.lifecycle_template_context import (
     build_lifecycle_template_context,
     template_path,
@@ -68,6 +72,7 @@ class LifecycleSendBatchResult:
     skipped: int
     status_counts: dict
     suppression_counts: dict
+    approval_manifest_sha256: str | None = None
 
     def to_payload(self):
         return {
@@ -79,6 +84,7 @@ class LifecycleSendBatchResult:
             "skipped": self.skipped,
             "status_counts": self.status_counts,
             "suppression_counts": self.suppression_counts,
+            "approval_manifest_sha256": self.approval_manifest_sha256,
         }
 
 
@@ -513,6 +519,7 @@ def _suppression_reason(
     now,
     *,
     require_campaign_group_allowlist=False,
+    preview_approval=None,
 ):
     campaign = decision.campaign
     if not flags.get("onboarding_lifecycle_email_dry_run"):
@@ -539,6 +546,8 @@ def _suppression_reason(
         return "activation_state_changed"
     if _missing_required_digest_preview(evaluation_log, campaign, decision):
         return "missing_digest_preview"
+    if preview_approval and not preview_approval.has_campaign(campaign["campaign_key"]):
+        return PREVIEW_APPROVAL_MISSING_REASON
     if _denylisted(evaluation_log):
         return "denylisted"
     if not _allowlisted(
@@ -558,7 +567,14 @@ def _suppression_reason(
     return None
 
 
-def _send_log_defaults(evaluation_log, campaign, decision, now, cohort):
+def _send_log_defaults(
+    evaluation_log,
+    campaign,
+    decision,
+    now,
+    cohort,
+    preview_approval=None,
+):
     campaign = campaign or {}
     snapshot = decision.activation_state or {}
     recommended_action = snapshot.get("recommended_action") or {}
@@ -571,11 +587,16 @@ def _send_log_defaults(evaluation_log, campaign, decision, now, cohort):
     ).get("digest_preview")
     if digest_preview:
         metadata["digest_preview"] = digest_preview
+    campaign_key = campaign.get("campaign_key") or evaluation_log.campaign_key
+    if preview_approval and preview_approval.has_campaign(campaign_key):
+        metadata[APPROVAL_METADATA_KEY] = preview_approval.metadata_for_campaign(
+            campaign_key
+        )
     return {
         "user": evaluation_log.user,
         "organization": evaluation_log.organization,
         "workspace": evaluation_log.workspace,
-        "campaign_key": campaign.get("campaign_key") or evaluation_log.campaign_key,
+        "campaign_key": campaign_key,
         "campaign_group": campaign.get("campaign_group")
         or evaluation_log.campaign_group,
         "template_key": campaign.get("template_key") or evaluation_log.template_key,
@@ -593,8 +614,22 @@ def _send_log_defaults(evaluation_log, campaign, decision, now, cohort):
     }
 
 
-def _get_or_create_send_log(evaluation_log, campaign, decision, now, cohort):
-    defaults = _send_log_defaults(evaluation_log, campaign, decision, now, cohort)
+def _get_or_create_send_log(
+    evaluation_log,
+    campaign,
+    decision,
+    now,
+    cohort,
+    preview_approval=None,
+):
+    defaults = _send_log_defaults(
+        evaluation_log,
+        campaign,
+        decision,
+        now,
+        cohort,
+        preview_approval=preview_approval,
+    )
     try:
         with transaction.atomic():
             send_log, created = (
@@ -652,11 +687,19 @@ def queue_onboarding_lifecycle_email(
     now=None,
     cohort="internal",
     require_campaign_group_allowlist=False,
+    preview_approval=None,
 ):
     now = now or timezone.now()
     _context, flags, decision = _fresh_decision(evaluation_log, now)
     campaign = decision.campaign or evaluation_log.registry_snapshot or {}
-    send_log = _get_or_create_send_log(evaluation_log, campaign, decision, now, cohort)
+    send_log = _get_or_create_send_log(
+        evaluation_log,
+        campaign,
+        decision,
+        now,
+        cohort,
+        preview_approval=preview_approval,
+    )
     if send_log.status in SUCCESS_SEND_STATUSES:
         return send_log
     reason = _suppression_reason(
@@ -665,6 +708,7 @@ def queue_onboarding_lifecycle_email(
         decision,
         now,
         require_campaign_group_allowlist=require_campaign_group_allowlist,
+        preview_approval=preview_approval,
     )
     if reason:
         return _mark_suppressed(send_log, reason, now)
@@ -783,6 +827,7 @@ def send_limited_onboarding_lifecycle_batch(
     dry_run=False,
     now=None,
     require_campaign_group_allowlist=False,
+    preview_approval=None,
 ):
     now = now or timezone.now()
     run_id = uuid.uuid4()
@@ -810,6 +855,7 @@ def send_limited_onboarding_lifecycle_batch(
                 decision,
                 now,
                 require_campaign_group_allowlist=require_campaign_group_allowlist,
+                preview_approval=preview_approval,
             )
             status = "would_suppress" if reason else "would_send"
             status_counts[status] += 1
@@ -821,6 +867,7 @@ def send_limited_onboarding_lifecycle_batch(
             now=now,
             cohort=cohort,
             require_campaign_group_allowlist=require_campaign_group_allowlist,
+            preview_approval=preview_approval,
         )
         if send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED:
             send_log = send_onboarding_lifecycle_email(send_log, now=now)
@@ -845,6 +892,9 @@ def send_limited_onboarding_lifecycle_batch(
         skipped=skipped,
         status_counts=dict(status_counts),
         suppression_counts=dict(suppression_counts),
+        approval_manifest_sha256=(
+            preview_approval.manifest_sha256 if preview_approval else None
+        ),
     )
 
 
