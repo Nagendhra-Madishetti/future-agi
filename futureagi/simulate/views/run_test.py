@@ -494,11 +494,14 @@ class CreateRunTestView(APIView):
                                 # Skip if template doesn't exist
                                 continue
 
-                # Add existing evaluation configs if provided
+                # Add existing evaluation configs if provided.
+                # Attach the referenced eval configs to this run test. Without the
+                # .update() the queryset was evaluated and discarded, so the
+                # eval_config_ids were silently ignored (TH-5376).
                 if eval_config_ids:
                     SimulateEvalConfig.objects.filter(
                         id__in=eval_config_ids, run_test__organization=user_organization
-                    )
+                    ).update(run_test=run_test)
 
                 replay_session_id = validated_data.get("replay_session_id")
                 if replay_session_id:

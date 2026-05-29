@@ -27,6 +27,24 @@ class UserAlertMonitorSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAlertMonitor
         fields = "__all__"
+        extra_kwargs = {
+            "metric_type": {
+                "help_text": (
+                    "What this alert monitor watches. Allowed values: "
+                    "count_of_errors (total error count); "
+                    "error_rates_for_function_calling (tool/function-call error rate); "
+                    "error_free_session_rates (percent of sessions with no errors); "
+                    "service_provider_error_rates (upstream provider error rate); "
+                    "llm_api_failure_rates (LLM API failure rate); "
+                    "span_response_time (span latency); "
+                    "llm_response_time (LLM latency); "
+                    "token_usage (tokens per window); "
+                    "daily_tokens_spent / monthly_tokens_spent (token spend); "
+                    "evaluation_metrics (alert on an eval score — set `metric` to "
+                    "the CustomEvalConfig id to monitor)."
+                ),
+            },
+        }
 
     def get_metric_name(self, obj):
         if obj.metric_type == MonitorMetricTypeChoices.EVALUATION_METRICS.value:
