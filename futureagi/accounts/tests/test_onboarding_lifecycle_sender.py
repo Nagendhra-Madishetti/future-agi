@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -231,6 +232,68 @@ def _queued_daily_quality_send_log(user, organization, workspace, *, now):
         status=OnboardingLifecycleSendLog.STATUS_QUEUED,
         queued_at=now,
         metadata={"digest_preview": preview},
+    )
+
+
+def _sent_send_log_for_campaign(
+    user,
+    organization,
+    workspace,
+    *,
+    campaign_key="welcome_resume_goal",
+    now=None,
+    sent_at=None,
+    clicked_at=None,
+    status=OnboardingLifecycleSendLog.STATUS_SENT,
+):
+    now = now or timezone.now()
+    sent_at = sent_at or now - timedelta(minutes=5)
+    campaign = lifecycle_campaign_by_key(campaign_key)
+    activation_stage = campaign["entry_stages"][0]
+    evaluation_log = OnboardingLifecycleEvaluationLog.no_workspace_objects.create(
+        run_id=uuid.uuid4(),
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        campaign_key=campaign["campaign_key"],
+        campaign_group=campaign["campaign_group"],
+        template_key=campaign["template_key"],
+        template_version=campaign["template_version"],
+        activation_stage=activation_stage,
+        primary_path=campaign["primary_path"],
+        recommendation_id=campaign["target_action_id"],
+        target_action_id=campaign["target_action_id"],
+        target_success_event=campaign["target_success_event"],
+        target_url="/dashboard/home?mode=daily-quality",
+        status=OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE,
+        eligible_at=sent_at - timedelta(minutes=5),
+        evaluated_at=sent_at - timedelta(minutes=1),
+        registry_snapshot=campaign,
+        activation_state_snapshot={
+            "stage": activation_stage,
+            "primary_path": campaign["primary_path"],
+            "recommended_action_id": campaign["target_action_id"],
+        },
+        metadata={"source": "test", "send_enabled": True},
+    )
+    return OnboardingLifecycleSendLog.no_workspace_objects.create(
+        evaluation_log=evaluation_log,
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        campaign_key=campaign["campaign_key"],
+        campaign_group=campaign["campaign_group"],
+        template_key=campaign["template_key"],
+        template_version=campaign["template_version"],
+        primary_path=campaign["primary_path"],
+        activation_stage=activation_stage,
+        recommended_action_id=campaign["target_action_id"],
+        target_success_event=campaign["target_success_event"],
+        target_route="/dashboard/home?mode=daily-quality",
+        status=status,
+        sent_at=sent_at,
+        clicked_at=clicked_at,
+        metadata={"source": "test"},
     )
 
 
@@ -843,3 +906,136 @@ def test_completion_event_marks_send_completed(
     send_log.refresh_from_db()
     assert send_log.status == OnboardingLifecycleSendLog.STATUS_COMPLETED
     assert send_log.completed_at is not None
+
+
+@pytest.mark.django_db
+def test_completion_event_prefers_exact_send_log_id(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    exact_send = _sent_send_log_for_campaign(
+        user,
+        organization,
+        workspace,
+        now=now,
+        sent_at=now - timedelta(minutes=20),
+    )
+    newer_clicked_send = _sent_send_log_for_campaign(
+        user,
+        organization,
+        workspace,
+        now=now,
+        sent_at=now - timedelta(minutes=10),
+        clicked_at=now - timedelta(minutes=1),
+        status=OnboardingLifecycleSendLog.STATUS_CLICKED,
+    )
+
+    event = record_event(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        event_name=exact_send.target_success_event,
+        source="daily_quality_home",
+        product_path="observe",
+        occurred_at=now,
+        metadata={
+            "send_log_id": str(exact_send.id),
+            "campaign_key": exact_send.campaign_key,
+            "email_key": exact_send.template_key,
+            "target_stage": exact_send.activation_stage,
+            "target_event": exact_send.target_success_event,
+        },
+    )
+
+    exact_send.refresh_from_db()
+    newer_clicked_send.refresh_from_db()
+    assert exact_send.status == OnboardingLifecycleSendLog.STATUS_COMPLETED
+    assert exact_send.completed_at == event.occurred_at
+    assert exact_send.metadata["completed_event_id"] == str(event.id)
+    assert exact_send.metadata["completion_source"] == "exact_send_log_id"
+    assert newer_clicked_send.status == OnboardingLifecycleSendLog.STATUS_CLICKED
+
+
+@pytest.mark.django_db
+def test_mismatched_exact_send_log_id_does_not_fallback(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    mismatched_send = _sent_send_log_for_campaign(
+        user,
+        organization,
+        workspace,
+        now=now,
+        sent_at=now - timedelta(minutes=20),
+    )
+    fallback_candidate = _sent_send_log_for_campaign(
+        user,
+        organization,
+        workspace,
+        now=now,
+        sent_at=now - timedelta(minutes=10),
+        clicked_at=now - timedelta(minutes=1),
+        status=OnboardingLifecycleSendLog.STATUS_CLICKED,
+    )
+
+    record_event(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        event_name=mismatched_send.target_success_event,
+        source="daily_quality_home",
+        product_path="observe",
+        occurred_at=now,
+        metadata={
+            "send_log_id": str(mismatched_send.id),
+            "campaign_key": "different_campaign",
+        },
+    )
+
+    mismatched_send.refresh_from_db()
+    fallback_candidate.refresh_from_db()
+    assert mismatched_send.status == OnboardingLifecycleSendLog.STATUS_SENT
+    assert fallback_candidate.status == OnboardingLifecycleSendLog.STATUS_CLICKED
+
+
+@pytest.mark.django_db
+def test_sample_campaign_completion_event_can_complete_sample_send(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    send_log = _sent_send_log_for_campaign(
+        user,
+        organization,
+        workspace,
+        campaign_key="observe_sample_bridge",
+        now=now,
+        sent_at=now - timedelta(minutes=10),
+    )
+
+    event = record_event(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        event_name=send_log.target_success_event,
+        source="sample_project",
+        product_path="sample",
+        is_sample=True,
+        occurred_at=now,
+        metadata={
+            "send_log_id": str(send_log.id),
+            "campaign_key": send_log.campaign_key,
+            "email_key": send_log.template_key,
+            "target_stage": send_log.activation_stage,
+            "target_event": send_log.target_success_event,
+        },
+    )
+
+    send_log.refresh_from_db()
+    assert send_log.status == OnboardingLifecycleSendLog.STATUS_COMPLETED
+    assert send_log.completed_at == event.occurred_at

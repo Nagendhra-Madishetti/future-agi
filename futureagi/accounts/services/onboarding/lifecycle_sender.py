@@ -21,7 +21,10 @@ from accounts.services.onboarding.activation_events import record_event
 from accounts.services.onboarding.activation_state import resolve_activation_state
 from accounts.services.onboarding.context import resolve_onboarding_context
 from accounts.services.onboarding.feature_flags import get_onboarding_flags
-from accounts.services.onboarding.lifecycle_completion import lifecycle_target_completed
+from accounts.services.onboarding.lifecycle_completion import (
+    lifecycle_completion_is_sample,
+    lifecycle_target_completed,
+)
 from accounts.services.onboarding.lifecycle_eligibility import (
     evaluate_lifecycle_decision,
 )
@@ -47,6 +50,10 @@ SUCCESS_SEND_STATUSES = {
     OnboardingLifecycleSendLog.STATUS_SENT,
     OnboardingLifecycleSendLog.STATUS_CLICKED,
     OnboardingLifecycleSendLog.STATUS_COMPLETED,
+}
+COMPLETABLE_SEND_STATUSES = {
+    OnboardingLifecycleSendLog.STATUS_SENT,
+    OnboardingLifecycleSendLog.STATUS_CLICKED,
 }
 
 _NON_CLOUD_SUPPRESSION_REASON = "cloud_deployment_required"
@@ -119,6 +126,110 @@ def _target_success_event_completed(send_log):
         campaign=campaign,
         target_success_event=send_log.target_success_event,
     )
+
+
+def _campaign_for_completion(send_log):
+    return send_log.evaluation_log.registry_snapshot or {
+        "campaign_key": send_log.campaign_key,
+        "target_success_event": send_log.target_success_event,
+        "sample_policy": "real_only",
+    }
+
+
+def _event_metadata_value(event, key):
+    metadata = event.metadata if isinstance(event.metadata, dict) else {}
+    value = metadata.get(key)
+    if value in {None, ""}:
+        return None
+    return str(value)
+
+
+def _event_send_log_id(event):
+    raw_id = _event_metadata_value(event, "send_log_id")
+    if not raw_id:
+        return None, False
+    try:
+        return uuid.UUID(raw_id), True
+    except (TypeError, ValueError):
+        return None, True
+
+
+def _send_log_matches_event_context(send_log, event):
+    if send_log.target_success_event != event.event_name:
+        return False
+
+    campaign_key = _event_metadata_value(event, "campaign_key")
+    if campaign_key and send_log.campaign_key != campaign_key:
+        return False
+
+    email_key = _event_metadata_value(event, "email_key")
+    if email_key and send_log.template_key != email_key:
+        return False
+
+    target_stage = _event_metadata_value(event, "target_stage")
+    if target_stage and send_log.activation_stage != target_stage:
+        return False
+
+    target_event = _event_metadata_value(event, "target_event")
+    if target_event and target_event != event.event_name:
+        return False
+
+    return lifecycle_completion_is_sample(_campaign_for_completion(send_log)) == bool(
+        event.is_sample
+    )
+
+
+def _completion_send_queryset(event):
+    return (
+        OnboardingLifecycleSendLog.no_workspace_objects.select_related(
+            "evaluation_log",
+        )
+        .filter(
+            user=event.user,
+            organization=event.organization,
+            workspace=event.workspace,
+            target_success_event=event.event_name,
+            status__in=COMPLETABLE_SEND_STATUSES,
+            sent_at__lte=event.occurred_at,
+        )
+        .order_by("-clicked_at", "-sent_at")
+    )
+
+
+def _exact_completion_send_log(event, send_log_id):
+    send_log = _completion_send_queryset(event).filter(id=send_log_id).first()
+    if not send_log or not _send_log_matches_event_context(send_log, event):
+        return None
+    return send_log
+
+
+def _fallback_completion_send_log(event):
+    for send_log in _completion_send_queryset(event):
+        if _send_log_matches_event_context(send_log, event):
+            return send_log
+    return None
+
+
+def _mark_completed(send_log, event, completion_source):
+    send_log.status = OnboardingLifecycleSendLog.STATUS_COMPLETED
+    send_log.completed_at = event.occurred_at
+    send_log.metadata = {
+        **(send_log.metadata or {}),
+        "completed_event_id": str(event.id),
+        "completed_event_source": event.source,
+        "completion_source": completion_source,
+    }
+    send_log.save(update_fields=["status", "completed_at", "metadata", "updated_at"])
+    _track(
+        "lifecycle_email_completed",
+        send_log,
+        extra={
+            "activation_event_id": str(event.id),
+            "activation_event_source": event.source,
+            "completion_source": completion_source,
+        },
+    )
+    return send_log
 
 
 def _groups(send_log):
@@ -753,27 +864,18 @@ def mark_lifecycle_send_clicked(send_log, *, now=None, metadata=None):
 
 
 def mark_lifecycle_send_completed_for_event(event):
-    if not event.user_id or event.is_sample:
+    if not event.user_id:
         return None
-    send_log = (
-        OnboardingLifecycleSendLog.no_workspace_objects.filter(
-            user=event.user,
-            organization=event.organization,
-            workspace=event.workspace,
-            target_success_event=event.event_name,
-            status__in=[
-                OnboardingLifecycleSendLog.STATUS_SENT,
-                OnboardingLifecycleSendLog.STATUS_CLICKED,
-            ],
-            sent_at__lte=event.occurred_at,
-        )
-        .order_by("-clicked_at", "-sent_at")
-        .first()
-    )
+    send_log_id, send_log_id_was_present = _event_send_log_id(event)
+    if send_log_id_was_present:
+        if not send_log_id:
+            return None
+        send_log = _exact_completion_send_log(event, send_log_id)
+        if not send_log:
+            return None
+        return _mark_completed(send_log, event, "exact_send_log_id")
+
+    send_log = _fallback_completion_send_log(event)
     if not send_log:
         return None
-    send_log.status = OnboardingLifecycleSendLog.STATUS_COMPLETED
-    send_log.completed_at = event.occurred_at
-    send_log.save(update_fields=["status", "completed_at", "updated_at"])
-    _track("lifecycle_email_completed", send_log)
-    return send_log
+    return _mark_completed(send_log, event, "latest_matching_send")

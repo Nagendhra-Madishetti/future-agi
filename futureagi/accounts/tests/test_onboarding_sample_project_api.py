@@ -49,6 +49,11 @@ def test_sample_project_endpoint_creates_sample_and_returns_activation_state(
             "path": "observe",
             "source": "onboarding_home",
             "reason": "waiting_for_first_trace",
+            "campaign_key": "observe_sample_bridge",
+            "email_key": "observe_sample_bridge_v1",
+            "send_log_id": "00000000-0000-0000-0000-000000000322",
+            "target_stage": "waiting_for_first_trace_sample_available",
+            "target_event": "onboarding_sample_project_opened",
         },
         format="json",
     )
@@ -62,11 +67,15 @@ def test_sample_project_endpoint_creates_sample_and_returns_activation_state(
     assert activation_state["is_activated"] is False
     assert activation_state["stage"] == "connect_observability"
     assert activation_state["sample_project"]["status"] == "ready_for_observe"
-    assert OnboardingActivationEvent.no_workspace_objects.filter(
+    event = OnboardingActivationEvent.no_workspace_objects.get(
         workspace=workspace,
         event_name="onboarding_sample_project_opened",
         is_sample=True,
-    ).exists()
+    )
+    assert event.metadata["campaign_key"] == "observe_sample_bridge"
+    assert event.metadata["email_key"] == "observe_sample_bridge_v1"
+    assert event.metadata["send_log_id"] == "00000000-0000-0000-0000-000000000322"
+    assert event.metadata["target_event"] == "onboarding_sample_project_opened"
 
 
 @pytest.mark.django_db

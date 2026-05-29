@@ -1698,6 +1698,47 @@ class ActivationEventRequestSerializer(serializers.Serializer):
         max_length=160,
     )
     is_sample = serializers.BooleanField(default=False)
+    campaign_key = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    email_key = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    send_log_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    email_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    target_stage = serializers.ChoiceField(
+        choices=choices(ACTIVATION_STAGES),
+        required=False,
+        allow_null=True,
+    )
+    target_event = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    link_issued_at = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    stale_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    context_status = serializers.ChoiceField(
+        choices=choices(EMAIL_CONTEXT_STATUSES),
+        required=False,
+        allow_null=True,
+    )
 
     def validate_event_name(self, value):
         canonical = canonical_activation_event(value)
@@ -1775,6 +1816,47 @@ class SampleProjectRequestSerializer(serializers.Serializer):
     source = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     reason = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     open_after_create = serializers.BooleanField(default=False)
+    campaign_key = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    email_key = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    send_log_id = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    email_status = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    target_stage = serializers.ChoiceField(
+        choices=choices(ACTIVATION_STAGES),
+        required=False,
+        allow_null=True,
+    )
+    target_event = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    link_issued_at = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    stale_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    context_status = serializers.ChoiceField(
+        choices=choices(EMAIL_CONTEXT_STATUSES),
+        required=False,
+        allow_null=True,
+    )
 
     def validate_path(self, value):
         canonical = canonical_path(value)

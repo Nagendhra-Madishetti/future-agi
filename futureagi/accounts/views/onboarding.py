@@ -39,6 +39,18 @@ from tfc.utils.general_methods import GeneralMethods
 
 logger = structlog.get_logger(__name__)
 
+EMAIL_CONTEXT_METADATA_FIELDS = (
+    "campaign_key",
+    "email_key",
+    "send_log_id",
+    "email_status",
+    "target_stage",
+    "target_event",
+    "link_issued_at",
+    "stale_reason",
+    "context_status",
+)
+
 
 def _bad_request(gm, detail):
     if isinstance(detail, ValidationError):
@@ -46,6 +58,14 @@ def _bad_request(gm, detail):
             detail.message_dict if hasattr(detail, "message_dict") else detail.messages
         )
     return gm.bad_request(detail)
+
+
+def _email_context_metadata(data):
+    return {
+        key: data.get(key)
+        for key in EMAIL_CONTEXT_METADATA_FIELDS
+        if data.get(key) not in {None, ""}
+    }
 
 
 def _get_observe_trace(*, organization, workspace, project_id, trace_id):
@@ -204,6 +224,7 @@ class ActivationEventView(APIView):
             context = resolve_onboarding_context(request)
             data = serializer.validated_data
             metadata = dict(data.get("metadata") or {})
+            metadata.update(_email_context_metadata(data))
             artifact_type = data.get("artifact_type")
             artifact_id = data.get("artifact_id")
             project_id = data.get("project_id")
@@ -307,6 +328,7 @@ class SampleProjectView(APIView):
                 can_create=context.permissions["can_write"],
                 manifest_id=data.get("manifest_id"),
                 manifest_version=data.get("manifest_version"),
+                email_context=_email_context_metadata(data),
             )
             activation_state = resolve_activation_state_for_request(request)
             return self._gm.success_response(

@@ -42628,6 +42628,104 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Is sample",
           "type": "boolean",
           "default": false
+        },
+        "campaign_key": {
+          "title": "Campaign key",
+          "type": "string",
+          "x-nullable": true
+        },
+        "email_key": {
+          "title": "Email key",
+          "type": "string",
+          "x-nullable": true
+        },
+        "send_log_id": {
+          "title": "Send log id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "email_status": {
+          "title": "Email status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "target_stage": {
+          "title": "Target stage",
+          "type": "string",
+          "enum": [
+            "feature_disabled",
+            "workspace_missing",
+            "permission_limited",
+            "choose_goal",
+            "selected_path_unavailable",
+            "activated",
+            "daily_review",
+            "connect_observability",
+            "waiting_for_first_trace",
+            "waiting_for_first_trace_sample_available",
+            "review_first_trace",
+            "create_trace_evaluator",
+            "review_sample_signal",
+            "start_prompt",
+            "run_prompt_test",
+            "save_prompt_version",
+            "compare_prompt_versions",
+            "prompt_next_loop",
+            "create_agent",
+            "run_agent_scenario",
+            "review_agent_trace",
+            "save_agent_eval",
+            "agent_create_eval",
+            "create_trace_dashboard",
+            "create_trace_alert",
+            "configure_gateway_provider",
+            "create_gateway_key",
+            "run_gateway_request",
+            "review_gateway_log",
+            "fix_gateway_failure",
+            "add_gateway_policy",
+            "create_voice_agent",
+            "run_voice_test_call",
+            "review_voice_call",
+            "add_voice_success_criteria",
+            "voice_monitor_calls",
+            "create_eval_dataset",
+            "add_eval_scorer",
+            "run_eval",
+            "review_eval_failures",
+            "eval_next_loop",
+            "open_sample_project",
+            "connect_real_data"
+          ],
+          "x-nullable": true
+        },
+        "target_event": {
+          "title": "Target event",
+          "type": "string",
+          "x-nullable": true
+        },
+        "link_issued_at": {
+          "title": "Link issued at",
+          "type": "string",
+          "x-nullable": true
+        },
+        "stale_reason": {
+          "title": "Stale reason",
+          "type": "string",
+          "x-nullable": true
+        },
+        "context_status": {
+          "title": "Context status",
+          "type": "string",
+          "enum": [
+            "current",
+            "stale",
+            "expired",
+            "invalid",
+            "complete",
+            "route_unavailable"
+          ],
+          "x-nullable": true
         }
       }
     },
@@ -68261,6 +68359,104 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Open after create",
           "type": "boolean",
           "default": false
+        },
+        "campaign_key": {
+          "title": "Campaign key",
+          "type": "string",
+          "x-nullable": true
+        },
+        "email_key": {
+          "title": "Email key",
+          "type": "string",
+          "x-nullable": true
+        },
+        "send_log_id": {
+          "title": "Send log id",
+          "type": "string",
+          "x-nullable": true
+        },
+        "email_status": {
+          "title": "Email status",
+          "type": "string",
+          "x-nullable": true
+        },
+        "target_stage": {
+          "title": "Target stage",
+          "type": "string",
+          "enum": [
+            "feature_disabled",
+            "workspace_missing",
+            "permission_limited",
+            "choose_goal",
+            "selected_path_unavailable",
+            "activated",
+            "daily_review",
+            "connect_observability",
+            "waiting_for_first_trace",
+            "waiting_for_first_trace_sample_available",
+            "review_first_trace",
+            "create_trace_evaluator",
+            "review_sample_signal",
+            "start_prompt",
+            "run_prompt_test",
+            "save_prompt_version",
+            "compare_prompt_versions",
+            "prompt_next_loop",
+            "create_agent",
+            "run_agent_scenario",
+            "review_agent_trace",
+            "save_agent_eval",
+            "agent_create_eval",
+            "create_trace_dashboard",
+            "create_trace_alert",
+            "configure_gateway_provider",
+            "create_gateway_key",
+            "run_gateway_request",
+            "review_gateway_log",
+            "fix_gateway_failure",
+            "add_gateway_policy",
+            "create_voice_agent",
+            "run_voice_test_call",
+            "review_voice_call",
+            "add_voice_success_criteria",
+            "voice_monitor_calls",
+            "create_eval_dataset",
+            "add_eval_scorer",
+            "run_eval",
+            "review_eval_failures",
+            "eval_next_loop",
+            "open_sample_project",
+            "connect_real_data"
+          ],
+          "x-nullable": true
+        },
+        "target_event": {
+          "title": "Target event",
+          "type": "string",
+          "x-nullable": true
+        },
+        "link_issued_at": {
+          "title": "Link issued at",
+          "type": "string",
+          "x-nullable": true
+        },
+        "stale_reason": {
+          "title": "Stale reason",
+          "type": "string",
+          "x-nullable": true
+        },
+        "context_status": {
+          "title": "Context status",
+          "type": "string",
+          "enum": [
+            "current",
+            "stale",
+            "expired",
+            "invalid",
+            "complete",
+            "route_unavailable"
+          ],
+          "x-nullable": true
         }
       }
     },

@@ -29,6 +29,7 @@ export const onboardingHomeQueryKeys = {
     targetRoute,
     linkIssuedAt,
     staleReason,
+    contextStatus,
     mode,
   } = {}) => [
     ONBOARDING_HOME_QUERY_KEY,
@@ -46,6 +47,7 @@ export const onboardingHomeQueryKeys = {
       targetRoute,
       linkIssuedAt,
       staleReason,
+      contextStatus,
       mode,
     }),
   ],
@@ -78,6 +80,7 @@ const activationStateParams = (params = {}) =>
     target_route: params.targetRoute ?? params.target_route,
     link_issued_at: params.linkIssuedAt ?? params.link_issued_at,
     stale_reason: params.staleReason ?? params.stale_reason,
+    context_status: params.contextStatus ?? params.context_status,
     mode: params.mode,
   });
 
@@ -144,6 +147,15 @@ const activationEventPayload = (payload = {}) =>
     metadata: activationEventMetadata(payload.metadata),
     idempotency_key: payload.idempotencyKey ?? payload.idempotency_key,
     is_sample: payload.isSample ?? payload.is_sample,
+    campaign_key: payload.campaignKey ?? payload.campaign_key,
+    email_key: payload.emailKey ?? payload.email_key,
+    send_log_id: payload.sendLogId ?? payload.send_log_id,
+    email_status: payload.emailStatus ?? payload.email_status,
+    target_stage: payload.targetStage ?? payload.target_stage,
+    target_event: payload.targetEvent ?? payload.target_event,
+    link_issued_at: payload.linkIssuedAt ?? payload.link_issued_at,
+    stale_reason: payload.staleReason ?? payload.stale_reason,
+    context_status: payload.contextStatus ?? payload.context_status,
   });
 
 export const recordActivationEvent = async (payload = {}) => {
@@ -173,6 +185,15 @@ const sampleProjectPayload = (payload = {}) =>
     source: payload.source,
     reason: payload.reason,
     open_after_create: payload.openAfterCreate ?? payload.open_after_create,
+    campaign_key: payload.campaignKey ?? payload.campaign_key,
+    email_key: payload.emailKey ?? payload.email_key,
+    send_log_id: payload.sendLogId ?? payload.send_log_id,
+    email_status: payload.emailStatus ?? payload.email_status,
+    target_stage: payload.targetStage ?? payload.target_stage,
+    target_event: payload.targetEvent ?? payload.target_event,
+    link_issued_at: payload.linkIssuedAt ?? payload.link_issued_at,
+    stale_reason: payload.staleReason ?? payload.stale_reason,
+    context_status: payload.contextStatus ?? payload.context_status,
   });
 
 export const openSampleProject = async (payload = {}) => {

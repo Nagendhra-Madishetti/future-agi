@@ -171,6 +171,14 @@ describe("onboarding home API", () => {
       artifactType: "trace",
       artifactId: "trace-1",
       projectId: "observe-1",
+      campaignKey: "daily_quality_open_actions",
+      emailKey: "daily_quality_open_actions_v1",
+      sendLogId: "send-123",
+      emailStatus: "current",
+      targetStage: "daily_review",
+      targetEvent: "daily_quality_item_reviewed",
+      linkIssuedAt: "2026-05-29T08:00:00Z",
+      contextStatus: "current",
       metadata: {
         entry: "trace_full_page",
         retry: 1,
@@ -188,6 +196,14 @@ describe("onboarding home API", () => {
       artifact_type: "trace",
       artifact_id: "trace-1",
       project_id: "observe-1",
+      campaign_key: "daily_quality_open_actions",
+      email_key: "daily_quality_open_actions_v1",
+      send_log_id: "send-123",
+      email_status: "current",
+      target_stage: "daily_review",
+      target_event: "daily_quality_item_reviewed",
+      link_issued_at: "2026-05-29T08:00:00Z",
+      context_status: "current",
       metadata: {
         entry: "trace_full_page",
         retry: "1",
@@ -294,6 +310,11 @@ describe("onboarding home API", () => {
       source: "onboarding_home",
       reason: "waiting_for_first_trace",
       openAfterCreate: true,
+      campaignKey: "observe_sample_bridge",
+      emailKey: "observe_sample_bridge_v1",
+      sendLogId: "send-sample",
+      targetStage: "waiting_for_first_trace_sample_available",
+      targetEvent: "onboarding_sample_project_opened",
     });
     const hidden = await hideSampleProject({
       source: "onboarding_home",
@@ -305,6 +326,11 @@ describe("onboarding home API", () => {
       source: "onboarding_home",
       reason: "waiting_for_first_trace",
       open_after_create: true,
+      campaign_key: "observe_sample_bridge",
+      email_key: "observe_sample_bridge_v1",
+      send_log_id: "send-sample",
+      target_stage: "waiting_for_first_trace_sample_available",
+      target_event: "onboarding_sample_project_opened",
     });
     expect(axios.post).toHaveBeenNthCalledWith(
       2,

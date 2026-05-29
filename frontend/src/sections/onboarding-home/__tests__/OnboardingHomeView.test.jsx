@@ -604,7 +604,9 @@ describe("OnboardingHomeView", () => {
       refetch: vi.fn(),
     });
 
-    renderView("/dashboard/home?mode=daily-quality&source=onboarding_email");
+    renderView(
+      "/dashboard/home?mode=daily-quality&source=onboarding_email&campaign_key=daily_quality_open_actions&email_key=daily_quality_open_actions_v1&target_stage=daily_review&target_event=daily_quality_item_reviewed&send_log_id=send-daily&email_status=current&link_issued_at=2026-05-29T08:00:00Z&context_status=current",
+    );
 
     expect(screen.getByTestId("onboarding-daily-quality")).toBeVisible();
     expect(screen.getByTestId("daily-quality-top-signal")).toBeVisible();
@@ -627,7 +629,8 @@ describe("OnboardingHomeView", () => {
     expect(mocks.trackOnboardingHomeEvent).toHaveBeenCalledWith(
       "daily_quality_digest_destination_opened",
       expect.objectContaining({
-        digest_context_id: null,
+        digest_context_id: "daily_quality_open_actions",
+        send_log_id: "send-daily",
       }),
     );
     expect(screen.getByTestId("weekly-quality-review")).toBeVisible();
@@ -666,6 +669,14 @@ describe("OnboardingHomeView", () => {
         stage: "daily_review",
         artifactType: "trace",
         artifactId: "trace-2",
+        campaignKey: "daily_quality_open_actions",
+        emailKey: "daily_quality_open_actions_v1",
+        sendLogId: "send-daily",
+        emailStatus: "current",
+        targetStage: "daily_review",
+        targetEvent: "daily_quality_item_reviewed",
+        linkIssuedAt: "2026-05-29T08:00:00Z",
+        contextStatus: "current",
       }),
     );
   });

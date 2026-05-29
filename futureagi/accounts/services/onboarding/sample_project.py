@@ -198,13 +198,30 @@ def _save_sample_project(sample_project, *, update_fields):
     sample_project.save(update_fields=sorted(fields))
 
 
-def _record_sample_event(sample_project, *, user, event_name, source, reason=None):
+def _compact_email_context(email_context):
+    return {
+        key: value
+        for key, value in (email_context or {}).items()
+        if value not in {None, ""}
+    }
+
+
+def _record_sample_event(
+    sample_project,
+    *,
+    user,
+    event_name,
+    source,
+    reason=None,
+    email_context=None,
+):
     metadata = {
         "sample_manifest_id": sample_project.manifest_id,
         "sample_manifest_version": sample_project.manifest_version,
         "path": "observe",
         "reason": reason,
         "sample_project_id": str(sample_project.id),
+        **_compact_email_context(email_context),
     }
     idempotency_key = f"{sample_project.id}:{event_name}:{getattr(user, 'id', '')}"
     if event_name == "sample_trace_available":
@@ -273,6 +290,7 @@ def create_or_get_sample_project(
     can_create=True,
     manifest_id=None,
     manifest_version=None,
+    email_context=None,
 ):
     manifest = get_sample_manifest(manifest_id, manifest_version)
     if manifest is None:
@@ -366,6 +384,7 @@ def create_or_get_sample_project(
         event_name="onboarding_sample_project_opened",
         source=source,
         reason=reason,
+        email_context=email_context,
     )
     if state["entry_route"]:
         _record_sample_event(
@@ -374,6 +393,7 @@ def create_or_get_sample_project(
             event_name="sample_trace_available",
             source=source,
             reason=reason,
+            email_context=email_context,
         )
     return state
 

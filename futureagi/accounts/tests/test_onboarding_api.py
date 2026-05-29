@@ -482,3 +482,53 @@ def test_onboarding_goal_save_succeeds_when_activation_api_flag_off(auth_client)
     payload = response.json()["result"]
     assert payload["goal"] == "monitor_production_ai_app"
     assert payload["stage"] == "feature_disabled"
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS={"onboarding_activation_state_api": True})
+def test_activation_event_persists_lifecycle_email_attribution(
+    auth_client,
+    workspace,
+):
+    response = auth_client.post(
+        "/accounts/activation-events/",
+        {
+            "event_name": "daily_quality_item_reviewed",
+            "primary_path": "observe",
+            "stage": "daily_review",
+            "source": "daily_quality_home",
+            "artifact_type": "trace",
+            "artifact_id": "trace-1",
+            "project_id": "project-1",
+            "campaign_key": "daily_quality_open_actions",
+            "email_key": "daily_quality_open_actions_v1",
+            "send_log_id": "00000000-0000-0000-0000-000000000321",
+            "email_status": "current",
+            "target_stage": "daily_review",
+            "target_event": "daily_quality_item_reviewed",
+            "link_issued_at": "2026-05-29T08:00:00Z",
+            "context_status": "current",
+            "metadata": {"source_id": "trace-1"},
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    event = OnboardingActivationEvent.no_workspace_objects.get(
+        workspace=workspace,
+        event_name="daily_quality_item_reviewed",
+    )
+    assert event.metadata == {
+        "artifact_type": "trace",
+        "artifact_id": "trace-1",
+        "project_id": "project-1",
+        "campaign_key": "daily_quality_open_actions",
+        "email_key": "daily_quality_open_actions_v1",
+        "send_log_id": "00000000-0000-0000-0000-000000000321",
+        "email_status": "current",
+        "target_stage": "daily_review",
+        "target_event": "daily_quality_item_reviewed",
+        "link_issued_at": "2026-05-29T08:00:00Z",
+        "context_status": "current",
+        "source_id": "trace-1",
+    }

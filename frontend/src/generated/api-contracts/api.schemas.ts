@@ -337,6 +337,67 @@ export const ActivationEventRequestApiArtifactType = {
 
 export type ActivationEventRequestApiMetadata = {[key: string]: string};
 
+export type ActivationEventRequestApiTargetStage = typeof ActivationEventRequestApiTargetStage[keyof typeof ActivationEventRequestApiTargetStage];
+
+
+export const ActivationEventRequestApiTargetStage = {
+  feature_disabled: 'feature_disabled',
+  workspace_missing: 'workspace_missing',
+  permission_limited: 'permission_limited',
+  choose_goal: 'choose_goal',
+  selected_path_unavailable: 'selected_path_unavailable',
+  activated: 'activated',
+  daily_review: 'daily_review',
+  connect_observability: 'connect_observability',
+  waiting_for_first_trace: 'waiting_for_first_trace',
+  waiting_for_first_trace_sample_available: 'waiting_for_first_trace_sample_available',
+  review_first_trace: 'review_first_trace',
+  create_trace_evaluator: 'create_trace_evaluator',
+  review_sample_signal: 'review_sample_signal',
+  start_prompt: 'start_prompt',
+  run_prompt_test: 'run_prompt_test',
+  save_prompt_version: 'save_prompt_version',
+  compare_prompt_versions: 'compare_prompt_versions',
+  prompt_next_loop: 'prompt_next_loop',
+  create_agent: 'create_agent',
+  run_agent_scenario: 'run_agent_scenario',
+  review_agent_trace: 'review_agent_trace',
+  save_agent_eval: 'save_agent_eval',
+  agent_create_eval: 'agent_create_eval',
+  create_trace_dashboard: 'create_trace_dashboard',
+  create_trace_alert: 'create_trace_alert',
+  configure_gateway_provider: 'configure_gateway_provider',
+  create_gateway_key: 'create_gateway_key',
+  run_gateway_request: 'run_gateway_request',
+  review_gateway_log: 'review_gateway_log',
+  fix_gateway_failure: 'fix_gateway_failure',
+  add_gateway_policy: 'add_gateway_policy',
+  create_voice_agent: 'create_voice_agent',
+  run_voice_test_call: 'run_voice_test_call',
+  review_voice_call: 'review_voice_call',
+  add_voice_success_criteria: 'add_voice_success_criteria',
+  voice_monitor_calls: 'voice_monitor_calls',
+  create_eval_dataset: 'create_eval_dataset',
+  add_eval_scorer: 'add_eval_scorer',
+  run_eval: 'run_eval',
+  review_eval_failures: 'review_eval_failures',
+  eval_next_loop: 'eval_next_loop',
+  open_sample_project: 'open_sample_project',
+  connect_real_data: 'connect_real_data',
+} as const;
+
+export type ActivationEventRequestApiContextStatus = typeof ActivationEventRequestApiContextStatus[keyof typeof ActivationEventRequestApiContextStatus];
+
+
+export const ActivationEventRequestApiContextStatus = {
+  current: 'current',
+  stale: 'stale',
+  expired: 'expired',
+  invalid: 'invalid',
+  complete: 'complete',
+  route_unavailable: 'route_unavailable',
+} as const;
+
 export interface ActivationEventRequestApi {
   /** @minLength 1 */
   event_name: string;
@@ -350,6 +411,15 @@ export interface ActivationEventRequestApi {
   /** @maxLength 160 */
   idempotency_key?: string;
   is_sample?: boolean;
+  campaign_key?: string;
+  email_key?: string;
+  send_log_id?: string;
+  email_status?: string;
+  target_stage?: ActivationEventRequestApiTargetStage;
+  target_event?: string;
+  link_issued_at?: string;
+  stale_reason?: string;
+  context_status?: ActivationEventRequestApiContextStatus;
 }
 
 export type ActivationEventResultApiEventName = typeof ActivationEventResultApiEventName[keyof typeof ActivationEventResultApiEventName];
@@ -3316,6 +3386,67 @@ export interface AccountsRedisDeleteResponseApi {
   result: AccountsRedisDeleteResultApi;
 }
 
+export type SampleProjectRequestApiTargetStage = typeof SampleProjectRequestApiTargetStage[keyof typeof SampleProjectRequestApiTargetStage];
+
+
+export const SampleProjectRequestApiTargetStage = {
+  feature_disabled: 'feature_disabled',
+  workspace_missing: 'workspace_missing',
+  permission_limited: 'permission_limited',
+  choose_goal: 'choose_goal',
+  selected_path_unavailable: 'selected_path_unavailable',
+  activated: 'activated',
+  daily_review: 'daily_review',
+  connect_observability: 'connect_observability',
+  waiting_for_first_trace: 'waiting_for_first_trace',
+  waiting_for_first_trace_sample_available: 'waiting_for_first_trace_sample_available',
+  review_first_trace: 'review_first_trace',
+  create_trace_evaluator: 'create_trace_evaluator',
+  review_sample_signal: 'review_sample_signal',
+  start_prompt: 'start_prompt',
+  run_prompt_test: 'run_prompt_test',
+  save_prompt_version: 'save_prompt_version',
+  compare_prompt_versions: 'compare_prompt_versions',
+  prompt_next_loop: 'prompt_next_loop',
+  create_agent: 'create_agent',
+  run_agent_scenario: 'run_agent_scenario',
+  review_agent_trace: 'review_agent_trace',
+  save_agent_eval: 'save_agent_eval',
+  agent_create_eval: 'agent_create_eval',
+  create_trace_dashboard: 'create_trace_dashboard',
+  create_trace_alert: 'create_trace_alert',
+  configure_gateway_provider: 'configure_gateway_provider',
+  create_gateway_key: 'create_gateway_key',
+  run_gateway_request: 'run_gateway_request',
+  review_gateway_log: 'review_gateway_log',
+  fix_gateway_failure: 'fix_gateway_failure',
+  add_gateway_policy: 'add_gateway_policy',
+  create_voice_agent: 'create_voice_agent',
+  run_voice_test_call: 'run_voice_test_call',
+  review_voice_call: 'review_voice_call',
+  add_voice_success_criteria: 'add_voice_success_criteria',
+  voice_monitor_calls: 'voice_monitor_calls',
+  create_eval_dataset: 'create_eval_dataset',
+  add_eval_scorer: 'add_eval_scorer',
+  run_eval: 'run_eval',
+  review_eval_failures: 'review_eval_failures',
+  eval_next_loop: 'eval_next_loop',
+  open_sample_project: 'open_sample_project',
+  connect_real_data: 'connect_real_data',
+} as const;
+
+export type SampleProjectRequestApiContextStatus = typeof SampleProjectRequestApiContextStatus[keyof typeof SampleProjectRequestApiContextStatus];
+
+
+export const SampleProjectRequestApiContextStatus = {
+  current: 'current',
+  stale: 'stale',
+  expired: 'expired',
+  invalid: 'invalid',
+  complete: 'complete',
+  route_unavailable: 'route_unavailable',
+} as const;
+
 export interface SampleProjectRequestApi {
   /** @minLength 1 */
   path?: string;
@@ -3324,6 +3455,15 @@ export interface SampleProjectRequestApi {
   source?: string;
   reason?: string;
   open_after_create?: boolean;
+  campaign_key?: string;
+  email_key?: string;
+  send_log_id?: string;
+  email_status?: string;
+  target_stage?: SampleProjectRequestApiTargetStage;
+  target_event?: string;
+  link_issued_at?: string;
+  stale_reason?: string;
+  context_status?: SampleProjectRequestApiContextStatus;
 }
 
 export interface SampleProjectResponseApi {

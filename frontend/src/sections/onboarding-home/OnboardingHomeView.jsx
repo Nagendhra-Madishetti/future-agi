@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -75,6 +75,19 @@ const compactEventMetadata = (metadata = {}) =>
     ),
   );
 
+const activationPayloadEmailContext = (context = {}) =>
+  compactEventMetadata({
+    campaignKey: context.campaign_key ?? context.campaignKey,
+    emailKey: context.email_key ?? context.emailKey,
+    sendLogId: context.send_log_id ?? context.sendLogId,
+    emailStatus: context.email_status ?? context.emailStatus,
+    targetStage: context.target_stage ?? context.targetStage,
+    targetEvent: context.target_event ?? context.targetEvent,
+    linkIssuedAt: context.link_issued_at ?? context.linkIssuedAt,
+    staleReason: context.stale_reason ?? context.staleReason,
+    contextStatus: context.context_status ?? context.contextStatus,
+  });
+
 const OBSERVE_PANEL_STAGES = new Set([
   "connect_observability",
   "waiting_for_first_trace",
@@ -104,6 +117,7 @@ export default function OnboardingHomeView() {
   const saveGoal = useSaveOnboardingGoal();
   const sampleProjectActions = useSampleProject();
   const [selectedGoal, setSelectedGoal] = useState(null);
+  const activationEmailContextRef = useRef({});
 
   const searchContext = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -118,9 +132,28 @@ export default function OnboardingHomeView() {
       sendLogId: params.get("send_log_id"),
       emailStatus: params.get("email_status") || params.get("status"),
       staleReason: params.get("stale_reason"),
+      contextStatus: params.get("context_status"),
       mode: params.get("mode"),
     };
   }, [location.search]);
+  const searchActivationEmailContext = useMemo(
+    () => activationPayloadEmailContext(searchContext),
+    [searchContext],
+  );
+
+  useEffect(() => {
+    if (Object.keys(searchActivationEmailContext).length === 0) return;
+    activationEmailContextRef.current = {
+      ...activationEmailContextRef.current,
+      ...searchActivationEmailContext,
+    };
+  }, [searchActivationEmailContext]);
+
+  const activationEmailContextFor = (context) =>
+    compactEventMetadata({
+      ...activationEmailContextRef.current,
+      ...activationPayloadEmailContext(context),
+    });
 
   const workspaceId = currentWorkspaceId || user?.default_workspace_id || null;
   const organizationId =
@@ -162,7 +195,9 @@ export default function OnboardingHomeView() {
       target_event: searchContext.targetEvent,
       send_log_id: searchContext.sendLogId,
       email_status: searchContext.emailStatus,
+      link_issued_at: searchContext.linkIssuedAt,
       stale_reason: searchContext.staleReason,
+      context_status: searchContext.contextStatus,
       recommended_action_id: recommendedAction?.id,
       target_success_event: recommendedAction?.completionEvent,
       feature_flag_variant:
@@ -177,8 +212,10 @@ export default function OnboardingHomeView() {
     organizationId,
     renderedState,
     searchContext.campaignKey,
+    searchContext.contextStatus,
     searchContext.emailKey,
     searchContext.emailStatus,
+    searchContext.linkIssuedAt,
     searchContext.sendLogId,
     searchContext.source,
     searchContext.staleReason,
@@ -214,7 +251,9 @@ export default function OnboardingHomeView() {
       target_event: searchContext.targetEvent,
       send_log_id: searchContext.sendLogId,
       email_status: searchContext.emailStatus,
+      link_issued_at: searchContext.linkIssuedAt,
       stale_reason: searchContext.staleReason,
+      context_status: searchContext.contextStatus,
       digest_context_id: searchContext.campaignKey,
       feature_flag_state: renderedState.featureFlags
         ?.onboarding_daily_quality_home
@@ -228,8 +267,10 @@ export default function OnboardingHomeView() {
     renderedState?.recommendedAction?.id,
     renderedState?.recommendedAction?.routeAvailable,
     searchContext.campaignKey,
+    searchContext.contextStatus,
     searchContext.emailKey,
     searchContext.emailStatus,
+    searchContext.linkIssuedAt,
     searchContext.sendLogId,
     searchContext.staleReason,
     searchContext.targetEvent,
@@ -397,6 +438,7 @@ export default function OnboardingHomeView() {
       primaryPath: renderedState.primaryPath,
       stage: renderedState.stage,
       source: "daily_quality_home",
+      ...activationEmailContextFor(dailyTrackContext),
       artifactType: signal.sourceType,
       artifactId: signal.sourceId,
       projectId: signal.projectId,
@@ -438,6 +480,7 @@ export default function OnboardingHomeView() {
         primaryPath: renderedState.primaryPath,
         stage: renderedState.stage,
         source: "daily_quality_home",
+        ...activationEmailContextFor(dailyTrackContext),
         artifactType: dailyAction.sourceType,
         artifactId: dailyAction.sourceId,
         projectId:
@@ -493,6 +536,7 @@ export default function OnboardingHomeView() {
           path: "observe",
           source: "onboarding_home",
           reason: renderedState.stage,
+          ...activationEmailContextFor(trackContext),
           manifestId: renderedState.sampleProject?.manifestId,
           manifestVersion: renderedState.sampleProject?.manifestVersion,
           openAfterCreate: true,
