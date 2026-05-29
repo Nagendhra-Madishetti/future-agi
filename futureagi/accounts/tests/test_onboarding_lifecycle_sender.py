@@ -36,6 +36,15 @@ from accounts.tests.onboarding_model_factories import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _cloud_lifecycle_delivery_enabled():
+    with patch(
+        "accounts.services.onboarding.lifecycle_sender._cloud_lifecycle_delivery_enabled",
+        return_value=True,
+    ):
+        yield
+
+
 def _flags(**overrides):
     flags = {
         "onboarding_activation_state_api": True,
@@ -279,6 +288,37 @@ def test_helper_success_records_sent_log(
     assert sent_log.provider_status == "accepted"
     assert sent_log.click_url
     helper.assert_called_once()
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_non_cloud_delivery_suppresses_queued_send(
+    organization,
+    workspace,
+    user,
+):
+    _allow_user(user)
+    log = _eligible_log(user, organization, workspace)
+    send_log = queue_onboarding_lifecycle_email(log)
+    assert send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED
+
+    with (
+        patch(
+            "accounts.services.onboarding.lifecycle_sender._cloud_lifecycle_delivery_enabled",
+            return_value=False,
+        ),
+        patch("accounts.services.onboarding.lifecycle_sender.email_helper") as helper,
+    ):
+        sent_log = send_onboarding_lifecycle_email(send_log)
+
+    assert sent_log.status == OnboardingLifecycleSendLog.STATUS_SUPPRESSED
+    assert sent_log.suppression_reason == "cloud_deployment_required"
+    helper.assert_not_called()
+    assert NotificationDeliveryLog.no_workspace_objects.filter(
+        source_id=str(send_log.id),
+        status=NotificationDeliveryLog.STATUS_SUPPRESSED,
+        suppressed_reason="cloud_deployment_required",
+    ).exists()
 
 
 @pytest.mark.django_db

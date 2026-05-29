@@ -48,6 +48,8 @@ SUCCESS_SEND_STATUSES = {
     OnboardingLifecycleSendLog.STATUS_COMPLETED,
 }
 
+_NON_CLOUD_SUPPRESSION_REASON = "cloud_deployment_required"
+
 
 @dataclass(frozen=True)
 class LifecycleSendBatchResult:
@@ -87,6 +89,14 @@ class _LifecycleSendRequest:
 
 def send_environment():
     return getattr(settings, "ONBOARDING_LIFECYCLE_SEND_ENVIRONMENT", "local")
+
+
+def _cloud_lifecycle_delivery_enabled():
+    try:
+        from ee.usage.deployment import DeploymentMode
+    except ImportError:
+        return False
+    return bool(DeploymentMode.is_cloud())
 
 
 def _internal_route(route):
@@ -581,6 +591,8 @@ def send_onboarding_lifecycle_email(send_log, *, now=None):
     )
     send_log.click_url = context["primary_action_url"]
     send_log.save(update_fields=["click_url", "updated_at"])
+    if not _cloud_lifecycle_delivery_enabled():
+        return _mark_suppressed(send_log, _NON_CLOUD_SUPPRESSION_REASON, now)
     try:
         email_helper(
             subject_for_campaign(campaign),

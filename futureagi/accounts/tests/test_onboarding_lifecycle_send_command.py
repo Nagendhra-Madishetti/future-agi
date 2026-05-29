@@ -18,6 +18,15 @@ from accounts.models.workspace import Workspace
 from accounts.services.onboarding.lifecycle_registry import lifecycle_campaign_by_key
 
 
+@pytest.fixture(autouse=True)
+def _cloud_lifecycle_delivery_enabled():
+    with patch(
+        "accounts.services.onboarding.lifecycle_sender._cloud_lifecycle_delivery_enabled",
+        return_value=True,
+    ):
+        yield
+
+
 def _flags(**overrides):
     flags = {
         "onboarding_activation_state_api": True,
@@ -136,6 +145,48 @@ def test_send_command_respects_limit_and_sends_allowlisted(
     assert "sent=1" in output.getvalue()
     assert OnboardingLifecycleSendLog.no_workspace_objects.filter(
         status=OnboardingLifecycleSendLog.STATUS_SENT
+    ).exists()
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_send_command_suppresses_real_send_when_not_cloud(
+    organization,
+    workspace,
+    user,
+):
+    _eligible_log(user, organization, workspace)
+    OnboardingLifecycleSendAllowlist.no_workspace_objects.create(
+        scope_type=OnboardingLifecycleSendAllowlist.SCOPE_USER,
+        scope_value=str(user.id),
+        environment="local",
+    )
+    output = StringIO()
+
+    with (
+        patch(
+            "accounts.services.onboarding.lifecycle_sender._cloud_lifecycle_delivery_enabled",
+            return_value=False,
+        ),
+        patch("accounts.services.onboarding.lifecycle_sender.email_helper") as helper,
+    ):
+        call_command(
+            "run_onboarding_lifecycle_send",
+            "--cohort",
+            "internal",
+            "--limit",
+            "1",
+            stdout=output,
+        )
+
+    value = output.getvalue()
+    assert "sent=0" in value
+    assert "suppressed=1" in value
+    assert "cloud_deployment_required" in value
+    helper.assert_not_called()
+    assert OnboardingLifecycleSendLog.no_workspace_objects.filter(
+        status=OnboardingLifecycleSendLog.STATUS_SUPPRESSED,
+        suppression_reason="cloud_deployment_required",
     ).exists()
 
 
