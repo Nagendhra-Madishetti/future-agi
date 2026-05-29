@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from django.db import DatabaseError
 
 
@@ -139,6 +140,7 @@ def test_mcp_oauth_token_invalid_grant_type_uses_protocol_error(api_client):
     assert response.json()["error"] == "unsupported_grant_type"
 
 
+@pytest.mark.django_db
 def test_mcp_oauth_authorize_unknown_client_uses_json_error(api_client):
     response = api_client.get(
         "/mcp/oauth/authorize/",
@@ -153,6 +155,7 @@ def test_mcp_oauth_authorize_unknown_client_uses_json_error(api_client):
     assert response.json() == {"status": False, "error": "Unknown client_id"}
 
 
+@pytest.mark.django_db
 def test_mcp_oauth_token_unknown_client_uses_protocol_error(api_client):
     response = api_client.post(
         "/mcp/oauth/token/",
