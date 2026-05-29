@@ -13,6 +13,9 @@ from accounts.services.onboarding.feature_flag_contract import (
     SUPPORTED_ONBOARDING_FLAG_NAMES,
 )
 from accounts.services.onboarding.route_contract import route_keys_for_paths
+from accounts.services.onboarding.signal_contract import (
+    SUPPORTED_ONBOARDING_STAGE_RULE_SIGNALS,
+)
 
 CONFIG_PATH = Path(__file__).with_name("activation_flow.yml")
 
@@ -103,6 +106,13 @@ def _validate_context_field(field: str, path: str) -> None:
         raise _config_error(f"{path} must be a non-empty string.")
     if field not in CONTEXT_FIELDS:
         raise _config_error(f"{path} references unknown context field.")
+
+
+def _validate_signal_name(signal: str, path: str) -> None:
+    if not isinstance(signal, str) or not signal:
+        raise _config_error(f"{path} must be a non-empty string.")
+    if signal not in SUPPORTED_ONBOARDING_STAGE_RULE_SIGNALS:
+        raise _config_error(f"{path} references unknown signal.")
 
 
 def _load_config_file() -> dict:
@@ -309,6 +319,10 @@ def _validate_stage_rule_condition(condition: dict, path: str) -> None:
         _validate_supported_flag(
             condition["flag_disabled"], f"{path}.when.flag_disabled"
         )
+    if "signal" in condition:
+        _validate_signal_name(condition["signal"], f"{path}.when.signal")
+    if "signal_not" in condition:
+        _validate_signal_name(condition["signal_not"], f"{path}.when.signal_not")
     if "missing" in condition:
         _validate_context_field(condition["missing"], f"{path}.when.missing")
     if "missing_any" in condition:
