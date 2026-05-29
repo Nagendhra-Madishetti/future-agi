@@ -10,16 +10,81 @@ const puppeteer = require("puppeteer-core");
 
 const APP_BASE = process.env.APP_BASE || "http://127.0.0.1:3032";
 const VIEWPORT_NAME = process.env.ONBOARDING_SMOKE_VIEWPORT || "desktop";
+const QUICK_START_KEY =
+  process.env.ONBOARDING_SMOKE_SETUP_QUICK_START ||
+  (envFlag("ONBOARDING_SMOKE_SETUP_SAMPLE_PREVIEW")
+    ? "sample_preview"
+    : "observe");
 const SCREENSHOT_PATH =
   process.env.SETUP_ORG_COMPLETION_SCREENSHOT ||
-  `/tmp/setup-org-completion-smoke-${VIEWPORT_NAME}${
-    envFlag("ONBOARDING_SMOKE_SETUP_SAMPLE_PREVIEW") ? "-sample-preview" : ""
-  }.png`;
+  `/tmp/setup-org-completion-smoke-${VIEWPORT_NAME}-${QUICK_START_KEY}.png`;
 const STUB_AUTH = envFlag("ONBOARDING_SMOKE_STUB_AUTH");
-const SAMPLE_PREVIEW = envFlag("ONBOARDING_SMOKE_SETUP_SAMPLE_PREVIEW");
+
+const QUICK_STARTS = {
+  observe: {
+    buttonText: "Connect observability first",
+    expectedGoal: "Monitor a production AI app",
+    expectedSelector: '[data-testid="observe-setup-panel"]',
+    expectedTexts: ["Connect one observe project"],
+    fixture: "newWorkspaceNoGoal",
+  },
+  sample_preview: {
+    buttonText: "Preview sample trace first",
+    expectedGoal: "Explore with sample data",
+    expectedSelector: '[data-testid="sample-project-panel"]',
+    expectedTexts: ["Fastest path to Aha", "Open sample trace"],
+    fixture: "sampleFirstRunStart",
+  },
+  prompt: {
+    buttonText: "Test prompts",
+    expectedGoal: "Test and improve prompts",
+    expectedSelector: '[data-testid="path-focus-panel-prompt"]',
+    expectedTexts: ["Build a prompt quality loop", "Create prompt"],
+    fixture: "promptNoPrompt",
+  },
+  agent: {
+    buttonText: "Prototype agent",
+    expectedGoal: "Build or prototype an AI agent",
+    expectedSelector: '[data-testid="path-focus-panel-agent"]',
+    expectedTexts: ["Prototype an agent with a quality check", "Create agent"],
+    fixture: "agentNoAgent",
+  },
+  gateway: {
+    buttonText: "Route gateway",
+    expectedGoal: "Route LLM traffic safely",
+    expectedSelector: '[data-testid="path-focus-panel-gateway"]',
+    expectedTexts: ["Route one request safely", "Add provider"],
+    fixture: "gatewayNoProvider",
+  },
+  evals: {
+    buttonText: "Run eval",
+    expectedGoal: "Evaluate quality on data or traces",
+    expectedSelector: '[data-testid="path-focus-panel-evals"]',
+    expectedTexts: [
+      "Create one eval and review the first failure",
+      "Create dataset",
+    ],
+    activationState: pathFocusActivationState,
+    primaryPath: "evals",
+  },
+  voice: {
+    buttonText: "Connect voice",
+    expectedGoal: "Connect a voice AI agent",
+    expectedSelector: '[data-testid="path-focus-panel-voice"]',
+    expectedTexts: ["Connect a voice agent quality loop", "Create agent"],
+    activationState: pathFocusActivationState,
+    primaryPath: "voice",
+  },
+};
+
+const QUICK_START = QUICK_STARTS[QUICK_START_KEY];
 
 async function main() {
   assert(STUB_AUTH, "Set ONBOARDING_SMOKE_STUB_AUTH=1 for this smoke.");
+  assert(
+    QUICK_START,
+    `Unsupported ONBOARDING_SMOKE_SETUP_QUICK_START=${QUICK_START_KEY}`,
+  );
 
   const auth = createStubbedAuthenticatedContext();
   const apiFailures = [];
@@ -91,12 +156,7 @@ async function main() {
     await page.evaluate(() => {
       localStorage.setItem("redirectUrl", "/dashboard/observe?project=stale");
     });
-    await clickVisibleButtonText(
-      page,
-      SAMPLE_PREVIEW
-        ? "Preview sample trace first"
-        : "Connect observability first",
-    );
+    await clickVisibleButtonText(page, QUICK_START.buttonText);
     await page.waitForFunction(
       () =>
         window.location.pathname === "/dashboard/home" &&
@@ -105,17 +165,9 @@ async function main() {
       { timeout: 30000 },
     );
 
-    if (SAMPLE_PREVIEW) {
-      await expectSelector(page, '[data-testid="sample-project-panel"]');
-      await expectVisibleText(page, "Fastest path to Aha", {
-        exact: true,
-      });
-      await expectVisibleText(page, "Open sample trace", {
-        exact: true,
-      });
-    } else {
-      await expectSelector(page, '[data-testid="observe-setup-panel"]');
-      await expectVisibleText(page, "Connect one observe project", {
+    await expectSelector(page, QUICK_START.expectedSelector);
+    for (const text of QUICK_START.expectedTexts) {
+      await expectVisibleText(page, text, {
         exact: true,
       });
     }
@@ -137,18 +189,15 @@ async function main() {
       onboardingPosts[0]?.role === "AI Builder",
       `Expected quick-start role, got ${onboardingPosts[0]?.role}`,
     );
-    const expectedGoal = SAMPLE_PREVIEW
-      ? "Explore with sample data"
-      : "Monitor LLMs and Agents";
     assert(
-      onboardingPosts[0]?.goals?.includes(expectedGoal),
-      `Expected ${expectedGoal} quick-start goal, got ${JSON.stringify(
+      onboardingPosts[0]?.goals?.includes(QUICK_START.expectedGoal),
+      `Expected ${QUICK_START.expectedGoal} quick-start goal, got ${JSON.stringify(
         onboardingPosts[0]?.goals,
       )}`,
     );
     assert(
       setupPosts.length === 0,
-      "Expected no setup organization POST on observe quick start.",
+      "Expected no setup organization POST on product-loop quick start.",
     );
     assert(
       activationStateRequests.length === 1,
@@ -171,7 +220,7 @@ async function main() {
             onboarding_post: onboardingPosts[0],
             screenshot: SCREENSHOT_PATH,
             setup_posts: setupPosts,
-            setup_quick_start: SAMPLE_PREVIEW ? "sample_preview" : "observe",
+            setup_quick_start: QUICK_START_KEY,
             viewport: VIEWPORT_NAME,
           },
         },
@@ -190,7 +239,7 @@ async function main() {
             api_failures: apiFailures,
             body_text: await safeBodyText(page),
             page_errors: pageErrors,
-            setup_quick_start: SAMPLE_PREVIEW ? "sample_preview" : "observe",
+            setup_quick_start: QUICK_START_KEY,
             onboarding_posts: onboardingPosts,
             setup_posts: setupPosts,
             url: page.url(),
@@ -354,15 +403,132 @@ async function installRuntime(
 }
 
 function stubbedActivationState(auth) {
+  const activationState = QUICK_START.activationState
+    ? QUICK_START.activationState(QUICK_START)
+    : getActivationStateFixture(QUICK_START.fixture);
+
   return {
-    ...getActivationStateFixture(
-      SAMPLE_PREVIEW ? "sampleFirstRunStart" : "newWorkspaceNoGoal",
-    ),
+    ...activationState,
     organization_id: auth.organizationId,
     request_id: "setup_org_completion_smoke",
     user_id: auth.user.id,
     workspace_id: auth.workspaceId,
   };
+}
+
+function pathFocusActivationState(profile) {
+  const activationState = getActivationStateFixture("observeNoSetup");
+  const details = pathFocusDetails(profile.primaryPath);
+  const pathHref = `/dashboard/home?path=${profile.primaryPath}`;
+
+  return {
+    ...activationState,
+    goal: details.goal,
+    primary_path: profile.primaryPath,
+    stage: details.stage,
+    progress: {
+      build: "selected",
+      test: "not_started",
+      observe: "available",
+      ship: "available",
+      improve: "available",
+    },
+    recommended_action: {
+      id: details.actionId,
+      kind: details.actionKind,
+      title: details.actionTitle,
+      description: details.actionDescription,
+      href: details.href,
+      cta_label: details.cta,
+      estimated_minutes: 3,
+      priority: 100,
+      blocked: false,
+      blocked_reason: null,
+      requires_permission: details.requiresPermission,
+      completion_event: details.completionEvent,
+      is_sample: false,
+      route_available: true,
+      fallback_href: "/dashboard/get-started",
+      analytics: {
+        event_name: "onboarding_recommended_action_clicked",
+        source: "home",
+        target_path: profile.primaryPath,
+      },
+    },
+    available_paths: [
+      {
+        id: profile.primaryPath,
+        label: details.pathLabel,
+        description: details.pathDescription,
+        status: "selected",
+        href: pathHref,
+        is_available: true,
+        blocked_reason: null,
+        requires_permission: details.requiresPermission,
+        first_action_id: details.actionId,
+      },
+    ],
+    feature_flags: {
+      ...activationState.feature_flags,
+      [details.flagName]: true,
+    },
+    route_availability: {
+      ...activationState.route_availability,
+      [`path_${profile.primaryPath}`]: {
+        href: pathHref,
+        is_available: true,
+        reason: null,
+      },
+      [details.actionId]: {
+        href: details.href,
+        is_available: true,
+        reason: null,
+      },
+    },
+    sample_project: {
+      ...activationState.sample_project,
+      available: false,
+    },
+  };
+}
+
+function pathFocusDetails(primaryPath) {
+  const details = {
+    evals: {
+      goal: "evaluate_quality",
+      stage: "create_eval_dataset",
+      pathLabel: "Evaluate quality",
+      pathDescription: "Create a small eval and review the first failure.",
+      flagName: "onboarding_eval_path",
+      actionId: "create_eval_dataset",
+      actionKind: "setup",
+      actionTitle: "Create eval source",
+      actionDescription: "Add a focused dataset or trace source.",
+      cta: "Create dataset",
+      href: "/dashboard/evaluations/create?source=onboarding&step=dataset",
+      requiresPermission: "evals:write",
+      completionEvent: "eval_dataset_created",
+    },
+    voice: {
+      goal: "connect_voice_ai_agent",
+      stage: "create_voice_agent",
+      pathLabel: "Connect a voice AI agent",
+      pathDescription: "Run or review a call with clear success criteria.",
+      flagName: "onboarding_voice_path",
+      actionId: "create_voice_agent",
+      actionKind: "setup",
+      actionTitle: "Create voice agent",
+      actionDescription:
+        "Create or connect one voice agent before the first test call.",
+      cta: "Create agent",
+      href: "/dashboard/simulate/agent-definitions/create-new-agent-definition?source=onboarding&onboarding=create-voice-agent",
+      requiresPermission: "voice:write",
+      completionEvent: "voice_agent_created",
+    },
+  };
+  const selected = details[primaryPath];
+  assert(selected, `Unsupported path focus quick start: ${primaryPath}`);
+  return selected;
 }
 
 function createStubbedAuthenticatedContext() {
@@ -496,6 +662,10 @@ async function clickVisibleButtonText(page, text, timeout = 30000) {
   await page.waitForFunction(
     (expectedText) => {
       const normalized = (value) => String(value || "").trim();
+      const matchesButton = (element) =>
+        normalized(element.getAttribute("aria-label")) === expectedText ||
+        normalized(element.textContent) === expectedText ||
+        normalized(element.textContent).includes(expectedText);
       const isVisible = (element) => {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
@@ -507,9 +677,7 @@ async function clickVisibleButtonText(page, text, timeout = 30000) {
         );
       };
       return Array.from(document.querySelectorAll("button")).some(
-        (element) =>
-          isVisible(element) &&
-          normalized(element.textContent) === expectedText,
+        (element) => isVisible(element) && matchesButton(element),
       );
     },
     { timeout },
@@ -517,9 +685,16 @@ async function clickVisibleButtonText(page, text, timeout = 30000) {
   );
   await page.evaluate((expectedText) => {
     const normalized = (value) => String(value || "").trim();
+    const matchesButton = (element) =>
+      normalized(element.getAttribute("aria-label")) === expectedText ||
+      normalized(element.textContent) === expectedText ||
+      normalized(element.textContent).includes(expectedText);
     const button = Array.from(document.querySelectorAll("button")).find(
-      (element) => normalized(element.textContent) === expectedText,
+      (element) => matchesButton(element),
     );
+    if (!button) {
+      throw new Error(`Button not found: ${expectedText}`);
+    }
     button.click();
   }, text);
 }

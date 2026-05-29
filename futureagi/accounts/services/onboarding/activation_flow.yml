@@ -60,6 +60,12 @@ goal_aliases:
   build_or_prototype_agent: build_ai_agent
   route_llm_traffic_safely: control_model_traffic
   evaluate_quality_on_data_or_traces: evaluate_quality
+  Test and improve prompts: improve_prompts
+  Build or prototype an AI agent: build_ai_agent
+  Route LLM traffic safely: control_model_traffic
+  Evaluate quality on data or traces: evaluate_quality
+  Connect a voice AI agent: connect_voice_ai_agent
+  Monitor a production AI app: monitor_production_ai_app
   Monitor LLMs and Agents: monitor_production_ai_app
   Analyze System Health: monitor_production_ai_app
   Run Evaluations: evaluate_quality

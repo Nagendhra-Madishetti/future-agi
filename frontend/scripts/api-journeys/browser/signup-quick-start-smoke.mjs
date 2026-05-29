@@ -1150,7 +1150,9 @@ async function main() {
       `Expected quick-start role, got ${evidence.onboardingPosts[0]?.role}`,
     );
     assert(
-      evidence.onboardingPosts[0]?.goals?.includes("Monitor LLMs and Agents"),
+      evidence.onboardingPosts[0]?.goals?.includes(
+        "Monitor a production AI app",
+      ),
       `Expected observe quick-start goal, got ${JSON.stringify(
         evidence.onboardingPosts[0]?.goals,
       )}`,

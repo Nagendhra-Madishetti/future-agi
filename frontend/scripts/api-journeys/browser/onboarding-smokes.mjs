@@ -29,6 +29,61 @@ const SMOKES = [
     },
   },
   {
+    id: "setup-org-prompt-controlled",
+    mode: "controlled",
+    file: "setup-org-completion-smoke.mjs",
+    description:
+      "Stubbed auth proof for setup-org prompt quick start into the prompt path focus.",
+    env: {
+      ONBOARDING_SMOKE_SETUP_QUICK_START: "prompt",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "setup-org-agent-controlled",
+    mode: "controlled",
+    file: "setup-org-completion-smoke.mjs",
+    description:
+      "Stubbed auth proof for setup-org agent quick start into the agent path focus.",
+    env: {
+      ONBOARDING_SMOKE_SETUP_QUICK_START: "agent",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "setup-org-gateway-controlled",
+    mode: "controlled",
+    file: "setup-org-completion-smoke.mjs",
+    description:
+      "Stubbed auth proof for setup-org gateway quick start into the gateway path focus.",
+    env: {
+      ONBOARDING_SMOKE_SETUP_QUICK_START: "gateway",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "setup-org-evals-controlled",
+    mode: "controlled",
+    file: "setup-org-completion-smoke.mjs",
+    description:
+      "Stubbed auth proof for setup-org eval quick start into the eval path focus.",
+    env: {
+      ONBOARDING_SMOKE_SETUP_QUICK_START: "evals",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "setup-org-voice-controlled",
+    mode: "controlled",
+    file: "setup-org-completion-smoke.mjs",
+    description:
+      "Stubbed auth proof for setup-org voice quick start into the voice path focus.",
+    env: {
+      ONBOARDING_SMOKE_SETUP_QUICK_START: "voice",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
     id: "onboarding-home-observe-controlled",
     mode: "controlled",
     file: "onboarding-home-observe-smoke.mjs",
@@ -169,6 +224,11 @@ const SMOKES = [
     sequence: [
       "setup-org-completion-controlled",
       "setup-org-sample-preview-controlled",
+      "setup-org-prompt-controlled",
+      "setup-org-agent-controlled",
+      "setup-org-gateway-controlled",
+      "setup-org-evals-controlled",
+      "setup-org-voice-controlled",
       "onboarding-home-observe-controlled",
       "onboarding-home-sample-open-controlled",
       "onboarding-observe-project-first-trace-controlled",
@@ -185,6 +245,11 @@ const SMOKES = [
     sequence: [
       "setup-org-completion-controlled",
       "setup-org-sample-preview-controlled",
+      "setup-org-prompt-controlled",
+      "setup-org-agent-controlled",
+      "setup-org-gateway-controlled",
+      "setup-org-evals-controlled",
+      "setup-org-voice-controlled",
       "onboarding-home-observe-controlled",
       "onboarding-home-sample-open-controlled",
       "onboarding-observe-project-first-trace-controlled",

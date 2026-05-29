@@ -16,16 +16,25 @@ describe("setup-org analytics", () => {
   it("builds profile analytics without email or full goal payload", () => {
     expect(
       buildSetupOrgProfileSavedProperties({
-        goals: ["Monitor LLMs and Agents", "Run Evaluations"],
+        goals: [
+          "Monitor a production AI app",
+          "Evaluate quality on data or traces",
+        ],
         provider: "google",
+        quickStartGoal: "monitor_production_ai_app",
+        quickStartId: "observe",
+        quickStartPrimaryPath: "observe",
         quickStartRequested: true,
         role: "AI Builder",
       }),
     ).toEqual({
       role: "AI Builder",
-      primary_goal: "Monitor LLMs and Agents",
+      primary_goal: "Monitor a production AI app",
       goal_count: 2,
       method: "google",
+      quick_start_goal: "monitor_production_ai_app",
+      quick_start_id: "observe",
+      quick_start_primary_path: "observe",
       quick_start_requested: true,
     });
   });
@@ -57,7 +66,10 @@ describe("setup-org analytics", () => {
 
   it("tracks setup events through PostHog", () => {
     trackSetupOrgProfileSaved({
-      goals: ["Monitor LLMs and Agents"],
+      goals: ["Monitor a production AI app"],
+      quickStartGoal: "monitor_production_ai_app",
+      quickStartId: "observe",
+      quickStartPrimaryPath: "observe",
       quickStartRequested: true,
       role: "AI Builder",
     });
@@ -70,8 +82,11 @@ describe("setup-org analytics", () => {
       SetupOrgEvents.profileSaved,
       {
         role: "AI Builder",
-        primary_goal: "Monitor LLMs and Agents",
+        primary_goal: "Monitor a production AI app",
         goal_count: 1,
+        quick_start_goal: "monitor_production_ai_app",
+        quick_start_id: "observe",
+        quick_start_primary_path: "observe",
         quick_start_requested: true,
       },
     );

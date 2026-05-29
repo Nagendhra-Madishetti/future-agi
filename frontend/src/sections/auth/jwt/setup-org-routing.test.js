@@ -34,7 +34,7 @@ describe("setup org completion routing", () => {
     );
   });
 
-  it("keeps owner invites off the observe quick-start path", () => {
+  it("keeps owner invites off the product-loop quick-start path", () => {
     expect(
       shouldShowInviteStepAfterProfileSave({
         isOwner: true,

@@ -28,6 +28,9 @@ const newInviteMembers = (members) =>
 export const buildSetupOrgProfileSavedProperties = ({
   goals,
   provider,
+  quickStartGoal,
+  quickStartId,
+  quickStartPrimaryPath,
   quickStartRequested,
   role,
 } = {}) => {
@@ -38,6 +41,9 @@ export const buildSetupOrgProfileSavedProperties = ({
     primary_goal: goalsList[0],
     goal_count: goalsList.length,
     method: provider,
+    quick_start_goal: quickStartGoal,
+    quick_start_id: quickStartId,
+    quick_start_primary_path: quickStartPrimaryPath,
     quick_start_requested: Boolean(quickStartRequested),
   });
 };

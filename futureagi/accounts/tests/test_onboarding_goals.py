@@ -37,6 +37,22 @@ def test_normalize_sample_preview_setup_goal_label():
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("goal_label", "canonical_goal"),
+    [
+        ("Monitor a production AI app", "monitor_production_ai_app"),
+        ("Test and improve prompts", "improve_prompts"),
+        ("Build or prototype an AI agent", "build_ai_agent"),
+        ("Route LLM traffic safely", "control_model_traffic"),
+        ("Evaluate quality on data or traces", "evaluate_quality"),
+        ("Connect a voice AI agent", "connect_voice_ai_agent"),
+    ],
+)
+def test_normalize_product_loop_setup_goal_labels(goal_label, canonical_goal):
+    assert normalize_goal(goal_label) == canonical_goal
+
+
+@pytest.mark.django_db
 def test_unknown_goal_rejected():
     with pytest.raises(ValidationError):
         normalize_goal("unknown_goal")

@@ -39,43 +39,51 @@ export const AVAILABLE_ROLES = [
 
 export const GOALS_LIST = [
   {
-    id: "monitor_llms_agents",
-    label: "Monitor LLMs and Agents",
-    description:
-      "Track performance, reliability, and behavior of your AI systems.",
-  },
-  {
-    id: "run_evaluations",
-    label: "Run Evaluations",
-    description:
-      "Compare models, prompts, or versions and establish benchmarks.",
-  },
-  {
-    id: "simulate_interactions",
-    label: "Simulate Voice or Chat Interactions",
-    description: "Test how your AI responds in real-world conversations.",
-  },
-  {
-    id: "annotate_improve_data",
-    label: "Annotate and Improve Data",
-    description:
-      "Label, review, and enhance datasets for better model quality.",
-  },
-  {
-    id: "optimize_ai_agents",
-    label: "Optimize AI Agents",
-    description:
-      "Tune responses, workflows, and outcomes for higher accuracy and engagement.",
-  },
-  {
-    id: "analyze_system_health",
-    label: "Analyze System Health",
-    description: "Understand latency, traces, and cost trends.",
-  },
-  {
     id: "explore_sample_data",
     label: "Explore with sample data",
+    aliases: ["sample_project"],
     description: "Review a sample quality signal before connecting real data.",
+  },
+  {
+    id: "monitor_production_ai_app",
+    label: "Monitor a production AI app",
+    aliases: ["Monitor LLMs and Agents", "Analyze System Health"],
+    description:
+      "Connect traces and review latency, cost, failures, and quality signals.",
+  },
+  {
+    id: "improve_prompts",
+    label: "Test and improve prompts",
+    aliases: ["test_and_improve_prompts"],
+    description: "Create a prompt test loop and compare output changes.",
+  },
+  {
+    id: "build_ai_agent",
+    label: "Build or prototype an AI agent",
+    aliases: ["build_or_prototype_agent", "Optimize AI Agents"],
+    description: "Run a first scenario and inspect the agent trace.",
+  },
+  {
+    id: "control_model_traffic",
+    label: "Route LLM traffic safely",
+    aliases: ["route_llm_traffic_safely"],
+    description: "Send a gateway request and review the first log.",
+  },
+  {
+    id: "evaluate_quality",
+    label: "Evaluate quality on data or traces",
+    aliases: [
+      "evaluate_quality_on_data_or_traces",
+      "Run Evaluations",
+      "Annotate and Improve Data",
+    ],
+    description: "Create a small eval and review the first failure.",
+  },
+  {
+    id: "connect_voice_ai_agent",
+    label: "Connect a voice AI agent",
+    aliases: ["Simulate Voice or Chat Interactions"],
+    description: "Run or review a call with clear success criteria.",
   },
 ];
 export const DEFAULT_ROLES = [

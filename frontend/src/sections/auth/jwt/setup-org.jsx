@@ -37,6 +37,7 @@ import { organizationSchema, userDataSchema } from "./zodSchema";
 import { generateNameFromEmail } from "./common";
 import FormTextFieldV2 from "src/components/FormTextField/FormTextFieldV2";
 import SvgColor from "src/components/svg-color";
+import Iconify from "src/components/iconify";
 import { useSearchParams } from "react-router-dom";
 import {
   resolveSetupCompletionHref,
@@ -46,14 +47,22 @@ import {
   trackSetupOrgInvitesSaved,
   trackSetupOrgProfileSaved,
 } from "./setup-org-analytics";
+import { SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS } from "./setup-org-quick-starts";
 
 const QUICK_START_ROLE = "AI Builder";
-const QUICK_START_GOAL_LABEL =
-  GOALS_LIST.find((goal) => goal.id === "monitor_llms_agents")?.label ||
-  "Monitor LLMs and Agents";
-const SAMPLE_PREVIEW_GOAL_LABEL =
-  GOALS_LIST.find((goal) => goal.id === "explore_sample_data")?.label ||
-  "Explore with sample data";
+
+const normalizeGoalValue = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const goalMatchesSavedValue = (goal, savedGoal) => {
+  const saved = normalizeGoalValue(savedGoal);
+  if (!saved) return false;
+  return [goal.id, goal.label, ...(goal.aliases || [])].some(
+    (candidate) => normalizeGoalValue(candidate) === saved,
+  );
+};
 
 const DotsStepper = styled(MobileStepper)(({ theme }) => ({
   background: "transparent",
@@ -274,7 +283,7 @@ const useOrganizationInitialData = (isOwner, user) => {
 
 const SetupOrganization = ({ getStarted = false }) => {
   const queryClient = useQueryClient();
-  const quickStartRequestedRef = useRef(false);
+  const quickStartOptionRef = useRef(null);
   const [showRoleQuestions, setShowRoleQuestions] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeStep = parseInt(searchParams.get("step") || "0", 10);
@@ -323,8 +332,8 @@ const SetupOrganization = ({ getStarted = false }) => {
   const defaultValuesForUserForm = useCallback(() => {
     const customRole = !DEFAULT_ROLES?.includes(userOnboardingData?.role);
     const goalsArray = GOALS_LIST.map((goal) => {
-      const isSelected = userOnboardingData?.goals?.some(
-        (g) => g.toLowerCase() === goal.label.toLowerCase(),
+      const isSelected = userOnboardingData?.goals?.some((g) =>
+        goalMatchesSavedValue(goal, g),
       );
 
       return isSelected;
@@ -357,13 +366,17 @@ const SetupOrganization = ({ getStarted = false }) => {
       errorHandled: true,
     },
     onSuccess: (data, variables) => {
-      const shouldFinishQuickStart = quickStartRequestedRef.current;
-      quickStartRequestedRef.current = false;
+      const quickStartOption = quickStartOptionRef.current;
+      const shouldFinishQuickStart = Boolean(quickStartOption);
+      quickStartOptionRef.current = null;
       enqueueSnackbar("Profile updated successfully", { variant: "success" });
       const provider = localStorage.getItem("signupProvider");
       trackSetupOrgProfileSaved({
         goals: variables?.goals,
         provider,
+        quickStartGoal: quickStartOption?.goal,
+        quickStartId: quickStartOption?.id,
+        quickStartPrimaryPath: quickStartOption?.primaryPath,
         quickStartRequested: shouldFinishQuickStart,
         role: variables?.role,
       });
@@ -387,7 +400,7 @@ const SetupOrganization = ({ getStarted = false }) => {
       }
     },
     onError: (error) => {
-      quickStartRequestedRef.current = false;
+      quickStartOptionRef.current = null;
       enqueueSnackbar(error?.message || "Failed to save profile", {
         variant: "error",
       });
@@ -414,28 +427,130 @@ const SetupOrganization = ({ getStarted = false }) => {
   const roleValue = userForm.watch("role");
   const goalsValue = userForm.watch("goals");
   const hasSelectedGoal = Array.isArray(goalsValue) && goalsValue.some(Boolean);
+  const handleProductLoopQuickStart = useCallback(
+    (option) => {
+      if (isSavingUserData || quickStartOptionRef.current) {
+        return;
+      }
+
+      quickStartOptionRef.current = option;
+      saveUserData({
+        role: customRoleValue || roleValue || QUICK_START_ROLE,
+        goals: [option.goalLabel],
+      });
+    },
+    [customRoleValue, isSavingUserData, roleValue, saveUserData],
+  );
+  const handleProductLoopQuickStartPointerUp = useCallback(
+    (event, option) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+      handleProductLoopQuickStart(option);
+    },
+    [handleProductLoopQuickStart],
+  );
+
+  const renderProductLoopQuickStart = (option) => {
+    const ButtonComponent = option.featured ? LoadingButton : Button;
+    return (
+      <ButtonComponent
+        key={option.id}
+        fullWidth
+        sx={{
+          borderRadius: 0.5,
+          minHeight: option.featured ? 58 : 52,
+          alignItems: "center",
+          justifyContent: "flex-start",
+          px: 1.5,
+          py: 1,
+          textAlign: "left",
+          whiteSpace: "normal",
+        }}
+        variant={option.featured ? "contained" : "outlined"}
+        loading={option.featured ? isSavingUserData : undefined}
+        disabled={isSavingUserData}
+        aria-label={option.buttonLabel}
+        onClick={() => handleProductLoopQuickStart(option)}
+        onPointerUp={(event) =>
+          handleProductLoopQuickStartPointerUp(event, option)
+        }
+        color="primary"
+        startIcon={
+          <Iconify
+            icon={option.icon}
+            width={18}
+            sx={{ flexShrink: 0, mt: 0.25 }}
+          />
+        }
+      >
+        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+          <Typography
+            component="span"
+            variant="subtitle2"
+            sx={{ lineHeight: 1.2 }}
+          >
+            {option.buttonLabel}
+          </Typography>
+          <Typography
+            component="span"
+            variant="caption"
+            sx={{
+              color: option.featured
+                ? "primary.contrastText"
+                : "text.secondary",
+              lineHeight: 1.25,
+            }}
+          >
+            {option.shortDescription}
+          </Typography>
+        </Stack>
+      </ButtonComponent>
+    );
+  };
+
+  const renderProductLoopQuickStarts = () => {
+    const featuredQuickStarts = SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.filter(
+      (option) => option.featured,
+    );
+    const secondaryQuickStarts = SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.filter(
+      (option) => !option.featured,
+    );
+
+    return (
+      <Stack spacing={1}>
+        {featuredQuickStarts.map(renderProductLoopQuickStart)}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+            gap: 1,
+          }}
+        >
+          {secondaryQuickStarts.map(renderProductLoopQuickStart)}
+        </Box>
+      </Stack>
+    );
+  };
+
   const handleObserveQuickStart = useCallback(() => {
-    if (isSavingUserData || quickStartRequestedRef.current) {
+    const observeOption = SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.find(
+      (option) => option.id === "observe",
+    );
+    if (!observeOption) {
       return;
     }
-
-    quickStartRequestedRef.current = true;
-    saveUserData({
-      role: customRoleValue || roleValue || QUICK_START_ROLE,
-      goals: [QUICK_START_GOAL_LABEL],
-    });
-  }, [customRoleValue, isSavingUserData, roleValue, saveUserData]);
+    handleProductLoopQuickStart(observeOption);
+  }, [handleProductLoopQuickStart]);
   const handleSamplePreviewQuickStart = useCallback(() => {
-    if (isSavingUserData || quickStartRequestedRef.current) {
+    const sampleOption = SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.find(
+      (option) => option.id === "sample_preview",
+    );
+    if (!sampleOption) {
       return;
     }
-
-    quickStartRequestedRef.current = true;
-    saveUserData({
-      role: customRoleValue || roleValue || QUICK_START_ROLE,
-      goals: [SAMPLE_PREVIEW_GOAL_LABEL],
-    });
-  }, [customRoleValue, isSavingUserData, roleValue, saveUserData]);
+    handleProductLoopQuickStart(sampleOption);
+  }, [handleProductLoopQuickStart]);
   const handleObserveQuickStartPointerUp = useCallback(
     (event) => {
       if (event.pointerType === "mouse" && event.button !== 0) {
@@ -467,20 +582,6 @@ const SetupOrganization = ({ getStarted = false }) => {
       color="primary"
     >
       Connect observability first
-    </LoadingButton>
-  );
-  const renderSamplePreviewQuickStartButton = () => (
-    <LoadingButton
-      fullWidth
-      sx={{ borderRadius: 0.5 }}
-      variant="contained"
-      loading={isSavingUserData}
-      disabled={isSavingUserData}
-      onClick={handleSamplePreviewQuickStart}
-      onPointerUp={handleSamplePreviewQuickStartPointerUp}
-      color="primary"
-    >
-      Preview sample trace first
     </LoadingButton>
   );
 
@@ -854,24 +955,11 @@ const SetupOrganization = ({ getStarted = false }) => {
                   lineHeight: "36px",
                 }}
               >
-                Connect observability before personalizing setup
+                Pick the product loop you want to prove first
               </Typography>
             </Box>
 
-            <Stack spacing={1}>
-              {renderSamplePreviewQuickStartButton()}
-              <Button
-                fullWidth
-                sx={{ borderRadius: 0.5 }}
-                variant="outlined"
-                disabled={isSavingUserData}
-                onClick={handleObserveQuickStart}
-                onPointerUp={handleObserveQuickStartPointerUp}
-                color="primary"
-              >
-                Connect observability first
-              </Button>
-            </Stack>
+            {renderProductLoopQuickStarts()}
 
             {!showRoleQuestions ? (
               <Button
