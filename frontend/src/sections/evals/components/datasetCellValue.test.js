@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { unwrapCellValue } from "./datasetCellValue";
 
 describe("unwrapCellValue", () => {
-  it("returns blank for a wrapper whose cell_value is null (TH-4979 leak)", () => {
+  it("returns blank for a wrapper whose cell_value is null (the empty-cell leak)", () => {
     const wrapper = {
       cell_id: "abc",
       cell_value: null,
