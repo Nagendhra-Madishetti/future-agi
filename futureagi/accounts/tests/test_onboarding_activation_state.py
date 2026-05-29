@@ -47,8 +47,16 @@ def _flags(**overrides):
 
 
 def _context(
-    user, organization, workspace, *, goal="monitor_production_ai_app", can_write=True
+    user,
+    organization,
+    workspace,
+    *,
+    goal="monitor_production_ai_app",
+    primary_path=None,
+    can_write=True,
 ):
+    if primary_path is None and goal == "monitor_production_ai_app":
+        primary_path = "observe"
     return OnboardingContext(
         user=user,
         organization=organization,
@@ -58,7 +66,7 @@ def _context(
         organization_level=15 if can_write else 1,
         workspace_level=8 if can_write else 1,
         selected_goal=goal,
-        primary_path="observe" if goal == "monitor_production_ai_app" else None,
+        primary_path=primary_path,
         persona="developer",
         source="test",
         email_context=None,
@@ -224,6 +232,106 @@ def test_sample_flag_adds_sample_waiting_stage(organization, workspace, user):
 
     assert payload["stage"] == "waiting_for_first_trace_sample_available"
     assert payload["fallback_action"]["id"] == "open_sample_trace"
+
+
+@pytest.mark.django_db
+def test_sample_path_starts_with_open_sample_project(organization, workspace, user):
+    payload = resolve_activation_state(
+        context=_context(
+            user,
+            organization,
+            workspace,
+            goal="explore_sample_data",
+            primary_path="sample",
+        ),
+        flags=_flags(
+            onboarding_sample_project=True,
+            onboarding_sample_project_enabled=True,
+        ),
+        signals=OnboardingSignals(first_checks={}),
+    )
+
+    assert payload["stage"] == "open_sample_project"
+    assert payload["primary_path"] == "sample"
+    assert payload["is_activated"] is False
+    assert payload["recommended_action"]["id"] == "open_sample_trace"
+    assert payload["recommended_action"]["is_sample"] is True
+    assert (
+        next(path for path in payload["available_paths"] if path["id"] == "sample")[
+            "status"
+        ]
+        == "selected"
+    )
+
+
+@pytest.mark.django_db
+def test_sample_path_reviews_ready_sample_trace(organization, workspace, user):
+    payload = resolve_activation_state(
+        context=_context(
+            user,
+            organization,
+            workspace,
+            goal="explore_sample_data",
+            primary_path="sample",
+        ),
+        flags=_flags(
+            onboarding_sample_project=True,
+            onboarding_sample_project_enabled=True,
+        ),
+        signals=OnboardingSignals(
+            first_checks={},
+            sample_project_opened=True,
+            sample_trace_available=True,
+        ),
+    )
+
+    assert payload["stage"] == "review_sample_signal"
+    assert payload["is_activated"] is False
+    assert payload["recommended_action"]["id"] == "open_sample_trace"
+
+
+@pytest.mark.django_db
+def test_sample_path_moves_to_real_data_after_sample_view(
+    organization,
+    workspace,
+    user,
+):
+    record_event(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        event_name="sample_signal_viewed",
+        source="test",
+        product_path="sample",
+        activation_stage="review_sample_signal",
+        is_sample=True,
+    )
+    signals = collect_onboarding_signals(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+    )
+
+    payload = resolve_activation_state(
+        context=_context(
+            user,
+            organization,
+            workspace,
+            goal="explore_sample_data",
+            primary_path="sample",
+        ),
+        flags=_flags(
+            onboarding_sample_project=True,
+            onboarding_sample_project_enabled=True,
+        ),
+        signals=signals,
+    )
+
+    assert signals.sample_signal_viewed is True
+    assert payload["stage"] == "connect_real_data"
+    assert payload["is_activated"] is False
+    assert payload["recommended_action"]["id"] == "create_observe_project"
+    assert payload["fallback_action"]["id"] == "open_observe_setup_fallback"
 
 
 @pytest.mark.django_db

@@ -225,6 +225,8 @@ describe("activation-state utilities", () => {
     expect(hasSampleRoute(normalized.sampleProject)).toBe(true);
     expect(canOpenSample(normalized.sampleProject)).toBe(true);
     expect(isSampleHidden(normalized.sampleProject)).toBe(false);
+    expect(normalized.signals.sampleProjectOpened).toBe(true);
+    expect(normalized.signals.sampleTraceAvailable).toBe(true);
   });
 
   it("normalizes accepted product path aliases", () => {

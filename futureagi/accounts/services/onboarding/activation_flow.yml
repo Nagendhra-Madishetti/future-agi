@@ -1363,6 +1363,26 @@ stage_rules:
                   - context_equals:
                       primary_path: voice
                   - flag_enabled: onboarding_voice_path
+              - all:
+                  - context_equals:
+                      primary_path: sample
+                  - flag_enabled: onboarding_sample_project
+  - stage: connect_real_data
+    when:
+      all:
+        - context_equals:
+            primary_path: sample
+        - signal: sample_signal_viewed
+  - stage: review_sample_signal
+    when:
+      all:
+        - context_equals:
+            primary_path: sample
+        - signal: sample_trace_available
+  - stage: open_sample_project
+    when:
+      context_equals:
+        primary_path: sample
   - stage: daily_review
     when:
       all:

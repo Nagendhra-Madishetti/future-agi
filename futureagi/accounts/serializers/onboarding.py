@@ -464,6 +464,10 @@ class ActivationSignalsSerializer(serializers.Serializer):
         allow_blank=True,
         allow_null=True,
     )
+    sample_project_opened = serializers.BooleanField(default=False)
+    sample_trace_available = serializers.BooleanField(default=False)
+    sample_signal_viewed = serializers.BooleanField(default=False)
+    sample_trace_reviewed = serializers.BooleanField(default=False)
 
 
 class AvailablePathSerializer(serializers.Serializer):

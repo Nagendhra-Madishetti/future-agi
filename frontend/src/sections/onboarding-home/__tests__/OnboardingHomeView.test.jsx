@@ -353,6 +353,73 @@ describe("OnboardingHomeView", () => {
     expect(screen.getByText("Connect one observe project")).toBeVisible();
   });
 
+  it("renders sampleTraceReady as the primary sample project panel", async () => {
+    const mutateAsync = vi
+      .fn()
+      .mockResolvedValue(normalizedFixture("sampleTraceReady"));
+    mocks.useSampleProject.mockReturnValue({
+      openSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync,
+      },
+      hideSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync: vi.fn(),
+      },
+    });
+    mocks.useActivationState.mockReturnValue({
+      state: normalizedFixture("sampleTraceReady"),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView();
+
+    const samplePanel = screen.getByTestId("sample-project-panel");
+    expect(samplePanel).toBeVisible();
+    expect(within(samplePanel).getByText("Fastest path to Aha")).toBeVisible();
+    expect(
+      within(samplePanel).getByRole("button", { name: /open sample trace/i }),
+    ).toBeVisible();
+    expect(
+      within(samplePanel).getByRole("link", {
+        name: /connect real observability/i,
+      }),
+    ).toHaveAttribute("href", "/dashboard/observe");
+    expect(screen.queryByTestId("observe-setup-panel")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("onboarding-primary-action"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("onboarding-fallback-action"),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(
+      within(samplePanel).getByRole("button", { name: /open sample trace/i }),
+    );
+
+    expect(mocks.trackOnboardingHomeEvent).toHaveBeenCalledWith(
+      "sample_project_open_clicked",
+      expect.objectContaining({
+        is_sample: true,
+        action_path: "sample",
+        primary_path: "sample",
+      }),
+    );
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "observe",
+        source: "onboarding_home",
+        reason: "review_sample_signal",
+      }),
+    );
+  });
+
   it("renders a focused setup panel for non-Observe product paths", () => {
     mocks.useActivationState.mockReturnValue({
       state: normalizedFixture("promptNoPrompt"),

@@ -48,6 +48,32 @@ describe("SampleProjectPanel", () => {
     expect(onConnectRealData).toHaveBeenCalledTimes(1);
   });
 
+  it("prioritizes real setup after the sample trace is reviewed", () => {
+    renderWithRouter(
+      <SampleProjectPanel
+        sampleProject={sampleProject}
+        activationStage="connect_real_data"
+        selectedGoal="explore_sample_data"
+        onOpenSample={vi.fn()}
+        onConnectRealData={vi.fn()}
+        onHideSample={vi.fn()}
+      />,
+    );
+
+    const panel = screen.getByTestId("sample-project-panel");
+    const controls = Array.from(panel.querySelectorAll("a, button")).map(
+      (control) => control.textContent,
+    );
+
+    expect(
+      screen.getByText("Connect the same loop to real data"),
+    ).toBeVisible();
+    expect(controls.slice(0, 2)).toEqual([
+      "Connect real observability",
+      "Open sample trace",
+    ]);
+  });
+
   it("does not render hidden samples", () => {
     renderWithRouter(
       <SampleProjectPanel

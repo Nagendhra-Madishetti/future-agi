@@ -384,6 +384,18 @@ const normalizeSignals = (raw = {}) => ({
   alerts: raw.alerts ?? 0,
   firstTraceId: raw.first_trace_id ?? raw.firstTraceId ?? null,
   firstObserveId: raw.first_observe_id ?? raw.firstObserveId ?? null,
+  sampleProjectOpened: Boolean(
+    raw.sample_project_opened ?? raw.sampleProjectOpened,
+  ),
+  sampleTraceAvailable: Boolean(
+    raw.sample_trace_available ?? raw.sampleTraceAvailable,
+  ),
+  sampleSignalViewed: Boolean(
+    raw.sample_signal_viewed ?? raw.sampleSignalViewed,
+  ),
+  sampleTraceReviewed: Boolean(
+    raw.sample_trace_reviewed ?? raw.sampleTraceReviewed,
+  ),
 });
 
 const normalizeAvailablePath = (raw) => {

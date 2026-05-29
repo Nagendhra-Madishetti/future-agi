@@ -550,7 +550,10 @@ export const accountsActivationEventsCreateResponseResultActivationStateSignalsD
 export const accountsActivationEventsCreateResponseResultActivationStateSignalsAlertsDefault = 0;
 export const accountsActivationEventsCreateResponseResultActivationStateSignalsAlertsMin = 0;
 
-
+export const accountsActivationEventsCreateResponseResultActivationStateSignalsSampleProjectOpenedDefault = false;
+export const accountsActivationEventsCreateResponseResultActivationStateSignalsSampleTraceAvailableDefault = false;
+export const accountsActivationEventsCreateResponseResultActivationStateSignalsSampleSignalViewedDefault = false;
+export const accountsActivationEventsCreateResponseResultActivationStateSignalsSampleTraceReviewedDefault = false;
 
 
 
@@ -898,7 +901,11 @@ export const AccountsActivationEventsCreateResponse = zod.object({
   "dashboards": zod.number().min(accountsActivationEventsCreateResponseResultActivationStateSignalsDashboardsMin).default(accountsActivationEventsCreateResponseResultActivationStateSignalsDashboardsDefault),
   "alerts": zod.number().min(accountsActivationEventsCreateResponseResultActivationStateSignalsAlertsMin).default(accountsActivationEventsCreateResponseResultActivationStateSignalsAlertsDefault),
   "first_trace_id": zod.string().optional(),
-  "first_observe_id": zod.string().optional()
+  "first_observe_id": zod.string().optional(),
+  "sample_project_opened": zod.boolean().default(accountsActivationEventsCreateResponseResultActivationStateSignalsSampleProjectOpenedDefault),
+  "sample_trace_available": zod.boolean().default(accountsActivationEventsCreateResponseResultActivationStateSignalsSampleTraceAvailableDefault),
+  "sample_signal_viewed": zod.boolean().default(accountsActivationEventsCreateResponseResultActivationStateSignalsSampleSignalViewedDefault),
+  "sample_trace_reviewed": zod.boolean().default(accountsActivationEventsCreateResponseResultActivationStateSignalsSampleTraceReviewedDefault)
 }),
   "available_goals": zod.array(zod.object({
   "id": zod.string().min(1),
@@ -1445,7 +1452,10 @@ export const accountsActivationStateListResponseResultSignalsDashboardsMin = 0;
 export const accountsActivationStateListResponseResultSignalsAlertsDefault = 0;
 export const accountsActivationStateListResponseResultSignalsAlertsMin = 0;
 
-
+export const accountsActivationStateListResponseResultSignalsSampleProjectOpenedDefault = false;
+export const accountsActivationStateListResponseResultSignalsSampleTraceAvailableDefault = false;
+export const accountsActivationStateListResponseResultSignalsSampleSignalViewedDefault = false;
+export const accountsActivationStateListResponseResultSignalsSampleTraceReviewedDefault = false;
 
 
 
@@ -1790,7 +1800,11 @@ export const AccountsActivationStateListResponse = zod.object({
   "dashboards": zod.number().min(accountsActivationStateListResponseResultSignalsDashboardsMin).default(accountsActivationStateListResponseResultSignalsDashboardsDefault),
   "alerts": zod.number().min(accountsActivationStateListResponseResultSignalsAlertsMin).default(accountsActivationStateListResponseResultSignalsAlertsDefault),
   "first_trace_id": zod.string().optional(),
-  "first_observe_id": zod.string().optional()
+  "first_observe_id": zod.string().optional(),
+  "sample_project_opened": zod.boolean().default(accountsActivationStateListResponseResultSignalsSampleProjectOpenedDefault),
+  "sample_trace_available": zod.boolean().default(accountsActivationStateListResponseResultSignalsSampleTraceAvailableDefault),
+  "sample_signal_viewed": zod.boolean().default(accountsActivationStateListResponseResultSignalsSampleSignalViewedDefault),
+  "sample_trace_reviewed": zod.boolean().default(accountsActivationStateListResponseResultSignalsSampleTraceReviewedDefault)
 }),
   "available_goals": zod.array(zod.object({
   "id": zod.string().min(1),
@@ -3016,7 +3030,10 @@ export const accountsOnboardingGoalCreateResponseResultSignalsDashboardsMin = 0;
 export const accountsOnboardingGoalCreateResponseResultSignalsAlertsDefault = 0;
 export const accountsOnboardingGoalCreateResponseResultSignalsAlertsMin = 0;
 
-
+export const accountsOnboardingGoalCreateResponseResultSignalsSampleProjectOpenedDefault = false;
+export const accountsOnboardingGoalCreateResponseResultSignalsSampleTraceAvailableDefault = false;
+export const accountsOnboardingGoalCreateResponseResultSignalsSampleSignalViewedDefault = false;
+export const accountsOnboardingGoalCreateResponseResultSignalsSampleTraceReviewedDefault = false;
 
 
 
@@ -3361,7 +3378,11 @@ export const AccountsOnboardingGoalCreateResponse = zod.object({
   "dashboards": zod.number().min(accountsOnboardingGoalCreateResponseResultSignalsDashboardsMin).default(accountsOnboardingGoalCreateResponseResultSignalsDashboardsDefault),
   "alerts": zod.number().min(accountsOnboardingGoalCreateResponseResultSignalsAlertsMin).default(accountsOnboardingGoalCreateResponseResultSignalsAlertsDefault),
   "first_trace_id": zod.string().optional(),
-  "first_observe_id": zod.string().optional()
+  "first_observe_id": zod.string().optional(),
+  "sample_project_opened": zod.boolean().default(accountsOnboardingGoalCreateResponseResultSignalsSampleProjectOpenedDefault),
+  "sample_trace_available": zod.boolean().default(accountsOnboardingGoalCreateResponseResultSignalsSampleTraceAvailableDefault),
+  "sample_signal_viewed": zod.boolean().default(accountsOnboardingGoalCreateResponseResultSignalsSampleSignalViewedDefault),
+  "sample_trace_reviewed": zod.boolean().default(accountsOnboardingGoalCreateResponseResultSignalsSampleTraceReviewedDefault)
 }),
   "available_goals": zod.array(zod.object({
   "id": zod.string().min(1),
@@ -4845,7 +4866,10 @@ export const accountsSampleProjectCreateResponseResultActivationStateSignalsDash
 export const accountsSampleProjectCreateResponseResultActivationStateSignalsAlertsDefault = 0;
 export const accountsSampleProjectCreateResponseResultActivationStateSignalsAlertsMin = 0;
 
-
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsSampleProjectOpenedDefault = false;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsSampleTraceAvailableDefault = false;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsSampleSignalViewedDefault = false;
+export const accountsSampleProjectCreateResponseResultActivationStateSignalsSampleTraceReviewedDefault = false;
 
 
 
@@ -5216,7 +5240,11 @@ export const AccountsSampleProjectCreateResponse = zod.object({
   "dashboards": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsDashboardsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsDashboardsDefault),
   "alerts": zod.number().min(accountsSampleProjectCreateResponseResultActivationStateSignalsAlertsMin).default(accountsSampleProjectCreateResponseResultActivationStateSignalsAlertsDefault),
   "first_trace_id": zod.string().optional(),
-  "first_observe_id": zod.string().optional()
+  "first_observe_id": zod.string().optional(),
+  "sample_project_opened": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateSignalsSampleProjectOpenedDefault),
+  "sample_trace_available": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateSignalsSampleTraceAvailableDefault),
+  "sample_signal_viewed": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateSignalsSampleSignalViewedDefault),
+  "sample_trace_reviewed": zod.boolean().default(accountsSampleProjectCreateResponseResultActivationStateSignalsSampleTraceReviewedDefault)
 }),
   "available_goals": zod.array(zod.object({
   "id": zod.string().min(1),
@@ -5755,7 +5783,10 @@ export const accountsSampleProjectHideCreateResponseResultActivationStateSignals
 export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsAlertsDefault = 0;
 export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsAlertsMin = 0;
 
-
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsSampleProjectOpenedDefault = false;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsSampleTraceAvailableDefault = false;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsSampleSignalViewedDefault = false;
+export const accountsSampleProjectHideCreateResponseResultActivationStateSignalsSampleTraceReviewedDefault = false;
 
 
 
@@ -6126,7 +6157,11 @@ export const AccountsSampleProjectHideCreateResponse = zod.object({
   "dashboards": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsDashboardsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsDashboardsDefault),
   "alerts": zod.number().min(accountsSampleProjectHideCreateResponseResultActivationStateSignalsAlertsMin).default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsAlertsDefault),
   "first_trace_id": zod.string().optional(),
-  "first_observe_id": zod.string().optional()
+  "first_observe_id": zod.string().optional(),
+  "sample_project_opened": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsSampleProjectOpenedDefault),
+  "sample_trace_available": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsSampleTraceAvailableDefault),
+  "sample_signal_viewed": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsSampleSignalViewedDefault),
+  "sample_trace_reviewed": zod.boolean().default(accountsSampleProjectHideCreateResponseResultActivationStateSignalsSampleTraceReviewedDefault)
 }),
   "available_goals": zod.array(zod.object({
   "id": zod.string().min(1),

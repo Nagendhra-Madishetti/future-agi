@@ -876,6 +876,10 @@ const baseState = (overrides = {}) => ({
     alerts: 0,
     first_trace_id: null,
     first_observe_id: null,
+    sample_project_opened: false,
+    sample_trace_available: false,
+    sample_signal_viewed: false,
+    sample_trace_reviewed: false,
   },
   available_goals: availableGoals,
   available_paths: [
@@ -2538,18 +2542,16 @@ export const activationStateFixtures = {
     primary_path: "sample",
     stage: "review_sample_signal",
     recommended_action: sampleAction(),
+    signals: {
+      ...baseState().signals,
+      sample_project_opened: true,
+      sample_trace_available: true,
+    },
     sample_project: baseSampleProject({
       created: true,
       status: "ready",
       entry_routes: ["/dashboard/home?sample=true"],
     }),
-    last_meaningful_event: {
-      name: "sample_signal_viewed",
-      occurred_at: "2026-05-26T15:10:00Z",
-      is_sample: true,
-      path: "sample",
-      metadata: {},
-    },
   }),
 
   sampleUnavailable: baseState({

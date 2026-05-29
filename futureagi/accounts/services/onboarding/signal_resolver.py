@@ -197,6 +197,9 @@ class OnboardingSignals:
     observe_project_exists: bool = False
     trace_exists: bool = False
     trace_reviewed: bool = False
+    sample_project_opened: bool = False
+    sample_trace_available: bool = False
+    sample_signal_viewed: bool = False
     sample_trace_reviewed: bool = False
     evaluator_exists: bool = False
     dashboard_exists: bool = False
@@ -350,6 +353,10 @@ class OnboardingSignals:
             "alerts": self.alerts,
             "first_trace_id": self.first_trace_id,
             "first_observe_id": self.first_observe_id,
+            "sample_project_opened": self.sample_project_opened,
+            "sample_trace_available": self.sample_trace_available,
+            "sample_signal_viewed": self.sample_signal_viewed,
+            "sample_trace_reviewed": self.sample_trace_reviewed,
         }
 
 
@@ -469,16 +476,32 @@ def collect_onboarding_signals(*, user, organization, workspace):
         event_name="trace_reviewed",
         is_sample=False,
     )
-    sample_trace_reviewed = has_event(
+    sample_project_opened = has_event(
         organization=organization,
         workspace=workspace,
-        event_name="trace_reviewed",
+        event_name="onboarding_sample_project_opened",
         is_sample=True,
-    ) or has_event(
+    )
+    sample_trace_available = has_event(
+        organization=organization,
+        workspace=workspace,
+        event_name="sample_trace_available",
+        is_sample=True,
+    )
+    sample_signal_viewed = has_event(
         organization=organization,
         workspace=workspace,
         event_name="sample_signal_viewed",
         is_sample=True,
+    )
+    sample_trace_reviewed = (
+        has_event(
+            organization=organization,
+            workspace=workspace,
+            event_name="trace_reviewed",
+            is_sample=True,
+        )
+        or sample_signal_viewed
     )
 
     evaluator_exists = _custom_eval_exists(observe_project_ids)
@@ -692,6 +715,9 @@ def collect_onboarding_signals(*, user, organization, workspace):
         observe_project_exists=bool(observe_project_ids),
         trace_exists=first_trace is not None,
         trace_reviewed=trace_reviewed,
+        sample_project_opened=sample_project_opened,
+        sample_trace_available=sample_trace_available,
+        sample_signal_viewed=sample_signal_viewed,
         sample_trace_reviewed=sample_trace_reviewed,
         evaluator_exists=evaluator_exists,
         dashboard_exists=dashboard_exists,

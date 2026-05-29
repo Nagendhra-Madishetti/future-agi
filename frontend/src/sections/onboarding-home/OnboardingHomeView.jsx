@@ -8,6 +8,7 @@ import Typography from "@mui/material/Typography";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthContext } from "src/auth/hooks";
 import { useWorkspace } from "src/contexts/WorkspaceContext";
+import { shouldShowSampleAsPrimary } from "./activation-state-utils";
 import { useActivationState } from "./hooks/useActivationState";
 import { useRecordActivationEvent } from "./hooks/useRecordActivationEvent";
 import { useSaveOnboardingGoal } from "./hooks/useSaveOnboardingGoal";
@@ -82,6 +83,12 @@ const OBSERVE_PANEL_STAGES = new Set([
   "create_trace_evaluator",
   "activated",
   "daily_review",
+]);
+
+const SAMPLE_PRIMARY_STAGES = new Set([
+  "open_sample_project",
+  "review_sample_signal",
+  "connect_real_data",
 ]);
 
 export default function OnboardingHomeView() {
@@ -474,6 +481,8 @@ export default function OnboardingHomeView() {
   const handleOpenSample = async () => {
     trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectOpenClicked, {
       ...trackContext,
+      is_sample: true,
+      action_path: "sample",
       sample_status: renderedState.sampleProject?.status,
       manifest_id: renderedState.sampleProject?.manifestId,
       manifest_version: renderedState.sampleProject?.manifestVersion,
@@ -498,6 +507,8 @@ export default function OnboardingHomeView() {
     } catch (sampleError) {
       trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectOpenFailed, {
         ...trackContext,
+        is_sample: true,
+        action_path: "sample",
         sample_status: renderedState.sampleProject?.status,
         reason: sampleError?.message || "unknown_error",
       });
@@ -507,6 +518,8 @@ export default function OnboardingHomeView() {
   const handleHideSample = async () => {
     trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectHideClicked, {
       ...trackContext,
+      is_sample: true,
+      action_path: "sample",
       sample_status: renderedState.sampleProject?.status,
     });
     await sampleProjectActions.hideSampleProject.mutateAsync({
@@ -519,6 +532,8 @@ export default function OnboardingHomeView() {
   const handleConnectRealData = () => {
     trackOnboardingHomeEvent(OnboardingHomeEvents.sampleToRealSetupClicked, {
       ...trackContext,
+      is_sample: true,
+      action_path: "sample_to_real",
       sample_status: renderedState.sampleProject?.status,
     });
   };
@@ -604,15 +619,19 @@ export default function OnboardingHomeView() {
     ) : null;
 
   const sampleProject = renderedState.sampleProject;
+  const showSampleAsPrimary =
+    shouldShowSampleAsPrimary(renderedState) &&
+    SAMPLE_PRIMARY_STAGES.has(renderedState.stage);
   const showSamplePanel =
     sampleProject?.available &&
     !sampleProject?.isHidden &&
     !renderedState.isActivated &&
     !showGoalPicker &&
-    [
-      "connect_observability",
-      "waiting_for_first_trace_sample_available",
-    ].includes(renderedState.stage);
+    (showSampleAsPrimary ||
+      [
+        "connect_observability",
+        "waiting_for_first_trace_sample_available",
+      ].includes(renderedState.stage));
   const prioritizeSamplePanel =
     showSamplePanel && renderedState.stage === "connect_observability";
 
@@ -698,6 +717,8 @@ export default function OnboardingHomeView() {
               onActionClick={handleActionClick}
             />
           </Box>
+        ) : showSampleAsPrimary && samplePanel ? (
+          <Stack spacing={2}>{samplePanel}</Stack>
         ) : observePanel ? (
           <Stack spacing={2}>
             {prioritizeSamplePanel ? samplePanel : null}

@@ -93637,6 +93637,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "First observe id",
           "type": "string",
           "x-nullable": true
+        },
+        "sample_project_opened": {
+          "title": "Sample project opened",
+          "type": "boolean",
+          "default": false
+        },
+        "sample_trace_available": {
+          "title": "Sample trace available",
+          "type": "boolean",
+          "default": false
+        },
+        "sample_signal_viewed": {
+          "title": "Sample signal viewed",
+          "type": "boolean",
+          "default": false
+        },
+        "sample_trace_reviewed": {
+          "title": "Sample trace reviewed",
+          "type": "boolean",
+          "default": false
         }
       }
     },

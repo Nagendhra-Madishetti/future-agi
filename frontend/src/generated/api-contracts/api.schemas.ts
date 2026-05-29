@@ -867,6 +867,10 @@ export interface ActivationSignalsApi {
   alerts?: number;
   first_trace_id?: string;
   first_observe_id?: string;
+  sample_project_opened?: boolean;
+  sample_trace_available?: boolean;
+  sample_signal_viewed?: boolean;
+  sample_trace_reviewed?: boolean;
 }
 
 export type AvailableGoalApiGoal = typeof AvailableGoalApiGoal[keyof typeof AvailableGoalApiGoal];

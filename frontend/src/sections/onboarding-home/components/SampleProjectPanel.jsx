@@ -41,6 +41,13 @@ export default function SampleProjectPanel({
     sampleProject.status === "not_created"
       ? "Ready to create"
       : readableToken(sampleProject.status);
+  const isRealDataStep = activationStage === "connect_real_data";
+  const title = isRealDataStep
+    ? "Connect the same loop to real data"
+    : "Preview the quality loop first";
+  const description = isRealDataStep
+    ? "Use the sample trace as the reference, then connect real observability so the same quality loop runs on production data."
+    : "Open a seeded trace, inspect the quality issue, then connect real observability with the product shape already clear.";
   const proofPoints = [
     {
       label: "Trace context",
@@ -87,10 +94,9 @@ export default function SampleProjectPanel({
         </Stack>
 
         <Stack spacing={0.5}>
-          <Typography variant="h6">Preview the quality loop first</Typography>
+          <Typography variant="h6">{title}</Typography>
           <Typography variant="body2" color="text.secondary">
-            Open a seeded trace, inspect the quality issue, then connect real
-            observability with the product shape already clear.
+            {description}
           </Typography>
         </Stack>
 
@@ -130,17 +136,19 @@ export default function SampleProjectPanel({
         ) : null}
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          {!isRealDataStep ? (
+            <Button
+              variant="contained"
+              onClick={onOpenSample}
+              disabled={!canOpen || isOpening}
+              startIcon={<Iconify icon="mdi:flask-outline" width={18} />}
+              sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+            >
+              {isOpening ? "Opening..." : "Open sample trace"}
+            </Button>
+          ) : null}
           <Button
-            variant="contained"
-            onClick={onOpenSample}
-            disabled={!canOpen || isOpening}
-            startIcon={<Iconify icon="mdi:flask-outline" width={18} />}
-            sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
-          >
-            {isOpening ? "Opening..." : "Open sample trace"}
-          </Button>
-          <Button
-            variant="text"
+            variant={isRealDataStep ? "contained" : "text"}
             component={RouterLink}
             href={realSetupHref}
             onClick={onConnectRealData}
@@ -149,6 +157,17 @@ export default function SampleProjectPanel({
           >
             Connect real observability
           </Button>
+          {isRealDataStep ? (
+            <Button
+              variant="outlined"
+              onClick={onOpenSample}
+              disabled={!canOpen || isOpening}
+              startIcon={<Iconify icon="mdi:flask-outline" width={18} />}
+              sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+            >
+              {isOpening ? "Opening..." : "Open sample trace"}
+            </Button>
+          ) : null}
           <Button
             variant="text"
             color="inherit"
