@@ -23,5 +23,17 @@ expose_to_mcp(
     tools={
         "list": {"name": "list_annotations"},
         "retrieve": {"name": "get_annotation"},
+        # create_annotation: creates a dataset annotation task. The view now
+        # auto-assigns the creator when no assignees are given, so the creator
+        # can immediately submit values (TH-5398).
+        "create": {"name": "create_annotation"},
+        # submit_annotation: the update_cells detail action submits label /
+        # response-field values for the task's rows. detail=True so the bridge
+        # injects the `id` (annotation id) into the input (TH-5398).
+        "update_cells": {
+            "name": "submit_annotation",
+            "detail": True,
+            "method": "POST",
+        },
     },
 )(AnnotationsViewSet)
