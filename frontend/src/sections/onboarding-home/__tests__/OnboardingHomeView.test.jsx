@@ -238,6 +238,39 @@ describe("OnboardingHomeView", () => {
     ).toHaveAttribute("href", "/dashboard/observe/observe-1");
   });
 
+  it("keeps the post-aha screen actionable when daily quality is unavailable", () => {
+    const activatedState = normalizedFixture("observeFirstLoopComplete");
+    activatedState.routeAvailability.daily_quality_home = {
+      href: "/dashboard/home?mode=daily-quality",
+      isAvailable: false,
+      reason: "feature_disabled",
+    };
+    mocks.useActivationState.mockReturnValue({
+      state: activatedState,
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView();
+
+    const panel = screen.getByTestId("first-loop-complete-panel");
+    expect(panel).toBeVisible();
+    expect(
+      within(panel).getByText(
+        "Open the current loop next. Daily quality will take over when a reviewable signal is available.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(panel).queryByRole("link", { name: /review daily quality/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(panel).getByRole("link", { name: /open observe/i }),
+    ).toHaveAttribute("href", "/dashboard/observe/observe-1");
+  });
+
   it("uses the post-aha screen for activated non-observe paths", () => {
     const activatedState = normalizedFixture("promptActivated");
     activatedState.routeAvailability.daily_quality_home = {

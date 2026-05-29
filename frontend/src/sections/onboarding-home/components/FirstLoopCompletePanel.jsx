@@ -25,6 +25,7 @@ export default function FirstLoopCompletePanel({
   const dailyQualityHref = dailyQualityRoute?.isAvailable
     ? dailyQualityRoute.href
     : null;
+  const hasDailyQualityRoute = Boolean(dailyQualityHref);
 
   return (
     <Box
@@ -47,8 +48,9 @@ export default function FirstLoopCompletePanel({
         <Stack spacing={0.5}>
           <Typography variant="subtitle2">Next best step</Typography>
           <Typography variant="body2" color="text.secondary">
-            Review daily quality next, then open the current loop when a signal
-            needs attention.
+            {hasDailyQualityRoute
+              ? "Review daily quality next, then open the current loop when a signal needs attention."
+              : "Open the current loop next. Daily quality will take over when a reviewable signal is available."}
           </Typography>
         </Stack>
         {lastMeaningfulEvent ? (
@@ -67,15 +69,16 @@ export default function FirstLoopCompletePanel({
           </Box>
         ) : null}
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          <Button
-            variant="contained"
-            component={dailyQualityHref ? RouterLink : "button"}
-            href={dailyQualityHref || undefined}
-            disabled={!dailyQualityHref}
-            startIcon={<Iconify icon="mdi:calendar-check" width={18} />}
-          >
-            Review daily quality
-          </Button>
+          {hasDailyQualityRoute ? (
+            <Button
+              variant="contained"
+              component={RouterLink}
+              href={dailyQualityHref}
+              startIcon={<Iconify icon="mdi:calendar-check" width={18} />}
+            >
+              Review daily quality
+            </Button>
+          ) : null}
           <ObservePanelActions
             action={action}
             fallbackAction={fallbackAction}
@@ -83,7 +86,7 @@ export default function FirstLoopCompletePanel({
             onFallbackClick={onFallbackClick}
             onCheckAgain={onCheckAgain}
             isChecking={isChecking}
-            primaryVariant="outlined"
+            primaryVariant={hasDailyQualityRoute ? "outlined" : "contained"}
           />
         </Stack>
       </Stack>
