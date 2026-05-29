@@ -22,6 +22,8 @@ async function main() {
   const activationStateRequests = [];
   const activationStateResponses = [];
   const apiFailures = [];
+  const evalTemplatePosts = [];
+  const evalTemplateUpdates = [];
   const pageErrors = [];
   const requestFailures = [];
   const traceDetailRequests = [];
@@ -41,6 +43,8 @@ async function main() {
     activationEventPosts,
     activationStateRequests,
     activationStateResponses,
+    evalTemplatePosts,
+    evalTemplateUpdates,
     getFirstTraceReady: () => firstTraceReady,
     requestFailures,
     traceDetailRequests,
@@ -153,6 +157,65 @@ async function main() {
     await expectVisibleText(page, "trace-1");
     await expectVisibleText(page, "First trace received", { exact: true });
     await expectVisibleText(page, "Create evaluator", { exact: true });
+    await clickVisibleText(page, "Create evaluator");
+    await page.waitForFunction(
+      () => {
+        const params = new URLSearchParams(window.location.search);
+        return (
+          window.location.pathname ===
+            "/dashboard/evaluations/create/eval-draft-1" &&
+          params.get("source") === "onboarding" &&
+          params.get("step") === "run" &&
+          params.get("source_type") === "trace_project" &&
+          params.get("source_id") === "observe-1"
+        );
+      },
+      { timeout: 30000 },
+    );
+    await expectSelector(page, '[data-testid="eval-onboarding-focus"]');
+    await expectVisibleText(page, "Eval onboarding", { exact: true });
+    await expectVisibleText(page, "Run the first eval", { exact: true });
+    await expectVisibleText(page, "Trace project ready", { exact: true });
+    await waitForCondition(
+      () =>
+        activationEventPosts.some(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_source_selected" &&
+            payload?.primary_path === "evals" &&
+            payload?.stage === "create_eval_dataset" &&
+            payload?.artifact_type === "observe_project" &&
+            payload?.artifact_id === "observe-1",
+        ),
+      "Eval source selection activation event was not posted.",
+      30000,
+    );
+    await waitForCondition(
+      () =>
+        activationEventPosts.some(
+          (payload) =>
+            payload?.event_name === "eval_scorer_created" &&
+            payload?.primary_path === "evals" &&
+            payload?.stage === "add_eval_scorer" &&
+            payload?.artifact_type === "eval_scorer" &&
+            payload?.artifact_id === "eval-draft-1",
+        ),
+      "Starter eval scorer activation event was not posted.",
+      30000,
+    );
+    await waitForCondition(
+      () =>
+        activationEventPosts.some(
+          (payload) =>
+            payload?.event_name === "onboarding_eval_route_focus_viewed" &&
+            payload?.primary_path === "evals" &&
+            payload?.stage === "run_eval" &&
+            payload?.artifact_type === "eval" &&
+            payload?.artifact_id === "observe-1" &&
+            payload?.metadata?.draft_id === "eval-draft-1",
+        ),
+      "Eval run-step focus activation event was not posted.",
+      30000,
+    );
 
     assert(
       activationStateResponses
@@ -165,6 +228,14 @@ async function main() {
     assert(
       traceDetailRequests.length === 1,
       `Expected one trace detail request, got ${traceDetailRequests.length}`,
+    );
+    assert(
+      evalTemplatePosts.length === 1,
+      `Expected one eval draft create request, got ${evalTemplatePosts.length}`,
+    );
+    assert(
+      evalTemplateUpdates.length === 1,
+      `Expected one eval draft update request, got ${evalTemplateUpdates.length}`,
     );
     assert(apiFailures.length === 0, `API failures: ${apiFailures.join("; ")}`);
     assert(pageErrors.length === 0, `Page errors: ${pageErrors.join("; ")}`);
@@ -190,6 +261,9 @@ async function main() {
             activation_state_sequence: activationStateResponses.map(
               (response) => response.stage,
             ),
+            create_evaluator_url: relativeUrl(page.url()),
+            eval_template_posts: evalTemplatePosts,
+            eval_template_updates: evalTemplateUpdates,
             review_trace_href: reviewTraceHref,
             screenshot: SCREENSHOT_PATH,
             trace_detail_requests: traceDetailRequests,
@@ -211,6 +285,8 @@ async function main() {
             activation_state_responses: activationStateResponses,
             api_failures: apiFailures,
             body_text: await safeBodyText(page),
+            eval_template_posts: evalTemplatePosts,
+            eval_template_updates: evalTemplateUpdates,
             page_errors: pageErrors,
             request_failures: requestFailures.slice(-20),
             trace_detail_requests: traceDetailRequests,
@@ -234,6 +310,8 @@ async function installRuntime(
     activationEventPosts,
     activationStateRequests,
     activationStateResponses,
+    evalTemplatePosts,
+    evalTemplateUpdates,
     getFirstTraceReady,
     requestFailures,
     traceDetailRequests,
@@ -346,6 +424,48 @@ async function installRuntime(
         result: {
           custom_views: [],
           customViews: [],
+        },
+      });
+      return;
+    }
+
+    if (
+      normalizedPath === "/model-hub/eval-templates/create-v2/" &&
+      request.method() === "POST"
+    ) {
+      evalTemplatePosts.push(parseJsonPostData(request.postData()));
+      await respondJson(request, {
+        status: true,
+        result: {
+          id: "eval-draft-1",
+        },
+      });
+      return;
+    }
+
+    if (normalizedPath === "/model-hub/eval-templates/eval-draft-1/detail/") {
+      await respondJson(request, {
+        status: true,
+        result: {
+          id: "eval-draft-1",
+          config: {},
+          eval_type: "agent",
+          output_type_normalized: "pass_fail",
+          pass_threshold: 0.5,
+        },
+      });
+      return;
+    }
+
+    if (
+      normalizedPath === "/model-hub/eval-templates/eval-draft-1/update/" &&
+      request.method() === "PUT"
+    ) {
+      evalTemplateUpdates.push(parseJsonPostData(request.postData()));
+      await respondJson(request, {
+        status: true,
+        result: {
+          id: "eval-draft-1",
         },
       });
       return;
@@ -547,6 +667,11 @@ function parseJsonPostData(value) {
   }
 }
 
+function relativeUrl(value) {
+  const url = new URL(value);
+  return `${url.pathname}${url.search}`;
+}
+
 async function respondJson(request, body, status = 200) {
   await request.respond({
     status,
@@ -703,6 +828,7 @@ async function safeBodyText(page) {
 function isStubbedApiPath(path) {
   return (
     path.startsWith("/accounts/") ||
+    path.startsWith("/model-hub/eval-templates/") ||
     path.startsWith("/tracer/trace/") ||
     path.startsWith("/tracer/saved-views/")
   );
@@ -712,6 +838,7 @@ function isFirstTraceSmokeApiUrl(url) {
   return (
     url.includes("/accounts/activation-state/") ||
     url.includes("/accounts/activation-events/") ||
+    url.includes("/model-hub/eval-templates/") ||
     url.includes("/tracer/trace/trace-1/") ||
     url.includes("/tracer/saved-views/")
   );
