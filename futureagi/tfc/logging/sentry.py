@@ -78,6 +78,10 @@ IGNORED_MESSAGE_SUBSTRINGS = (
     "trace_payload_not_found_in_redis",  # expected ingestion race (payload TTL)
     "Failed to export traces",  # OTel exporter (backstop for logger check)
     "Exception while exporting metrics",  # OTel exporter (backstop)
+    # litellm's internal 'LiteLLM' logger emits this at ERROR when a user
+    # supplies an invalid/partial Vertex AI service-account key during model
+    # validation. Expected user-input error, not actionable. CORE-BACKEND-119Y.
+    "Failed to load vertex credentials",
 )
 
 # Keys whose values must be redacted before leaving the process. Matched

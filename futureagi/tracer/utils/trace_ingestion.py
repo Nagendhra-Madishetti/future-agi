@@ -91,6 +91,47 @@ def _sanitize_nonfinite_floats(value: Any) -> Any:
     return value
 
 
+def _strip_null_chars(value: Any) -> Any:
+    """Recursively strip NUL (``\\x00``) bytes from string keys and values.
+
+    PostgreSQL's text and json/jsonb types cannot store the NUL code point: a
+    real ``\\x00`` inside a string is emitted by ``json.dumps`` as the escape
+    ``\\u0000``, which jsonb rejects during COPY (``unsupported Unicode escape
+    sequence ... \\u0000 cannot be converted to text``). User-supplied span
+    attributes can carry NUL (e.g. extracted PDF/document text), so scrub them
+    before serialization. Distinct from ``_sanitize_nonfinite_floats``: NUL is
+    silently escaped by ``json.dumps`` rather than raising, so the strip must
+    run unconditionally on the JSON path. Only ``\\x00`` is removed; other
+    control characters (e.g. ``\\u0013``) are valid in jsonb and preserved.
+    """
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    if isinstance(value, dict):
+        return {
+            (k.replace("\x00", "") if isinstance(k, str) else k): _strip_null_chars(v)
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_strip_null_chars(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_strip_null_chars(v) for v in value)
+    return value
+
+
+def _contains_null_char(value: Any) -> bool:
+    """Return True if any string key/value in ``value`` contains a NUL byte."""
+    if isinstance(value, str):
+        return "\x00" in value
+    if isinstance(value, dict):
+        return any(
+            (isinstance(k, str) and "\x00" in k) or _contains_null_char(v)
+            for k, v in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(_contains_null_char(v) for v in value)
+    return False
+
+
 def _serialize_json_field_value(val: Any) -> str | None:
     """
     Serialize a value for PostgreSQL JSONField in COPY operations.
@@ -108,20 +149,36 @@ def _serialize_json_field_value(val: Any) -> str | None:
         try:
             parsed = json.loads(val)
         except (json.JSONDecodeError, TypeError):
-            return json.dumps(val, allow_nan=False)
+            # Not JSON: COPY writes the raw string into the text-backed column,
+            # so strip NUL directly off the byte stream.
+            return json.dumps(val.replace("\x00", ""), allow_nan=False)
         try:
-            # Fast path: already-valid JSON with no non-finite floats.
+            # Fast path: already-valid JSON with no non-finite floats or NUL
+            # bytes. A NUL survives json.loads as a real \x00 inside ``parsed``
+            # (the source text held the backslash-u-0000 escape), so check ``parsed``.
             json.dumps(parsed, allow_nan=False)
-            return val
+            if not _contains_null_char(parsed):
+                return val
+            return json.dumps(_strip_null_chars(parsed), allow_nan=False)
         except ValueError:
-            return json.dumps(_sanitize_nonfinite_floats(parsed), allow_nan=False)
+            return json.dumps(
+                _strip_null_chars(_sanitize_nonfinite_floats(parsed)), allow_nan=False
+            )
 
     # Fast path: dump directly; only pay the recursive scrub when a non-finite
-    # float is actually present (keeps the common clean-data path allocation-free).
+    # float or NUL byte is actually present (keeps the common clean-data path
+    # allocation-free).
     try:
-        return json.dumps(val, allow_nan=False)
+        dumped = json.dumps(val, allow_nan=False)
     except ValueError:
-        return json.dumps(_sanitize_nonfinite_floats(val), allow_nan=False)
+        return json.dumps(
+            _strip_null_chars(_sanitize_nonfinite_floats(val)), allow_nan=False
+        )
+    # json.dumps does not raise on NUL; it silently emits the \u0000 escape,
+    # so guard the dumped output explicitly.
+    if "\\u0000" not in dumped:
+        return dumped
+    return json.dumps(_strip_null_chars(val), allow_nan=False)
 
 
 def _bulk_create_with_copy(model: models.Model, objects: list[models.Model]):
@@ -142,6 +199,10 @@ def _bulk_create_with_copy(model: models.Model, objects: list[models.Model]):
                 # Handle JSONField values
                 if isinstance(field, models.JSONField):
                     val = _serialize_json_field_value(val)
+                elif isinstance(val, str):
+                    # text/varchar columns cannot store NUL either; COPY writes
+                    # the raw byte stream, so strip \x00 off plain strings too.
+                    val = val.replace("\x00", "")
 
                 row.append(val)
             values_list.append(tuple(row))

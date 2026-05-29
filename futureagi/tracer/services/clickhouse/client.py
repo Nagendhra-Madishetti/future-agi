@@ -213,6 +213,7 @@ class ClickHouseClient:
         query: str,
         params: Optional[Dict[str, Any]] = None,
         timeout_ms: Optional[int] = None,
+        settings: Optional[Dict[str, Any]] = None,
     ) -> Tuple[List[Tuple], List[Tuple], float]:
         """
         Execute a read-only query with ClickHouse readonly=2 setting.
@@ -233,7 +234,7 @@ class ClickHouseClient:
         client = self._get_client()
         t_start = time.monotonic()
 
-        query_settings = {"readonly": 2}
+        query_settings = {**(settings or {}), "readonly": 2}
         if timeout_ms is not None:
             # max_execution_time is in seconds
             query_settings["max_execution_time"] = max(timeout_ms / 1000.0, 0.001)

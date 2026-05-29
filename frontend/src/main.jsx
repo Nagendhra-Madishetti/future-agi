@@ -86,6 +86,21 @@ const SENTRY_IGNORE_ERRORS = [
   "Failed to load Stripe.js",
   "Failed to get pricing card details",
   "Failed to update a ServiceWorker",
+  // SW update() rejects with these when the worker is redundant or the
+  // registration is gone (FRONTEND-194 / FRONTEND-1BF). Not actionable.
+  "newestWorker is null",
+  "Cannot update a null/nonexistent service worker registration",
+  // Background request hit a 401 with no refresh token: the refresh helper
+  // throws this and the user is logged out as expected (FRONTEND-1D9 / 1D7).
+  "No refresh token",
+  // Vite dev-server only: when the dep-optimizer re-bundles .vite/deps and
+  // forces a reload, a transformed chunk can transiently inject the same
+  // top-level declaration twice, throwing e.g. "Identifier 'PROJECT_SOURCE'
+  // has already been declared". These are caught by React's dev
+  // invokeguardedcallback with no stacktrace, so the .vite/deps frame filter
+  // in beforeSend below never matches them. A real prod build fails at build
+  // time, so this message never originates from a shipped bundle.
+  "has already been declared",
 ];
 
 Sentry.init({
@@ -131,6 +146,18 @@ Sentry.init({
       ),
     );
     if (fromViteDeps) return null;
+    // Drop errors originating entirely inside the Mixpanel/rrweb session
+    // recorder. These surface as generic "reading 'logs'" TypeErrors thrown
+    // from third-party recorder internals (no app frames) and are not
+    // actionable application bugs.
+    const fromSessionRecorder = event?.exception?.values?.some((value) =>
+      value?.stacktrace?.frames?.some((frame) =>
+        /recording-registry\.js|session-recording\.js|rrweb-compiled\.js/.test(
+          frame?.filename || "",
+        ),
+      ),
+    );
+    if (fromSessionRecorder) return null;
     return event;
   },
 });
@@ -171,9 +198,16 @@ if (CURRENT_ENVIRONMENT !== "local" && "serviceWorker" in navigator) {
         setInterval(() => {
           // Transient CDN/network failures fetching service-worker.js are
           // non-fatal; swallow so they don't surface as unhandled rejections.
-          registration.update().catch((err) => {
-            logger.debug("ServiceWorker update check failed:", err);
-          });
+          // Guard against a missing registration and a synchronous throw:
+          // some browsers (Safari) throw InvalidStateError synchronously from
+          // update() when the worker is redundant, which .catch() can't cover.
+          try {
+            registration?.update().catch((err) => {
+              logger.debug("ServiceWorker update check failed:", err);
+            });
+          } catch (err) {
+            logger.debug("ServiceWorker update check threw:", err);
+          }
         }, 5 * 60 * 1000);
         // When a new SW is found, activate it immediately
         registration.addEventListener("updatefound", () => {
@@ -192,7 +226,10 @@ if (CURRENT_ENVIRONMENT !== "local" && "serviceWorker" in navigator) {
         });
       })
       .catch((error) => {
-        logger.error("ServiceWorker registration failed:", error);
+        // SW registration/install failures (extension-wrapped "Rejected",
+        // transient install errors) are non-actionable. Record a breadcrumb
+        // instead of a Sentry error (FRONTEND-1DQ / FRONTEND-13X).
+        logger.warn("ServiceWorker registration failed:", error);
       });
   });
 }
