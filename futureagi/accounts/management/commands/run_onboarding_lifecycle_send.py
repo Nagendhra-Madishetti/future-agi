@@ -7,6 +7,9 @@ from django.utils.dateparse import parse_datetime
 from accounts.services.onboarding.lifecycle_preview_approval import (
     load_lifecycle_preview_approval,
 )
+from accounts.services.onboarding.lifecycle_send_reports import (
+    write_lifecycle_send_dry_run_report,
+)
 from accounts.services.onboarding.lifecycle_sender import (
     send_limited_onboarding_lifecycle_batch,
 )
@@ -24,11 +27,15 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--approval-manifest")
         parser.add_argument("--approval-record")
+        parser.add_argument("--report-output")
+        parser.add_argument("--report-force", action="store_true")
         parser.add_argument("--now")
 
     def handle(self, *args, **options):
         if options["limit"] < 1:
             raise CommandError("--limit must be greater than zero.")
+        if options.get("report_output") and not options["dry_run"]:
+            raise CommandError("--report-output requires --dry-run.")
         now = None
         if options.get("now"):
             now = parse_datetime(options["now"])
@@ -63,6 +70,22 @@ class Command(BaseCommand):
             preview_approval=preview_approval,
         )
         payload = result.to_payload()
+        if options.get("report_output"):
+            try:
+                report_output = write_lifecycle_send_dry_run_report(
+                    output_path=options["report_output"],
+                    force=options["report_force"],
+                    command_name="run_onboarding_lifecycle_send",
+                    result=result,
+                    cohort=options["cohort"],
+                    limit=options["limit"],
+                    campaign_group=options.get("campaign_family"),
+                    user_id=options.get("user_id"),
+                    workspace_id=options.get("workspace_id"),
+                )
+            except ImproperlyConfigured as exc:
+                raise CommandError(str(exc)) from exc
+            self.stdout.write(f"report_output={report_output}")
         if payload["approval_manifest_sha256"]:
             self.stdout.write(
                 f"approval_manifest_sha256={payload['approval_manifest_sha256']}"

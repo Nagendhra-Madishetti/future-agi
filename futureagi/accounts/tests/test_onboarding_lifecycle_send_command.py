@@ -25,6 +25,10 @@ from accounts.services.onboarding.lifecycle_preview_snapshots import (
     write_lifecycle_preview_snapshots,
 )
 from accounts.services.onboarding.lifecycle_registry import lifecycle_campaign_by_key
+from accounts.services.onboarding.lifecycle_send_reports import (
+    DRY_RUN_REPORT_SCHEMA_VERSION,
+    DRY_RUN_REPORT_SOURCE,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -156,6 +160,64 @@ def test_send_command_dry_run_writes_no_send_logs(organization, workspace, user)
 
 @pytest.mark.django_db
 @override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_send_command_dry_run_writes_review_report(
+    organization,
+    workspace,
+    user,
+    tmp_path,
+):
+    _eligible_log(user, organization, workspace)
+    report_path = tmp_path / "send-dry-run-report.json"
+    output = StringIO()
+
+    call_command(
+        "run_onboarding_lifecycle_send",
+        "--cohort",
+        "internal",
+        "--limit",
+        "10",
+        "--dry-run",
+        "--report-output",
+        str(report_path),
+        stdout=output,
+    )
+
+    report_text = report_path.read_text()
+    report = json.loads(report_text)
+    assert f"report_output={report_path}" in output.getvalue()
+    assert report["schema_version"] == DRY_RUN_REPORT_SCHEMA_VERSION
+    assert report["source"] == DRY_RUN_REPORT_SOURCE
+    assert report["command"] == "run_onboarding_lifecycle_send"
+    assert report["parameters"] == {
+        "cohort": "internal",
+        "limit": 10,
+        "campaign_group": None,
+        "user_id": None,
+        "workspace_id": None,
+        "require_campaign_group_allowlist": False,
+    }
+    assert report["approval"] == {
+        "manifest_sha256": None,
+        "record_sha256": None,
+    }
+    assert report["summary"]["evaluated"] == 1
+    assert report["summary"]["status_counts"] == {"would_suppress": 1}
+    assert report["summary"]["suppression_counts"] == {"not_in_send_cohort": 1}
+    assert len(report["candidates"]) == 1
+    candidate = report["candidates"][0]
+    assert candidate["campaign_key"] == "welcome_resume_goal"
+    assert candidate["status"] == "would_suppress"
+    assert candidate["suppression_reason"] == "not_in_send_cohort"
+    assert candidate["approval_status"] == "not_supplied"
+    assert candidate["target_success_event"] == "observe_project_created"
+    assert candidate["target_route"].startswith("/dashboard/")
+    assert str(user.id) in report_text
+    assert user.email not in report_text
+    assert not OnboardingLifecycleSendLog.no_workspace_objects.exists()
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
 def test_send_command_respects_limit_and_sends_allowlisted(
     organization,
     workspace,
@@ -251,6 +313,39 @@ def test_send_command_requires_approval_record_for_real_send(
             stdout=output,
         )
 
+    assert not OnboardingLifecycleSendLog.no_workspace_objects.exists()
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_send_command_rejects_report_output_for_real_send(
+    organization,
+    workspace,
+    user,
+    tmp_path,
+):
+    _eligible_log(user, organization, workspace)
+    approval_manifest, approval_record = _approval_paths(tmp_path)
+    report_path = tmp_path / "send-report.json"
+    output = StringIO()
+
+    with pytest.raises(CommandError, match="--report-output requires --dry-run"):
+        call_command(
+            "run_onboarding_lifecycle_send",
+            "--cohort",
+            "internal",
+            "--limit",
+            "1",
+            "--approval-manifest",
+            str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
+            "--report-output",
+            str(report_path),
+            stdout=output,
+        )
+
+    assert not report_path.exists()
     assert not OnboardingLifecycleSendLog.no_workspace_objects.exists()
 
 
@@ -440,6 +535,49 @@ def test_welcome_email_beta_defaults_to_dry_run_and_welcome_group(
     assert "cohort=beta" in value
     assert "evaluated=1" in value
     assert "sent=0" in value
+    assert not OnboardingLifecycleSendLog.no_workspace_objects.exists()
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_welcome_email_beta_dry_run_writes_review_report(
+    organization,
+    workspace,
+    user,
+    tmp_path,
+):
+    _eligible_campaign_log(user, organization, workspace, "welcome_resume_goal")
+    _eligible_campaign_log(user, organization, workspace, "prompt_create_first")
+    report_path = tmp_path / "welcome-beta-report.json"
+    output = StringIO()
+
+    call_command(
+        "run_onboarding_welcome_email_beta",
+        "--limit",
+        "10",
+        "--report-output",
+        str(report_path),
+        stdout=output,
+    )
+
+    report_text = report_path.read_text()
+    report = json.loads(report_text)
+    assert f"report_output={report_path}" in output.getvalue()
+    assert report["command"] == "run_onboarding_welcome_email_beta"
+    assert report["parameters"] == {
+        "cohort": "beta",
+        "limit": 10,
+        "campaign_group": "welcome",
+        "user_id": None,
+        "workspace_id": None,
+        "require_campaign_group_allowlist": True,
+    }
+    assert report["summary"]["evaluated"] == 1
+    assert len(report["candidates"]) == 1
+    assert report["candidates"][0]["campaign_group"] == "welcome"
+    assert report["candidates"][0]["campaign_key"] == "welcome_resume_goal"
+    assert "prompt_create_first" not in report_text
+    assert user.email not in report_text
     assert not OnboardingLifecycleSendLog.no_workspace_objects.exists()
 
 

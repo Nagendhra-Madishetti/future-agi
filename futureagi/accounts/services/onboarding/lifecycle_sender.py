@@ -66,6 +66,8 @@ _NON_CLOUD_SUPPRESSION_REASON = "cloud_deployment_required"
 @dataclass(frozen=True)
 class LifecycleSendBatchResult:
     run_id: uuid.UUID
+    generated_at: str
+    dry_run: bool
     evaluated: int
     sent: int
     suppressed: int
@@ -73,12 +75,15 @@ class LifecycleSendBatchResult:
     skipped: int
     status_counts: dict
     suppression_counts: dict
+    candidates: tuple[dict, ...] = ()
     approval_manifest_sha256: str | None = None
     approval_record_sha256: str | None = None
 
     def to_payload(self):
         return {
             "run_id": str(self.run_id),
+            "generated_at": self.generated_at,
+            "dry_run": self.dry_run,
             "evaluated": self.evaluated,
             "sent": self.sent,
             "suppressed": self.suppressed,
@@ -86,6 +91,7 @@ class LifecycleSendBatchResult:
             "skipped": self.skipped,
             "status_counts": self.status_counts,
             "suppression_counts": self.suppression_counts,
+            "candidates": list(self.candidates),
             "approval_manifest_sha256": self.approval_manifest_sha256,
             "approval_record_sha256": self.approval_record_sha256,
         }
@@ -617,6 +623,62 @@ def _send_log_defaults(
     }
 
 
+def _approval_status_for(preview_approval, campaign_key):
+    if not preview_approval:
+        return "not_supplied"
+    if preview_approval.has_campaign(campaign_key):
+        return "approved"
+    return "missing"
+
+
+def _dry_run_candidate_payload(
+    *,
+    evaluation_log,
+    decision,
+    status,
+    suppression_reason,
+    preview_approval=None,
+):
+    campaign = decision.campaign or evaluation_log.registry_snapshot or {}
+    snapshot = decision.activation_state or {}
+    recommended_action = snapshot.get("recommended_action") or {}
+    campaign_key = campaign.get("campaign_key") or evaluation_log.campaign_key
+    return {
+        "evaluation_log_id": str(evaluation_log.id),
+        "user_id": str(evaluation_log.user_id),
+        "organization_id": str(evaluation_log.organization_id),
+        "workspace_id": str(evaluation_log.workspace_id),
+        "campaign_key": campaign_key,
+        "campaign_group": campaign.get("campaign_group")
+        or evaluation_log.campaign_group,
+        "template_key": campaign.get("template_key") or evaluation_log.template_key,
+        "template_version": campaign.get("template_version")
+        or evaluation_log.template_version,
+        "primary_path": snapshot.get("primary_path") or evaluation_log.primary_path,
+        "activation_stage": snapshot.get("stage") or evaluation_log.activation_stage,
+        "recommended_action_id": recommended_action.get("id")
+        or evaluation_log.recommendation_id,
+        "target_action_id": campaign.get("target_action_id")
+        or evaluation_log.target_action_id,
+        "target_success_event": campaign.get("target_success_event")
+        or evaluation_log.target_success_event,
+        "target_route": decision.target_url or evaluation_log.target_url or "",
+        "status": status,
+        "suppression_reason": suppression_reason,
+        "approval_status": _approval_status_for(preview_approval, campaign_key),
+        "eligible_at": (
+            evaluation_log.eligible_at.isoformat()
+            if evaluation_log.eligible_at
+            else None
+        ),
+        "evaluated_at": (
+            evaluation_log.evaluated_at.isoformat()
+            if evaluation_log.evaluated_at
+            else None
+        ),
+    }
+
+
 def _get_or_create_send_log(
     evaluation_log,
     campaign,
@@ -859,6 +921,7 @@ def send_limited_onboarding_lifecycle_batch(
 
     status_counts = Counter()
     suppression_counts = Counter()
+    candidates = []
     evaluated = sent = suppressed = failed = skipped = 0
 
     for evaluation_log in queryset[:limit]:
@@ -877,6 +940,15 @@ def send_limited_onboarding_lifecycle_batch(
             status_counts[status] += 1
             if reason:
                 suppression_counts[reason] += 1
+            candidates.append(
+                _dry_run_candidate_payload(
+                    evaluation_log=evaluation_log,
+                    decision=decision,
+                    status=status,
+                    suppression_reason=reason,
+                    preview_approval=preview_approval,
+                )
+            )
             continue
         send_log = queue_onboarding_lifecycle_email(
             evaluation_log,
@@ -901,6 +973,8 @@ def send_limited_onboarding_lifecycle_batch(
 
     return LifecycleSendBatchResult(
         run_id=run_id,
+        generated_at=now.isoformat(),
+        dry_run=dry_run,
         evaluated=evaluated,
         sent=sent,
         suppressed=suppressed,
@@ -908,6 +982,7 @@ def send_limited_onboarding_lifecycle_batch(
         skipped=skipped,
         status_counts=dict(status_counts),
         suppression_counts=dict(suppression_counts),
+        candidates=tuple(candidates),
         approval_manifest_sha256=(
             preview_approval.manifest_sha256 if preview_approval else None
         ),

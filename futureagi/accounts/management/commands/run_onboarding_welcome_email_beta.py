@@ -7,6 +7,9 @@ from django.utils.dateparse import parse_datetime
 from accounts.services.onboarding.lifecycle_preview_approval import (
     load_lifecycle_preview_approval,
 )
+from accounts.services.onboarding.lifecycle_send_reports import (
+    write_lifecycle_send_dry_run_report,
+)
 from accounts.services.onboarding.lifecycle_sender import (
     send_limited_onboarding_lifecycle_batch,
 )
@@ -29,6 +32,8 @@ class Command(BaseCommand):
         parser.add_argument("--send", action="store_true")
         parser.add_argument("--approval-manifest")
         parser.add_argument("--approval-record")
+        parser.add_argument("--report-output")
+        parser.add_argument("--report-force", action="store_true")
         parser.add_argument("--now")
 
     def handle(self, *args, **options):
@@ -37,6 +42,8 @@ class Command(BaseCommand):
             raise CommandError("--limit must be greater than zero.")
         if limit > MAX_BETA_LIMIT:
             raise CommandError(f"--limit must be {MAX_BETA_LIMIT} or lower.")
+        if options.get("report_output") and options["send"]:
+            raise CommandError("--report-output requires dry-run mode.")
 
         now = None
         if options.get("now"):
@@ -75,6 +82,23 @@ class Command(BaseCommand):
             preview_approval=preview_approval,
         )
         payload = result.to_payload()
+        if options.get("report_output"):
+            try:
+                report_output = write_lifecycle_send_dry_run_report(
+                    output_path=options["report_output"],
+                    force=options["report_force"],
+                    command_name="run_onboarding_welcome_email_beta",
+                    result=result,
+                    cohort=options["cohort"],
+                    limit=limit,
+                    campaign_group=WELCOME_CAMPAIGN_GROUP,
+                    user_id=options.get("user_id"),
+                    workspace_id=options.get("workspace_id"),
+                    require_campaign_group_allowlist=True,
+                )
+            except ImproperlyConfigured as exc:
+                raise CommandError(str(exc)) from exc
+            self.stdout.write(f"report_output={report_output}")
         self.stdout.write(f"mode={'send' if options['send'] else 'dry_run'}")
         self.stdout.write(f"campaign_group={WELCOME_CAMPAIGN_GROUP}")
         self.stdout.write(f"cohort={options['cohort']}")
