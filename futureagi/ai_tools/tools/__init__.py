@@ -34,7 +34,8 @@ from ai_tools.tools.bridge import (
     _annotation_queues,  # noqa: F401  list/get/create/update/delete_annotation_queue
     _annotations,  # noqa: F401  list/get/create/update/delete_annotation_label + list/get_annotation
     _datasets,  # noqa: F401  list/get/create/update/delete_dataset
-    _eval_groups,  # noqa: F401  list/get/create/update/delete_eval_group
+    # eval_group is NOT bridged — EvalGroupView.create/update read non-serializer
+    # fields (eval_template_ids), so they use purpose-built hand-written tools.
     _knowledge_bases,  # noqa: F401  list/get/create/update/delete_knowledge_base
     _misc_viewsets,  # noqa: F401  15 misc ViewSets (dashboards, scores, secrets, observability, etc.)
     _personas,  # noqa: F401  list/get/create/update/delete_persona
@@ -83,21 +84,26 @@ from ai_tools.tools.docs import (
 from ai_tools.tools.evaluations import (
     compare_evaluations,  # noqa: F401
     create_composite_eval,  # noqa: F401
+    create_eval_group,  # noqa: F401  — hand-written (EvalGroupView not clean CRUD)
     create_eval_template,  # noqa: F401  — eval creation from Falcon (restored)
+    delete_eval_group,  # noqa: F401
     delete_eval_logs,  # noqa: F401
     delete_eval_template,  # noqa: F401  — eval creation from Falcon (restored)
     duplicate_eval_template,  # noqa: F401
     evaluate_with_agent,  # noqa: F401
     execute_composite_eval,  # noqa: F401
     get_eval_code_snippet,  # noqa: F401
+    get_eval_group,  # noqa: F401
     get_eval_log_detail,  # noqa: F401
     get_eval_logs,  # noqa: F401
     get_eval_playground,  # noqa: F401
     get_eval_template,  # noqa: F401
     get_evaluation,  # noqa: F401
+    list_eval_groups,  # noqa: F401
     list_eval_templates,  # noqa: F401
     list_evaluations,  # noqa: F401
     test_eval_template,  # noqa: F401
+    update_eval_group,  # noqa: F401
     update_eval_template,  # noqa: F401  — eval creation from Falcon (restored)
 )
 
