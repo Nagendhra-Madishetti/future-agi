@@ -255,7 +255,12 @@ async function main() {
       timeout: 90000,
     });
     await waitForBrowserFrame();
-    await clickVisibleButtonText(page, "Connect observability first");
+    await clickVisibleButtonText(
+      page,
+      SAMPLE_ONLY
+        ? "Preview sample trace first"
+        : "Connect observability first",
+    );
 
     await page.waitForFunction(
       () =>
@@ -267,54 +272,74 @@ async function main() {
     await expectNoVisibleText(page, "Invite your team later", {
       timeout: 1000,
     });
-    await expectVisibleText(page, "Connect observability", { timeout: 45000 });
-    await expectVisibleTestId(page, "observe-setup-panel", { timeout: 45000 });
-    await expectVisibleText(page, "Connect one observe project", {
-      exact: true,
-      timeout: 45000,
-    });
-    const observeCtaHref = await expectVisibleActionHref(
-      page,
-      "Connect observability",
-      "/dashboard/observe?setup=true&source=onboarding",
-      { timeout: 45000 },
-    );
-    await clickVisibleActionHref(
-      page,
-      "Connect observability",
-      "/dashboard/observe?setup=true&source=onboarding",
-    );
-    await page.waitForFunction(
-      () =>
-        window.location.pathname === "/dashboard/observe" &&
-        new URLSearchParams(window.location.search).get("setup") === "true" &&
-        new URLSearchParams(window.location.search).get("source") ===
-          "onboarding",
-      { timeout: 45000 },
-    );
-    await expectVisibleTestId(page, "observe-onboarding-focus", {
-      timeout: 45000,
-    });
-    await expectVisibleText(page, "Observe onboarding", { timeout: 45000 });
-    await expectVisibleText(page, "Setup", { timeout: 45000 });
-    await expectVisibleText(page, "Connect Observe to your app", {
-      timeout: 45000,
-    });
-    await expectVisibleText(
-      page,
-      "Install tracing, load your keys, and send one real or test request.",
-      { timeout: 45000 },
-    );
-    await expectVisibleText(page, "Install", { timeout: 45000 });
-    await expectVisibleText(page, "Trace", { timeout: 45000 });
-    await expectVisibleText(page, "Review", { timeout: 45000 });
-    await expectVisibleText(page, "Review setup", { timeout: 45000 });
-    await expectVisibleText(page, "Install Dependencies", { timeout: 45000 });
-    await expectVisibleText(page, "Load API keys", { timeout: 45000 });
-    await expectVisibleText(page, "Setup Telemetry", { timeout: 45000 });
-    await expectVisibleText(page, "Setup Instrumentation", { timeout: 45000 });
-    await expectNoVisibleText(page, "Code not available");
-    const observeSetupUrl = page.url();
+
+    let observeCtaHref = null;
+    let observeSetupUrl = null;
+    if (SAMPLE_ONLY) {
+      await expectVisibleTestId(page, "sample-project-panel", {
+        timeout: 45000,
+      });
+      await expectVisibleText(page, "Fastest path to Aha", {
+        exact: true,
+        timeout: 45000,
+      });
+    } else {
+      await expectVisibleText(page, "Connect observability", {
+        timeout: 45000,
+      });
+      await expectVisibleTestId(page, "observe-setup-panel", {
+        timeout: 45000,
+      });
+      await expectVisibleText(page, "Connect one observe project", {
+        exact: true,
+        timeout: 45000,
+      });
+      observeCtaHref = await expectVisibleActionHref(
+        page,
+        "Connect observability",
+        "/dashboard/observe?setup=true&source=onboarding",
+        { timeout: 45000 },
+      );
+      await clickVisibleActionHref(
+        page,
+        "Connect observability",
+        "/dashboard/observe?setup=true&source=onboarding",
+      );
+      await page.waitForFunction(
+        () =>
+          window.location.pathname === "/dashboard/observe" &&
+          new URLSearchParams(window.location.search).get("setup") === "true" &&
+          new URLSearchParams(window.location.search).get("source") ===
+            "onboarding",
+        { timeout: 45000 },
+      );
+      await expectVisibleTestId(page, "observe-onboarding-focus", {
+        timeout: 45000,
+      });
+      await expectVisibleText(page, "Observe onboarding", { timeout: 45000 });
+      await expectVisibleText(page, "Setup", { timeout: 45000 });
+      await expectVisibleText(page, "Connect Observe to your app", {
+        timeout: 45000,
+      });
+      await expectVisibleText(
+        page,
+        "Install tracing, load your keys, and send one real or test request.",
+        { timeout: 45000 },
+      );
+      await expectVisibleText(page, "Install", { timeout: 45000 });
+      await expectVisibleText(page, "Trace", { timeout: 45000 });
+      await expectVisibleText(page, "Review", { timeout: 45000 });
+      await expectVisibleText(page, "Review setup", { timeout: 45000 });
+      await expectVisibleText(page, "Install Dependencies", { timeout: 45000 });
+      await expectVisibleText(page, "Load API keys", { timeout: 45000 });
+      await expectVisibleText(page, "Setup Telemetry", { timeout: 45000 });
+      await expectVisibleText(page, "Setup Instrumentation", {
+        timeout: 45000,
+      });
+      await expectNoVisibleText(page, "Code not available");
+      observeSetupUrl = page.url();
+    }
+
     await expectVisibleText(page, "Open sample trace", { timeout: 45000 });
     await clickVisibleButtonText(page, "Open sample trace", 45000);
     await page.waitForFunction(
@@ -396,6 +421,14 @@ async function main() {
         "Expected sample project activation state to expose an entry route.",
       );
       assert(
+        evidence.onboardingPosts[0]?.goals?.includes(
+          "Explore with sample data",
+        ),
+        `Expected sample preview quick-start goal, got ${JSON.stringify(
+          evidence.onboardingPosts[0]?.goals,
+        )}`,
+      );
+      assert(
         evidence.activationEventPosts.some(
           (payload) =>
             payload?.event_name === "sample_trace_detail_opened" &&
@@ -406,12 +439,12 @@ async function main() {
         "Expected sample trace detail activation event.",
       );
       assert(
-        evidence.sampleProjectPosts[0]?.source === "observe_setup_onboarding",
-        `Expected sample source observe_setup_onboarding, got ${evidence.sampleProjectPosts[0]?.source}`,
+        evidence.sampleProjectPosts[0]?.source === "onboarding_home",
+        `Expected sample source onboarding_home, got ${evidence.sampleProjectPosts[0]?.source}`,
       );
       assert(
-        evidence.sampleProjectPosts[0]?.reason === "setup_observe",
-        `Expected sample reason setup_observe, got ${evidence.sampleProjectPosts[0]?.reason}`,
+        evidence.sampleProjectPosts[0]?.reason === "open_sample_project",
+        `Expected sample reason open_sample_project, got ${evidence.sampleProjectPosts[0]?.reason}`,
       );
       assert(
         browserState.initialRender === "done",
@@ -441,6 +474,7 @@ async function main() {
           sample_open_state: summarizeActivationState(sampleOpenState),
           sample_project_post: evidence.sampleProjectPosts[0],
           sample_project_response: evidence.sampleProjectResponses[0],
+          setup_quick_start: "sample_preview",
           sample_trace_activation_event: evidence.activationEventPosts.find(
             (payload) => payload?.event_name === "sample_trace_detail_opened",
           ),
@@ -1327,6 +1361,7 @@ async function main() {
         real_setup_return_url: realSetupReturnUrl,
         screenshot: SCREENSHOT_PATH,
         setup_posts: evidence.setupPosts,
+        setup_quick_start: "observe",
         signup_post: evidence.signupPosts[0],
         token_post: evidence.tokenPosts[0],
       },

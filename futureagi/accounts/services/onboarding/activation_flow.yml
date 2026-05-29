@@ -66,6 +66,7 @@ goal_aliases:
   Simulate Voice or Chat Interactions: connect_voice_ai_agent
   Annotate and Improve Data: evaluate_quality
   Optimize AI Agents: build_ai_agent
+  Explore with sample data: explore_sample_data
 
 paths:
   prompt:

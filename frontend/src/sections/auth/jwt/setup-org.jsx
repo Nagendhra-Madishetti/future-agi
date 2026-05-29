@@ -51,6 +51,9 @@ const QUICK_START_ROLE = "AI Builder";
 const QUICK_START_GOAL_LABEL =
   GOALS_LIST.find((goal) => goal.id === "monitor_llms_agents")?.label ||
   "Monitor LLMs and Agents";
+const SAMPLE_PREVIEW_GOAL_LABEL =
+  GOALS_LIST.find((goal) => goal.id === "explore_sample_data")?.label ||
+  "Explore with sample data";
 
 const DotsStepper = styled(MobileStepper)(({ theme }) => ({
   background: "transparent",
@@ -422,6 +425,17 @@ const SetupOrganization = ({ getStarted = false }) => {
       goals: [QUICK_START_GOAL_LABEL],
     });
   }, [customRoleValue, isSavingUserData, roleValue, saveUserData]);
+  const handleSamplePreviewQuickStart = useCallback(() => {
+    if (isSavingUserData || quickStartRequestedRef.current) {
+      return;
+    }
+
+    quickStartRequestedRef.current = true;
+    saveUserData({
+      role: customRoleValue || roleValue || QUICK_START_ROLE,
+      goals: [SAMPLE_PREVIEW_GOAL_LABEL],
+    });
+  }, [customRoleValue, isSavingUserData, roleValue, saveUserData]);
   const handleObserveQuickStartPointerUp = useCallback(
     (event) => {
       if (event.pointerType === "mouse" && event.button !== 0) {
@@ -430,6 +444,15 @@ const SetupOrganization = ({ getStarted = false }) => {
       handleObserveQuickStart();
     },
     [handleObserveQuickStart],
+  );
+  const handleSamplePreviewQuickStartPointerUp = useCallback(
+    (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+      handleSamplePreviewQuickStart();
+    },
+    [handleSamplePreviewQuickStart],
   );
 
   const renderObserveQuickStartButton = () => (
@@ -444,6 +467,20 @@ const SetupOrganization = ({ getStarted = false }) => {
       color="primary"
     >
       Connect observability first
+    </LoadingButton>
+  );
+  const renderSamplePreviewQuickStartButton = () => (
+    <LoadingButton
+      fullWidth
+      sx={{ borderRadius: 0.5 }}
+      variant="contained"
+      loading={isSavingUserData}
+      disabled={isSavingUserData}
+      onClick={handleSamplePreviewQuickStart}
+      onPointerUp={handleSamplePreviewQuickStartPointerUp}
+      color="primary"
+    >
+      Preview sample trace first
     </LoadingButton>
   );
 
@@ -821,7 +858,20 @@ const SetupOrganization = ({ getStarted = false }) => {
               </Typography>
             </Box>
 
-            {renderObserveQuickStartButton()}
+            <Stack spacing={1}>
+              {renderSamplePreviewQuickStartButton()}
+              <Button
+                fullWidth
+                sx={{ borderRadius: 0.5 }}
+                variant="outlined"
+                disabled={isSavingUserData}
+                onClick={handleObserveQuickStart}
+                onPointerUp={handleObserveQuickStartPointerUp}
+                color="primary"
+              >
+                Connect observability first
+              </Button>
+            </Stack>
 
             {!showRoleQuestions ? (
               <Button
@@ -924,6 +974,16 @@ const SetupOrganization = ({ getStarted = false }) => {
             </Stack>
 
             {renderObserveQuickStartButton()}
+            <Button
+              sx={{ borderRadius: 0.5 }}
+              variant="text"
+              disabled={isSavingUserData}
+              onClick={handleSamplePreviewQuickStart}
+              onPointerUp={handleSamplePreviewQuickStartPointerUp}
+              color="primary"
+            >
+              Preview sample trace first
+            </Button>
 
             <LoadingButton
               sx={{ borderRadius: 0.5 }}

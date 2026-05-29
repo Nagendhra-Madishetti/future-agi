@@ -18,6 +18,17 @@ const SMOKES = [
     },
   },
   {
+    id: "setup-org-sample-preview-controlled",
+    mode: "controlled",
+    file: "setup-org-completion-smoke.mjs",
+    description:
+      "Stubbed auth proof for setup-org sample preview quick start into the sample Aha panel.",
+    env: {
+      ONBOARDING_SMOKE_SETUP_SAMPLE_PREVIEW: "1",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
     id: "onboarding-home-observe-controlled",
     mode: "controlled",
     file: "onboarding-home-observe-smoke.mjs",
@@ -157,6 +168,7 @@ const SMOKES = [
     suite: true,
     sequence: [
       "setup-org-completion-controlled",
+      "setup-org-sample-preview-controlled",
       "onboarding-home-observe-controlled",
       "onboarding-home-sample-open-controlled",
       "onboarding-observe-project-first-trace-controlled",
@@ -172,6 +184,7 @@ const SMOKES = [
     suite: true,
     sequence: [
       "setup-org-completion-controlled",
+      "setup-org-sample-preview-controlled",
       "onboarding-home-observe-controlled",
       "onboarding-home-sample-open-controlled",
       "onboarding-observe-project-first-trace-controlled",

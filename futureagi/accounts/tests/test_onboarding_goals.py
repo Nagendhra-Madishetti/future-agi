@@ -32,6 +32,11 @@ def test_normalize_legacy_setup_goal_label():
 
 
 @pytest.mark.django_db
+def test_normalize_sample_preview_setup_goal_label():
+    assert normalize_goal("Explore with sample data") == "explore_sample_data"
+
+
+@pytest.mark.django_db
 def test_unknown_goal_rejected():
     with pytest.raises(ValidationError):
         normalize_goal("unknown_goal")

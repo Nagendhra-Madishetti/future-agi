@@ -12,8 +12,11 @@ const APP_BASE = process.env.APP_BASE || "http://127.0.0.1:3032";
 const VIEWPORT_NAME = process.env.ONBOARDING_SMOKE_VIEWPORT || "desktop";
 const SCREENSHOT_PATH =
   process.env.SETUP_ORG_COMPLETION_SCREENSHOT ||
-  `/tmp/setup-org-completion-smoke-${VIEWPORT_NAME}.png`;
+  `/tmp/setup-org-completion-smoke-${VIEWPORT_NAME}${
+    envFlag("ONBOARDING_SMOKE_SETUP_SAMPLE_PREVIEW") ? "-sample-preview" : ""
+  }.png`;
 const STUB_AUTH = envFlag("ONBOARDING_SMOKE_STUB_AUTH");
+const SAMPLE_PREVIEW = envFlag("ONBOARDING_SMOKE_SETUP_SAMPLE_PREVIEW");
 
 async function main() {
   assert(STUB_AUTH, "Set ONBOARDING_SMOKE_STUB_AUTH=1 for this smoke.");
@@ -88,7 +91,12 @@ async function main() {
     await page.evaluate(() => {
       localStorage.setItem("redirectUrl", "/dashboard/observe?project=stale");
     });
-    await clickVisibleButtonText(page, "Connect observability first");
+    await clickVisibleButtonText(
+      page,
+      SAMPLE_PREVIEW
+        ? "Preview sample trace first"
+        : "Connect observability first",
+    );
     await page.waitForFunction(
       () =>
         window.location.pathname === "/dashboard/home" &&
@@ -97,10 +105,20 @@ async function main() {
       { timeout: 30000 },
     );
 
-    await expectSelector(page, '[data-testid="observe-setup-panel"]');
-    await expectVisibleText(page, "Connect one observe project", {
-      exact: true,
-    });
+    if (SAMPLE_PREVIEW) {
+      await expectSelector(page, '[data-testid="sample-project-panel"]');
+      await expectVisibleText(page, "Fastest path to Aha", {
+        exact: true,
+      });
+      await expectVisibleText(page, "Open sample trace", {
+        exact: true,
+      });
+    } else {
+      await expectSelector(page, '[data-testid="observe-setup-panel"]');
+      await expectVisibleText(page, "Connect one observe project", {
+        exact: true,
+      });
+    }
 
     const browserState = await page.evaluate(() => ({
       initialRender: localStorage.getItem("initial-render"),
@@ -119,9 +137,12 @@ async function main() {
       onboardingPosts[0]?.role === "AI Builder",
       `Expected quick-start role, got ${onboardingPosts[0]?.role}`,
     );
+    const expectedGoal = SAMPLE_PREVIEW
+      ? "Explore with sample data"
+      : "Monitor LLMs and Agents";
     assert(
-      onboardingPosts[0]?.goals?.includes("Monitor LLMs and Agents"),
-      `Expected observe quick-start goal, got ${JSON.stringify(
+      onboardingPosts[0]?.goals?.includes(expectedGoal),
+      `Expected ${expectedGoal} quick-start goal, got ${JSON.stringify(
         onboardingPosts[0]?.goals,
       )}`,
     );
@@ -150,6 +171,7 @@ async function main() {
             onboarding_post: onboardingPosts[0],
             screenshot: SCREENSHOT_PATH,
             setup_posts: setupPosts,
+            setup_quick_start: SAMPLE_PREVIEW ? "sample_preview" : "observe",
             viewport: VIEWPORT_NAME,
           },
         },
@@ -168,6 +190,7 @@ async function main() {
             api_failures: apiFailures,
             body_text: await safeBodyText(page),
             page_errors: pageErrors,
+            setup_quick_start: SAMPLE_PREVIEW ? "sample_preview" : "observe",
             onboarding_posts: onboardingPosts,
             setup_posts: setupPosts,
             url: page.url(),
@@ -332,7 +355,9 @@ async function installRuntime(
 
 function stubbedActivationState(auth) {
   return {
-    ...getActivationStateFixture("newWorkspaceNoGoal"),
+    ...getActivationStateFixture(
+      SAMPLE_PREVIEW ? "sampleFirstRunStart" : "newWorkspaceNoGoal",
+    ),
     organization_id: auth.organizationId,
     request_id: "setup_org_completion_smoke",
     user_id: auth.user.id,

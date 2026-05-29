@@ -1072,6 +1072,68 @@ const gatewayFixture = (overrides = {}) =>
 export const activationStateFixtures = {
   newWorkspaceNoGoal: baseState(),
 
+  sampleFirstRunStart: baseState({
+    goal: "explore_sample_data",
+    primary_path: "sample",
+    stage: "open_sample_project",
+    stage_copy: {
+      eyebrow: "Sample data",
+      title: "Open a sample project",
+      description: "Use a sample project while real data is pending.",
+    },
+    recommended_action: sampleAction(),
+    fallback_action: action({
+      id: "create_observe_project",
+      kind: "setup",
+      title: "Connect observability",
+      description: "Create an observe project and send one trace.",
+      href: "/dashboard/observe?setup=true&source=onboarding",
+      cta_label: "Connect observability",
+      completion_event: "observe_project_created",
+      analytics: {
+        event_name: "onboarding_recommended_action_clicked",
+        source: "home",
+        target_path: "observe",
+      },
+    }),
+    available_paths: [
+      {
+        id: "sample",
+        label: "Explore with sample data",
+        description: "Use a sample workspace while real data is pending.",
+        status: "selected",
+        href: "/dashboard/home?path=sample",
+        is_available: true,
+        blocked_reason: null,
+        requires_permission: null,
+        first_action_id: "open_sample_trace",
+      },
+      {
+        id: "observe",
+        label: "Monitor a production AI app",
+        description: "Connect traces and inspect quality signals.",
+        status: "available",
+        href: "/dashboard/home?path=observe",
+        is_available: true,
+        blocked_reason: null,
+        requires_permission: "observe:write",
+        first_action_id: "create_observe_project",
+      },
+    ],
+    progress: {
+      build: "selected",
+      test: "available",
+      observe: "available",
+      ship: "available",
+      improve: "available",
+    },
+    sample_project: baseSampleProject({
+      available: true,
+      created: false,
+      status: "not_created",
+    }),
+  }),
+
   goalPickerFallback: baseState({
     goal: null,
     primary_path: null,

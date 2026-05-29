@@ -72,6 +72,11 @@ export const GOALS_LIST = [
     label: "Analyze System Health",
     description: "Understand latency, traces, and cost trends.",
   },
+  {
+    id: "explore_sample_data",
+    label: "Explore with sample data",
+    description: "Review a sample quality signal before connecting real data.",
+  },
 ];
 export const DEFAULT_ROLES = [
   "Data Scientist / ML Engineer",
