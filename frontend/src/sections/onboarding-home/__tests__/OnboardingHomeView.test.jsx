@@ -1379,6 +1379,29 @@ describe("OnboardingHomeView", () => {
     expect(screen.getAllByText("gateway").length).toBeGreaterThan(0);
   });
 
+  it("does not add path anchors to unavailable path fallback actions", () => {
+    mocks.useActivationState.mockReturnValue({
+      state: normalizedFixture("selectedPathUnavailable"),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView();
+
+    const panel = screen.getByTestId("path-focus-panel-prompt");
+    within(panel)
+      .getAllByRole("link", { name: /start with observe/i })
+      .forEach((link) => {
+        expect(link).toHaveAttribute(
+          "href",
+          "/dashboard/observe?setup=true&source=onboarding",
+        );
+      });
+  });
+
   it("renders eval onboarding with path-specific hero and focused panel copy", () => {
     const href = "/dashboard/evaluations/create?source=onboarding&step=run";
     mocks.useActivationState.mockReturnValue({

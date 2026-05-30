@@ -202,6 +202,22 @@ describe("PathFocusPanel", () => {
     );
   });
 
+  it("does not add step anchors when the selected path stage is unavailable", () => {
+    renderPanel("selectedPathUnavailable");
+
+    const panel = screen.getByTestId("path-focus-panel-prompt");
+    expect(panel).toBeVisible();
+    expect(within(panel).queryByTestId("current-step-guide")).toBeNull();
+    within(panel)
+      .getAllByRole("link", { name: "Start with observe" })
+      .forEach((link) => {
+        expect(link).toHaveAttribute(
+          "href",
+          "/dashboard/observe?setup=true&source=onboarding",
+        );
+      });
+  });
+
   it("renders nothing for paths without a focused plan", () => {
     const { container } = render(
       <PathFocusPanel primaryPath="sample" stage="review_sample_signal" />,

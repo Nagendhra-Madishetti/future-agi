@@ -32,10 +32,11 @@ const STATUS_COPY = {
 
 const activeStepIndex = (steps, stage) => {
   const index = steps.findIndex((step) => step.stage === stage);
-  return index >= 0 ? index : 0;
+  return index >= 0 ? index : null;
 };
 
 const stepStatus = ({ index, activeIndex }) => {
+  if (activeIndex === null) return "queued";
   if (index < activeIndex) return "complete";
   if (index === activeIndex) return "current";
   return "queued";
@@ -59,11 +60,11 @@ export default function PathFocusPanel({
     typeof plan.currentStepIndex === "number"
       ? plan.currentStepIndex
       : activeStepIndex(plan.steps, stage);
-  const currentIndex = Math.min(
-    Math.max(derivedCurrentIndex, 0),
-    plan.steps.length - 1,
-  );
-  const currentStep = plan.steps[currentIndex];
+  const currentIndex =
+    derivedCurrentIndex === null
+      ? null
+      : Math.min(Math.max(derivedCurrentIndex, 0), plan.steps.length - 1);
+  const currentStep = currentIndex === null ? null : plan.steps[currentIndex];
 
   return (
     <Box

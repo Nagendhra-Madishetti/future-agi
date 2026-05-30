@@ -124,7 +124,7 @@ describe("EvaluationActions prompt onboarding", () => {
 
   it("shows the prompt failure capture panel from journey-step routes", () => {
     renderActions(
-      "/dashboard/workbench/create/prompt-1?tour_anchor=prompt_failure_button&journey_step=prompt_next_loop",
+      "/dashboard/workbench/create/prompt-1?tour_anchor=prompt_add_example_button&journey_step=prompt_next_loop",
     );
 
     expect(screen.getByTestId("prompt-failure-capture-focus")).toBeVisible();

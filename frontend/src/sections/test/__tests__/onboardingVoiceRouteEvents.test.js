@@ -27,54 +27,54 @@ describe("onboardingVoiceRouteEvents", () => {
   it("reads voice journey-step params from Home CTAs", () => {
     expect(
       getVoiceOnboardingParams(
-        "?tour_anchor=voice_create_button&journey_step=create_voice_agent",
+        "?tour_anchor=voice_agent_button&journey_step=create_voice_agent",
       ),
     ).toMatchObject({
       mode: VOICE_ONBOARDING_MODES.CREATE_AGENT,
       from: "onboarding",
-      tourAnchor: "voice_create_button",
+      tourAnchor: "voice_agent_button",
     });
 
     expect(
       getVoiceOnboardingParams(
-        "?tour_anchor=voice_run_button&journey_step=run_voice_test_call",
+        "?tour_anchor=voice_test_call_button&journey_step=run_voice_test_call",
       ),
     ).toMatchObject({
       mode: VOICE_ONBOARDING_MODES.RUN_TEST_CALL,
       from: "onboarding",
-      tourAnchor: "voice_run_button",
+      tourAnchor: "voice_test_call_button",
     });
 
     expect(
       getVoiceOnboardingParams(
-        "?tour_anchor=voice_review_button&journey_step=review_voice_call",
+        "?tour_anchor=voice_call_review_link&journey_step=review_voice_call",
       ),
     ).toEqual({
       mode: VOICE_ONBOARDING_MODES.REVIEW_CALL,
       from: "onboarding",
       callId: "",
       agentDefinitionId: "",
-      tourAnchor: "voice_review_button",
+      tourAnchor: "voice_call_review_link",
     });
 
     expect(
       getVoiceOnboardingParams(
-        "?tour_anchor=voice_criteria_button&journey_step=add_voice_success_criteria",
+        "?tour_anchor=voice_success_criteria_button&journey_step=add_voice_success_criteria",
       ),
     ).toMatchObject({
       mode: VOICE_ONBOARDING_MODES.SUCCESS_CRITERIA,
       from: "onboarding",
-      tourAnchor: "voice_criteria_button",
+      tourAnchor: "voice_success_criteria_button",
     });
 
     expect(
       getVoiceOnboardingParams(
-        "?tour_anchor=voice_monitor_link&journey_step=voice_monitor_calls",
+        "?tour_anchor=voice_monitor_button&journey_step=voice_monitor_calls",
       ),
     ).toMatchObject({
       mode: VOICE_ONBOARDING_MODES.MONITOR_CALLS,
       from: "onboarding",
-      tourAnchor: "voice_monitor_link",
+      tourAnchor: "voice_monitor_button",
     });
   });
 
