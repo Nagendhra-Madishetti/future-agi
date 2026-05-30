@@ -1878,11 +1878,16 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         label_ids = [label.id for label in annotation_labels]
         score_filter = {
             "label_id__in": label_ids,
-            "trace_session__isnull": False,
+            "trace_session_id__isnull": False,
             "deleted": False,
         }
         if project_id:
-            score_filter["trace_session__project_id"] = project_id
+            # CH scale (SCALE_ARCHITECTURE.md §9c): trace_session is CH-bound, so
+            # scope by session-id membership instead of joining trace_session→project.
+            # Parity-verified vs the old join on pg-test (OLD==NEW, identical).
+            score_filter["trace_session_id__in"] = TraceSession.objects.filter(
+                project_id=project_id
+            ).values("id")
         annotator_rows = (
             Score.objects.filter(**score_filter)
             .values(
