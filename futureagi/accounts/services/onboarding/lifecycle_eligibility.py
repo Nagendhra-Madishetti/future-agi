@@ -429,6 +429,11 @@ def stage_started_at(*, activation_state, organization, workspace, now):
         return _latest_event_at(
             organization,
             workspace,
+            "prompt_comparable_version_created",
+            is_sample=False,
+        ) or _latest_event_at(
+            organization,
+            workspace,
             "prompt_version_created",
             is_sample=False,
         )

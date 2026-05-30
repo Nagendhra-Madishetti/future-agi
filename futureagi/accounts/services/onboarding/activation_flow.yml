@@ -268,7 +268,7 @@ journeys:
       - id: create_second_prompt_version
         stage: create_second_prompt_version
         action_id: create_second_prompt_version
-        success_event: prompt_version_created
+        success_event: prompt_comparable_version_created
         tour_anchor: prompt_compare_versions_button
         label: Second version
         description: Edit, run, and save one more version before comparing.
@@ -564,6 +564,7 @@ actions:
     priority: 100
     estimated_minutes: 3
     requires_permission: prompt:write
+    completion_event: prompt_comparable_version_created
     target_path: prompt
     fallback_route_key: prompt_workbench
   compare_prompt_versions:
@@ -2110,6 +2111,7 @@ activation_events:
     - prompt_test_input_added
     - prompt_test_run_completed
     - prompt_version_created
+    - prompt_comparable_version_created
     - prompt_comparison_completed
     - dataset_example_added
     - eval_dataset_created

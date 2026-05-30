@@ -129,6 +129,7 @@ def _label_from_action(action_id, campaign_group):
         "create_prompt": "Create prompt",
         "run_prompt_test": "Run prompt test",
         "save_prompt_version": "Save baseline",
+        "create_second_prompt_version": "Create second version",
         "compare_prompt_versions": "Compare versions",
         "add_prompt_failure_example": "Add failing example",
         "open_prompt_metrics": "Open prompt metrics",

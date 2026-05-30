@@ -118,7 +118,7 @@ campaigns:
     wait_window_minutes: 1440
     priority: 75
     target_action_id: create_second_prompt_version
-    target_success_event: prompt_comparison_completed
+    target_success_event: prompt_comparable_version_created
     route_strategy: activation_recommendation
     dry_run_flag: onboarding_email_prompt_enabled
     send_flag: onboarding_lifecycle_send_enabled

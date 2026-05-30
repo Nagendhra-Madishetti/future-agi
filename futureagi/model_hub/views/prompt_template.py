@@ -471,8 +471,31 @@ def _prompt_onboarding_stage(event_name):
         "prompt_created": "start_prompt",
         "prompt_test_run_completed": "run_prompt_test",
         "prompt_version_created": "save_prompt_version",
+        "prompt_comparable_version_created": "create_second_prompt_version",
         "prompt_comparison_completed": "compare_prompt_versions",
     }.get(event_name, "")
+
+
+def _prompt_version_has_output(version):
+    return version.output not in (None, "", [], {})
+
+
+def _prompt_has_comparable_committed_versions(template):
+    comparable_count = 0
+    versions = PromptVersion.no_workspace_objects.filter(
+        original_template=template,
+        deleted=False,
+        is_draft=False,
+    ).only("output", "commit_message", "is_default")
+    for version in versions:
+        if not (version.commit_message or version.is_default):
+            continue
+        if not _prompt_version_has_output(version):
+            continue
+        comparable_count += 1
+        if comparable_count > 1:
+            return True
+    return False
 
 
 def _record_prompt_onboarding_event(
@@ -3415,6 +3438,18 @@ class PromptTemplateViewSet(BaseModelViewSetMixin, viewsets.ModelViewSet):
                     "set_default": bool(validated_data.get("set_default")),
                 },
             )
+            if _prompt_version_has_output(
+                version_obj
+            ) and _prompt_has_comparable_committed_versions(template):
+                _record_prompt_onboarding_event(
+                    request,
+                    template,
+                    "prompt_comparable_version_created",
+                    version=version_obj,
+                    metadata={
+                        "set_default": bool(validated_data.get("set_default")),
+                    },
+                )
 
             return self._gm.success_response(
                 f"Commit for {template.name} {version_obj.template_version} has been added"

@@ -1,5 +1,7 @@
+import json
 from copy import deepcopy
 from dataclasses import fields
+from pathlib import Path
 
 import pytest
 from django.core.exceptions import ImproperlyConfigured
@@ -7,6 +9,7 @@ from django.core.exceptions import ImproperlyConfigured
 from accounts.services.onboarding.flow_config import (
     _validate_config,
     configured_journey_for_path,
+    configured_stage_ids,
     get_activation_flow_config,
 )
 from accounts.services.onboarding.signal_contract import (
@@ -17,6 +20,10 @@ from accounts.services.onboarding.signal_resolver import OnboardingSignals
 
 def _valid_activation_flow_config():
     return deepcopy(get_activation_flow_config())
+
+
+def _repo_root():
+    return Path(__file__).resolve().parents[3]
 
 
 def _configured_stage_rule_signals(condition):
@@ -30,6 +37,17 @@ def _configured_stage_rule_signals(condition):
     if "not" in condition:
         names |= _configured_stage_rule_signals(condition["not"])
     return names
+
+
+def _stage_enum_paths(value, path="$"):
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            yield from _stage_enum_paths(nested, f"{path}.{key}")
+    elif isinstance(value, list):
+        if "save_prompt_version" in value and "compare_prompt_versions" in value:
+            yield path, value
+        for index, nested in enumerate(value):
+            yield from _stage_enum_paths(nested, f"{path}[{index}]")
 
 
 def test_activation_flow_rejects_duplicate_activation_event_names():
@@ -121,3 +139,18 @@ def test_configured_stage_rule_signals_are_supported():
         configured_signals |= _configured_stage_rule_signals(rule["when"])
 
     assert configured_signals <= SUPPORTED_ONBOARDING_STAGE_RULE_SIGNALS
+
+
+def test_openapi_stage_enums_include_configured_activation_stages():
+    swagger_path = _repo_root() / "api_contracts" / "openapi" / "swagger.json"
+    swagger = json.loads(swagger_path.read_text(encoding="utf-8"))
+    configured_stages = set(configured_stage_ids())
+    stage_enums = tuple(_stage_enum_paths(swagger))
+
+    assert stage_enums
+    missing_by_path = {
+        path: sorted(configured_stages - set(values))
+        for path, values in stage_enums
+        if configured_stages - set(values)
+    }
+    assert missing_by_path == {}
