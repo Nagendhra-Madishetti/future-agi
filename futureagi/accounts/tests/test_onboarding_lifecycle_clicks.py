@@ -216,6 +216,32 @@ def test_unsafe_click_target_redirects_to_current_home(
 
 
 @pytest.mark.django_db
+def test_blank_click_target_redirects_with_stale_context(
+    client,
+    organization,
+    workspace,
+    user,
+):
+    send_log = _sent_log(user, organization, workspace)
+    send_log.target_route = ""
+    send_log.save(update_fields=["target_route", "updated_at"])
+    token = sign_lifecycle_token(send_log=send_log, kind="click")
+
+    response = client.get(f"/accounts/onboarding/lifecycle/click/?token={token}")
+
+    send_log.refresh_from_db()
+    assert response.status_code == 302
+    assert response["Location"].startswith("/dashboard/home?")
+    assert "status=stale" in response["Location"]
+    assert "stale_reason=route_unavailable" in response["Location"]
+    params = parse_qs(urlsplit(response["Location"]).query)
+    assert params["email_status"] == ["stale"]
+    assert params["target_route"] == ["/dashboard/home"]
+    assert send_log.metadata["click_status"] == "stale"
+    assert send_log.metadata["stale_reason"] == "route_unavailable"
+
+
+@pytest.mark.django_db
 def test_invalid_click_token_redirects_safely(client):
     response = client.get("/accounts/onboarding/lifecycle/click/?token=bad")
 

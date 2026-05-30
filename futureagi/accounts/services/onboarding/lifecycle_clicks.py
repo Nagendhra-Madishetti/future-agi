@@ -40,6 +40,12 @@ def _campaign_for_send_log(send_log):
     }
 
 
+def _internal_route(route):
+    return (
+        isinstance(route, str) and route.startswith("/") and not route.startswith("//")
+    )
+
+
 def resolve_lifecycle_click(token, *, now=None):
     payload = verify_lifecycle_token(token, kind="click")
     if not payload:
@@ -57,8 +63,11 @@ def resolve_lifecycle_click(token, *, now=None):
     if not send_log:
         return None, "/dashboard/home?source=onboarding_email&status=missing"
 
-    route = send_log.target_route or "/dashboard/home"
+    route = send_log.target_route
     stale_reason = None
+    if not _internal_route(route):
+        route = "/dashboard/home"
+        stale_reason = "route_unavailable"
     if lifecycle_target_completed(
         organization=send_log.organization,
         workspace=send_log.workspace,
@@ -68,9 +77,6 @@ def resolve_lifecycle_click(token, *, now=None):
     ):
         route = "/dashboard/home"
         stale_reason = "target_complete"
-    if not route.startswith("/") or route.startswith("//"):
-        route = "/dashboard/home"
-        stale_reason = "route_unavailable"
 
     metadata = {"click_status": "stale" if stale_reason else "current"}
     if stale_reason:
