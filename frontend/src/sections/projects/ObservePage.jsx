@@ -114,6 +114,7 @@ const ObservePage = React.memo(() => {
     useRecordActivationEvent();
   const recordedObserveFocusRef = useRef(null);
   const recordedSourceFixFocusRef = useRef(false);
+  const openedFirstTraceReviewRef = useRef(null);
   const [loadedTraceId, setLoadedTraceId] = useState(null);
 
   // Tab store state for modals and context menu
@@ -499,6 +500,7 @@ const ObservePage = React.memo(() => {
 
   useEffect(() => {
     setLoadedTraceId(null);
+    openedFirstTraceReviewRef.current = null;
   }, [observeId, observeOnboardingParams.mode]);
 
   const fetchOnboardingFirstTraceId = useCallback(async () => {
@@ -577,6 +579,24 @@ const ObservePage = React.memo(() => {
       );
     };
   }, [observeId, observeOnboardingParams.mode, showObserveOnboardingFocus]);
+
+  useEffect(() => {
+    if (
+      !isWaitingForFirstTraceOnboarding ||
+      !firstTraceReviewTarget?.observeId ||
+      !firstTraceReviewTarget?.traceId
+    ) {
+      return;
+    }
+
+    const reviewKey = `${firstTraceReviewTarget.observeId}:${firstTraceReviewTarget.traceId}`;
+    if (openedFirstTraceReviewRef.current === reviewKey) return;
+    openedFirstTraceReviewRef.current = reviewKey;
+
+    navigate(buildObserveTraceReviewHref(firstTraceReviewTarget), {
+      replace: true,
+    });
+  }, [firstTraceReviewTarget, isWaitingForFirstTraceOnboarding, navigate]);
 
   useEffect(() => {
     if (!showEvalSourceFixBanner || recordedSourceFixFocusRef.current) return;
