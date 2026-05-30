@@ -1,0 +1,509 @@
+/* eslint-disable no-console */
+import { readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import process from "node:process";
+
+const MANIFEST_SCHEMA =
+  "onboarding-real-signup-proof-pack-manifest-2026-05-30.v1";
+const REPORT_SCHEMA = "onboarding-real-signup-smoke-report-2026-05-29.v1";
+const VALIDATION_SCHEMA =
+  "onboarding-real-signup-proof-pack-validation-2026-05-30.v1";
+
+const EXPECTED_CHILDREN = [
+  {
+    id: "signup-sample-open-real",
+    mode: "sample_open",
+    viewport: "desktop",
+    proof: "sample",
+  },
+  {
+    id: "signup-sample-open-mobile-real",
+    mode: "sample_open",
+    viewport: "mobile",
+    proof: "sample",
+  },
+  {
+    id: "signup-quick-start-real",
+    mode: "full_quality_loop",
+    viewport: "desktop",
+    proof: "real_quality_loop",
+  },
+  {
+    id: "signup-quick-start-mobile-real",
+    mode: "full_quality_loop",
+    viewport: "mobile",
+    proof: "real_quality_loop",
+  },
+];
+
+function parseArgs(argv) {
+  const args = {
+    format: "text",
+    manifest: "",
+    output: "",
+    reportOutputDir: "",
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--manifest") {
+      args.manifest = argv[index + 1] || "";
+      index += 1;
+    } else if (arg === "--report-output-dir") {
+      args.reportOutputDir = argv[index + 1] || "";
+      index += 1;
+    } else if (arg === "--output") {
+      args.output = argv[index + 1] || "";
+      index += 1;
+    } else if (arg === "--format") {
+      args.format = argv[index + 1] || "text";
+      index += 1;
+    } else if (arg === "--help" || arg === "-h") {
+      args.help = true;
+    } else {
+      throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+
+  if (args.help) return args;
+  if (args.format !== "text" && args.format !== "json") {
+    throw new Error("--format must be text or json");
+  }
+  if (!args.manifest && !args.reportOutputDir) {
+    throw new Error(
+      "Pass --manifest <path> or --report-output-dir <directory>.",
+    );
+  }
+  if (args.manifest && args.reportOutputDir) {
+    throw new Error("Pass only one of --manifest or --report-output-dir.");
+  }
+
+  return args;
+}
+
+async function readJson(path) {
+  return JSON.parse(await readFile(path, "utf8"));
+}
+
+function addCheck(checks, passed, key, detail, metadata = {}) {
+  checks.push({
+    key,
+    passed,
+    detail,
+    ...metadata,
+  });
+}
+
+function hasObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isRedactedAuth(payload) {
+  if (!hasObject(payload)) return false;
+  return (
+    payload.password === undefined ||
+    payload.password === "" ||
+    payload.password === "[redacted]"
+  );
+}
+
+function childById(manifest, id) {
+  return (manifest.children || []).find((child) => child?.id === id);
+}
+
+function expectedReportPath(manifest, childId) {
+  return resolve(manifest.report_output_dir, `${childId}.json`);
+}
+
+function addEvidenceFieldChecks(checks, childId, evidence, fields) {
+  for (const field of fields) {
+    addCheck(
+      checks,
+      evidence[field] !== undefined && evidence[field] !== null,
+      `${childId}:evidence:${field}`,
+      `Evidence field ${field} is present.`,
+    );
+  }
+}
+
+function validateSampleEvidence(checks, childId, report) {
+  const evidence = report.evidence || {};
+  addEvidenceFieldChecks(checks, childId, evidence, [
+    "browser_state",
+    "onboarding_post",
+    "sample_open_state",
+    "sample_project_response",
+    "sample_trace_activation_event",
+    "sample_trace_url",
+    "screenshot",
+    "signup_post",
+    "token_post",
+  ]);
+  addCheck(
+    checks,
+    evidence.setup_quick_start === "sample_preview",
+    `${childId}:sample:quick_start`,
+    "Sample proof used the sample preview quick start.",
+  );
+  addCheck(
+    checks,
+    evidence.sample_trace_activation_event?.event_name ===
+      "sample_trace_detail_opened" &&
+      evidence.sample_trace_activation_event?.is_sample === true,
+    `${childId}:sample:event`,
+    "Sample proof records sample trace detail as sample-only evidence.",
+  );
+  addCheck(
+    checks,
+    !evidence.sample_open_state?.signals?.first_observe_id &&
+      !evidence.sample_open_state?.signals?.first_trace_id,
+    `${childId}:sample:not_real_signal`,
+    "Sample proof does not expose first real observe or trace identifiers.",
+  );
+  addCheck(
+    checks,
+    evidence.sample_project_response?.result?.sample_project?.created ===
+      true &&
+      evidence.sample_project_response?.result?.sample_project?.entry_route ===
+        evidence.sample_trace_url &&
+      evidence.sample_project_response?.result?.activation_state
+        ?.is_activated === false,
+    `${childId}:sample:response_contract`,
+    "Sample proof response created a sample project without activating the workspace.",
+  );
+}
+
+function validateRealQualityLoopEvidence(checks, childId, report) {
+  const evidence = report.evidence || {};
+  addEvidenceFieldChecks(checks, childId, evidence, [
+    "browser_state",
+    "daily_quality_cta_href",
+    "eval_first_quality_loop_completed_event",
+    "eval_fix_rerun_completed_event",
+    "eval_fix_rerun_reviewed_event",
+    "eval_result_reviewed_event",
+    "eval_run_completed_event",
+    "eval_source_fix_cta_event",
+    "eval_source_fix_route_event",
+    "onboarding_post",
+    "post_review_state",
+    "real_observe_project",
+    "real_trace",
+    "real_trace_review_event",
+    "real_trace_review_state",
+    "screenshot",
+    "signup_post",
+    "token_post",
+  ]);
+  addCheck(
+    checks,
+    evidence.setup_quick_start === "observe",
+    `${childId}:real_loop:quick_start`,
+    "Real proof used the observe quick start.",
+  );
+  addCheck(
+    checks,
+    evidence.real_trace_review_event?.event_name === "trace_detail_opened" &&
+      evidence.real_trace_review_event?.is_sample !== true,
+    `${childId}:real_loop:trace_review`,
+    "Real proof records a non-sample trace review event.",
+  );
+  addCheck(
+    checks,
+    evidence.eval_first_quality_loop_completed_event?.event_name ===
+      "first_quality_loop_completed" &&
+      evidence.eval_first_quality_loop_completed_event?.is_sample !== true,
+    `${childId}:real_loop:completion`,
+    "Real proof records non-sample first quality loop completion.",
+  );
+  addCheck(
+    checks,
+    Boolean(
+      evidence.real_trace?.traceId && evidence.real_observe_project?.projectId,
+    ),
+    `${childId}:real_loop:ids`,
+    "Real proof includes trace and project identifiers.",
+  );
+}
+
+function validateAuthRedaction(checks, childId, report) {
+  const evidence = report.evidence || {};
+  addCheck(
+    checks,
+    isRedactedAuth(evidence.signup_post),
+    `${childId}:auth_redacted:signup`,
+    "Signup request evidence has no raw password.",
+  );
+  addCheck(
+    checks,
+    isRedactedAuth(evidence.token_post),
+    `${childId}:auth_redacted:token`,
+    "Token request evidence has no raw password.",
+  );
+}
+
+function validateReport(checks, manifest, child, expected, report) {
+  addCheck(
+    checks,
+    report.schema_version === REPORT_SCHEMA,
+    `${expected.id}:report:schema`,
+    "Child report schema is current.",
+  );
+  addCheck(
+    checks,
+    report.source === "onboarding_real_signup_smoke",
+    `${expected.id}:report:source`,
+    "Child report source is correct.",
+  );
+  addCheck(
+    checks,
+    report.status === "passed",
+    `${expected.id}:report:status`,
+    "Child report status passed.",
+  );
+  addCheck(
+    checks,
+    report.mode === expected.mode,
+    `${expected.id}:report:mode`,
+    `Child report mode is ${expected.mode}.`,
+  );
+  addCheck(
+    checks,
+    report.viewport?.name === expected.viewport,
+    `${expected.id}:report:viewport`,
+    `Child report viewport is ${expected.viewport}.`,
+  );
+  addCheck(
+    checks,
+    resolve(report.report_output || "") ===
+      expectedReportPath(manifest, expected.id),
+    `${expected.id}:report:path`,
+    "Child report path matches manifest output directory.",
+  );
+  addCheck(
+    checks,
+    hasObject(report.evidence),
+    `${expected.id}:report:evidence`,
+    "Child report contains structured evidence.",
+  );
+  addCheck(
+    checks,
+    !report.diagnostic,
+    `${expected.id}:report:no_diagnostic`,
+    "Passed child report has no failure diagnostic.",
+  );
+  addCheck(
+    checks,
+    child.mode === expected.mode &&
+      child.report_status === "passed" &&
+      child.runner_status === "passed" &&
+      child.viewport === expected.viewport &&
+      !child.error_message,
+    `${expected.id}:manifest:child_summary`,
+    "Manifest child summary agrees with the child report.",
+  );
+
+  validateAuthRedaction(checks, expected.id, report);
+  if (expected.proof === "sample") {
+    validateSampleEvidence(checks, expected.id, report);
+  } else {
+    validateRealQualityLoopEvidence(checks, expected.id, report);
+  }
+}
+
+async function validateProofPack(manifestPath) {
+  const resolvedManifestPath = resolve(manifestPath);
+  const manifest = await readJson(resolvedManifestPath);
+  const checks = [];
+  const children = [];
+
+  addCheck(
+    checks,
+    manifest.schema_version === MANIFEST_SCHEMA,
+    "manifest:schema",
+    "Manifest schema is current.",
+  );
+  addCheck(
+    checks,
+    manifest.source === "onboarding_real_signup_proof_pack",
+    "manifest:source",
+    "Manifest source is correct.",
+  );
+  addCheck(
+    checks,
+    manifest.suite_id === "signup-real-proof-pack",
+    "manifest:suite",
+    "Manifest suite id is signup-real-proof-pack.",
+  );
+  addCheck(
+    checks,
+    manifest.status === "passed",
+    "manifest:status",
+    "Manifest status passed.",
+  );
+  addCheck(
+    checks,
+    Array.isArray(manifest.children),
+    "manifest:children_array",
+    "Manifest contains child entries.",
+  );
+  addCheck(
+    checks,
+    typeof manifest.report_output_dir === "string" &&
+      manifest.report_output_dir.length > 0,
+    "manifest:report_output_dir",
+    "Manifest records report output directory.",
+  );
+
+  const actualIds = new Set(
+    (manifest.children || []).map((child) => child?.id),
+  );
+  const expectedIds = new Set(EXPECTED_CHILDREN.map((child) => child.id));
+  addCheck(
+    checks,
+    (manifest.children || []).length === EXPECTED_CHILDREN.length &&
+      actualIds.size === expectedIds.size &&
+      [...expectedIds].every((id) => actualIds.has(id)),
+    "manifest:expected_children",
+    "Manifest contains exactly the four required proof targets.",
+    {
+      actual_ids: [...actualIds].sort(),
+      expected_ids: [...expectedIds].sort(),
+    },
+  );
+
+  addCheck(
+    checks,
+    actualIds.size === expectedIds.size &&
+      [...expectedIds].every((id) => actualIds.has(id)),
+    "manifest:required_child_ids",
+    "Manifest includes every required child id.",
+    {
+      actual_ids: [...actualIds].sort(),
+      expected_ids: [...expectedIds].sort(),
+    },
+  );
+
+  for (const expected of EXPECTED_CHILDREN) {
+    const child = childById(manifest, expected.id);
+    if (!child) {
+      addCheck(
+        checks,
+        false,
+        `${expected.id}:manifest:present`,
+        "Required child entry exists.",
+      );
+      continue;
+    }
+
+    const expectedPath = expectedReportPath(manifest, expected.id);
+    addCheck(
+      checks,
+      resolve(child.report_path || "") === expectedPath,
+      `${expected.id}:manifest:report_path`,
+      "Manifest child report path is deterministic.",
+    );
+
+    let report = null;
+    try {
+      report = await readJson(expectedPath);
+    } catch (error) {
+      addCheck(
+        checks,
+        false,
+        `${expected.id}:report:read`,
+        `Child report can be read: ${error.message}`,
+      );
+    }
+
+    if (report) {
+      validateReport(checks, manifest, child, expected, report);
+      children.push({
+        id: expected.id,
+        mode: report.mode,
+        report_path: expectedPath,
+        report_status: report.status,
+        runner_status: child.runner_status,
+        viewport: report.viewport?.name || null,
+      });
+    }
+  }
+
+  const failedChecks = checks.filter((check) => !check.passed);
+  return {
+    schema_version: VALIDATION_SCHEMA,
+    source: "onboarding_real_signup_proof_pack_validation",
+    generated_at: new Date().toISOString(),
+    manifest_path: resolvedManifestPath,
+    report_output_dir:
+      manifest.report_output_dir || dirname(resolvedManifestPath),
+    status: failedChecks.length ? "failed" : "passed",
+    children,
+    failed_checks: failedChecks.map((check) => ({
+      key: check.key,
+      detail: check.detail,
+    })),
+    checks,
+  };
+}
+
+function textOutput(result) {
+  const lines = [
+    "onboarding real-signup proof pack validation",
+    `status=${result.status}`,
+    `manifest_path=${result.manifest_path}`,
+    `report_output_dir=${result.report_output_dir}`,
+    `children=${result.children.length}`,
+    `failed_checks=${result.failed_checks.length}`,
+  ];
+  for (const failed of result.failed_checks) {
+    lines.push(`failed=${failed.key}: ${failed.detail}`);
+  }
+  return lines.join("\n");
+}
+
+function usage() {
+  return [
+    "Usage:",
+    "  yarn --cwd frontend test:onboarding-smoke:validate-proof-pack --report-output-dir <directory>",
+    "  node frontend/scripts/api-journeys/browser/validate-onboarding-proof-pack.mjs --report-output-dir <directory>",
+    "  node frontend/scripts/api-journeys/browser/validate-onboarding-proof-pack.mjs --manifest <manifest.json>",
+    "",
+    "Options:",
+    "  --format text|json",
+    "  --output <path>",
+  ].join("\n");
+}
+
+async function runCli() {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+  const manifestPath =
+    args.manifest || resolve(args.reportOutputDir, "manifest.json");
+  const result = await validateProofPack(manifestPath);
+  const output =
+    args.format === "json"
+      ? `${JSON.stringify(result, null, 2)}\n`
+      : `${textOutput(result)}\n`;
+
+  if (args.output) {
+    await writeFile(args.output, output, "utf8");
+  }
+  process.stdout.write(output);
+
+  if (result.status !== "passed") {
+    process.exitCode = 1;
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runCli().catch((error) => {
+    console.error(error?.message || String(error));
+    process.exitCode = 1;
+  });
+}
+
+export { EXPECTED_CHILDREN, validateProofPack };
