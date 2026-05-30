@@ -4,6 +4,7 @@ from datetime import timedelta
 from io import StringIO
 
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.utils import timezone
@@ -26,6 +27,7 @@ from accounts.services.onboarding.lifecycle_send_evidence import (
     SEND_EVIDENCE_REPORT_PASSED_STATUS,
     SEND_EVIDENCE_REPORT_SCHEMA_VERSION,
     SEND_EVIDENCE_REPORT_SOURCE,
+    load_lifecycle_send_evidence_report,
 )
 from accounts.services.onboarding.lifecycle_send_reports import (
     DRY_RUN_REPORT_METADATA_KEY,
@@ -264,3 +266,46 @@ def test_lifecycle_send_evidence_report_writes_incomplete_report_before_error(
     assert report["status"] == "incomplete"
     assert report["missing_requirements"] == ["launch_packet"]
     assert report["aggregate_evidence"]["launch_packet"] is False
+
+
+@pytest.mark.django_db
+def test_lifecycle_send_evidence_loader_rejects_inconsistent_status(
+    organization,
+    workspace,
+    user,
+    tmp_path,
+):
+    send_log = _send_log(
+        user,
+        organization,
+        workspace,
+        status=OnboardingLifecycleSendLog.STATUS_SENT,
+        provider_status="accepted",
+        sent_at=timezone.now(),
+        metadata=_metadata(),
+    )
+    _delivery_log(send_log, status=NotificationDeliveryLog.STATUS_SENT)
+    report_path = tmp_path / "tampered-evidence-report.json"
+    call_command(
+        "generate_onboarding_lifecycle_send_evidence_report",
+        "--send-log-id",
+        str(send_log.id),
+        "--output",
+        str(report_path),
+        "--require-launch-packet",
+        "--require-provider-accepted",
+        "--require-email-delivery",
+        stdout=StringIO(),
+    )
+    report = json.loads(report_path.read_text())
+    report["aggregate_evidence"]["click"] = False
+    report["requirements"]["click"] = True
+    report["missing_requirements"] = []
+    report["status"] = "passed"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+
+    with pytest.raises(
+        ImproperlyConfigured,
+        match="missing_requirements does not match",
+    ):
+        load_lifecycle_send_evidence_report(report_path)

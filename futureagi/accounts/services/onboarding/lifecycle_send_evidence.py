@@ -436,6 +436,20 @@ def load_lifecycle_send_evidence_report(path, *, require_passed=False):
         for item in missing_requirements
     ):
         raise _report_error("missing_requirements must contain supported keys.")
+    expected_missing = [
+        key
+        for key in REQUIREMENT_KEYS
+        if requirements[key] and not aggregate_evidence[key]
+    ]
+    if missing_requirements != expected_missing:
+        raise _report_error("missing_requirements does not match aggregate evidence.")
+    expected_status = (
+        SEND_EVIDENCE_REPORT_PASSED_STATUS
+        if not expected_missing
+        else SEND_EVIDENCE_REPORT_INCOMPLETE_STATUS
+    )
+    if status != expected_status:
+        raise _report_error("report.status does not match missing requirements.")
     send_log_count = _require_nonnegative_int(report, "send_log_count", "report")
     if not isinstance(send_logs, list):
         raise _report_error("send_logs must be a list.")
