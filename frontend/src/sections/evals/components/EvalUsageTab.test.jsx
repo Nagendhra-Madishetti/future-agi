@@ -43,4 +43,24 @@ describe("shouldPollEvalOnboardingReviewRun", () => {
       }),
     ).toBe(false);
   });
+
+  it("stops polling after the target run enters recovery", () => {
+    expect(
+      shouldPollEvalOnboardingReviewRun({
+        isOnboarding: true,
+        recoveryRunId: "run-1",
+        runId: "run-1",
+        step: "review",
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldPollEvalOnboardingReviewRun({
+        isOnboarding: true,
+        recoveryRunId: "run-2",
+        runId: "run-1",
+        step: "review",
+      }),
+    ).toBe(true);
+  });
 });

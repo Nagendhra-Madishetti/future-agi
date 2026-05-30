@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import {
   Box,
+  Button,
   ButtonBase,
   Chip,
   IconButton,
@@ -53,7 +54,11 @@ import {
   getEvalUsageReviewOutcome,
   getEvalFailureActionOnboardingParams,
 } from "./evalCreateOnboarding";
-import { shouldPollEvalOnboardingReviewRun } from "./evalUsageOnboarding";
+import {
+  EVAL_REVIEW_RUN_POLL_INTERVAL_MS,
+  EVAL_REVIEW_RUN_POLL_TIMEOUT_MS,
+  shouldPollEvalOnboardingReviewRun,
+} from "./evalUsageOnboarding";
 
 // ── Inline stat ──
 const StatPill = ({ label, value, color }) => (
@@ -422,6 +427,7 @@ const EvalUsageTab = ({
   const [pageSize, setPageSize] = useState(25);
   const [searchQuery, setSearchQuery] = useState("");
   const [detailIndex, setDetailIndex] = useState(null); // index in filteredLogs
+  const [reviewRunRecoveryRunId, setReviewRunRecoveryRunId] = useState(null);
   const autoOpenedReviewRunRef = useRef(null);
   const recordedReviewedRowsRef = useRef(new Set());
   const debouncedSearch = useDebounce(searchQuery.trim(), 400);
@@ -481,9 +487,15 @@ const EvalUsageTab = ({
       failureActionOnboardingParams.step === "review" &&
       failureActionOnboardingParams.rerunFrom,
   );
+  const isReviewRunTargeted = Boolean(
+    failureActionOnboardingParams.isOnboarding &&
+      failureActionOnboardingParams.step === "review" &&
+      failureActionOnboardingParams.runId,
+  );
   const shouldPollForOnboardingReviewRun = shouldPollEvalOnboardingReviewRun({
     autoOpenedRunId: autoOpenedReviewRunRef.current,
     isOnboarding: failureActionOnboardingParams.isOnboarding,
+    recoveryRunId: reviewRunRecoveryRunId,
     runId: failureActionOnboardingParams.runId,
     step: failureActionOnboardingParams.step,
   });
@@ -501,7 +513,9 @@ const EvalUsageTab = ({
     page,
     pageSize,
     period,
-    refetchInterval: shouldPollForOnboardingReviewRun ? 2000 : false,
+    refetchInterval: shouldPollForOnboardingReviewRun
+      ? EVAL_REVIEW_RUN_POLL_INTERVAL_MS
+      : false,
   });
 
   const stats = chartData?.stats || {};
@@ -537,12 +551,49 @@ const EvalUsageTab = ({
     return logItems.some((log) => evalUsageLogMatchesRun(log, runId));
   }, [failureActionOnboardingParams.runId, logItems]);
   const isWaitingForOnboardingReviewRun = Boolean(
-    failureActionOnboardingParams.isOnboarding &&
-      failureActionOnboardingParams.step === "review" &&
-      failureActionOnboardingParams.runId &&
-      !hasOnboardingReviewRun &&
-      detailIndex === null,
+    isReviewRunTargeted && !hasOnboardingReviewRun && detailIndex === null,
   );
+  const isRecoveringOnboardingReviewRun = Boolean(
+    isWaitingForOnboardingReviewRun &&
+      reviewRunRecoveryRunId === failureActionOnboardingParams.runId,
+  );
+
+  useEffect(() => {
+    const runId = failureActionOnboardingParams.runId;
+    if (!isReviewRunTargeted || !runId) {
+      setReviewRunRecoveryRunId(null);
+      return undefined;
+    }
+
+    if (hasOnboardingReviewRun || autoOpenedReviewRunRef.current === runId) {
+      setReviewRunRecoveryRunId((current) =>
+        current === runId ? null : current,
+      );
+      return undefined;
+    }
+
+    if (reviewRunRecoveryRunId === runId) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setReviewRunRecoveryRunId(runId);
+    }, EVAL_REVIEW_RUN_POLL_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    failureActionOnboardingParams.runId,
+    hasOnboardingReviewRun,
+    isReviewRunTargeted,
+    reviewRunRecoveryRunId,
+  ]);
+
+  const handleReviewRunCheckAgain = useCallback(() => {
+    setReviewRunRecoveryRunId(null);
+    queryClient.invalidateQueries({
+      queryKey: ["evals", "usage-logs", templateId],
+    });
+  }, [queryClient, templateId]);
 
   useEffect(() => {
     if (!onReviewActionPreferenceChange) return undefined;
@@ -930,18 +981,42 @@ const EvalUsageTab = ({
                 display: "flex",
                 gap: 1,
                 alignItems: "center",
+                justifyContent: "space-between",
                 flexShrink: 0,
               }}
             >
-              <Iconify icon="mdi:progress-clock" width={18} />
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" fontWeight={600}>
-                  Opening first eval result
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Waiting for the run log to appear.
-                </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Iconify
+                  icon={
+                    isRecoveringOnboardingReviewRun
+                      ? "mdi:alert-circle-outline"
+                      : "mdi:progress-clock"
+                  }
+                  width={18}
+                />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight={600}>
+                    {isRecoveringOnboardingReviewRun
+                      ? "Run log is still syncing"
+                      : "Opening first eval result"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {isRecoveringOnboardingReviewRun
+                      ? "We could not find this run yet. You can check again without staying in a loading state."
+                      : "Waiting for the run log to appear."}
+                  </Typography>
+                </Box>
               </Box>
+              {isRecoveringOnboardingReviewRun ? (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={handleReviewRunCheckAgain}
+                  sx={{ flexShrink: 0 }}
+                >
+                  Check again
+                </Button>
+              ) : null}
             </Box>
           ) : null}
           <Box
