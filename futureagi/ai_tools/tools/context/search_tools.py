@@ -255,9 +255,23 @@ class SearchToolsTool(BaseTool):
             props = schema.get("properties", {}) if isinstance(schema, dict) else {}
             required = schema.get("required", []) if isinstance(schema, dict) else []
             param_bits = []
-            for pname in list(props.keys())[:6]:
-                param_bits.append(f"{pname}{'*' if pname in required else ''}")
-            params_str = ", ".join(param_bits) if param_bits else "(no params)"
+            for pname in list(props.keys())[:8]:
+                pspec = props.get(pname) if isinstance(props, dict) else None
+                pdesc = (
+                    (pspec.get("description") or "").strip()
+                    if isinstance(pspec, dict)
+                    else ""
+                )
+                star = "*" if pname in required else ""
+                # Include the description for REQUIRED params so the caller sees
+                # what to pass and where an id comes from — enough to decide "I
+                # can call this now" vs "I must fetch this via another tool
+                # first" (per the eval-mapping / id-chaining cases).
+                if pname in required and pdesc:
+                    param_bits.append(f"{pname}{star}: {pdesc[:160]}")
+                else:
+                    param_bits.append(f"{pname}{star}")
+            params_str = "; ".join(param_bits) if param_bits else "(no params)"
             # Show the FULL (capped) description, not just the first sentence.
             # The "how to use this" guidance — e.g. "provide the id from
             # list_X / get_X first" — almost always lives past sentence 1, so
