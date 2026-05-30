@@ -6,9 +6,10 @@ import { renderWithRouter } from "src/utils/test-utils";
 import ProjectFtux from "./ProjectFtux";
 
 vi.mock("./NewProject/NewObserve", () => ({
-  default: ({ setupVerification }) => (
+  default: ({ setupVerification, showFirstTraceGuide }) => (
     <div>
       <div>Observe setup instructions</div>
+      {showFirstTraceGuide ? <div>First trace guide enabled</div> : null}
       {setupVerification ? (
         <div>
           <div>{setupVerification.title}</div>
@@ -61,10 +62,17 @@ describe("ProjectFtux observe onboarding", () => {
     );
 
     expect(screen.getByText("Connect Observe to your app")).toBeVisible();
+    expect(screen.getByText("Send your first trace")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Create or open an observe project, paste the minimal setup, then run one request to unlock trace review.",
+      ),
+    ).toBeVisible();
     expect(screen.getByText("Install")).toBeVisible();
     expect(screen.getByText("Trace")).toBeVisible();
     expect(screen.getByText("Review")).toBeVisible();
     expect(screen.getByText("Observe setup instructions")).toBeVisible();
+    expect(screen.getByText("First trace guide enabled")).toBeVisible();
     expect(screen.getByText("Checking for your first trace")).toBeVisible();
     expect(
       screen.getByRole("button", { name: /open sample trace/i }),

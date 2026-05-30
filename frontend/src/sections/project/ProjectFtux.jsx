@@ -18,6 +18,7 @@ const ProjectFtux = ({
   const location = useLocation();
   const currentPath = location.pathname;
   const [isObserve, setIsObserve] = useState(currentPath.includes("observe"));
+  const showObserveOnboarding = isObserve && Boolean(observeSetupCopy);
 
   useEffect(() => {
     const isObserve = currentPath.includes("observe");
@@ -46,15 +47,24 @@ const ProjectFtux = ({
         />
         <Box sx={{ height: "10px" }} />
         <Typography fontSize="20px" fontWeight={700} color="text.primary">
-          Welcome to {isObserve ? `Observe` : `Prototype`}
+          {showObserveOnboarding
+            ? "Send your first trace"
+            : `Welcome to ${isObserve ? "Observe" : "Prototype"}`}
         </Typography>
         <Box sx={{ height: "5px" }} />
-        <Typography fontSize="14px" color="text.disabled">
-          Create a project to experiment on your model
+        <Typography
+          fontSize="14px"
+          color="text.disabled"
+          textAlign="center"
+          maxWidth={620}
+        >
+          {showObserveOnboarding
+            ? "Create or open an observe project, paste the minimal setup, then run one request to unlock trace review."
+            : "Create a project to experiment on your model"}
         </Typography>
         <Box sx={{ height: "20px" }} />
       </Box>
-      {isObserve && observeSetupCopy ? (
+      {showObserveOnboarding ? (
         <ObserveOnboardingFocusPanel
           currentStep={observeSetupCopy.currentStep}
           description={observeSetupCopy.description}
@@ -75,7 +85,10 @@ const ProjectFtux = ({
           <NewExperiment />
         </ShowComponent>
         <ShowComponent condition={isObserve}>
-          <NewObserve setupVerification={observeSetupVerification} />
+          <NewObserve
+            setupVerification={observeSetupVerification}
+            showFirstTraceGuide={showObserveOnboarding}
+          />
         </ShowComponent>
       </Box>
     </Box>
