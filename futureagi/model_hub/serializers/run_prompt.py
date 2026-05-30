@@ -9,8 +9,20 @@ class ApiKeyCreateSerializer(serializers.Serializer):
 
 
 class ApiKeySerializer(serializers.ModelSerializer):
-    masked_actual_key = serializers.SerializerMethodField()
-    config_json = serializers.JSONField(required=False, allow_null=True)
+    """A stored model-provider API key/credential for the organization, used by
+    prompt runs and evals to call an LLM provider (OpenAI, Anthropic, etc.).
+    Create one per provider via create_api_key; the secret is encrypted at rest
+    and only ever returned masked. List/read via list_api_keys / get_api_key and
+    rotate or remove via update_api_key / delete_api_key."""
+
+    masked_actual_key = serializers.SerializerMethodField(
+        help_text="Read-only masked preview of the stored key (e.g. 'sk-1***abcd'); the full secret is never returned."
+    )
+    config_json = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        help_text="Structured credential payload for providers that need more than a single key (e.g. cloud service-account JSON); encrypted at rest.",
+    )
 
     def get_masked_actual_key(self, obj):
         return obj.masked_actual_key
@@ -26,6 +38,18 @@ class ApiKeySerializer(serializers.ModelSerializer):
             "config_json",
         ]
         read_only_fields = ["organization"]
+        extra_kwargs = {
+            "id": {"help_text": "UUID of this API key (from list_api_keys)."},
+            "provider": {
+                "help_text": "Model provider this key authenticates, e.g. 'openai', 'anthropic', 'gemini', or 'custom'.",
+            },
+            "key": {
+                "help_text": "The provider secret/API key to store; encrypted at rest and returned only as masked_actual_key.",
+            },
+            "organization": {
+                "help_text": "UUID of the owning organization; set automatically from the request, read-only.",
+            },
+        }
 
 
 class LitellmSerializer(serializers.Serializer):

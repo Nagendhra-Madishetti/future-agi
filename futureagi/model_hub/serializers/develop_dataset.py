@@ -223,6 +223,14 @@ class SyntheticDatasetConfigSerializer(serializers.Serializer):
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
+    """Human feedback on a single evaluated item — e.g. agreeing or disagreeing
+    with an eval result on a dataset row, prompt, trace, or experiment. Create
+    feedback to record a reviewer's judgement (the value) plus an optional
+    explanation; it ties back to the eval metric or custom eval config it
+    corrects and the specific row it applies to. Used to curate eval quality and
+    drive improvements.
+    """
+
     def validate_source(self, value):
         valid_choices = [choice[0] for choice in FeedbackSourceChoices.get_choices()]
         if value not in valid_choices:
@@ -245,6 +253,45 @@ class FeedbackSerializer(serializers.ModelSerializer):
             "feedback_improvement",
             "action_type",
         ]
+        extra_kwargs = {
+            "id": {"help_text": "UUID of this feedback record (output)."},
+            "source_id": {
+                "help_text": (
+                    "ID of the originating object the feedback is about (e.g. the "
+                    "dataset, prompt, trace, or experiment id)."
+                )
+            },
+            "source": {
+                "help_text": (
+                    "Where the feedback originated. One of: dataset, prompt, sdk, "
+                    "trace, experiment, observe, eval_playground."
+                )
+            },
+            "user_eval_metric": {
+                "help_text": "UUID of the eval metric this feedback applies to (optional)."
+            },
+            "value": {
+                "help_text": "The feedback value, e.g. the corrected score or label, stored as text."
+            },
+            "explanation": {
+                "help_text": "Optional free-text reason the reviewer gave for this feedback."
+            },
+            "row_id": {
+                "help_text": "Identifier of the specific dataset/result row the feedback applies to."
+            },
+            "custom_eval_config_id": {
+                "help_text": (
+                    "UUID of the custom eval config this feedback corrects (from "
+                    "list_custom_eval_configs), if applicable."
+                )
+            },
+            "feedback_improvement": {
+                "help_text": "Optional suggested improvement or corrected output text."
+            },
+            "action_type": {
+                "help_text": "Optional tag describing the action this feedback represents."
+            },
+        }
 
 
 class SecretSerializer(serializers.ModelSerializer):
