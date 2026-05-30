@@ -773,6 +773,7 @@ const ObservePage = React.memo(() => {
           steps={observeOnboardingCopy.steps}
           sx={{ mx: 2, mt: 1, mb: 0.5 }}
           title={observeOnboardingCopy.title}
+          tourAnchor={observeOnboardingParams.tourAnchor}
         />
       )}
 

@@ -58,6 +58,7 @@ export const getObserveOnboardingParams = (search = "") => {
   return {
     isOnboarding,
     mode: isOnboarding ? mode : null,
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 
@@ -82,6 +83,7 @@ export const getObserveSetupOnboardingParams = (search = "") => {
       : isSetupJourney
         ? OBSERVE_ONBOARDING_SOURCES.ONBOARDING
         : null,
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 
@@ -101,6 +103,7 @@ export const getObserveTraceReviewOnboardingParams = (search = "") => {
   return {
     isOnboarding,
     mode: isOnboarding ? mode : null,
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 

@@ -102,6 +102,7 @@ const RequestExplorerSection = () => {
       ...(filters.journeyStep ? { journey_step: filters.journeyStep } : {}),
       ...(filters.onboarding ? { onboarding: filters.onboarding } : {}),
       ...(filters.requestId ? { request_id: filters.requestId } : {}),
+      ...(filters.tourAnchor ? { tour_anchor: filters.tourAnchor } : {}),
     }),
   );
   const onboardingMode = gatewayOnboardingParams.mode || null;
@@ -327,6 +328,7 @@ const RequestExplorerSection = () => {
           },
         ]}
         title={onboardingCopy.title}
+        tourAnchor={gatewayOnboardingParams.tourAnchor}
       />
 
       {/* ---- Search + Filters button ---- */}

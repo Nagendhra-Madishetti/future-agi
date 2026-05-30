@@ -42,6 +42,7 @@ export const getPromptOnboardingRouteParams = (search = "") => {
     action,
     isOnboarding: params.get("source") === "onboarding" || Boolean(mode),
     mode,
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 

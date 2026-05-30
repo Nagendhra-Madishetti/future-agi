@@ -39,6 +39,7 @@ describe("EvalOnboardingFocusPanel", () => {
           { label: "Run", complete: false },
         ]}
         title="Add the eval scorer"
+        tourAnchor="eval_scorer_button"
       />,
     );
 
@@ -57,6 +58,9 @@ describe("EvalOnboardingFocusPanel", () => {
     expect(
       screen.getByRole("button", { name: "Use trace project" }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Use trace project" }),
+    ).toHaveAttribute("data-tour-anchor", "eval_scorer_button");
     expect(onViewed).toHaveBeenCalledTimes(1);
   });
 });

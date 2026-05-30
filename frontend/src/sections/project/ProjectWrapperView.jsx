@@ -415,6 +415,7 @@ const ProjectWrapperView = () => {
         observeSetupCopy={observeSetupCopy}
         observeSetupPrimaryAction={observeSetupPrimaryAction}
         observeSetupSecondaryAction={observeSetupSecondaryAction}
+        observeSetupTourAnchor={observeSetupOnboardingParams.tourAnchor}
         observeSetupVerification={observeSetupVerification}
       />
     );
@@ -445,6 +446,7 @@ const ProjectWrapperView = () => {
               steps={observeSetupCopy.steps}
               sx={{ mb: 0 }}
               title={observeSetupCopy.title}
+              tourAnchor={observeSetupOnboardingParams.tourAnchor}
             />
           ) : null}
           <Box

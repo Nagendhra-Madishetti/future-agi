@@ -16,6 +16,7 @@ export default function EvalOnboardingFocusPanel({
   sourceSummary = null,
   steps = [],
   title,
+  tourAnchor,
 }) {
   useEffect(() => {
     if (!hidden) {
@@ -99,6 +100,7 @@ export default function EvalOnboardingFocusPanel({
         ) : null}
         {primaryAction?.label && primaryAction?.onClick ? (
           <Button
+            data-tour-anchor={primaryAction.tourAnchor || tourAnchor}
             size="small"
             variant="contained"
             onClick={primaryAction.onClick}
@@ -123,6 +125,7 @@ EvalOnboardingFocusPanel.propTypes = {
     disabled: PropTypes.bool,
     label: PropTypes.string.isRequired,
     onClick: PropTypes.func.isRequired,
+    tourAnchor: PropTypes.string,
   }),
   sourceSummary: PropTypes.shape({
     description: PropTypes.string,
@@ -135,4 +138,5 @@ EvalOnboardingFocusPanel.propTypes = {
     }),
   ),
   title: PropTypes.string.isRequired,
+  tourAnchor: PropTypes.string,
 };

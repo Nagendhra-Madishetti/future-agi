@@ -17,6 +17,7 @@ export default function TestOnboardingFocusPanel({
   steps = [],
   sx,
   title,
+  tourAnchor,
 }) {
   if (hidden) {
     return null;
@@ -89,6 +90,7 @@ export default function TestOnboardingFocusPanel({
           ) : null}
           {primaryAction ? (
             <Button
+              data-tour-anchor={primaryAction.tourAnchor || tourAnchor}
               variant="contained"
               onClick={primaryAction.onClick}
               disabled={primaryAction.disabled}
@@ -107,6 +109,7 @@ const actionShape = PropTypes.shape({
   disabled: PropTypes.bool,
   label: PropTypes.string.isRequired,
   onClick: PropTypes.func.isRequired,
+  tourAnchor: PropTypes.string,
 });
 
 TestOnboardingFocusPanel.propTypes = {
@@ -124,4 +127,5 @@ TestOnboardingFocusPanel.propTypes = {
   ),
   sx: PropTypes.object,
   title: PropTypes.string.isRequired,
+  tourAnchor: PropTypes.string,
 };

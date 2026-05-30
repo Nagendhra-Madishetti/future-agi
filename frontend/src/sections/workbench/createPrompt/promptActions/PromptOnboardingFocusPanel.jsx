@@ -70,6 +70,7 @@ export default function PromptOnboardingFocusPanel({
   onOpenVersionHistory,
   onRunPrompt,
   source,
+  tourAnchor,
 }) {
   const copy = resolveFocusCopy({ mode, source });
 
@@ -172,6 +173,7 @@ export default function PromptOnboardingFocusPanel({
           </Stack>
         </Stack>
         <Button
+          data-tour-anchor={tourAnchor}
           variant="contained"
           disabled={primaryAction.disabled}
           onClick={primaryAction.onClick}
@@ -197,4 +199,5 @@ PromptOnboardingFocusPanel.propTypes = {
   onOpenVersionHistory: PropTypes.func,
   onRunPrompt: PropTypes.func,
   source: PropTypes.string,
+  tourAnchor: PropTypes.string,
 };

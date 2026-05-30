@@ -1176,6 +1176,7 @@ const EvalCreatePage = () => {
         sourceSummary={onboardingSourceSummary}
         steps={onboardingCopy.steps}
         title={onboardingCopy.title}
+        tourAnchor={onboardingParams.tourAnchor}
       />
 
       {/* Two-panel layout — resizable, fills remaining height */}

@@ -181,6 +181,7 @@ const ProviderManagementSection = () => {
           { label: "Request", complete: false },
         ]}
         title="Connect a gateway provider"
+        tourAnchor={onboardingParams.tourAnchor}
       />
 
       <Tabs

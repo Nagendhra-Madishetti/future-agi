@@ -20,6 +20,7 @@ describe("onboardingVoiceRouteEvents", () => {
       from: "onboarding",
       callId: "call-1",
       agentDefinitionId: "agent-1",
+      tourAnchor: null,
     });
   });
 
@@ -31,6 +32,7 @@ describe("onboardingVoiceRouteEvents", () => {
     ).toMatchObject({
       mode: VOICE_ONBOARDING_MODES.CREATE_AGENT,
       from: "onboarding",
+      tourAnchor: "voice_create_button",
     });
 
     expect(
@@ -40,6 +42,7 @@ describe("onboardingVoiceRouteEvents", () => {
     ).toMatchObject({
       mode: VOICE_ONBOARDING_MODES.RUN_TEST_CALL,
       from: "onboarding",
+      tourAnchor: "voice_run_button",
     });
 
     expect(
@@ -51,6 +54,7 @@ describe("onboardingVoiceRouteEvents", () => {
       from: "onboarding",
       callId: "",
       agentDefinitionId: "",
+      tourAnchor: "voice_review_button",
     });
 
     expect(
@@ -60,6 +64,7 @@ describe("onboardingVoiceRouteEvents", () => {
     ).toMatchObject({
       mode: VOICE_ONBOARDING_MODES.SUCCESS_CRITERIA,
       from: "onboarding",
+      tourAnchor: "voice_criteria_button",
     });
 
     expect(
@@ -69,6 +74,7 @@ describe("onboardingVoiceRouteEvents", () => {
     ).toMatchObject({
       mode: VOICE_ONBOARDING_MODES.MONITOR_CALLS,
       from: "onboarding",
+      tourAnchor: "voice_monitor_link",
     });
   });
 

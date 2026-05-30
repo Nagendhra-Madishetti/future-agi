@@ -173,6 +173,9 @@ describe("GatewayOverviewSection onboarding request", () => {
 
     expect(screen.getByTestId("gateway-onboarding-focus")).toBeVisible();
     expect(screen.getByText("Send the first gateway request")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /send test request/i }),
+    ).toHaveAttribute("data-tour-anchor", "gateway_request_button");
   });
 
   it("continues to request review when onboarding state recording fails", async () => {

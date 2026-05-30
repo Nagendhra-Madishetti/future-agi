@@ -22,6 +22,7 @@ import TwoFactorBanner from "src/components/two-factor-enforcement/TwoFactorBann
 import { Typography } from "@mui/material";
 import { ShowComponent } from "../../components/show";
 import { useDeploymentMode } from "src/hooks/useDeploymentMode";
+import DestinationTourAnchor from "src/sections/onboarding-tour/DestinationTourAnchor";
 
 // ----------------------------------------------------------------------
 
@@ -111,6 +112,7 @@ export default function DashboardLayout({ children }) {
         <Main>{children}</Main>
         {!isOSS && <FalconAISidebar />}
       </Box>
+      <DestinationTourAnchor />
       <FalconAIFab />
     </>
   );

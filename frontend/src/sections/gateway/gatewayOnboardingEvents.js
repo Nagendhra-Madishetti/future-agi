@@ -67,6 +67,7 @@ export const getGatewayOnboardingRouteParams = (search = "") => {
     isOnboarding: params.get("source") === "onboarding" || Boolean(mode),
     mode,
     requestId: params.get("request_id"),
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 

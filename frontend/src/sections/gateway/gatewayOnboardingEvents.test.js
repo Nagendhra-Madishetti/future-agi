@@ -28,6 +28,7 @@ describe("gatewayOnboardingEvents", () => {
         isOnboarding: true,
         mode,
         requestId: "req-123",
+        tourAnchor: "gateway_focus",
       });
     });
   });

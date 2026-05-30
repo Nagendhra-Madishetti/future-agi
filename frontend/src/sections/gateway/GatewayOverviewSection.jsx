@@ -340,6 +340,7 @@ const GatewayOverviewSection = () => {
           { label: "Request", complete: completionState.hasRequests },
         ]}
         title="Send the first gateway request"
+        tourAnchor={onboardingParams.tourAnchor}
       />
 
       {/* Gateway Endpoint URL */}

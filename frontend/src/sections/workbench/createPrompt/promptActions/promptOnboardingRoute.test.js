@@ -22,6 +22,7 @@ describe("promptOnboardingRoute", () => {
       action: "create-prompt",
       isOnboarding: true,
       mode: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+      tourAnchor: null,
     });
   });
 
@@ -42,6 +43,7 @@ describe("promptOnboardingRoute", () => {
         action: mode,
         isOnboarding: true,
         mode,
+        tourAnchor: "prompt_focus",
       });
     });
   });
@@ -55,6 +57,7 @@ describe("promptOnboardingRoute", () => {
       action: null,
       isOnboarding: true,
       mode: null,
+      tourAnchor: null,
     });
   });
 

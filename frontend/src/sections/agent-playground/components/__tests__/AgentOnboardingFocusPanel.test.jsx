@@ -32,6 +32,7 @@ describe("AgentOnboardingFocusPanel", () => {
           { label: "Review", complete: false },
         ]}
         title="Run the first agent workflow"
+        tourAnchor="agent_run_scenario_button"
       />,
     );
 
@@ -40,6 +41,9 @@ describe("AgentOnboardingFocusPanel", () => {
     expect(screen.getByText("Agent")).toBeVisible();
     expect(screen.getAllByText("Scenario").length).toBeGreaterThan(0);
     expect(screen.getByText("Review")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /run workflow/i }),
+    ).toHaveAttribute("data-tour-anchor", "agent_run_scenario_button");
 
     await userEvent.click(
       screen.getByRole("button", { name: /open executions/i }),

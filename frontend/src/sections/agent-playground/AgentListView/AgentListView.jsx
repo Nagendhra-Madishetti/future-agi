@@ -115,6 +115,7 @@ export default function AgentListView() {
     setCurrentAgent,
   });
   const showCreateFocus = searchParams.get("onboarding") === "create";
+  const tourAnchor = searchParams.get("tour_anchor");
 
   const handleRowClick = useCallback(
     (row) => {
@@ -364,6 +365,7 @@ export default function AgentListView() {
           { label: "Review", complete: false },
         ]}
         title="Create the first agent"
+        tourAnchor={tourAnchor}
       />
 
       {/* Search + bulk actions / create */}

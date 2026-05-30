@@ -312,6 +312,7 @@ const EvalsUsageView = () => {
         >
           <EvalOnboardingFocusPanel
             hidden={!reviewOnboardingParams.isOnboarding}
+            tourAnchor={reviewOnboardingParams.tourAnchor}
             {...reviewOnboardingCopy}
           />
           <Box

@@ -24,6 +24,7 @@ describe("observeOnboardingRoute", () => {
     ).toEqual({
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
+      tourAnchor: null,
     });
   });
 
@@ -35,6 +36,7 @@ describe("observeOnboardingRoute", () => {
     ).toEqual({
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
+      tourAnchor: "observe_send_trace_button",
     });
 
     expect(
@@ -44,6 +46,7 @@ describe("observeOnboardingRoute", () => {
     ).toEqual({
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR,
+      tourAnchor: "observe_evaluator_button",
     });
   });
 
@@ -53,6 +56,7 @@ describe("observeOnboardingRoute", () => {
     ).toEqual({
       isOnboarding: true,
       mode: null,
+      tourAnchor: null,
     });
   });
 
@@ -63,6 +67,7 @@ describe("observeOnboardingRoute", () => {
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
       source: OBSERVE_ONBOARDING_SOURCES.ONBOARDING,
+      tourAnchor: null,
     });
   });
 
@@ -75,6 +80,7 @@ describe("observeOnboardingRoute", () => {
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
       source: OBSERVE_ONBOARDING_SOURCES.ONBOARDING,
+      tourAnchor: "observe_create_project_button",
     });
   });
 
@@ -85,6 +91,7 @@ describe("observeOnboardingRoute", () => {
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
       source: OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW,
+      tourAnchor: null,
     });
   });
 
@@ -96,6 +103,7 @@ describe("observeOnboardingRoute", () => {
     ).toEqual({
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE,
+      tourAnchor: null,
     });
   });
 
@@ -107,6 +115,7 @@ describe("observeOnboardingRoute", () => {
     ).toEqual({
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE,
+      tourAnchor: "observe_trace_review_link",
     });
   });
 
@@ -118,6 +127,7 @@ describe("observeOnboardingRoute", () => {
     ).toEqual({
       isOnboarding: true,
       mode: null,
+      tourAnchor: null,
     });
   });
 

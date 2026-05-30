@@ -61,6 +61,7 @@ describe("evalCreateOnboarding", () => {
       sourceId: "data-1",
       sourceType: "dataset",
       step: EVAL_CREATE_ONBOARDING_STEPS.RUN,
+      tourAnchor: null,
     });
   });
 
@@ -72,6 +73,7 @@ describe("evalCreateOnboarding", () => {
     ).toMatchObject({
       isOnboarding: true,
       step: EVAL_CREATE_ONBOARDING_STEPS.DATA,
+      tourAnchor: "eval_source_button",
     });
 
     expect(
@@ -81,6 +83,7 @@ describe("evalCreateOnboarding", () => {
     ).toMatchObject({
       isOnboarding: true,
       step: EVAL_CREATE_ONBOARDING_STEPS.RUN,
+      tourAnchor: "eval_run_button",
     });
 
     expect(
@@ -90,6 +93,7 @@ describe("evalCreateOnboarding", () => {
     ).toMatchObject({
       isOnboarding: true,
       step: EVAL_CREATE_ONBOARDING_STEPS.SCORER,
+      tourAnchor: "eval_scorer_button",
     });
   });
 
@@ -566,6 +570,7 @@ describe("evalCreateOnboarding", () => {
       sourceType: "dataset",
       step: "review",
       tab: "usage",
+      tourAnchor: null,
     });
 
     expect(
@@ -591,6 +596,7 @@ describe("evalCreateOnboarding", () => {
       isOnboarding: true,
       step: "review",
       tab: "usage",
+      tourAnchor: "eval_review_button",
     });
   });
 
@@ -733,6 +739,7 @@ describe("evalCreateOnboarding", () => {
       sourceId: "data-1",
       sourceType: "dataset",
       step: "fix-eval-failure",
+      tourAnchor: null,
     });
 
     expect(getEvalSourceFixOnboardingParams("?source=onboarding")).toEqual({
@@ -742,6 +749,7 @@ describe("evalCreateOnboarding", () => {
       sourceId: null,
       sourceType: null,
       step: null,
+      tourAnchor: null,
     });
 
     expect(
@@ -960,6 +968,7 @@ describe("evalCreateOnboarding", () => {
       sourceId: "data-1",
       sourceType: "dataset",
       step: "fix-eval-failure",
+      tourAnchor: null,
     });
 
     expect(getEvalFailureActionOnboardingParams("?source=onboarding")).toEqual({
@@ -970,6 +979,7 @@ describe("evalCreateOnboarding", () => {
       sourceId: null,
       sourceType: null,
       step: null,
+      tourAnchor: null,
     });
   });
 
@@ -981,6 +991,7 @@ describe("evalCreateOnboarding", () => {
     ).toMatchObject({
       isOnboarding: true,
       step: "fix-eval-failure",
+      tourAnchor: "eval_next_loop_button",
     });
   });
 

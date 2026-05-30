@@ -12,6 +12,7 @@ const ProjectFtux = ({
   observeSetupCopy,
   observeSetupPrimaryAction,
   observeSetupSecondaryAction,
+  observeSetupTourAnchor,
   observeSetupVerification,
 }) => {
   const location = useLocation();
@@ -62,6 +63,7 @@ const ProjectFtux = ({
           steps={observeSetupCopy.steps}
           sx={{ width: "100%", mb: 2 }}
           title={observeSetupCopy.title}
+          tourAnchor={observeSetupTourAnchor}
         />
       ) : null}
       <Box sx={{ height: "27px" }} />
@@ -102,6 +104,7 @@ ProjectFtux.propTypes = {
     label: PropTypes.string.isRequired,
     onClick: PropTypes.func.isRequired,
   }),
+  observeSetupTourAnchor: PropTypes.string,
   observeSetupVerification: PropTypes.shape({
     description: PropTypes.string.isRequired,
     primaryAction: PropTypes.shape({

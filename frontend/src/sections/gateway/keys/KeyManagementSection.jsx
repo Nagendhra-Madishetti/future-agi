@@ -191,6 +191,7 @@ const KeyManagementSection = () => {
           { label: "Request", complete: false },
         ]}
         title="Create the gateway API key"
+        tourAnchor={onboardingParams.tourAnchor}
       />
 
       {/* Filters */}

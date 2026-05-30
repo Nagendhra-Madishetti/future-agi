@@ -21,6 +21,7 @@ export default function BuilderActions({
   width,
   hasNodes = true,
   onboardingMode,
+  tourAnchor,
 }) {
   const { runWorkflow, stopWorkflow, isRunning, isInitiating } =
     useWorkflowExecution();
@@ -178,6 +179,7 @@ export default function BuilderActions({
           ]}
           sx={{ mb: 0 }}
           title="Run the first agent workflow"
+          tourAnchor={tourAnchor}
         />
       </Box>
 
@@ -329,4 +331,5 @@ BuilderActions.propTypes = {
   width: PropTypes.string.isRequired,
   hasNodes: PropTypes.bool,
   onboardingMode: PropTypes.string,
+  tourAnchor: PropTypes.string,
 };

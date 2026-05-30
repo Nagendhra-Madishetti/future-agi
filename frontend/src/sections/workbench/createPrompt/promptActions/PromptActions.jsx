@@ -786,6 +786,7 @@ const PromptActions = () => {
         onOpenVersionHistory={() => setVersionHistoryOpen(true)}
         onRunPrompt={handleRunPrompt}
         source={onboardingSource}
+        tourAnchor={promptOnboardingParams.tourAnchor}
       />
 
       <Divider

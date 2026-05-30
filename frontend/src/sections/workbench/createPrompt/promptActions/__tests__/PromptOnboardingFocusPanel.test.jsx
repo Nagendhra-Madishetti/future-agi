@@ -18,11 +18,15 @@ describe("PromptOnboardingFocusPanel", () => {
         currentTab="Playground"
         mode="run-test"
         onRunPrompt={onRunPrompt}
+        tourAnchor="prompt_run_button"
       />,
     );
 
     expect(screen.getByText("Run one prompt test")).toBeVisible();
-    expect(screen.getByRole("button", { name: /run prompt/i })).toBeVisible();
+    expect(screen.getByRole("button", { name: /run prompt/i })).toHaveAttribute(
+      "data-tour-anchor",
+      "prompt_run_button",
+    );
 
     await userEvent.click(screen.getByRole("button", { name: /run prompt/i }));
 

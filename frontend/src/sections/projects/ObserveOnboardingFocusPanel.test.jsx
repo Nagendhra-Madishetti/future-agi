@@ -32,9 +32,14 @@ describe("ObserveOnboardingFocusPanel", () => {
           { label: "Review", complete: false },
         ]}
         title="Send the first trace"
+        tourAnchor="observe_send_trace_button"
       />,
     );
 
+    expect(screen.getByRole("button", { name: /open setup/i })).toHaveAttribute(
+      "data-tour-anchor",
+      "observe_send_trace_button",
+    );
     expect(screen.getByText("Observe onboarding")).toBeVisible();
     expect(screen.getByText("Send the first trace")).toBeVisible();
     expect(screen.getByText("Project")).toBeVisible();

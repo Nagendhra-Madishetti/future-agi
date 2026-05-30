@@ -688,6 +688,7 @@ const TestDetailHeader = () => {
           { label: "Run", complete: false },
         ]}
         title={evalRouteCopy.title}
+        tourAnchor={voiceParams.tourAnchor}
       />
     </Box>
   );

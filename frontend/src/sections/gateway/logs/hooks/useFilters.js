@@ -25,6 +25,7 @@ const CAMEL_TO_SNAKE = {
   apiKeyId: "api_key_id",
   requestId: "request_id",
   journeyStep: "journey_step",
+  tourAnchor: "tour_anchor",
   campaignKey: "campaign_key",
   targetEvent: "target_event",
 };
@@ -39,6 +40,7 @@ const NON_CONTENT_KEYS = new Set([
   "onboarding",
   "source",
   "journeyStep",
+  "tourAnchor",
   "campaignKey",
   "targetEvent",
 ]);

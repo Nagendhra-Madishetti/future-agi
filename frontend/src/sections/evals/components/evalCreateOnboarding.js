@@ -235,6 +235,7 @@ export const getEvalCreateOnboardingParams = (search = "") => {
     sourceId: params.get("source_id"),
     sourceType: params.get("source_type"),
     step,
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 
@@ -503,6 +504,7 @@ export const getEvalReviewOnboardingParams = (search = "") => {
     sourceType: params.get("source_type"),
     step,
     tab,
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 
@@ -521,6 +523,7 @@ export const getEvalFailureActionOnboardingParams = (search = "") => {
     sourceId: params.get("source_id"),
     sourceType: params.get("source_type"),
     step,
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 
@@ -541,6 +544,7 @@ export const getEvalSourceFixOnboardingParams = (search = "") => {
     sourceId: params.get("source_id"),
     sourceType: params.get("source_type"),
     step,
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 

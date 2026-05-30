@@ -49,6 +49,7 @@ export default function Executions() {
       ["success", "failed", "error"].includes(execution.status),
     ) || executions[0];
   const showReviewFocus = searchParams.get("onboarding") === "review-run";
+  const tourAnchor = searchParams.get("tour_anchor");
 
   const buildRoute = useCallback(
     (onboardingMode) => {
@@ -126,6 +127,7 @@ export default function Executions() {
             { label: "Review", complete: false },
           ]}
           title="Review the first agent run"
+          tourAnchor={tourAnchor}
         />
         <Box
           sx={{
@@ -177,6 +179,7 @@ export default function Executions() {
             { label: "Review", complete: Boolean(selectedExecutionId) },
           ]}
           title="Review the first agent run"
+          tourAnchor={tourAnchor}
         />
       </Box>
       <Stack direction="row" sx={{ flex: 1, minHeight: 0 }}>

@@ -43,6 +43,7 @@ function AgentEmptyState() {
     setCurrentAgent: s.setCurrentAgent,
   }));
   const showCreateFocus = searchParams.get("onboarding") === "create";
+  const tourAnchor = searchParams.get("tour_anchor");
 
   const { mutate: createGraph, isPending } = useCreateGraph({
     navigate,
@@ -80,6 +81,7 @@ function AgentEmptyState() {
           { label: "Review", complete: false },
         ]}
         title="Create the first agent"
+        tourAnchor={tourAnchor}
       />
       <EmptyLayout
         icon="/assets/icons/navbar/ic_agents.svg"

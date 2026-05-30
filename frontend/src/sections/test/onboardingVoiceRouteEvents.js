@@ -38,6 +38,7 @@ export const getVoiceOnboardingParams = (search = "") => {
     from: params.get("from") || (journeyMode ? "onboarding" : ""),
     callId: params.get("call_id") || "",
     agentDefinitionId: params.get("agent_definition_id") || "",
+    tourAnchor: params.get("tour_anchor"),
   };
 };
 

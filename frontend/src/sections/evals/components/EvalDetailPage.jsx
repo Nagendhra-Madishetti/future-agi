@@ -1438,6 +1438,7 @@ const EvalDetailPage = () => {
       <EvalOnboardingFocusPanel
         hidden={!reviewOnboardingParams.isOnboarding}
         primaryAction={reviewPrimaryAction}
+        tourAnchor={reviewOnboardingParams.tourAnchor}
         {...reviewOnboardingCopy}
       />
 

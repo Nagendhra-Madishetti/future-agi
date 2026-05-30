@@ -18,6 +18,7 @@ const FILTER_KEY_MAP = {
   apiKeyId: "api_key_id",
   requestId: "request_id",
   journeyStep: "journey_step",
+  tourAnchor: "tour_anchor",
   campaignKey: "campaign_key",
   targetEvent: "target_event",
   minLatency: "min_latency",
@@ -28,6 +29,15 @@ const FILTER_KEY_MAP = {
   startedBefore: "started_before",
 };
 
+const URL_ONLY_FILTER_KEYS = new Set([
+  "onboarding",
+  "source",
+  "journeyStep",
+  "tourAnchor",
+  "campaignKey",
+  "targetEvent",
+]);
+
 /**
  * Convert a camelCase filters object into query-param-ready snake_case params.
  * Null / undefined / empty-string values are omitted.
@@ -37,6 +47,7 @@ export function buildFilterParams(filters = {}) {
 
   Object.entries(filters).forEach(([key, value]) => {
     if (value === null || value === undefined || value === "") return;
+    if (URL_ONLY_FILTER_KEYS.has(key)) return;
     const paramKey = FILTER_KEY_MAP[key] || key;
     params[paramKey] = value;
   });

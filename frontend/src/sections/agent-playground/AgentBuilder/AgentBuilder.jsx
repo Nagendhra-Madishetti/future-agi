@@ -177,6 +177,7 @@ export default function AgentBuilder() {
   const isDrawerOpen = !!selectedNode;
   const nodeDrawerResize = useNodeDrawerResize(isDrawerOpen);
   const onboardingMode = searchParams.get("onboarding");
+  const tourAnchor = searchParams.get("tour_anchor");
 
   const hasNodes = nodes?.length > 0;
 
@@ -313,6 +314,7 @@ export default function AgentBuilder() {
               width={SELECTION_PANEL_WIDTH}
               hasNodes={hasNodes}
               onboardingMode={onboardingMode}
+              tourAnchor={tourAnchor}
             />
             {/* Run Agent Panel - Shows output after workflow run */}
             {hasNodes && showOutput && !isLoadingTemplate && (

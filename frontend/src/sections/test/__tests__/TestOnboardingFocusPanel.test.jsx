@@ -32,6 +32,7 @@ describe("TestOnboardingFocusPanel", () => {
           { label: "Run", complete: false },
         ]}
         title="Add evaluation coverage"
+        tourAnchor="voice_success_criteria_button"
       />,
     );
 
@@ -40,6 +41,9 @@ describe("TestOnboardingFocusPanel", () => {
     expect(screen.getByText("Test")).toBeVisible();
     expect(screen.getAllByText("Evaluation").length).toBeGreaterThan(0);
     expect(screen.getByText("Run")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /add evaluation/i }),
+    ).toHaveAttribute("data-tour-anchor", "voice_success_criteria_button");
 
     await userEvent.click(
       screen.getByRole("button", { name: /run evaluation/i }),

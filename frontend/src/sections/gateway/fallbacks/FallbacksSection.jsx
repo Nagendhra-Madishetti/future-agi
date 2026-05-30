@@ -610,6 +610,7 @@ const FallbacksSection = () => {
             { label: "Fallback", complete: false },
           ]}
           title="Configure gateway recovery"
+          tourAnchor={onboardingParams.tourAnchor}
         />
         <Card sx={{ mt: 3 }}>
           <CardContent>
@@ -694,6 +695,7 @@ const FallbacksSection = () => {
           { label: "Fallback", complete: fallbackChains.length > 0 },
         ]}
         title="Configure gateway recovery"
+        tourAnchor={onboardingParams.tourAnchor}
       />
 
       {hasChanges && (

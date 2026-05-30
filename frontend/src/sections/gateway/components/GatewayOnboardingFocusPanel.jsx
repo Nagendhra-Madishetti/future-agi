@@ -16,6 +16,7 @@ export default function GatewayOnboardingFocusPanel({
   secondaryAction,
   steps = [],
   title,
+  tourAnchor,
 }) {
   if (hidden) {
     return null;
@@ -87,6 +88,7 @@ export default function GatewayOnboardingFocusPanel({
           ) : null}
           {primaryAction ? (
             <Button
+              data-tour-anchor={primaryAction.tourAnchor || tourAnchor}
               variant="contained"
               onClick={primaryAction.onClick}
               disabled={primaryAction.disabled}
@@ -105,6 +107,7 @@ const actionShape = PropTypes.shape({
   disabled: PropTypes.bool,
   label: PropTypes.string.isRequired,
   onClick: PropTypes.func.isRequired,
+  tourAnchor: PropTypes.string,
 });
 
 GatewayOnboardingFocusPanel.propTypes = {
@@ -121,4 +124,5 @@ GatewayOnboardingFocusPanel.propTypes = {
     }),
   ),
   title: PropTypes.string.isRequired,
+  tourAnchor: PropTypes.string,
 };

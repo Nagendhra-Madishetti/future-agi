@@ -248,6 +248,7 @@ const TestEvaluationDrawer = ({ executionIds, onSuccessOfAdditionOfEvals }) => {
           onClose={onCloseHandler}
           executionIds={executionIds}
           onboardingMode={evalOnboardingMode}
+          tourAnchor={voiceParams.tourAnchor}
           onSuccessOfAdditionOfEvals={onSuccessOfAdditionOfEvals}
           onAddEvaluation={() => {
             setEditingEvalItem(null);

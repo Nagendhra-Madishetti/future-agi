@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildFilterParams } from "./useRequestLogs";
 
 describe("buildFilterParams", () => {
-  it("maps request-log filter drawer values to API query params", () => {
+  it("maps request-log filter drawer values and omits URL-only onboarding params", () => {
     expect(
       buildFilterParams({
         statusCodeMin: "400",
@@ -15,6 +15,7 @@ describe("buildFilterParams", () => {
         journeyStep: "review_gateway_log",
         onboarding: "review-request",
         source: "onboarding",
+        tourAnchor: "gateway_request_button",
         campaignKey: "gateway_review_request",
       }),
     ).toEqual({
@@ -25,10 +26,6 @@ describe("buildFilterParams", () => {
       is_error: "true",
       guardrail_triggered: "true",
       request_id: "req-1",
-      journey_step: "review_gateway_log",
-      onboarding: "review-request",
-      source: "onboarding",
-      campaign_key: "gateway_review_request",
     });
   });
 });

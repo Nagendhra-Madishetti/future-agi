@@ -40,6 +40,7 @@ const TestEvaluationPage = ({
   onClose,
   executionIds = null,
   onboardingMode = null,
+  tourAnchor = null,
   onSuccessOfAdditionOfEvals = null,
   onAddEvaluation = null,
   onEditEvaluation = null,
@@ -291,6 +292,7 @@ const TestEvaluationPage = ({
           { label: "Run", complete: hasEvals && hasSelectedRuns },
         ]}
         title={evalRouteCopy.title}
+        tourAnchor={tourAnchor}
       />
 
       {/* ── List ── */}
@@ -514,6 +516,7 @@ TestEvaluationPage.propTypes = {
   onClose: PropTypes.func.isRequired,
   executionIds: PropTypes.arrayOf(PropTypes.string),
   onboardingMode: PropTypes.string,
+  tourAnchor: PropTypes.string,
   onSuccessOfAdditionOfEvals: PropTypes.func,
   onAddEvaluation: PropTypes.func,
   onEditEvaluation: PropTypes.func,
@@ -522,6 +525,7 @@ TestEvaluationPage.propTypes = {
 TestEvaluationPage.defaultProps = {
   executionIds: null,
   onboardingMode: null,
+  tourAnchor: null,
   onSuccessOfAdditionOfEvals: null,
   onAddEvaluation: null,
   onEditEvaluation: null,
