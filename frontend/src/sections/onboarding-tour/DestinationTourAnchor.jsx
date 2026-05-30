@@ -11,136 +11,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
 import Iconify from "src/components/iconify";
-
-const STEP_COPY = {
-  add_eval_scorer: {
-    label: "Add scorer",
-    description:
-      "Use the highlighted action to define the signal this eval measures.",
-  },
-  add_gateway_policy: {
-    label: "Add policy",
-    description: "Use the highlighted action to add the first gateway control.",
-  },
-  add_voice_success_criteria: {
-    label: "Add criteria",
-    description: "Use the highlighted action to define what a good call means.",
-  },
-  compare_prompt_versions: {
-    label: "Compare versions",
-    description:
-      "Use the highlighted action to compare this prompt against a baseline.",
-  },
-  configure_gateway_provider: {
-    label: "Add provider",
-    description:
-      "Use the highlighted action to connect the first model provider.",
-  },
-  connect_observability: {
-    label: "Connect observability",
-    description:
-      "Use the highlighted action to create or review the observe setup.",
-  },
-  create_eval_dataset: {
-    label: "Create dataset",
-    description: "Use the highlighted action to start the eval source.",
-  },
-  create_gateway_key: {
-    label: "Create key",
-    description: "Use the highlighted action to create the first gateway key.",
-  },
-  create_prompt: {
-    label: "Create prompt",
-    description: "Use the highlighted action to start the prompt loop.",
-  },
-  create_trace_evaluator: {
-    label: "Create check",
-    description:
-      "Use the highlighted action to turn this trace into a repeatable check.",
-  },
-  create_voice_agent: {
-    label: "Create agent",
-    description: "Use the highlighted action to start the voice workflow.",
-  },
-  eval_next_loop: {
-    label: "Improve source",
-    description:
-      "Use the highlighted action to turn the failure into the next fix.",
-  },
-  fix_gateway_failure: {
-    label: "Fix issue",
-    description:
-      "Use the highlighted action to resolve the first gateway failure.",
-  },
-  prompt_next_loop: {
-    label: "Capture example",
-    description:
-      "Use the highlighted action to save one concrete failure example.",
-  },
-  review_eval_failures: {
-    label: "Review failure",
-    description:
-      "Use the highlighted action to inspect the first useful eval failure.",
-  },
-  review_first_trace: {
-    label: "Review signal",
-    description:
-      "Use the highlighted action to inspect the first trace signal.",
-  },
-  review_gateway_log: {
-    label: "Review log",
-    description:
-      "Use the highlighted action to inspect status, latency, cost, and routing.",
-  },
-  review_voice_call: {
-    label: "Review call",
-    description:
-      "Use the highlighted action to inspect the transcript and outcome.",
-  },
-  run_eval: {
-    label: "Run eval",
-    description: "Use the highlighted action to run the first eval.",
-  },
-  run_gateway_request: {
-    label: "Send request",
-    description:
-      "Use the highlighted action to send one request through the gateway.",
-  },
-  run_prompt_test: {
-    label: "Run test",
-    description:
-      "Use the highlighted action to generate the first prompt result.",
-  },
-  run_voice_test_call: {
-    label: "Run call",
-    description:
-      "Use the highlighted action to collect the first voice signal.",
-  },
-  save_prompt_version: {
-    label: "Save version",
-    description:
-      "Use the highlighted action to save the tested prompt baseline.",
-  },
-  send_first_trace: {
-    label: "Send trace",
-    description:
-      "Use the highlighted action to send or inspect the first trace.",
-  },
-  start_prompt: {
-    label: "Create prompt",
-    description: "Use the highlighted action to start the prompt loop.",
-  },
-  voice_monitor_calls: {
-    label: "Monitor calls",
-    description:
-      "Use the highlighted action to keep watching live calls after setup.",
-  },
-};
-
-const DEFAULT_COPY = {
-  label: "Next step",
-  description: "Use the highlighted action to continue setup.",
-};
+import { destinationTourCopyForStep } from "./destinationTourAnchorConfig";
 
 const findTourTarget = (anchor) => {
   if (!anchor) return null;
@@ -165,7 +36,7 @@ export default function DestinationTourAnchor({ maxAttempts = 12 }) {
   const [dismissedAnchor, setDismissedAnchor] = useState(null);
 
   const copy = useMemo(
-    () => STEP_COPY[journeyStep] || DEFAULT_COPY,
+    () => destinationTourCopyForStep(journeyStep),
     [journeyStep],
   );
   const hidden = !tourAnchor || dismissedAnchor === tourAnchor;
