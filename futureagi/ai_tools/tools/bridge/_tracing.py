@@ -86,7 +86,22 @@ expose_to_mcp(
     tools={
         "list": {"name": "list_alert_monitors"},
         "retrieve": {"name": "get_alert_monitor"},
-        "create": {"name": "create_alert_monitor"},
+        "create": {
+            "name": "create_alert_monitor",
+            # Enumerate the valid metric_type values in the description so the
+            # model picks a real one up front instead of guessing (e.g.
+            # "error_rate") and hitting an opaque VALIDATION_ERROR (TH-5406).
+            # Values come from MonitorMetricTypeChoices.
+            "description": (
+                "Create an alert monitor on a project's telemetry. `metric_type` "
+                "MUST be one of: count_of_errors, error_rates_for_function_calling, "
+                "error_free_session_rates, service_provider_error_rates, "
+                "llm_api_failure_rates, span_response_time, llm_response_time, "
+                "token_usage, daily_tokens_spent, monthly_tokens_spent, "
+                "evaluation_metrics. Pair it with a threshold + "
+                "threshold_operator (e.g. greater_than) and the project."
+            ),
+        },
         "update": {"name": "update_alert_monitor"},
         "destroy": {"name": "delete_alert_monitor"},
     },
