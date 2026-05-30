@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import { spawn } from "node:child_process";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
@@ -434,6 +435,7 @@ async function runSmoke(smoke, stack, inheritedEnv) {
     }
     console.log(`RUN ${smoke.id} ${smoke.description}`);
     const failures = [];
+    const childResults = [];
     for (const childId of smoke.sequence) {
       const child = SMOKES.find((candidate) => candidate.id === childId);
       if (!child) {
@@ -441,15 +443,28 @@ async function runSmoke(smoke, stack, inheritedEnv) {
       }
       try {
         await runSmoke(child, [...stack, smoke.id], env);
+        childResults.push({
+          id: child.id,
+          reportPath: reportOutputPath(child),
+          status: "passed",
+        });
       } catch (error) {
         if (!smoke.continueOnFailure) throw error;
+        const message = error?.message || String(error);
+        childResults.push({
+          id: child.id,
+          error_message: message,
+          reportPath: reportOutputPath(child),
+          status: "failed",
+        });
         failures.push({
           id: child.id,
-          message: error?.message || String(error),
+          message,
         });
-        console.error(`FAIL ${child.id}: ${error?.message || String(error)}`);
+        console.error(`FAIL ${child.id}: ${message}`);
       }
     }
+    await writeSuiteManifest(smoke, childResults, failures);
     if (failures.length > 0) {
       throw new Error(
         `${smoke.id} failed: ${failures
@@ -494,9 +509,56 @@ async function runSmoke(smoke, stack, inheritedEnv) {
 function reportOutputDirEnv(smoke) {
   if (!args.reportOutputDir) return {};
   return {
-    ONBOARDING_SMOKE_REPORT_OUTPUT: resolve(
-      args.reportOutputDir,
-      `${smoke.id}.json`,
-    ),
+    ONBOARDING_SMOKE_REPORT_OUTPUT: reportOutputPath(smoke),
   };
+}
+
+function reportOutputPath(smoke) {
+  if (!args.reportOutputDir) return null;
+  return resolve(args.reportOutputDir, `${smoke.id}.json`);
+}
+
+async function writeSuiteManifest(smoke, childResults, failures) {
+  if (!args.reportOutputDir || !smoke.continueOnFailure) return;
+  const manifestPath = resolve(args.reportOutputDir, "manifest.json");
+  const children = await Promise.all(
+    childResults.map(async (child) => {
+      const report = await readJsonFile(child.reportPath);
+      return {
+        id: child.id,
+        mode: report?.mode || null,
+        report_path: child.reportPath,
+        report_status: report?.status || null,
+        runner_status: child.status,
+        viewport: report?.viewport?.name || null,
+        error_message:
+          child.error_message || report?.diagnostic?.error_message || null,
+      };
+    }),
+  );
+  const manifest = {
+    schema_version: "onboarding-real-signup-proof-pack-manifest-2026-05-30.v1",
+    source: "onboarding_real_signup_proof_pack",
+    generated_at: new Date().toISOString(),
+    suite_id: smoke.id,
+    status: failures.length > 0 ? "failed" : "passed",
+    report_output_dir: resolve(args.reportOutputDir),
+    children,
+  };
+  await mkdir(args.reportOutputDir, { recursive: true });
+  await writeFile(
+    manifestPath,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
+  console.log(`WROTE ${manifestPath}`);
+}
+
+async function readJsonFile(path) {
+  if (!path) return null;
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    return null;
+  }
 }
