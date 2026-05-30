@@ -29,6 +29,9 @@ from accounts.services.onboarding.lifecycle_completion import (
 from accounts.services.onboarding.lifecycle_eligibility import (
     evaluate_lifecycle_decision,
 )
+from accounts.services.onboarding.lifecycle_launch_packets import (
+    LAUNCH_PACKET_METADATA_KEY,
+)
 from accounts.services.onboarding.lifecycle_preferences import lifecycle_preference_for
 from accounts.services.onboarding.lifecycle_preview_approval import (
     APPROVAL_METADATA_KEY,
@@ -84,6 +87,7 @@ class LifecycleSendBatchResult:
     approval_record_sha256: str | None = None
     dry_run_report_sha256: str | None = None
     dry_run_report_review_record_sha256: str | None = None
+    launch_packet_sha256: str | None = None
 
     def to_payload(self):
         return {
@@ -104,6 +108,7 @@ class LifecycleSendBatchResult:
             "dry_run_report_review_record_sha256": (
                 self.dry_run_report_review_record_sha256
             ),
+            "launch_packet_sha256": self.launch_packet_sha256,
         }
 
 
@@ -601,6 +606,7 @@ def _send_log_defaults(
     cohort,
     preview_approval=None,
     dry_run_report_review=None,
+    launch_packet=None,
 ):
     campaign = campaign or {}
     snapshot = decision.activation_state or {}
@@ -625,6 +631,8 @@ def _send_log_defaults(
         metadata[DRY_RUN_REPORT_METADATA_KEY] = (
             dry_run_report_review.metadata_for_send()
         )
+    if launch_packet:
+        metadata[LAUNCH_PACKET_METADATA_KEY] = launch_packet.metadata_for_send()
     return {
         "user": evaluation_log.user,
         "organization": evaluation_log.organization,
@@ -711,6 +719,7 @@ def _get_or_create_send_log(
     cohort,
     preview_approval=None,
     dry_run_report_review=None,
+    launch_packet=None,
 ):
     defaults = _send_log_defaults(
         evaluation_log,
@@ -720,6 +729,7 @@ def _get_or_create_send_log(
         cohort,
         preview_approval=preview_approval,
         dry_run_report_review=dry_run_report_review,
+        launch_packet=launch_packet,
     )
     try:
         with transaction.atomic():
@@ -780,6 +790,7 @@ def queue_onboarding_lifecycle_email(
     require_campaign_group_allowlist=False,
     preview_approval=None,
     dry_run_report_review=None,
+    launch_packet=None,
 ):
     now = now or timezone.now()
     _context, flags, decision = _fresh_decision(evaluation_log, now)
@@ -792,6 +803,7 @@ def queue_onboarding_lifecycle_email(
         cohort,
         preview_approval=preview_approval,
         dry_run_report_review=dry_run_report_review,
+        launch_packet=launch_packet,
     )
     if send_log.status in SUCCESS_SEND_STATUSES:
         return send_log
@@ -937,6 +949,7 @@ def send_limited_onboarding_lifecycle_batch(
     require_campaign_group_allowlist=False,
     preview_approval=None,
     dry_run_report_review=None,
+    launch_packet=None,
 ):
     now = now or timezone.now()
     if not dry_run and (
@@ -999,6 +1012,7 @@ def send_limited_onboarding_lifecycle_batch(
             require_campaign_group_allowlist=require_campaign_group_allowlist,
             preview_approval=preview_approval,
             dry_run_report_review=dry_run_report_review,
+            launch_packet=launch_packet,
         )
         if send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED:
             send_log = send_onboarding_lifecycle_email(send_log, now=now)
@@ -1040,6 +1054,7 @@ def send_limited_onboarding_lifecycle_batch(
             if dry_run_report_review
             else None
         ),
+        launch_packet_sha256=launch_packet.sha256 if launch_packet else None,
     )
 
 

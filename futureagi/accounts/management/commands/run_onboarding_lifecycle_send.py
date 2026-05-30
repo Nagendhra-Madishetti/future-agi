@@ -4,6 +4,9 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
 
+from accounts.services.onboarding.lifecycle_launch_packets import (
+    load_lifecycle_launch_packet,
+)
 from accounts.services.onboarding.lifecycle_preview_approval import (
     load_lifecycle_preview_approval,
 )
@@ -32,6 +35,7 @@ class Command(BaseCommand):
         parser.add_argument("--report-force", action="store_true")
         parser.add_argument("--dry-run-report")
         parser.add_argument("--dry-run-report-review-record")
+        parser.add_argument("--launch-packet")
         parser.add_argument("--now")
 
     def handle(self, *args, **options):
@@ -43,6 +47,8 @@ class Command(BaseCommand):
             options.get("dry_run_report") or options.get("dry_run_report_review_record")
         ):
             raise CommandError("--dry-run-report is only supported for sends.")
+        if options["dry_run"] and options.get("launch_packet"):
+            raise CommandError("--launch-packet is only supported for sends.")
         now = None
         if options.get("now"):
             now = parse_datetime(options["now"])
@@ -88,6 +94,34 @@ class Command(BaseCommand):
                 )
             except ImproperlyConfigured as exc:
                 raise CommandError(str(exc)) from exc
+        launch_packet = None
+        if not options["dry_run"] and options.get("launch_packet"):
+            try:
+                launch_packet = load_lifecycle_launch_packet(
+                    options["launch_packet"],
+                    command_name="run_onboarding_lifecycle_send",
+                    cohort=options["cohort"],
+                    limit=options["limit"],
+                    campaign_group=options.get("campaign_family"),
+                    user_id=options.get("user_id"),
+                    workspace_id=options.get("workspace_id"),
+                    require_campaign_group_allowlist=False,
+                    approval_manifest_path=options["approval_manifest"],
+                    approval_record_path=options["approval_record"],
+                    dry_run_report_path=options["dry_run_report"],
+                    dry_run_report_review_record_path=(
+                        options["dry_run_report_review_record"]
+                    ),
+                    approval_manifest_sha256=preview_approval.manifest_sha256,
+                    approval_record_sha256=preview_approval.approval_record_sha256,
+                    dry_run_report_sha256=dry_run_report_review.report.sha256,
+                    dry_run_report_review_record_sha256=(
+                        dry_run_report_review.review_record_sha256
+                    ),
+                    require_ready=True,
+                )
+            except ImproperlyConfigured as exc:
+                raise CommandError(str(exc)) from exc
 
         result = send_limited_onboarding_lifecycle_batch(
             cohort=options["cohort"],
@@ -99,6 +133,7 @@ class Command(BaseCommand):
             now=now,
             preview_approval=preview_approval,
             dry_run_report_review=dry_run_report_review,
+            launch_packet=launch_packet,
         )
         payload = result.to_payload()
         if options.get("report_output"):
@@ -134,6 +169,8 @@ class Command(BaseCommand):
                 "dry_run_report_review_record_sha256="
                 f"{payload['dry_run_report_review_record_sha256']}"
             )
+        if payload["launch_packet_sha256"]:
+            self.stdout.write(f"launch_packet_sha256={payload['launch_packet_sha256']}")
         self.stdout.write(f"run_id={payload['run_id']}")
         self.stdout.write(f"evaluated={payload['evaluated']}")
         self.stdout.write(f"sent={payload['sent']}")

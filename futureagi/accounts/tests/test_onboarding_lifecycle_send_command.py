@@ -17,9 +17,11 @@ from accounts.models import (
 )
 from accounts.models.workspace import Workspace
 from accounts.services.onboarding.lifecycle_launch_packets import (
+    LAUNCH_PACKET_METADATA_KEY,
     LAUNCH_PACKET_READY_STATUS,
     LAUNCH_PACKET_SCHEMA_VERSION,
     LAUNCH_PACKET_SOURCE,
+    write_lifecycle_launch_packet,
 )
 from accounts.services.onboarding.lifecycle_preview_approval import (
     APPROVAL_METADATA_KEY,
@@ -223,6 +225,26 @@ def _reviewed_welcome_send_report_paths(
         reviewed_at=timezone.now(),
     )
     return report_path, review_record_path
+
+
+def _launch_packet_path(
+    tmp_path,
+    *,
+    approval_manifest,
+    approval_record,
+    dry_run_report,
+    dry_run_report_review,
+):
+    packet_path = tmp_path / f"{dry_run_report.stem}-launch-packet.json"
+    write_lifecycle_launch_packet(
+        output_path=packet_path,
+        approval_manifest_path=approval_manifest,
+        approval_record_path=approval_record,
+        dry_run_report_path=dry_run_report,
+        dry_run_report_review_record_path=dry_run_report_review,
+        require_sendable_candidate=True,
+    )
+    return packet_path
 
 
 @pytest.mark.django_db
@@ -669,6 +691,123 @@ def test_send_command_respects_limit_and_sends_allowlisted(
         len(send_log.metadata[DRY_RUN_REPORT_METADATA_KEY]["review_record_sha256"])
         == 64
     )
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_send_command_accepts_launch_packet_and_stamps_metadata(
+    organization,
+    workspace,
+    user,
+    tmp_path,
+):
+    _eligible_log(user, organization, workspace)
+    approval_manifest, approval_record = _approval_paths(tmp_path)
+    OnboardingLifecycleSendAllowlist.no_workspace_objects.create(
+        scope_type=OnboardingLifecycleSendAllowlist.SCOPE_USER,
+        scope_value=str(user.id),
+        environment="local",
+    )
+    dry_run_report, dry_run_report_review = _reviewed_lifecycle_send_report_paths(
+        tmp_path,
+        approval_manifest=approval_manifest,
+        approval_record=approval_record,
+    )
+    launch_packet = _launch_packet_path(
+        tmp_path,
+        approval_manifest=approval_manifest,
+        approval_record=approval_record,
+        dry_run_report=dry_run_report,
+        dry_run_report_review=dry_run_report_review,
+    )
+    output = StringIO()
+
+    with patch("accounts.services.onboarding.lifecycle_sender.email_helper"):
+        call_command(
+            "run_onboarding_lifecycle_send",
+            "--cohort",
+            "internal",
+            "--limit",
+            "1",
+            "--approval-manifest",
+            str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
+            "--dry-run-report",
+            str(dry_run_report),
+            "--dry-run-report-review-record",
+            str(dry_run_report_review),
+            "--launch-packet",
+            str(launch_packet),
+            stdout=output,
+        )
+
+    value = output.getvalue()
+    assert "launch_packet_sha256=" in value
+    assert "sent=1" in value
+    send_log = OnboardingLifecycleSendLog.no_workspace_objects.get(
+        status=OnboardingLifecycleSendLog.STATUS_SENT
+    )
+    packet_metadata = send_log.metadata[LAUNCH_PACKET_METADATA_KEY]
+    assert packet_metadata["path"] == str(launch_packet)
+    assert len(packet_metadata["sha256"]) == 64
+    assert packet_metadata["status"] == LAUNCH_PACKET_READY_STATUS
+    assert packet_metadata["command"] == "run_onboarding_lifecycle_send"
+    assert packet_metadata["sendable_candidate_count"] == 1
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_send_command_rejects_mismatched_launch_packet(
+    organization,
+    workspace,
+    user,
+    tmp_path,
+):
+    _eligible_log(user, organization, workspace)
+    approval_manifest, approval_record = _approval_paths(tmp_path)
+    OnboardingLifecycleSendAllowlist.no_workspace_objects.create(
+        scope_type=OnboardingLifecycleSendAllowlist.SCOPE_USER,
+        scope_value=str(user.id),
+        environment="local",
+    )
+    dry_run_report, dry_run_report_review = _reviewed_lifecycle_send_report_paths(
+        tmp_path,
+        approval_manifest=approval_manifest,
+        approval_record=approval_record,
+    )
+    launch_packet = _launch_packet_path(
+        tmp_path,
+        approval_manifest=approval_manifest,
+        approval_record=approval_record,
+        dry_run_report=dry_run_report,
+        dry_run_report_review=dry_run_report_review,
+    )
+    packet = json.loads(launch_packet.read_text())
+    packet["send_parameters"]["cohort"] = "beta"
+    launch_packet.write_text(json.dumps(packet), encoding="utf-8")
+
+    with pytest.raises(CommandError, match="send_parameters.cohort"):
+        call_command(
+            "run_onboarding_lifecycle_send",
+            "--cohort",
+            "internal",
+            "--limit",
+            "1",
+            "--approval-manifest",
+            str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
+            "--dry-run-report",
+            str(dry_run_report),
+            "--dry-run-report-review-record",
+            str(dry_run_report_review),
+            "--launch-packet",
+            str(launch_packet),
+            stdout=StringIO(),
+        )
+
+    assert not OnboardingLifecycleSendLog.no_workspace_objects.exists()
 
 
 @pytest.mark.django_db
@@ -1247,6 +1386,69 @@ def test_welcome_email_beta_send_requires_explicit_flag_and_allowlist(
         status=OnboardingLifecycleSendLog.STATUS_SENT,
     )
     assert send_log.metadata["cohort"] == "beta"
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_welcome_email_beta_send_accepts_launch_packet(
+    organization,
+    workspace,
+    user,
+    tmp_path,
+):
+    _eligible_campaign_log(user, organization, workspace, "welcome_resume_goal")
+    approval_manifest, approval_record = _approval_paths(tmp_path)
+    OnboardingLifecycleSendAllowlist.no_workspace_objects.create(
+        scope_type=OnboardingLifecycleSendAllowlist.SCOPE_USER,
+        scope_value=str(user.id),
+        environment="local",
+        campaign_group="welcome",
+    )
+    dry_run_report, dry_run_report_review = _reviewed_welcome_send_report_paths(
+        tmp_path,
+        approval_manifest=approval_manifest,
+        approval_record=approval_record,
+    )
+    launch_packet = _launch_packet_path(
+        tmp_path,
+        approval_manifest=approval_manifest,
+        approval_record=approval_record,
+        dry_run_report=dry_run_report,
+        dry_run_report_review=dry_run_report_review,
+    )
+    output = StringIO()
+
+    with patch("accounts.services.onboarding.lifecycle_sender.email_helper"):
+        call_command(
+            "run_onboarding_welcome_email_beta",
+            "--send",
+            "--limit",
+            "1",
+            "--approval-manifest",
+            str(approval_manifest),
+            "--approval-record",
+            str(approval_record),
+            "--dry-run-report",
+            str(dry_run_report),
+            "--dry-run-report-review-record",
+            str(dry_run_report_review),
+            "--launch-packet",
+            str(launch_packet),
+            stdout=output,
+        )
+
+    value = output.getvalue()
+    assert "launch_packet_sha256=" in value
+    assert "sent=1" in value
+    send_log = OnboardingLifecycleSendLog.no_workspace_objects.get(
+        campaign_group="welcome",
+        campaign_key="welcome_resume_goal",
+        status=OnboardingLifecycleSendLog.STATUS_SENT,
+    )
+    assert send_log.metadata[LAUNCH_PACKET_METADATA_KEY]["path"] == str(launch_packet)
+    assert send_log.metadata[LAUNCH_PACKET_METADATA_KEY]["command"] == (
+        "run_onboarding_welcome_email_beta"
+    )
 
 
 @pytest.mark.django_db
