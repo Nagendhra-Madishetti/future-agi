@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { paths } from "src/routes/paths";
 import {
   dashboardRoutes,
+  observeProjectIndexRedirectTarget,
   shouldTrackMixpanelPageView,
 } from "src/routes/sections/dashboard";
 
@@ -50,5 +51,23 @@ describe("onboarding home route shell", () => {
     expect(shouldTrackMixpanelPageView("/dashboard/home")).toBe(false);
     expect(shouldTrackMixpanelPageView("/dashboard/home/")).toBe(false);
     expect(shouldTrackMixpanelPageView("/dashboard/get-started")).toBe(true);
+  });
+
+  it("preserves observe journey params through the project index redirect", () => {
+    expect(
+      observeProjectIndexRedirectTarget(
+        "?tour_anchor=observe_send_trace_button&journey_step=send_first_trace",
+      ),
+    ).toBe(
+      "llm-tracing?tour_anchor=observe_send_trace_button&journey_step=send_first_trace&selectedTab=trace",
+    );
+
+    expect(
+      observeProjectIndexRedirectTarget(
+        "?tour_anchor=observe_evaluator_button&journey_step=create_trace_evaluator",
+      ),
+    ).toBe(
+      "llm-tracing?tour_anchor=observe_evaluator_button&journey_step=create_trace_evaluator",
+    );
   });
 });

@@ -24,6 +24,12 @@ const routeFocusModeSet = new Set([
   OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
 ]);
 const setupSourceSet = new Set(Object.values(OBSERVE_ONBOARDING_SOURCES));
+const journeyStepMode = {
+  connect_observability: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
+  create_trace_evaluator: OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR,
+  review_first_trace: OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE,
+  send_first_trace: OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
+};
 
 const safeKeyPart = (value, fallback = DEFAULT_ARTIFACT_ID) =>
   String(value || fallback)
@@ -39,43 +45,62 @@ const compactMetadata = (value = {}) =>
 
 export const getObserveOnboardingParams = (search = "") => {
   const params = new URLSearchParams(search);
+  const journeyMode = journeyStepMode[params.get("journey_step")] || null;
   const isOnboarding =
-    params.get("source") === OBSERVE_ONBOARDING_SOURCES.ONBOARDING;
+    params.get("source") === OBSERVE_ONBOARDING_SOURCES.ONBOARDING ||
+    Boolean(journeyMode);
   const rawMode = params.get("onboarding");
+  const mode = projectModeSet.has(rawMode)
+    ? rawMode
+    : projectModeSet.has(journeyMode)
+      ? journeyMode
+      : null;
   return {
     isOnboarding,
-    mode: isOnboarding && projectModeSet.has(rawMode) ? rawMode : null,
+    mode: isOnboarding ? mode : null,
   };
 };
 
 export const getObserveSetupOnboardingParams = (search = "") => {
   const params = new URLSearchParams(search);
   const source = params.get("source");
-  const isOnboarding = setupSourceSet.has(source);
+  const journeyMode = journeyStepMode[params.get("journey_step")] || null;
+  const isSetupJourney = journeyMode === OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE;
+  const isOnboarding = setupSourceSet.has(source) || isSetupJourney;
   const isSetupRoute =
     params.get("setup") === "true" ||
-    params.get("onboarding") === OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE;
+    params.get("onboarding") === OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE ||
+    isSetupJourney;
   return {
     isOnboarding,
     mode:
       isOnboarding && isSetupRoute
         ? OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE
         : null,
-    source: isOnboarding ? source : null,
+    source: setupSourceSet.has(source)
+      ? source
+      : isSetupJourney
+        ? OBSERVE_ONBOARDING_SOURCES.ONBOARDING
+        : null,
   };
 };
 
 export const getObserveTraceReviewOnboardingParams = (search = "") => {
   const params = new URLSearchParams(search);
+  const journeyMode = journeyStepMode[params.get("journey_step")] || null;
   const isOnboarding =
-    params.get("source") === OBSERVE_ONBOARDING_SOURCES.ONBOARDING;
+    params.get("source") === OBSERVE_ONBOARDING_SOURCES.ONBOARDING ||
+    journeyMode === OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE;
   const rawMode = params.get("onboarding");
+  const mode =
+    rawMode === OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE
+      ? rawMode
+      : journeyMode === OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE
+        ? journeyMode
+        : null;
   return {
     isOnboarding,
-    mode:
-      isOnboarding && rawMode === OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE
-        ? rawMode
-        : null,
+    mode: isOnboarding ? mode : null,
   };
 };
 

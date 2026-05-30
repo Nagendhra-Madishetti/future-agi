@@ -526,6 +526,25 @@ NavigatePreserveSearch.propTypes = {
   to: PropTypes.string.isRequired,
 };
 
+export const observeProjectIndexRedirectTarget = (search = "") => {
+  const params = new URLSearchParams(search);
+
+  if (
+    params.get("journey_step") === "send_first_trace" &&
+    !params.has("selectedTab")
+  ) {
+    params.set("selectedTab", "trace");
+  }
+
+  const nextSearch = params.toString();
+  return `llm-tracing${nextSearch ? `?${nextSearch}` : ""}`;
+};
+
+export const ObserveProjectIndexRedirect = () => {
+  const { search } = useLocation();
+  return <Navigate to={observeProjectIndexRedirectTarget(search)} replace />;
+};
+
 export const dashboardRoutes = (
   user,
   workspaceRole,
@@ -1142,7 +1161,7 @@ export const dashboardRoutes = (
       children: [
         {
           index: true,
-          element: <Navigate to="llm-tracing" replace />,
+          element: <ObserveProjectIndexRedirect />,
         },
         // {
         //   path: "logs",

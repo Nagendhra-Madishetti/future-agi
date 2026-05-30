@@ -27,6 +27,26 @@ describe("observeOnboardingRoute", () => {
     });
   });
 
+  it("reads observe project journey-step params from Home CTAs", () => {
+    expect(
+      getObserveOnboardingParams(
+        "?tour_anchor=observe_send_trace_button&journey_step=send_first_trace",
+      ),
+    ).toEqual({
+      isOnboarding: true,
+      mode: OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
+    });
+
+    expect(
+      getObserveOnboardingParams(
+        "?tour_anchor=observe_evaluator_button&journey_step=create_trace_evaluator",
+      ),
+    ).toEqual({
+      isOnboarding: true,
+      mode: OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR,
+    });
+  });
+
   it("drops unsupported modes", () => {
     expect(
       getObserveOnboardingParams("?source=onboarding&onboarding=unknown"),
@@ -39,6 +59,18 @@ describe("observeOnboardingRoute", () => {
   it("reads observe setup onboarding route params", () => {
     expect(
       getObserveSetupOnboardingParams("?setup=true&source=onboarding"),
+    ).toEqual({
+      isOnboarding: true,
+      mode: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
+      source: OBSERVE_ONBOARDING_SOURCES.ONBOARDING,
+    });
+  });
+
+  it("reads observe setup journey-step params from Home CTAs", () => {
+    expect(
+      getObserveSetupOnboardingParams(
+        "?tour_anchor=observe_create_project_button&journey_step=connect_observability",
+      ),
     ).toEqual({
       isOnboarding: true,
       mode: OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE,
@@ -60,6 +92,17 @@ describe("observeOnboardingRoute", () => {
     expect(
       getObserveTraceReviewOnboardingParams(
         "?source=onboarding&onboarding=review-first-trace",
+      ),
+    ).toEqual({
+      isOnboarding: true,
+      mode: OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE,
+    });
+  });
+
+  it("reads trace-review journey-step params from Home CTAs", () => {
+    expect(
+      getObserveTraceReviewOnboardingParams(
+        "?tour_anchor=observe_trace_review_link&journey_step=review_first_trace",
       ),
     ).toEqual({
       isOnboarding: true,

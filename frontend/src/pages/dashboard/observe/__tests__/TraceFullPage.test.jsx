@@ -144,4 +144,18 @@ describe("TraceFullPage", () => {
       "/dashboard/evaluations/create?source=onboarding&step=data&source_type=trace_project&source_id=observe-1",
     );
   });
+
+  it("shows trace-review guidance from Home journey-step params", () => {
+    mocks.locationSearch =
+      "?tour_anchor=observe_trace_review_link&journey_step=review_first_trace";
+
+    const { getByText } = render(<TraceFullPage />);
+
+    expect(getByText("First trace received")).toBeVisible();
+    expect(
+      getByText(
+        "Review spans, latency, cost, and model inputs here. When this signal looks right, create an evaluator.",
+      ),
+    ).toBeVisible();
+  });
 });

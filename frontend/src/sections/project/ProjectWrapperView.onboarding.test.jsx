@@ -208,6 +208,27 @@ describe("ProjectWrapperView observe setup onboarding", () => {
     });
   });
 
+  it("shows setup focus from Home journey-step params", async () => {
+    renderWithRouter(<ProjectWrapperView />, {
+      route:
+        "/dashboard/observe?tour_anchor=observe_create_project_button&journey_step=connect_observability",
+    });
+
+    expect(screen.getByText("Connect Observe to your app")).toBeVisible();
+
+    await waitFor(() => {
+      expect(mocks.recordActivationEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          artifactType: "observe_setup",
+          eventName: "onboarding_observe_route_focus_viewed",
+          primaryPath: "observe",
+          source: "observe_setup_onboarding",
+          stage: "connect_observability",
+        }),
+      );
+    });
+  });
+
   it("hides the sample trace shortcut when sample data is unavailable", () => {
     mocks.recordActivationState = {
       sampleProject: {
