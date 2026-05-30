@@ -19,6 +19,29 @@ const PROMPT_JOURNEY_STEP_MODES = {
   start_prompt: PROMPT_ONBOARDING_MODES.CREATE_PROMPT,
 };
 
+const PROMPT_ONBOARDING_MODE_DESTINATIONS = {
+  [PROMPT_ONBOARDING_MODES.CREATE_PROMPT]: {
+    journeyStep: "start_prompt",
+    tourAnchor: "prompt_create_button",
+  },
+  [PROMPT_ONBOARDING_MODES.RUN_TEST]: {
+    journeyStep: "run_prompt_test",
+    tourAnchor: "prompt_run_test_button",
+  },
+  [PROMPT_ONBOARDING_MODES.SAVE_VERSION]: {
+    journeyStep: "save_prompt_version",
+    tourAnchor: "prompt_save_version_button",
+  },
+  [PROMPT_ONBOARDING_MODES.COMPARE]: {
+    journeyStep: "compare_prompt_versions",
+    tourAnchor: "prompt_compare_versions_button",
+  },
+  [PROMPT_ONBOARDING_MODES.ADD_FAILURE]: {
+    journeyStep: "prompt_next_loop",
+    tourAnchor: "prompt_add_example_button",
+  },
+};
+
 const toSearchParams = (search = "") =>
   search instanceof URLSearchParams
     ? new URLSearchParams(search)
@@ -53,6 +76,13 @@ export const buildPromptEditorHref = ({ mode, promptId } = {}) => {
   params.set("source", "onboarding");
   if (VALID_PROMPT_ONBOARDING_MODES.has(mode)) {
     params.set("onboarding", mode);
+    const destination = PROMPT_ONBOARDING_MODE_DESTINATIONS[mode];
+    if (destination?.tourAnchor) {
+      params.set("tour_anchor", destination.tourAnchor);
+    }
+    if (destination?.journeyStep) {
+      params.set("journey_step", destination.journeyStep);
+    }
   }
 
   return `/dashboard/workbench/create/${promptId}?${params.toString()}`;

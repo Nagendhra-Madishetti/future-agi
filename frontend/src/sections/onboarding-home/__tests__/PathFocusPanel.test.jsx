@@ -196,7 +196,10 @@ describe("PathFocusPanel", () => {
     ).toBeVisible();
     expect(
       within(panel).getByRole("link", { name: "Send request" }),
-    ).toHaveAttribute("href", "/dashboard/gateway?onboarding=test-request");
+    ).toHaveAttribute(
+      "href",
+      "/dashboard/gateway?onboarding=test-request&tour_anchor=gateway_request_button&journey_step=run_gateway_request",
+    );
   });
 
   it("renders nothing for paths without a focused plan", () => {

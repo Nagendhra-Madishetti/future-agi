@@ -68,7 +68,34 @@ describe("promptOnboardingRoute", () => {
         mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
       }),
     ).toBe(
-      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test",
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",
+    );
+  });
+
+  it("adds destination tour anchors to each guided editor step", () => {
+    expect(
+      buildPromptEditorHref({
+        promptId: "prompt-1",
+        mode: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+      }),
+    ).toBe(
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=save-version&tour_anchor=prompt_save_version_button&journey_step=save_prompt_version",
+    );
+    expect(
+      buildPromptEditorHref({
+        promptId: "prompt-1",
+        mode: PROMPT_ONBOARDING_MODES.COMPARE,
+      }),
+    ).toBe(
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=compare&tour_anchor=prompt_compare_versions_button&journey_step=compare_prompt_versions",
+    );
+    expect(
+      buildPromptEditorHref({
+        promptId: "prompt-1",
+        mode: PROMPT_ONBOARDING_MODES.ADD_FAILURE,
+      }),
+    ).toBe(
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=add-failure&tour_anchor=prompt_add_example_button&journey_step=prompt_next_loop",
     );
   });
 
@@ -79,7 +106,7 @@ describe("promptOnboardingRoute", () => {
         search: "?source=onboarding&action=create-prompt",
       }),
     ).toBe(
-      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test",
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",
     );
   });
 
@@ -90,7 +117,7 @@ describe("promptOnboardingRoute", () => {
         search: "?tour_anchor=prompt_create_button&journey_step=start_prompt",
       }),
     ).toBe(
-      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test",
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",
     );
   });
 

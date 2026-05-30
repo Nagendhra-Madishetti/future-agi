@@ -99,7 +99,7 @@ describe("CreateNewPrompt onboarding routes", () => {
 
     await waitFor(() =>
       expect(screen.getByTestId("location")).toHaveTextContent(
-        "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test",
+        "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",
       ),
     );
   });

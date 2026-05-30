@@ -618,7 +618,7 @@ describe("OnboardingHomeView", () => {
       within(panel).getByRole("link", { name: /create prompt/i }),
     ).toHaveAttribute(
       "href",
-      "/dashboard/workbench/all?source=onboarding&action=create-prompt",
+      "/dashboard/workbench/all?source=onboarding&action=create-prompt&tour_anchor=prompt_create_button&journey_step=start_prompt",
     );
   });
 
@@ -1315,7 +1315,7 @@ describe("OnboardingHomeView", () => {
       within(panel).getByRole("link", { name: /run test/i }),
     ).toHaveAttribute(
       "href",
-      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test",
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",
     );
     expect(screen.getByText("Selected path")).toBeVisible();
     expect(screen.getAllByText("prompt").length).toBeGreaterThan(0);
@@ -1345,7 +1345,7 @@ describe("OnboardingHomeView", () => {
       within(panel).getByRole("link", { name: /run scenario/i }),
     ).toHaveAttribute(
       "href",
-      "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario",
+      "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&tour_anchor=agent_run_scenario_button&journey_step=run_agent_scenario",
     );
     expect(screen.getByText("Selected path")).toBeVisible();
     expect(screen.getAllByText("agent").length).toBeGreaterThan(0);
@@ -1371,7 +1371,10 @@ describe("OnboardingHomeView", () => {
     );
     expect(
       within(panel).getByRole("link", { name: /send request/i }),
-    ).toHaveAttribute("href", "/dashboard/gateway?onboarding=test-request");
+    ).toHaveAttribute(
+      "href",
+      "/dashboard/gateway?onboarding=test-request&tour_anchor=gateway_request_button&journey_step=run_gateway_request",
+    );
     expect(screen.getByText("Selected path")).toBeVisible();
     expect(screen.getAllByText("gateway").length).toBeGreaterThan(0);
   });
@@ -1425,7 +1428,10 @@ describe("OnboardingHomeView", () => {
       "Run the check once.",
     );
     expect(screen.queryByText("Open Get Started")).not.toBeInTheDocument();
-    expect(cta).toHaveAttribute("href", href);
+    expect(cta).toHaveAttribute(
+      "href",
+      `${href}&tour_anchor=eval_run_button&journey_step=run_eval`,
+    );
     expect(cta.getAttribute("href")).not.toMatch(/^\/\//);
   });
 
