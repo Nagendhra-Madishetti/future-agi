@@ -192,6 +192,44 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
         sort_query = get_sort_query(sort_by, sort_direction)
         return queryset.order_by(sort_query)
 
+    def _detail_scope_q(self):
+        """Workspace scope for a by-id DETAIL lookup. Broadens the list scope
+        with every workspace the user is a MEMBER of, so an explicitly-referenced
+        project the user has access to resolves even when the request's workspace
+        differs from the project's — e.g. Falcon's socket carries a different
+        workspace than the page the user is viewing, which surfaced as "trace is
+        not in that workspace" until a self-started retry (TH-4746).
+
+        Broaden-only (superset of ``_workspace_scope_q``), scoped strictly to the
+        user's own member workspaces, and applied ONLY to ``get_object`` — the
+        LIST scope (``get_queryset``) is untouched, so list/count behaviour
+        (TH-4667) is unchanged.
+        """
+        q = self._workspace_scope_q()
+        user = getattr(self.request, "user", None)
+        if user is not None and getattr(user, "is_authenticated", False):
+            q |= models.Q(workspace__memberships__user=user)
+        return q
+
+    def get_object(self):
+        # Only override the by-id detail path; fall back to default otherwise.
+        lookup = self.kwargs.get(self.lookup_field, self.kwargs.get("pk"))
+        if lookup is None:
+            return super().get_object()
+        from rest_framework.generics import get_object_or_404
+
+        queryset = (
+            Project.no_workspace_objects.filter(
+                self._detail_scope_q(),
+                organization=self._request_organization(),
+            )
+            .filter(deleted=False)
+            .distinct()
+        )
+        obj = get_object_or_404(queryset, pk=lookup)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
     def perform_update(self, serializer):
         """Override to invalidate PII cache when project metadata changes."""
         instance = serializer.save()
