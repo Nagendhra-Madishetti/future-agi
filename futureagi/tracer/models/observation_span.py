@@ -131,6 +131,7 @@ class ObservationSpan(BaseModel):
         related_name="observation_spans",
         null=False,
         blank=False,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
     parent_span_id = models.CharField(max_length=255, null=True, blank=True)
     name = models.CharField(max_length=2000, null=False, blank=False)
@@ -206,6 +207,7 @@ class ObservationSpan(BaseModel):
         null=True,
         blank=True,
         default=None,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
 
     prompt_version = models.ForeignKey(
@@ -289,6 +291,7 @@ class EvalLogger(BaseModel):
         related_name="eval_logs",
         null=True,
         blank=True,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
     observation_span = models.ForeignKey(
         ObservationSpan,
@@ -296,6 +299,7 @@ class EvalLogger(BaseModel):
         related_name="eval_logs",
         null=True,
         blank=True,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
     trace_session = models.ForeignKey(
         TraceSession,
@@ -303,6 +307,7 @@ class EvalLogger(BaseModel):
         related_name="eval_logs",
         null=True,
         blank=True,
+        db_constraint=False,  # CH scale: SCALE_ARCHITECTURE.md §9a
     )
     target_type = models.CharField(
         max_length=16,
