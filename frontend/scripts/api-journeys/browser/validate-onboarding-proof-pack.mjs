@@ -134,6 +134,7 @@ function validateSampleEvidence(checks, childId, report) {
     "sample_open_state",
     "sample_project_response",
     "sample_trace_activation_event",
+    "sample_trace_entry",
     "sample_trace_url",
     "screenshot",
     "signup_post",
@@ -144,6 +145,14 @@ function validateSampleEvidence(checks, childId, report) {
     evidence.setup_quick_start === "sample_preview",
     `${childId}:sample:quick_start`,
     "Sample proof used the sample preview quick start.",
+  );
+  addCheck(
+    checks,
+    evidence.sample_trace_entry?.clicks_after_quick_start === 0 &&
+      evidence.sample_trace_entry?.quick_start_id === "sample_preview" &&
+      evidence.sample_trace_entry?.source === "setup_org",
+    `${childId}:sample:zero_click_entry`,
+    "Sample proof opened the sample trace directly from setup quick start.",
   );
   addCheck(
     checks,

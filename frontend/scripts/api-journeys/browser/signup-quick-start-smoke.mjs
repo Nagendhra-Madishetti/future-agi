@@ -31,6 +31,11 @@ const OBSERVE_QUICK_START_METADATA = {
   quick_start_goal: OBSERVE_QUICK_START_PARAMS.quick_start_goal,
   quick_start_primary_path: OBSERVE_QUICK_START_PARAMS.quick_start_primary_path,
 };
+const SAMPLE_QUICK_START_METADATA = {
+  quick_start_id: "sample_preview",
+  quick_start_goal: "explore_sample_data",
+  quick_start_primary_path: "sample",
+};
 
 async function main() {
   assert(REQUIRE_REAL_SIGNUP, "Set ONBOARDING_REAL_SIGNUP=1 for this smoke.");
@@ -293,43 +298,39 @@ async function main() {
         : "Connect observability first",
     );
 
-    await page.waitForFunction(
-      ({ requireObserveQuickStart }) => {
-        const params = new URLSearchParams(window.location.search);
-        return (
-          window.location.pathname === "/dashboard/home" &&
-          params.get("source") === "setup_org" &&
-          (!requireObserveQuickStart ||
-            (params.get("quick_start_id") === "observe" &&
-              params.get("quick_start_goal") === "monitor_production_ai_app" &&
-              params.get("quick_start_primary_path") === "observe"))
-        );
-      },
-      { timeout: 45000 },
-      { requireObserveQuickStart: !SAMPLE_ONLY },
-    );
-    const setupOrgHomeUrl = page.url();
-    if (!SAMPLE_ONLY) {
+    let setupOrgHomeUrl = null;
+    let setupOrgEntryUrl = null;
+    if (SAMPLE_ONLY) {
+      await waitForSampleTraceRoute(page, { timeout: 45000 });
+      setupOrgEntryUrl = relativeUrl(page.url());
+    } else {
+      await page.waitForFunction(
+        () => {
+          const params = new URLSearchParams(window.location.search);
+          return (
+            window.location.pathname === "/dashboard/home" &&
+            params.get("source") === "setup_org" &&
+            params.get("quick_start_id") === "observe" &&
+            params.get("quick_start_goal") === "monitor_production_ai_app" &&
+            params.get("quick_start_primary_path") === "observe"
+          );
+        },
+        { timeout: 45000 },
+      );
+      setupOrgHomeUrl = page.url();
       assert(
         hasObserveQuickStartParams(setupOrgHomeUrl),
         `Expected setup-org home URL quick-start attribution, got ${setupOrgHomeUrl}`,
       );
+      await expectNoVisibleText(page, "Invite your team later", {
+        timeout: 1000,
+      });
     }
-    await expectNoVisibleText(page, "Invite your team later", {
-      timeout: 1000,
-    });
 
     let observeCtaHref = null;
     let observeSetupUrl = null;
-    if (SAMPLE_ONLY) {
-      await expectVisibleTestId(page, "sample-project-panel", {
-        timeout: 45000,
-      });
-      await expectVisibleText(page, "Fastest path to Aha", {
-        exact: true,
-        timeout: 45000,
-      });
-    } else {
+    let sampleTraceUrl = setupOrgEntryUrl;
+    if (!SAMPLE_ONLY) {
       await expectVisibleText(page, "Connect observability", {
         timeout: 45000,
       });
@@ -384,27 +385,12 @@ async function main() {
       });
       await expectNoVisibleText(page, "Code not available");
       observeSetupUrl = page.url();
+      await expectVisibleText(page, "Open sample trace", { timeout: 45000 });
+      await clickVisibleButtonText(page, "Open sample trace", 45000);
+      await waitForSampleTraceRoute(page, { timeout: 45000 });
+      sampleTraceUrl = relativeUrl(page.url());
     }
-
-    await expectVisibleText(page, "Open sample trace", { timeout: 45000 });
-    await clickVisibleButtonText(page, "Open sample trace", 45000);
-    await page.waitForFunction(
-      () => {
-        const segments = window.location.pathname.split("/").filter(Boolean);
-        const params = new URLSearchParams(window.location.search);
-        return (
-          segments.length === 5 &&
-          segments[0] === "dashboard" &&
-          segments[1] === "observe" &&
-          segments[3] === "trace" &&
-          params.get("sample") === "true" &&
-          params.get("from") === "onboarding"
-        );
-      },
-      { timeout: 45000 },
-    );
     await expectVisibleText(page, "Trace", { exact: true, timeout: 45000 });
-    const sampleTraceUrl = page.url();
     await expectVisibleText(page, "Sample trace review", { timeout: 45000 });
     await expectVisibleText(page, "Connect your app", {
       exact: true,
@@ -480,17 +466,22 @@ async function main() {
             payload?.event_name === "sample_trace_detail_opened" &&
             payload?.primary_path === "sample" &&
             payload?.stage === "review_first_trace" &&
-            payload?.is_sample === true,
+            payload?.is_sample === true &&
+            hasSampleQuickStartMetadata(payload),
         ),
         "Expected sample trace detail activation event.",
       );
       assert(
-        evidence.sampleProjectPosts[0]?.source === "onboarding_home",
-        `Expected sample source onboarding_home, got ${evidence.sampleProjectPosts[0]?.source}`,
+        evidence.sampleProjectPosts[0]?.source === "setup_org",
+        `Expected sample source setup_org, got ${evidence.sampleProjectPosts[0]?.source}`,
       );
       assert(
-        evidence.sampleProjectPosts[0]?.reason === "open_sample_project",
-        `Expected sample reason open_sample_project, got ${evidence.sampleProjectPosts[0]?.reason}`,
+        evidence.sampleProjectPosts[0]?.reason === "sample_preview",
+        `Expected sample reason sample_preview, got ${evidence.sampleProjectPosts[0]?.reason}`,
+      );
+      assert(
+        evidence.sampleProjectPosts[0]?.open_after_create === true,
+        `Expected sample open_after_create=true, got ${evidence.sampleProjectPosts[0]?.open_after_create}`,
       );
       assert(
         browserState.initialRender === "done",
@@ -520,11 +511,17 @@ async function main() {
           sample_open_state: summarizeActivationState(sampleOpenState),
           sample_project_post: evidence.sampleProjectPosts[0],
           sample_project_response: evidence.sampleProjectResponses[0],
+          sample_trace_entry: {
+            clicks_after_quick_start: 0,
+            quick_start_id: "sample_preview",
+            source: "setup_org",
+          },
           setup_quick_start: "sample_preview",
           sample_trace_activation_event: evidence.activationEventPosts.find(
             (payload) => payload?.event_name === "sample_trace_detail_opened",
           ),
           sample_trace_url: sampleTraceUrl,
+          setup_org_entry_url: setupOrgEntryUrl,
           setup_org_home_url: setupOrgHomeUrl,
           screenshot: SCREENSHOT_PATH,
           signup_post: evidence.signupPosts[0],
@@ -1582,6 +1579,24 @@ async function expectVisibleText(
   );
 }
 
+async function waitForSampleTraceRoute(page, { timeout = 30000 } = {}) {
+  await page.waitForFunction(
+    () => {
+      const segments = window.location.pathname.split("/").filter(Boolean);
+      const params = new URLSearchParams(window.location.search);
+      return (
+        segments.length === 5 &&
+        segments[0] === "dashboard" &&
+        segments[1] === "observe" &&
+        segments[3] === "trace" &&
+        params.get("sample") === "true" &&
+        params.get("from") === "onboarding"
+      );
+    },
+    { timeout },
+  );
+}
+
 async function expectNoVisibleText(page, text, { timeout = 30000 } = {}) {
   await page.waitForFunction(
     (expectedText) => {
@@ -1987,6 +2002,12 @@ function safeUrl(value) {
   }
 }
 
+function relativeUrl(value) {
+  const url = safeUrl(value);
+  if (!url) return value;
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 function slashPath(path) {
   if (!path || path.endsWith("/")) return path || "/";
   return `${path}/`;
@@ -2083,6 +2104,13 @@ function hasObserveQuickStartParams(value) {
 function hasObserveQuickStartMetadata(payload) {
   const metadata = paramsObject(payload?.metadata);
   return Object.entries(OBSERVE_QUICK_START_METADATA).every(
+    ([key, expected]) => metadata?.[key] === expected,
+  );
+}
+
+function hasSampleQuickStartMetadata(payload) {
+  const metadata = paramsObject(payload?.metadata);
+  return Object.entries(SAMPLE_QUICK_START_METADATA).every(
     ([key, expected]) => metadata?.[key] === expected,
   );
 }

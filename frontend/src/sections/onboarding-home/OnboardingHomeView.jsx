@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import PropTypes from "prop-types";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -133,6 +139,7 @@ export default function OnboardingHomeView() {
   const sampleProjectActions = useSampleProject();
   const [selectedGoal, setSelectedGoal] = useState(null);
   const activationEmailContextRef = useRef({});
+  const samplePreviewAutoOpenRef = useRef(false);
 
   const searchContext = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -185,11 +192,14 @@ export default function OnboardingHomeView() {
     };
   }, [searchActivationEmailContext]);
 
-  const activationEmailContextFor = (context) =>
-    compactEventMetadata({
-      ...activationEmailContextRef.current,
-      ...activationPayloadAttributionContext(context),
-    });
+  const activationEmailContextFor = useCallback(
+    (context) =>
+      compactEventMetadata({
+        ...activationEmailContextRef.current,
+        ...activationPayloadAttributionContext(context),
+      }),
+    [],
+  );
 
   const workspaceId = currentWorkspaceId || user?.default_workspace_id || null;
   const organizationId =
@@ -377,25 +387,16 @@ export default function OnboardingHomeView() {
     searchContext.source,
   ]);
 
-  if (isLoading || waitingForWorkspace || (!renderedState && !isError)) {
-    return <OnboardingHomeSkeleton />;
-  }
-
-  if (isError) {
-    return <OnboardingHomeError error={error} onRetry={refetch} />;
-  }
-
-  const copy = getStageCopy(renderedState);
   const showGoalPicker =
-    renderedState.stage === "choose_goal" &&
-    renderedState.featureFlags?.onboarding_goal_picker !== false;
-  const isSavingGoal = mutationPending(saveGoal);
+    renderedState?.stage === "choose_goal" &&
+    renderedState?.featureFlags?.onboarding_goal_picker !== false;
   const isSetupQuickStart =
     searchContext.source === "setup_org" && Boolean(searchContext.quickStartId);
   const isSampleQuickStart =
     searchContext.quickStartPrimaryPath === "sample" ||
     searchContext.quickStartId === "sample_preview";
   const isFirstRunQuickStartFocus =
+    Boolean(renderedState) &&
     isSetupQuickStart &&
     !renderedState.isActivated &&
     !showGoalPicker &&
@@ -405,8 +406,117 @@ export default function OnboardingHomeView() {
   const suppressCompetingSamplePanel =
     isFirstRunQuickStartFocus &&
     !isSampleQuickStart &&
-    renderedState.primaryPath === "observe" &&
-    renderedState.stage === "connect_observability";
+    renderedState?.primaryPath === "observe" &&
+    renderedState?.stage === "connect_observability";
+  const sampleProject = renderedState?.sampleProject;
+  const showSampleAsPrimary = Boolean(
+    shouldShowSampleAsPrimary(renderedState) &&
+      SAMPLE_PRIMARY_STAGES.has(renderedState?.stage),
+  );
+  const showSamplePanel = Boolean(
+    !suppressCompetingSamplePanel &&
+      sampleProject?.available &&
+      !sampleProject?.isHidden &&
+      !renderedState?.isActivated &&
+      !showGoalPicker &&
+      (showSampleAsPrimary ||
+        [
+          "connect_observability",
+          "waiting_for_first_trace_sample_available",
+        ].includes(renderedState?.stage)),
+  );
+
+  const handleOpenSample = useCallback(
+    async (options = {}) => {
+      if (!renderedState) return;
+
+      const source = options.source || "onboarding_home";
+      const reason = options.reason || renderedState.stage;
+
+      trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectOpenClicked, {
+        ...trackContext,
+        is_sample: true,
+        action_path: "sample",
+        sample_status: sampleProject?.status,
+        manifest_id: sampleProject?.manifestId,
+        manifest_version: sampleProject?.manifestVersion,
+      });
+      try {
+        const nextState =
+          await sampleProjectActions.openSampleProject.mutateAsync({
+            path: "observe",
+            source,
+            reason,
+            ...activationEmailContextFor(trackContext),
+            manifestId: sampleProject?.manifestId,
+            manifestVersion: sampleProject?.manifestVersion,
+            openAfterCreate: true,
+          });
+        const entryRoute =
+          nextState?.sampleProject?.entryRoute ||
+          nextState?.sampleProject?.entryRoutes?.[0];
+        if (entryRoute) {
+          navigate(entryRoute);
+        }
+        refetch?.();
+      } catch (sampleError) {
+        trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectOpenFailed, {
+          ...trackContext,
+          is_sample: true,
+          action_path: "sample",
+          sample_status: sampleProject?.status,
+          reason: sampleError?.message || "unknown_error",
+        });
+      }
+    },
+    [
+      activationEmailContextFor,
+      navigate,
+      refetch,
+      renderedState,
+      sampleProject?.manifestId,
+      sampleProject?.manifestVersion,
+      sampleProject?.status,
+      sampleProjectActions.openSampleProject,
+      trackContext,
+    ],
+  );
+
+  useEffect(() => {
+    if (
+      !isFirstRunQuickStartFocus ||
+      !isSampleQuickStart ||
+      !showSamplePanel ||
+      mutationPending(sampleProjectActions.openSampleProject) ||
+      samplePreviewAutoOpenRef.current
+    ) {
+      return;
+    }
+
+    samplePreviewAutoOpenRef.current = true;
+    handleOpenSample({
+      source: "setup_org",
+      reason: searchContext.quickStartId || "sample_preview",
+    });
+  }, [
+    handleOpenSample,
+    isFirstRunQuickStartFocus,
+    isSampleQuickStart,
+    sampleProjectActions.openSampleProject,
+    searchContext.quickStartId,
+    showSamplePanel,
+  ]);
+
+  if (isLoading || waitingForWorkspace || (!renderedState && !isError)) {
+    return <OnboardingHomeSkeleton />;
+  }
+
+  if (isError) {
+    return <OnboardingHomeError error={error} onRetry={refetch} />;
+  }
+
+  const copy = getStageCopy(renderedState);
+  const isSavingGoal = mutationPending(saveGoal);
 
   const handleSelectGoal = (option) => {
     setSelectedGoal(option.goal);
@@ -580,44 +690,6 @@ export default function OnboardingHomeView() {
     });
   };
 
-  const handleOpenSample = async () => {
-    trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectOpenClicked, {
-      ...trackContext,
-      is_sample: true,
-      action_path: "sample",
-      sample_status: renderedState.sampleProject?.status,
-      manifest_id: renderedState.sampleProject?.manifestId,
-      manifest_version: renderedState.sampleProject?.manifestVersion,
-    });
-    try {
-      const nextState =
-        await sampleProjectActions.openSampleProject.mutateAsync({
-          path: "observe",
-          source: "onboarding_home",
-          reason: renderedState.stage,
-          ...activationEmailContextFor(trackContext),
-          manifestId: renderedState.sampleProject?.manifestId,
-          manifestVersion: renderedState.sampleProject?.manifestVersion,
-          openAfterCreate: true,
-        });
-      const entryRoute =
-        nextState?.sampleProject?.entryRoute ||
-        nextState?.sampleProject?.entryRoutes?.[0];
-      if (entryRoute) {
-        navigate(entryRoute);
-      }
-      refetch?.();
-    } catch (sampleError) {
-      trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectOpenFailed, {
-        ...trackContext,
-        is_sample: true,
-        action_path: "sample",
-        sample_status: renderedState.sampleProject?.status,
-        reason: sampleError?.message || "unknown_error",
-      });
-    }
-  };
-
   const handleHideSample = async () => {
     trackOnboardingHomeEvent(OnboardingHomeEvents.sampleProjectHideClicked, {
       ...trackContext,
@@ -721,21 +793,6 @@ export default function OnboardingHomeView() {
       />
     ) : null;
 
-  const sampleProject = renderedState.sampleProject;
-  const showSampleAsPrimary =
-    shouldShowSampleAsPrimary(renderedState) &&
-    SAMPLE_PRIMARY_STAGES.has(renderedState.stage);
-  const showSamplePanel =
-    !suppressCompetingSamplePanel &&
-    sampleProject?.available &&
-    !sampleProject?.isHidden &&
-    !renderedState.isActivated &&
-    !showGoalPicker &&
-    (showSampleAsPrimary ||
-      [
-        "connect_observability",
-        "waiting_for_first_trace_sample_available",
-      ].includes(renderedState.stage));
   const prioritizeSamplePanel =
     showSamplePanel && renderedState.stage === "connect_observability";
 

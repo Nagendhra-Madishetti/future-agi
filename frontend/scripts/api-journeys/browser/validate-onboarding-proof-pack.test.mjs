@@ -39,6 +39,11 @@ function reportFor(child, dir, overrides = {}) {
       event_name: "sample_trace_detail_opened",
       is_sample: true,
     },
+    sample_trace_entry: {
+      clicks_after_quick_start: 0,
+      quick_start_id: "sample_preview",
+      source: "setup_org",
+    },
     sample_trace_url: "/dashboard/observe/sample/trace/sample?sample=true",
     screenshot: "/tmp/sample.png",
     setup_quick_start: "sample_preview",
@@ -190,6 +195,32 @@ test("proof pack validator rejects missing real quality-loop completion", async 
     result.failed_checks.some(
       (check) =>
         check.key === "signup-quick-start-mobile-real:real_loop:completion",
+    ),
+  );
+});
+
+test("proof pack validator rejects sample proof that needs a second click", async () => {
+  const { manifestPath } = await writeProofPack({
+    reports: {
+      "signup-sample-open-real": {
+        evidence: {
+          sample_trace_entry: {
+            clicks_after_quick_start: 1,
+            quick_start_id: "sample_preview",
+            source: "setup_org",
+          },
+        },
+      },
+    },
+  });
+
+  const result = await validateProofPack(manifestPath);
+
+  assert.equal(result.status, "failed");
+  assert(
+    result.failed_checks.some(
+      (check) =>
+        check.key === "signup-sample-open-real:sample:zero_click_entry",
     ),
   );
 });

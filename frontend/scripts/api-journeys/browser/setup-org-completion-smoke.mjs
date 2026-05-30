@@ -19,6 +19,11 @@ const SCREENSHOT_PATH =
   process.env.SETUP_ORG_COMPLETION_SCREENSHOT ||
   `/tmp/setup-org-completion-smoke-${VIEWPORT_NAME}-${QUICK_START_KEY}.png`;
 const STUB_AUTH = envFlag("ONBOARDING_SMOKE_STUB_AUTH");
+const SAMPLE_QUICK_START_METADATA = {
+  quick_start_goal: "explore_sample_data",
+  quick_start_id: "sample_preview",
+  quick_start_primary_path: "sample",
+};
 
 const QUICK_STARTS = {
   observe: {
@@ -35,6 +40,7 @@ const QUICK_STARTS = {
   },
   sample_preview: {
     buttonText: "Preview sample trace first",
+    directSampleTrace: true,
     expectedAttribution: {
       quick_start_goal: "explore_sample_data",
       quick_start_id: "sample_preview",
@@ -128,7 +134,11 @@ async function main() {
   const onboardingPosts = [];
   const requestFailures = [];
   const setupPosts = [];
+  const activationEventPosts = [];
   const activationStateRequests = [];
+  const sampleProjectPosts = [];
+  const sampleProjectResponses = [];
+  const traceDetailRequests = [];
   let setupCompleted = false;
 
   const browser = await puppeteer.launch({
@@ -142,13 +152,17 @@ async function main() {
   await page.setCacheEnabled(false);
   await page.setBypassServiceWorker(true);
   await installRuntime(page, auth, {
+    activationEventPosts,
     activationStateRequests,
     getSetupCompleted: () => setupCompleted,
     onboardingPosts,
     onSetupComplete: () => {
       setupCompleted = true;
     },
+    sampleProjectPosts,
+    sampleProjectResponses,
     setupPosts,
+    traceDetailRequests,
   });
   await page.evaluateOnNewDocument(
     ({ tokens, organizationId, workspaceId, user }) => {
@@ -204,27 +218,37 @@ async function main() {
       localStorage.setItem("redirectUrl", "/dashboard/observe?project=stale");
     });
     await clickVisibleButtonText(page, QUICK_START.buttonText);
-    await page.waitForFunction(
-      () =>
-        window.location.pathname === "/dashboard/home" &&
-        new URLSearchParams(window.location.search).get("source") ===
-          "setup_org",
-      { timeout: 30000 },
-    );
+    let homeParams = null;
+    let sampleTraceUrl = null;
+    if (QUICK_START.directSampleTrace) {
+      await waitForSampleTraceRoute(page, { timeout: 30000 });
+      sampleTraceUrl = relativeUrl(page.url());
+      await expectVisibleText(page, "Trace", { exact: true });
+      await expectVisibleText(page, "Sample trace review");
+      await expectVisibleText(page, "Connect your app", { exact: true });
+    } else {
+      await page.waitForFunction(
+        () =>
+          window.location.pathname === "/dashboard/home" &&
+          new URLSearchParams(window.location.search).get("source") ===
+            "setup_org",
+        { timeout: 30000 },
+      );
 
-    const homeParams = await page.evaluate(() =>
-      Object.fromEntries(new URL(window.location.href).searchParams),
-    );
-    assertExpectedAttribution(homeParams, {
-      ...QUICK_START.expectedAttribution,
-      source: "setup_org",
-    });
-
-    await expectSelector(page, QUICK_START.expectedSelector);
-    for (const text of QUICK_START.expectedTexts) {
-      await expectVisibleText(page, text, {
-        exact: true,
+      homeParams = await page.evaluate(() =>
+        Object.fromEntries(new URL(window.location.href).searchParams),
+      );
+      assertExpectedAttribution(homeParams, {
+        ...QUICK_START.expectedAttribution,
+        source: "setup_org",
       });
+
+      await expectSelector(page, QUICK_START.expectedSelector);
+      for (const text of QUICK_START.expectedTexts) {
+        await expectVisibleText(page, text, {
+          exact: true,
+        });
+      }
     }
 
     const browserState = await page.evaluate(() => ({
@@ -254,14 +278,60 @@ async function main() {
       setupPosts.length === 0,
       "Expected no setup organization POST on product-loop quick start.",
     );
-    assert(
-      activationStateRequests.length === 1,
-      `Expected one activation-state request, got ${activationStateRequests.length}`,
-    );
-    assertExpectedAttribution(activationStateRequests[0], {
-      ...QUICK_START.expectedAttribution,
-      source: "setup_org",
-    });
+    if (QUICK_START.directSampleTrace) {
+      await waitForCondition(
+        () => sampleProjectPosts.length === 1,
+        "Expected one setup-org sample-project POST.",
+      );
+      await waitForCondition(
+        () => traceDetailRequests.length === 1,
+        "Expected one sample trace detail request.",
+      );
+      await waitForCondition(
+        () =>
+          activationEventPosts.some(
+            (payload) =>
+              payload?.event_name === "sample_trace_detail_opened" &&
+              payload?.primary_path === "sample" &&
+              payload?.stage === "review_first_trace" &&
+              payload?.artifact_id === "trace-smoke-1" &&
+              payload?.is_sample === true &&
+              hasSampleQuickStartMetadata(payload),
+          ),
+        "Sample trace detail activation event was not posted with sample quick-start metadata.",
+      );
+      assert(
+        sampleProjectPosts[0]?.source === "setup_org",
+        `Expected sample source setup_org, got ${sampleProjectPosts[0]?.source}`,
+      );
+      assert(
+        sampleProjectPosts[0]?.reason === "sample_preview",
+        `Expected sample reason sample_preview, got ${sampleProjectPosts[0]?.reason}`,
+      );
+      assert(
+        sampleProjectPosts[0]?.open_after_create === true,
+        `Expected open_after_create=true, got ${sampleProjectPosts[0]?.open_after_create}`,
+      );
+      assert(
+        sampleProjectResponses[0]?.activation_state?.is_activated === false,
+        `Sample preview must not activate the workspace; got ${sampleProjectResponses[0]?.activation_state?.is_activated}`,
+      );
+      assert(
+        !sampleProjectResponses[0]?.activation_state?.signals
+          ?.first_observe_id &&
+          !sampleProjectResponses[0]?.activation_state?.signals?.first_trace_id,
+        "Sample preview must not expose real observe or trace identifiers.",
+      );
+    } else {
+      assert(
+        activationStateRequests.length === 1,
+        `Expected one activation-state request, got ${activationStateRequests.length}`,
+      );
+      assertExpectedAttribution(activationStateRequests[0], {
+        ...QUICK_START.expectedAttribution,
+        source: "setup_org",
+      });
+    }
     assert(apiFailures.length === 0, `API failures: ${apiFailures.join("; ")}`);
     assert(pageErrors.length === 0, `Page errors: ${pageErrors.join("; ")}`);
 
@@ -280,9 +350,23 @@ async function main() {
             home_params: homeParams,
             onboarding_post: onboardingPosts[0],
             request_failures: requestFailures,
+            sample_project_post: sampleProjectPosts[0],
+            sample_project_response: sampleProjectResponses[0],
+            sample_trace_activation_event: activationEventPosts.find(
+              (payload) => payload?.event_name === "sample_trace_detail_opened",
+            ),
+            sample_trace_entry: QUICK_START.directSampleTrace
+              ? {
+                  clicks_after_quick_start: 0,
+                  quick_start_id: "sample_preview",
+                  source: "setup_org",
+                }
+              : null,
+            sample_trace_url: sampleTraceUrl,
             screenshot: SCREENSHOT_PATH,
             setup_posts: setupPosts,
             setup_quick_start: QUICK_START_KEY,
+            trace_detail_requests: traceDetailRequests,
             viewport: VIEWPORT_NAME,
           },
         },
@@ -298,14 +382,17 @@ async function main() {
           app_base: APP_BASE,
           diagnostic: {
             activation_state_requests: activationStateRequests,
+            activation_event_posts: activationEventPosts,
             api_failures: apiFailures,
             body_text: await safeBodyText(page),
             console_messages: consoleMessages,
             page_errors: pageErrors,
             request_failures: requestFailures,
+            sample_project_posts: sampleProjectPosts,
             setup_quick_start: QUICK_START_KEY,
             onboarding_posts: onboardingPosts,
             setup_posts: setupPosts,
+            trace_detail_requests: traceDetailRequests,
             url: page.url(),
           },
         },
@@ -334,11 +421,15 @@ async function installRuntime(
   page,
   auth,
   {
+    activationEventPosts,
     activationStateRequests,
     getSetupCompleted,
     onboardingPosts,
     onSetupComplete,
+    sampleProjectPosts,
+    sampleProjectResponses,
     setupPosts,
+    traceDetailRequests,
   },
 ) {
   await page.setRequestInterception(true);
@@ -464,12 +555,34 @@ async function installRuntime(
     }
 
     if (normalizedPath === "/accounts/activation-events/") {
+      const payload = parseJsonPostData(request.postData());
+      activationEventPosts.push(payload);
       await respondJson(request, {
         status: true,
         result: {
           event_id: "00000000-0000-4000-8000-000000000199",
+          event_name: payload?.event_name || "onboarding_event",
+          activation_state: stubbedActivationState(auth),
         },
       });
+      return;
+    }
+
+    if (normalizedPath === "/accounts/sample-project/") {
+      const payload = parseJsonPostData(request.postData());
+      sampleProjectPosts.push(payload);
+      const result = sampleProjectOpenResponse(auth);
+      sampleProjectResponses.push(result);
+      await respondJson(request, {
+        status: true,
+        result,
+      });
+      return;
+    }
+
+    if (normalizedPath === "/tracer/trace/trace-smoke-1/") {
+      traceDetailRequests.push(normalizedPath);
+      await respondJson(request, traceDetailResponse());
       return;
     }
 
@@ -606,6 +719,88 @@ function pathFocusDetails(primaryPath) {
   return selected;
 }
 
+function sampleProjectOpenResponse(auth) {
+  const activationState = getActivationStateFixture("sampleTraceReady");
+  const entryRoute =
+    "/dashboard/observe/observe-smoke-project/trace/trace-smoke-1?sample=true&from=onboarding";
+
+  return {
+    sample_project: {
+      available: true,
+      created: true,
+      status: "ready_for_observe",
+      href: entryRoute,
+      version: "sample-observe-v1",
+      is_hidden: false,
+      hidden_reason: null,
+      manifest_id: "observe-quality-loop",
+      manifest_version: "2026-05-26.1",
+      label: "Sample",
+      entry_route: entryRoute,
+      entry_routes: [entryRoute],
+      missing_artifacts: [],
+      last_opened_at: "2026-05-30T10:00:00Z",
+      real_setup_href: "/dashboard/observe?setup=true&source=onboarding",
+    },
+    activation_state: {
+      ...activationState,
+      is_activated: false,
+      organization_id: auth.organizationId,
+      request_id: "setup_org_sample_preview_smoke",
+      user_id: auth.user.id,
+      workspace_id: auth.workspaceId,
+      signals: {
+        ...activationState.signals,
+        first_observe_id: null,
+        first_trace_id: null,
+        observe_projects: 0,
+        traces: 0,
+      },
+      sample_project: {
+        ...activationState.sample_project,
+        available: true,
+        created: true,
+        status: "ready_for_observe",
+        href: entryRoute,
+        entry_route: entryRoute,
+        entry_routes: [entryRoute],
+      },
+    },
+  };
+}
+
+function traceDetailResponse() {
+  return {
+    status: true,
+    result: {
+      trace: {
+        id: "trace-smoke-1",
+        project: "observe-smoke-project",
+        name: "Sample checkout trace",
+        input: {
+          prompt: "Summarize the customer request.",
+        },
+        output: {
+          answer: "The customer needs setup guidance.",
+        },
+        external_id: "sample-checkout-trace",
+        tags: [],
+      },
+      observation_spans: [],
+      summary: {
+        total_spans: 0,
+        total_duration_ms: 420,
+        total_tokens: 42,
+        total_cost: 0.00042,
+      },
+      graph: {
+        nodes: [],
+        edges: [],
+      },
+    },
+  };
+}
+
 function createStubbedAuthenticatedContext() {
   const userId = "00000000-0000-4000-8000-000000000111";
   const organizationId = "00000000-0000-4000-8000-000000000211";
@@ -699,6 +894,53 @@ function slashPath(path) {
   return `${path}/`;
 }
 
+function safeUrl(value) {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function relativeUrl(value) {
+  const url = safeUrl(value);
+  if (!url) return value;
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+async function waitForCondition(
+  condition,
+  message,
+  { interval = 100, timeout = 30000 } = {},
+) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeout) {
+    if (condition()) return;
+    await new Promise((resolve) => {
+      setTimeout(resolve, interval);
+    });
+  }
+  throw new Error(message);
+}
+
+async function waitForSampleTraceRoute(page, { timeout = 30000 } = {}) {
+  await page.waitForFunction(
+    () => {
+      const segments = window.location.pathname.split("/").filter(Boolean);
+      const params = new URLSearchParams(window.location.search);
+      return (
+        segments.length === 5 &&
+        segments[0] === "dashboard" &&
+        segments[1] === "observe" &&
+        segments[3] === "trace" &&
+        params.get("sample") === "true" &&
+        params.get("from") === "onboarding"
+      );
+    },
+    { timeout },
+  );
+}
+
 async function expectSelector(page, selector, timeout = 30000) {
   await page.waitForSelector(selector, { timeout, visible: true });
 }
@@ -785,7 +1027,7 @@ async function safeBodyText(page) {
 }
 
 function isStubbedApiPath(path) {
-  return path.startsWith("/accounts/");
+  return path.startsWith("/accounts/") || path.startsWith("/tracer/trace/");
 }
 
 function isSetupSmokeApiUrl(url) {
@@ -793,8 +1035,38 @@ function isSetupSmokeApiUrl(url) {
     url.includes("/accounts/user-info/") ||
     url.includes("/accounts/onboarding/") ||
     url.includes("/accounts/team/users/") ||
-    url.includes("/accounts/activation-state/")
+    url.includes("/accounts/activation-state/") ||
+    url.includes("/accounts/activation-events/") ||
+    url.includes("/accounts/sample-project/") ||
+    url.includes("/tracer/trace/trace-smoke-1/")
   );
+}
+
+function hasSampleQuickStartMetadata(payload) {
+  const metadata = paramsObject(payload?.metadata);
+  return Object.entries(SAMPLE_QUICK_START_METADATA).every(
+    ([key, expected]) => metadata?.[key] === expected,
+  );
+}
+
+function paramsObject(value) {
+  if (!value) return {};
+  if (typeof value === "string") {
+    const url = safeUrl(value);
+    if (url) return Object.fromEntries(url.searchParams);
+    try {
+      return JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  if (value instanceof URLSearchParams) {
+    return Object.fromEntries(value);
+  }
+  if (typeof value === "object") {
+    return value;
+  }
+  return {};
 }
 
 function browserExecutablePath() {

@@ -622,14 +622,30 @@ describe("OnboardingHomeView", () => {
     });
   });
 
-  it("keeps sample preview quick starts focused on the sample Aha action", () => {
+  it("opens sample preview quick starts to the sample Aha action", async () => {
+    const mutateAsync = vi
+      .fn()
+      .mockResolvedValue(normalizedFixture("sampleTraceReady"));
+    const refetch = vi.fn();
+    mocks.useSampleProject.mockReturnValue({
+      openSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync,
+      },
+      hideSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync: vi.fn(),
+      },
+    });
     mocks.useActivationState.mockReturnValue({
       state: normalizedFixture("sampleTraceReady"),
       isLoading: false,
       isRefetching: false,
       isError: false,
       error: null,
-      refetch: vi.fn(),
+      refetch,
     });
 
     renderView(
@@ -650,6 +666,59 @@ describe("OnboardingHomeView", () => {
     expect(
       screen.queryByTestId("onboarding-path-card-grid"),
     ).not.toBeInTheDocument();
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "observe",
+        source: "setup_org",
+        reason: "sample_preview",
+        openAfterCreate: true,
+        quickStartGoal: "explore_sample_data",
+        quickStartId: "sample_preview",
+        quickStartPrimaryPath: "sample",
+      }),
+    );
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the sample preview fallback visible when auto-open fails", async () => {
+    const mutateAsync = vi.fn().mockRejectedValue(new Error("sample failed"));
+    mocks.useSampleProject.mockReturnValue({
+      openSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync,
+      },
+      hideSampleProject: {
+        isLoading: false,
+        isPending: false,
+        mutateAsync: vi.fn(),
+      },
+    });
+    mocks.useActivationState.mockReturnValue({
+      state: normalizedFixture("sampleTraceReady"),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView(
+      "/dashboard/home?source=setup_org&quick_start_id=sample_preview&quick_start_goal=explore_sample_data&quick_start_primary_path=sample",
+    );
+
+    expect(screen.getByTestId("sample-project-panel")).toBeVisible();
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId("sample-project-panel")).toBeVisible();
+    expect(mocks.trackOnboardingHomeEvent).toHaveBeenCalledWith(
+      "sample_project_open_failed",
+      expect.objectContaining({
+        is_sample: true,
+        action_path: "sample",
+        reason: "sample failed",
+      }),
+    );
   });
 
   it("drops unrecognized quick-start URL attribution before tracking", async () => {
