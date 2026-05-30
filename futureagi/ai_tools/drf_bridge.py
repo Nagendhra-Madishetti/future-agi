@@ -747,11 +747,18 @@ def _register_bridge_tool(
         # `type` filter) would lose its id field entirely (TH-5386).
         if detail and pk_field:
             annotations[pk_field] = str
-            fields_dict[pk_field] = PydanticField(
-                description=(
-                    f"UUID of the {entity_name} to {action_name} (UUID v4 format)."
-                )
+            _qp_id_desc = (
+                f"UUID of the {entity_name} to {action_name} (UUID v4 format)."
             )
+            _qp_id_hint = tool_config.get("id_source") or _find_list_tool_for_viewset(
+                viewset_path
+            )
+            if _qp_id_hint:
+                _qp_id_desc += (
+                    f" **How to get it:** call `{_qp_id_hint}` first and copy "
+                    "the 'id'."
+                )
+            fields_dict[pk_field] = PydanticField(description=_qp_id_desc)
         for param_name, param_info in query_params.items():
             if isinstance(param_info, str):
                 param_info = {"type": str, "description": param_info, "required": False}

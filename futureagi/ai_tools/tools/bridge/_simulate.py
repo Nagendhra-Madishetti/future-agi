@@ -25,12 +25,26 @@ from simulate.views.scenarios import ScenarioDetailView
 # scenario_id) so the id reaches `get(request, <kwarg>=id)`.
 expose_to_mcp(
     category="agents",
-    tools={"retrieve": {"name": "get_call_execution", "pk_kwarg": "call_execution_id"}},
+    tools={
+        "retrieve": {
+            "name": "get_call_execution",
+            "pk_kwarg": "call_execution_id",
+            # APIViews have no auto-discovered list tool, so tell the agent where
+            # the id comes from (so search_tools surfaces the prerequisite call).
+            "id_source": "get_test_execution",
+        }
+    },
 )(CallExecutionDetailView)
 
 expose_to_mcp(
     category="simulation",
-    tools={"retrieve": {"name": "get_scenario", "pk_kwarg": "scenario_id"}},
+    tools={
+        "retrieve": {
+            "name": "get_scenario",
+            "pk_kwarg": "scenario_id",
+            "id_source": "list_scenarios",
+        }
+    },
 )(ScenarioDetailView)
 
 # export_test_execution_csv -> CSVExportView.get(request, item_id): the same
@@ -45,6 +59,7 @@ expose_to_mcp(
         "retrieve": {
             "name": "export_test_execution_csv",
             "pk_kwarg": "item_id",
+            "id_source": "list_test_executions",
             "entity": "run test or test execution",
             "description": (
                 "Export a run test's or test execution's call data as CSV "
@@ -88,6 +103,7 @@ expose_to_mcp(
         "retrieve": {
             "name": "get_fix_my_agent_analysis",
             "pk_kwarg": "test_execution_id",
+            "id_source": "list_test_executions",
             "entity": "test execution",
             "description": (
                 "Get the 'Fix My Agent' optimiser analysis for a test execution "
