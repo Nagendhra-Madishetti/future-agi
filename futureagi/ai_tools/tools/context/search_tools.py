@@ -175,6 +175,52 @@ def _expand(tokens: list[str]) -> set[str]:
     return out
 
 
+# Words that signal the user wants the WHOLE landscape ("what tools do I have",
+# "show me everything") rather than one specific tool — triggers the capability
+# overview so the model can browse the full surface and drill in by category.
+_OVERVIEW_WORDS = {
+    "all",
+    "everything",
+    "anything",
+    "capabilities",
+    "capability",
+    "overview",
+    "available",
+    "catalog",
+    "landscape",
+}
+
+
+def _capability_overview(limit_examples: int = 6) -> tuple[list[str], int, int]:
+    """Group every registered tool by category with counts + example names.
+
+    Lets the model see the FULL capability landscape (not just keyword hits) and
+    re-query with a ``category`` filter to load a specific area. This is the
+    "what tools do I have" map that backs the smarter discovery flow.
+    """
+    from collections import defaultdict
+
+    from ai_tools.registry import registry
+
+    by_cat: dict[str, list[str]] = defaultdict(list)
+    for t in registry.list_all():
+        if t.name == "search_tools":
+            continue
+        by_cat[t.category or "other"].append(t.name)
+    lines = []
+    for cat in sorted(by_cat):
+        names = sorted(by_cat[cat])
+        ex = ", ".join(f"`{n}`" for n in names[:limit_examples])
+        more = (
+            f" … (+{len(names) - limit_examples} more)"
+            if len(names) > limit_examples
+            else ""
+        )
+        lines.append(f"- **{cat}** ({len(names)}): {ex}{more}")
+    total = sum(len(v) for v in by_cat.values())
+    return lines, total, len(by_cat)
+
+
 class SearchToolsInput(PydanticBaseModel):
     query: str = Field(
         description=(
@@ -209,8 +255,10 @@ class SearchToolsTool(BaseTool):
         "AND parameter names (so 'sampling rate' finds the tool whose parameter "
         "is sampling_rate), and aligns your action verb (create/list/update/"
         "delete) with the right tool. After calling this, call the returned tool "
-        "by its exact name — it loads automatically. Never claim an action is "
-        "impossible without searching here first."
+        "by its exact name — it loads automatically. Ask broadly (e.g. 'what "
+        "tools do I have', 'show all capabilities') to get the full category map "
+        "of every tool you have, then pass category='<name>' to list one area. "
+        "Never claim an action is impossible without searching here first."
     )
     category = "context"
     input_model = SearchToolsInput
@@ -285,14 +333,24 @@ class SearchToolsTool(BaseTool):
         top = scored[: params.limit]
 
         if not top:
+            # No keyword hit — don't dead-end. Show the FULL capability map (all
+            # categories + counts + examples) so the model sees what exists and
+            # can re-query by category or with a better term.
+            ov_lines, ov_total, ov_cats = _capability_overview()
             return ToolResult(
                 content=section(
-                    "No matching tools",
-                    f'No tools matched "{params.query}". Try broader terms, or '
-                    "describe the entity (dataset, eval, trace, prompt, agent, "
-                    "annotation, alert, dashboard, user).",
+                    f'No exact match for "{params.query}" — here is your full '
+                    f"toolset ({ov_total} tools across {ov_cats} categories)",
+                    "\n".join(ov_lines) + "\n\n_Re-run search_tools with a category "
+                    "(e.g. category='simulation') or a word from one of the "
+                    "tool names above — the tool loads on call._",
                 ),
-                data={"query": params.query, "tools": []},
+                data={
+                    "query": params.query,
+                    "tools": [],
+                    "categories": ov_cats,
+                    "total_tools": ov_total,
+                },
             )
 
         lines = []
@@ -350,6 +408,17 @@ class SearchToolsTool(BaseTool):
             "target tool** — read each tool's description above for which "
             "prerequisite call supplies its ids._",
         )
+        # Broad "what tools do I have / show me everything" intent → also append
+        # the full capability map so the model can browse the whole surface, not
+        # just the keyword hits above.
+        if _OVERVIEW_WORDS & set(q_tokens):
+            ov_lines, ov_total, ov_cats = _capability_overview()
+            content += "\n\n" + section(
+                f"Your full toolset ({ov_total} tools across {ov_cats} categories)",
+                "\n".join(ov_lines)
+                + "\n\n_Re-run search_tools with category='<name>' to list a "
+                "whole category's tools._",
+            )
         return ToolResult(
             content=content, data={"query": params.query, "tools": data_tools}
         )
