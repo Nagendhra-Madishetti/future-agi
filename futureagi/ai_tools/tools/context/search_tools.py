@@ -258,7 +258,15 @@ class SearchToolsTool(BaseTool):
             for pname in list(props.keys())[:6]:
                 param_bits.append(f"{pname}{'*' if pname in required else ''}")
             params_str = ", ".join(param_bits) if param_bits else "(no params)"
-            desc = (tool.description or "").strip().split(". ")[0][:140]
+            # Show the FULL (capped) description, not just the first sentence.
+            # The "how to use this" guidance — e.g. "provide the id from
+            # list_X / get_X first" — almost always lives past sentence 1, so
+            # truncating to the first sentence left Falcon unable to see that a
+            # prerequisite call is needed, and it tried to run the tool without
+            # the required id. Keeping the whole description lets it chain.
+            desc = (tool.description or "").strip()
+            if len(desc) > 500:
+                desc = desc[:500].rstrip() + "…"
             lines.append(
                 f"- **`{tool.name}`** ({tool.category}) — {desc}\n"
                 f"    params: {params_str}"
@@ -275,8 +283,12 @@ class SearchToolsTool(BaseTool):
         content = section(
             f"Tools matching “{params.query}” ({len(top)})",
             "\n".join(lines)
-            + "\n\n_Call any tool above by its exact name — it loads automatically. "
-            "`*` marks required parameters._",
+            + "\n\n_Call any tool above by its exact name — it loads "
+            "automatically. `*` marks required parameters. **If a required "
+            "parameter (e.g. an id) isn't known yet, call the matching "
+            "`list_*` / `get_*` tool FIRST to retrieve it, then call the "
+            "target tool** — read each tool's description above for which "
+            "prerequisite call supplies its ids._",
         )
         return ToolResult(
             content=content, data={"query": params.query, "tools": data_tools}
