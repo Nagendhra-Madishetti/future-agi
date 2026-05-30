@@ -3,6 +3,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from django.db import transaction
+from django.db.models import Count, Max, Min, Q
 
 from accounts.models import (
     OnboardingActivationFactReceipt,
@@ -27,6 +28,21 @@ ACTIVE_SEND_STATUSES = frozenset(
         OnboardingLifecycleSendLog.STATUS_COMPLETED,
     }
 )
+LIFECYCLE_COHORT_REPORT_GROUPS = {
+    "activation_stage": "activation_stage",
+    "campaign_group": "campaign_group",
+    "campaign_key": "campaign_key",
+    "deployment_region": "source_receipt__deployment_region",
+    "plan_tier": "source_receipt__plan_tier",
+    "primary_cohort_key": "source_receipt__primary_cohort_key",
+    "primary_path": "primary_path",
+    "status": "status",
+    "target_success_event": "target_success_event",
+}
+
+
+def _isoformat(value):
+    return value.isoformat() if value else None
 
 
 @dataclass(frozen=True)
@@ -48,6 +64,22 @@ class ActivationFactLifecycleImportResult:
             "campaign_counts": self.campaign_counts,
             "skip_counts": self.skip_counts,
             "errors": self.errors,
+        }
+
+
+@dataclass(frozen=True)
+class ActivationFactLifecycleCohortReportResult:
+    since: object | None
+    until: object | None
+    group_by: tuple[str, ...]
+    rows: tuple[dict, ...]
+
+    def to_payload(self):
+        return {
+            "since": _isoformat(self.since),
+            "until": _isoformat(self.until),
+            "group_by": list(self.group_by),
+            "rows": list(self.rows),
         }
 
 
@@ -277,4 +309,77 @@ def import_activation_fact_lifecycle_evaluations(
         campaign_counts=dict(campaign_counts),
         skip_counts=dict(skip_counts),
         errors=errors,
+    )
+
+
+def receipt_backed_lifecycle_cohort_report(
+    *,
+    since=None,
+    until=None,
+    campaign_key=None,
+    workspace_id=None,
+    organization_id=None,
+    group_by=("campaign_key", "primary_cohort_key"),
+):
+    normalized_group_by = tuple(group_by or ("campaign_key", "primary_cohort_key"))
+    unknown_groups = sorted(
+        key for key in normalized_group_by if key not in LIFECYCLE_COHORT_REPORT_GROUPS
+    )
+    if unknown_groups:
+        supported = ", ".join(sorted(LIFECYCLE_COHORT_REPORT_GROUPS))
+        unknown = ", ".join(unknown_groups)
+        raise ValueError(
+            f"Unsupported group_by value(s): {unknown}. Supported: {supported}."
+        )
+
+    queryset = OnboardingLifecycleEvaluationLog.no_workspace_objects.filter(
+        source_receipt__isnull=False,
+    ).select_related("source_receipt")
+    if since:
+        queryset = queryset.filter(evaluated_at__gte=since)
+    if until:
+        queryset = queryset.filter(evaluated_at__lte=until)
+    if campaign_key:
+        queryset = queryset.filter(campaign_key=campaign_key)
+    if workspace_id:
+        queryset = queryset.filter(workspace_id=workspace_id)
+    if organization_id:
+        queryset = queryset.filter(organization_id=organization_id)
+
+    value_fields = [LIFECYCLE_COHORT_REPORT_GROUPS[key] for key in normalized_group_by]
+    grouped = queryset.values(*value_fields)
+    grouped = grouped.annotate(
+        eligible_count=Count(
+            "id",
+            filter=Q(status=OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE),
+        ),
+        first_evaluated_at=Min("evaluated_at"),
+        last_evaluated_at=Max("evaluated_at"),
+        source_receipt_count=Count("source_receipt_id", distinct=True),
+        user_count=Count("user_id", distinct=True),
+        workspace_count=Count("workspace_id", distinct=True),
+    ).order_by(*value_fields)
+
+    rows = []
+    for row in grouped:
+        rows.append(
+            {
+                **{
+                    key: row.get(LIFECYCLE_COHORT_REPORT_GROUPS[key])
+                    for key in normalized_group_by
+                },
+                "source_receipt_count": row["source_receipt_count"],
+                "eligible_count": row["eligible_count"],
+                "workspace_count": row["workspace_count"],
+                "user_count": row["user_count"],
+                "first_evaluated_at": _isoformat(row["first_evaluated_at"]),
+                "last_evaluated_at": _isoformat(row["last_evaluated_at"]),
+            }
+        )
+
+    return ActivationFactLifecycleCohortReportResult(
+        since=since,
+        until=until,
+        group_by=normalized_group_by,
+        rows=tuple(rows),
     )

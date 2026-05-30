@@ -1,5 +1,7 @@
 import io
+import json
 import uuid
+from datetime import timedelta
 
 import pytest
 from django.core.management import call_command
@@ -8,12 +10,14 @@ from django.utils import timezone
 from accounts.models import (
     OnboardingActivationFactReceipt,
     OnboardingLifecycleEvaluationLog,
+    User,
 )
 from accounts.services.onboarding.activation_exporter import (
     ACTIVATION_EXPORT_SCHEMA_VERSION,
 )
 from accounts.services.onboarding.activation_fact_lifecycle import (
     import_activation_fact_lifecycle_evaluations,
+    receipt_backed_lifecycle_cohort_report,
 )
 from accounts.services.onboarding.lifecycle_sender import (
     send_limited_onboarding_lifecycle_batch,
@@ -68,6 +72,16 @@ def _receipt(organization, workspace, user, **overrides):
     }
     fields.update(overrides)
     return OnboardingActivationFactReceipt.no_workspace_objects.create(**fields)
+
+
+def _user(organization, email):
+    return User.objects.create_user(
+        email=email,
+        password="testpassword123",
+        name=email.split("@")[0],
+        organization=organization,
+        organization_role="owner",
+    )
 
 
 @pytest.mark.django_db
@@ -234,3 +248,152 @@ def test_receipt_sourced_lifecycle_logs_are_excluded_from_send_batch(
     assert result.evaluated == 0
     assert result.sent == 0
     assert result.candidates == ()
+
+
+@pytest.mark.django_db
+def test_activation_fact_lifecycle_report_groups_receipt_backed_rows_by_cohort(
+    organization,
+    workspace,
+    user,
+):
+    second_user = _user(organization, "second-report-user@futureagi.com")
+    _receipt(organization, workspace, user)
+    _receipt(
+        organization,
+        workspace,
+        second_user,
+        user_id_value=second_user.id,
+        deployment_region="eu",
+    )
+    import_activation_fact_lifecycle_evaluations(limit=10)
+
+    report = receipt_backed_lifecycle_cohort_report(
+        group_by=("campaign_key", "primary_cohort_key", "plan_tier"),
+    ).to_payload()
+
+    assert report["group_by"] == ["campaign_key", "primary_cohort_key", "plan_tier"]
+    assert report["rows"] == [
+        {
+            "campaign_key": "observe_waiting_for_first_trace",
+            "primary_cohort_key": "observe_waiting_first_trace",
+            "plan_tier": "payg",
+            "source_receipt_count": 2,
+            "eligible_count": 2,
+            "workspace_count": 1,
+            "user_count": 2,
+            "first_evaluated_at": report["rows"][0]["first_evaluated_at"],
+            "last_evaluated_at": report["rows"][0]["last_evaluated_at"],
+        }
+    ]
+    assert report["rows"][0]["first_evaluated_at"]
+    assert report["rows"][0]["last_evaluated_at"]
+
+
+@pytest.mark.django_db
+def test_activation_fact_lifecycle_report_filters_by_since_until_campaign_workspace(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    old_user = _user(organization, "old-report-user@futureagi.com")
+    gateway_user = _user(organization, "gateway-report-user@futureagi.com")
+    _receipt(organization, workspace, user, evaluated_at=now)
+    _receipt(
+        organization,
+        workspace,
+        old_user,
+        user_id_value=old_user.id,
+        evaluated_at=now - timedelta(days=3),
+    )
+    _receipt(
+        organization,
+        workspace,
+        gateway_user,
+        user_id_value=gateway_user.id,
+        lifecycle_campaign_key="gateway_create_key",
+        lifecycle_template_key="gateway_create_key_v1",
+        activation_stage="create_gateway_key",
+        primary_path="gateway",
+        primary_cohort_key="gateway_create_key",
+        evaluated_at=now,
+    )
+    import_activation_fact_lifecycle_evaluations(limit=10)
+
+    report = receipt_backed_lifecycle_cohort_report(
+        since=now - timedelta(hours=1),
+        until=now + timedelta(hours=1),
+        campaign_key="observe_waiting_for_first_trace",
+        workspace_id=workspace.id,
+        group_by=("campaign_key", "primary_cohort_key"),
+    ).to_payload()
+
+    assert len(report["rows"]) == 1
+    assert report["rows"][0]["campaign_key"] == "observe_waiting_for_first_trace"
+    assert report["rows"][0]["primary_cohort_key"] == "observe_waiting_first_trace"
+    assert report["rows"][0]["source_receipt_count"] == 1
+    assert report["rows"][0]["workspace_count"] == 1
+    assert report["rows"][0]["user_count"] == 1
+
+
+@pytest.mark.django_db
+def test_activation_fact_lifecycle_report_excludes_non_receipt_lifecycle_rows(
+    organization,
+    workspace,
+    user,
+):
+    _receipt(organization, workspace, user)
+    import_activation_fact_lifecycle_evaluations(limit=10)
+    OnboardingLifecycleEvaluationLog.no_workspace_objects.create(
+        run_id=uuid.uuid4(),
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        campaign_key="observe_waiting_for_first_trace",
+        campaign_group="observe",
+        template_key="observe_waiting_for_first_trace_v1",
+        template_version="v1",
+        activation_stage="waiting_for_first_trace",
+        primary_path="observe",
+        status=OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE,
+        evaluated_at=timezone.now(),
+        activation_state_snapshot={},
+        registry_snapshot={},
+    )
+
+    report = receipt_backed_lifecycle_cohort_report().to_payload()
+
+    assert len(report["rows"]) == 1
+    assert report["rows"][0]["source_receipt_count"] == 1
+    assert report["rows"][0]["eligible_count"] == 1
+
+
+@pytest.mark.django_db
+def test_activation_fact_lifecycle_report_command_outputs_json(
+    organization,
+    workspace,
+    user,
+):
+    _receipt(organization, workspace, user)
+    import_activation_fact_lifecycle_evaluations(limit=10)
+    stdout = io.StringIO()
+
+    call_command(
+        "report_onboarding_activation_fact_lifecycle_cohorts",
+        "--group-by",
+        "campaign_key,primary_cohort_key,plan_tier",
+        "--format",
+        "json",
+        stdout=stdout,
+    )
+
+    payload = json.loads(stdout.getvalue())
+    assert payload["group_by"] == [
+        "campaign_key",
+        "primary_cohort_key",
+        "plan_tier",
+    ]
+    assert payload["rows"][0]["campaign_key"] == "observe_waiting_for_first_trace"
+    assert payload["rows"][0]["primary_cohort_key"] == "observe_waiting_first_trace"
+    assert payload["rows"][0]["plan_tier"] == "payg"
+    assert payload["rows"][0]["source_receipt_count"] == 1
