@@ -310,6 +310,7 @@ const SMOKES = [
     id: "signup-real-proof-pack",
     mode: "real-signup",
     suite: true,
+    continueOnFailure: true,
     sequence: [
       "signup-sample-open-real",
       "signup-sample-open-mobile-real",
@@ -432,12 +433,29 @@ async function runSmoke(smoke, stack, inheritedEnv) {
       throw new Error(`Onboarding smoke suite cycle: ${stack.join(" -> ")}`);
     }
     console.log(`RUN ${smoke.id} ${smoke.description}`);
+    const failures = [];
     for (const childId of smoke.sequence) {
       const child = SMOKES.find((candidate) => candidate.id === childId);
       if (!child) {
         throw new Error(`Unknown onboarding smoke in suite: ${childId}`);
       }
-      await runSmoke(child, [...stack, smoke.id], env);
+      try {
+        await runSmoke(child, [...stack, smoke.id], env);
+      } catch (error) {
+        if (!smoke.continueOnFailure) throw error;
+        failures.push({
+          id: child.id,
+          message: error?.message || String(error),
+        });
+        console.error(`FAIL ${child.id}: ${error?.message || String(error)}`);
+      }
+    }
+    if (failures.length > 0) {
+      throw new Error(
+        `${smoke.id} failed: ${failures
+          .map((failure) => `${failure.id} (${failure.message})`)
+          .join("; ")}`,
+      );
     }
     console.log(`PASS ${smoke.id}`);
     return;
