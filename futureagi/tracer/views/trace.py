@@ -1781,7 +1781,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
 
     def get_eval_configs(self, project_id, base_query):
         eval_configs = CustomEvalConfig.objects.filter(
-            id__in=EvalLogger.objects.filter(trace__project_id=project_id)
+            id__in=EvalLogger.objects.filter(
+                trace_id__in=Trace.objects.filter(project_id=project_id).values("id")
+            )
             .values("custom_eval_config_id")
             .distinct(),
             deleted=False,
@@ -2273,7 +2275,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             # Get eval metrics in a single query
             eval_metrics = (
                 EvalLogger.objects.filter(
-                    trace__project_version_id__in=project_version_ids
+                    trace_id__in=Trace.objects.filter(
+                        project_version_id__in=project_version_ids
+                    ).values("id")
                 )
                 .values(
                     "trace_id",
@@ -2316,7 +2320,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                             for value in {
                                 element
                                 for sublist in EvalLogger.objects.filter(
-                                    trace__project_version_id__in=project_version_ids,
+                                    trace_id__in=Trace.objects.filter(
+                                        project_version_id__in=project_version_ids
+                                    ).values("id"),
                                     output_str_list__isnull=False,
                                 )
                                 .values_list("output_str_list", flat=True)
@@ -2538,7 +2544,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             # Get all eval configs from the project version
             eval_configs = CustomEvalConfig.objects.filter(
                 id__in=EvalLogger.objects.filter(
-                    trace__project_version_id=project_version_id
+                    trace_id__in=Trace.objects.filter(
+                        project_version_id=project_version_id
+                    ).values("id")
                 )
                 .values("custom_eval_config_id")
                 .distinct(),
@@ -3166,7 +3174,9 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         # renders the same set of evals as the list columns. Missing scores
         # become placeholder entries with `output=None`.
         eval_configs = CustomEvalConfig.objects.filter(
-            id__in=EvalLogger.objects.filter(trace__project_id=project_id)
+            id__in=EvalLogger.objects.filter(
+                trace_id__in=Trace.objects.filter(project_id=project_id).values("id")
+            )
             .values("custom_eval_config_id")
             .distinct(),
             deleted=False,
@@ -3767,7 +3777,11 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
         eval_config_ids = []
         if org_scope:
             eval_configs = CustomEvalConfig.objects.filter(
-                id__in=EvalLogger.objects.filter(trace__project_id__in=org_project_ids)
+                id__in=EvalLogger.objects.filter(
+                    trace_id__in=Trace.objects.filter(
+                        project_id__in=org_project_ids
+                    ).values("id")
+                )
                 .values("custom_eval_config_id")
                 .distinct(),
                 deleted=False,
