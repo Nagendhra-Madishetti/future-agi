@@ -36,6 +36,7 @@ import {
   getEvalCreateInitialSourceTab,
   getEvalCreateOnboardingCopy,
   getEvalCreateOnboardingParams,
+  getEvalDetailTabFromSearch,
   getEvalOnboardingSourceSummary,
   getEvalFailureActionOnboardingParams,
   getEvalReviewOnboardingCopy,
@@ -617,6 +618,16 @@ describe("evalCreateOnboarding", () => {
       step: "review",
       tab: "usage",
     });
+  });
+
+  it("resolves the eval detail tab from the route query", () => {
+    expect(getEvalDetailTabFromSearch("?tab=usage")).toBe("usage");
+    expect(getEvalDetailTabFromSearch("?tab=feedback")).toBe("feedback");
+    expect(getEvalDetailTabFromSearch("?tab=ground_truth")).toBe(
+      "ground_truth",
+    );
+    expect(getEvalDetailTabFromSearch("?tab=unknown")).toBe("details");
+    expect(getEvalDetailTabFromSearch("")).toBe("details");
   });
 
   it("parses eval review journey-step params from Home CTAs", () => {

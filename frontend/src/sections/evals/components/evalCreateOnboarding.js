@@ -44,6 +44,12 @@ const EVAL_JOURNEY_REVIEW_STEPS = {
   eval_next_loop: EVAL_FIX_STEP,
   review_eval_failures: EVAL_REVIEW_STEP,
 };
+const EVAL_DETAIL_TABS = new Set([
+  "details",
+  "usage",
+  "feedback",
+  "ground_truth",
+]);
 
 const SOURCE_TYPE_TO_TAB = {
   dataset: EVAL_CREATE_SOURCE_TABS.DATASET,
@@ -208,6 +214,11 @@ const toSearchParams = (search = "") =>
 
 const normalizeFixRerunOrigin = (value) =>
   validFixRerunOrigins.has(value) ? value : null;
+
+export const getEvalDetailTabFromSearch = (search = "") => {
+  const tab = toSearchParams(search).get("tab");
+  return EVAL_DETAIL_TABS.has(tab) ? tab : "details";
+};
 
 const appendEvalFixRerunParams = (
   params,

@@ -69,6 +69,7 @@ import {
   buildEvalSourceFixHref,
   EVAL_FIX_RERUN_ORIGINS,
   EVAL_REVIEW_ACTIONS,
+  getEvalDetailTabFromSearch,
   getEvalReviewOnboardingCopy,
   getEvalReviewOnboardingParams,
 } from "./evalCreateOnboarding";
@@ -205,8 +206,12 @@ const EvalDetailPage = () => {
   }, []);
 
   // Top-level tab — sync with URL ?tab= param
-  const [activeTab, setActiveTab] = useState(
-    () => searchParams.get("tab") || "details",
+  const [activeTab, setActiveTab] = useState(() =>
+    getEvalDetailTabFromSearch(searchParams),
+  );
+  const activeTabFromSearch = useMemo(
+    () => getEvalDetailTabFromSearch(searchParams),
+    [searchParams],
   );
   const reviewOnboardingParams = useMemo(
     () => getEvalReviewOnboardingParams(searchParams),
@@ -217,6 +222,13 @@ const EvalDetailPage = () => {
     [reviewOnboardingParams],
   );
   const [reviewActionPreference, setReviewActionPreference] = useState(null);
+
+  useEffect(() => {
+    setActiveTab((currentTab) =>
+      currentTab === activeTabFromSearch ? currentTab : activeTabFromSearch,
+    );
+  }, [activeTabFromSearch]);
+
   const reviewSourceFixHref = useMemo(() => {
     if (!reviewOnboardingParams.isOnboarding) return null;
 
@@ -725,7 +737,7 @@ const EvalDetailPage = () => {
         isPopulatingRef.current = false;
       }, 0);
     },
-    [defaultVersion, evalData, isDirty, isComposite, setSearchParams, isOSS],
+    [defaultVersion, evalData, isDirty, isComposite, setSearchParams],
   );
 
   // Three-dot menu
@@ -934,7 +946,14 @@ const EvalDetailPage = () => {
       templateVars = matches.map((m) => m.replace(/\{\{|\}\}/g, "").trim());
     }
     return [...new Set([...requiredKeys, ...templateVars])];
-  }, [instructions, evalData, evalType, isComposite, compositeDetail]);
+  }, [
+    instructions,
+    evalData,
+    evalType,
+    isComposite,
+    compositeDetail,
+    templateFormat,
+  ]);
 
   // Save version
   const handleSaveVersion = useCallback(async () => {
@@ -1070,6 +1089,7 @@ const EvalDetailPage = () => {
     errorLocalizerEnabled,
     messages,
     fewShotExamples,
+    templateFormat,
     updateEval,
     createVersion,
     enqueueSnackbar,
@@ -1222,6 +1242,7 @@ const EvalDetailPage = () => {
     errorLocalizerEnabled,
     messages,
     fewShotExamples,
+    templateFormat,
     updateEval,
     updateComposite,
     handleTestResult,
