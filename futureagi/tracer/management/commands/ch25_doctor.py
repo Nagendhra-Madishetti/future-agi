@@ -36,13 +36,22 @@ from django.core.management.base import BaseCommand
 
 
 # Models whose ForeignKey -> ObservationSpan must be decoupled BEFORE the PG
-# write can be removed: once a new span has no PG row, these features break
-# for it. The doctor refuses a clean bill of health while any still hard-FK.
+# write can be removed: once a new span has no PG row, these features break for
+# it — and the physical DROP TABLE fails on the FK constraint regardless of
+# on_delete. The doctor refuses a clean bill of health while any still FK.
+#
+# This is the COMPLETE set of FK referrers of ObservationSpan (authoritative:
+# `ObservationSpan._meta.related_objects`). `Score` and `QueueItem` were
+# previously missing — both hold a real FK to tracer_observation_span
+# (SET_NULL), so the drop would fail even though the doctor reported "safe".
+# See internal-docs SCALE_ARCHITECTURE.md §5.
 _FK_DEPENDENT_MODELS = [
-    ("tracer", "SpanNotes"),
-    ("tracer", "TraceAnnotation"),
-    ("tracer", "ErrorClusterTraces"),
-    ("tracer", "EvalLogger"),
+    ("tracer", "SpanNotes"),           # .span             CASCADE, NOT NULL (hard block)
+    ("tracer", "TraceAnnotation"),     # .observation_span CASCADE
+    ("tracer", "ErrorClusterTraces"),  # .span             CASCADE
+    ("tracer", "EvalLogger"),          # .observation_span CASCADE
+    ("model_hub", "Score"),            # .observation_span SET_NULL
+    ("model_hub", "QueueItem"),        # .observation_span SET_NULL
 ]
 
 
