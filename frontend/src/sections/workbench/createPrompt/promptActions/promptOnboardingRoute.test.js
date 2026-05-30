@@ -80,6 +80,25 @@ describe("promptOnboardingRoute", () => {
     );
   });
 
+  it("preserves selected prompt versions on guided editor routes", () => {
+    const selectedVersions = [
+      { version: "v1", isDraft: false },
+      { version: "v2", isDraft: true },
+    ];
+    const href = buildPromptEditorHref({
+      promptId: "prompt-1",
+      mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
+      selectedVersions,
+    });
+    const params = new URLSearchParams(href.split("?")[1]);
+
+    expect(href).toContain("/dashboard/workbench/create/prompt-1?");
+    expect(params.get("selected-versions")).toBe(
+      JSON.stringify(selectedVersions),
+    );
+    expect(params.get("onboarding")).toBe(PROMPT_ONBOARDING_MODES.RUN_TEST);
+  });
+
   it("adds destination tour anchors to each guided editor step", () => {
     expect(
       buildPromptEditorHref({

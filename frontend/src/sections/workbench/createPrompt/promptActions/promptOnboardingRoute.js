@@ -90,11 +90,19 @@ export const getPromptOnboardingRouteParams = (search = "") => {
   };
 };
 
-export const buildPromptEditorHref = ({ journeyStep, mode, promptId } = {}) => {
+export const buildPromptEditorHref = ({
+  journeyStep,
+  mode,
+  promptId,
+  selectedVersions,
+} = {}) => {
   if (!promptId) return null;
 
   const params = new URLSearchParams();
   params.set("source", "onboarding");
+  if (Array.isArray(selectedVersions) && selectedVersions.length > 0) {
+    params.set("selected-versions", JSON.stringify(selectedVersions));
+  }
   if (VALID_PROMPT_ONBOARDING_MODES.has(mode)) {
     const destination =
       PROMPT_ONBOARDING_JOURNEY_STEP_DESTINATIONS[journeyStep] ||

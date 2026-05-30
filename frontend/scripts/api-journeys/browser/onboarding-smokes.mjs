@@ -219,6 +219,13 @@ const SMOKES = [
     },
   },
   {
+    id: "prompt-first-run-controlled",
+    mode: "controlled",
+    file: "prompt-first-run-controlled-smoke.mjs",
+    description:
+      "Stubbed proof for prompt create, first run, second version, compare, and failure capture.",
+  },
+  {
     id: "onboarding-first-signup-aha-coverage-controlled",
     mode: "controlled",
     suite: true,

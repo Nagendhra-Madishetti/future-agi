@@ -38,6 +38,17 @@ import {
 const LIMIT_CHECKBOX_MESSAGE =
   "Compare limit is upto 3 version only, Deselect other options to select this one";
 
+const toSelectedPromptVersion = (version, promptId) => ({
+  isDraft: version?.is_draft,
+  version: version?.template_version,
+  lastSaved: version?.updated_at,
+  isDefault: version?.is_default,
+  labels: version?.labels || [],
+  originalTemplate: version?.original_template || promptId,
+  templateVersion: version?.template_version,
+  id: version?.id,
+});
+
 const usePromptVersions = (id, activeTab) => {
   const sendCommit = activeTab === "commit_history";
 
@@ -106,13 +117,23 @@ const VersionHistoryChild = ({ onClose }) => {
     : searchParams.get("source");
 
   const handleCompare = () => {
-    const comparedVersions = [
-      selectedVersions?.[0]?.version,
-      ...compareSelectedVersions.map((version) => version.template_version),
-    ].filter(Boolean);
+    const baseVersionName =
+      selectedVersions?.[0]?.version || selectedVersions?.[0]?.templateVersion;
+    const baseVersion = versions.find(
+      (version) => version.template_version === baseVersionName,
+    );
+    const nextCompareVersions = [
+      ...(baseVersion ? [baseVersion] : []),
+      ...compareSelectedVersions.filter(
+        (version) => version.template_version !== baseVersionName,
+      ),
+    ];
+    const comparedVersions = nextCompareVersions
+      .map((version) => version.template_version)
+      .filter(Boolean);
     const committedVersionCount = countCommittedPromptVersions(versions);
 
-    applyCompare(compareSelectedVersions);
+    applyCompare(nextCompareVersions);
 
     if (
       shouldAdvancePromptCompareOnboarding({
@@ -132,6 +153,9 @@ const VersionHistoryChild = ({ onClose }) => {
         buildPromptEditorHref({
           promptId: id,
           mode: PROMPT_ONBOARDING_MODES.ADD_FAILURE,
+          selectedVersions: nextCompareVersions.map((version) =>
+            toSelectedPromptVersion(version, id),
+          ),
         }),
         { replace: true },
       );

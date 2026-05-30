@@ -389,6 +389,7 @@ const PromptActions = () => {
       buildPromptEditorHref({
         promptId: id,
         mode: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+        selectedVersions,
       }),
       { replace: true },
     );
@@ -400,6 +401,7 @@ const PromptActions = () => {
     navigate,
     onboardingMode,
     onboardingSource,
+    selectedVersions,
   ]);
 
   const handlePromptVersionCommitted = useCallback(() => {
@@ -423,6 +425,7 @@ const PromptActions = () => {
         journeyStep: postSaveJourneyStep,
         promptId: id,
         mode: PROMPT_ONBOARDING_MODES.COMPARE,
+        selectedVersions,
       }),
       { replace: true },
     );
@@ -434,16 +437,18 @@ const PromptActions = () => {
     queryClient,
     refetch,
     postSaveJourneyStep,
+    selectedVersions,
   ]);
 
-  const handleCreateSecondVersion = useCallback(() => {
+  const handleCreateSecondVersion = useCallback(async () => {
     setCurrentTab("Playground");
-    addToCompare();
+    const nextSelectedVersions = await addToCompare();
     if (id) {
       navigate(
         buildPromptEditorHref({
           promptId: id,
           mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
+          selectedVersions: nextSelectedVersions,
         }),
         { replace: true },
       );
