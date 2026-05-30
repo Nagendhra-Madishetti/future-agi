@@ -4,6 +4,7 @@ import {
   buildPromptCreatedHref,
   buildPromptEditorHref,
   buildPromptFirstQualityLoopCompletedPayload,
+  countCommittedPromptVersions,
   getPromptOnboardingRouteParams,
   isPromptFailureCaptureOnboarding,
   PROMPT_ONBOARDING_MODES,
@@ -187,9 +188,25 @@ describe("promptOnboardingRoute", () => {
     ).toBe(false);
   });
 
-  it("advances compare onboarding only after multiple versions are selected", () => {
+  it("counts committed prompt versions across route and API shapes", () => {
+    expect(
+      countCommittedPromptVersions([
+        { templateVersion: "v1", isDraft: false, isDefault: true },
+        {
+          template_version: "v2",
+          is_draft: false,
+          commit_message: "Safer answer",
+        },
+        { template_version: "v3", is_draft: true, commit_message: "Draft" },
+        null,
+      ]),
+    ).toBe(2);
+  });
+
+  it("advances compare onboarding only after multiple committed versions are selected", () => {
     expect(
       shouldAdvancePromptCompareOnboarding({
+        committedVersionCount: 2,
         mode: PROMPT_ONBOARDING_MODES.COMPARE,
         selectedVersionCount: 2,
         source: "onboarding",
@@ -198,6 +215,16 @@ describe("promptOnboardingRoute", () => {
 
     expect(
       shouldAdvancePromptCompareOnboarding({
+        committedVersionCount: 1,
+        mode: PROMPT_ONBOARDING_MODES.COMPARE,
+        selectedVersionCount: 2,
+        source: "onboarding",
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldAdvancePromptCompareOnboarding({
+        committedVersionCount: 2,
         mode: PROMPT_ONBOARDING_MODES.COMPARE,
         selectedVersionCount: 1,
         source: "onboarding",

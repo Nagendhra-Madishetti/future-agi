@@ -73,6 +73,7 @@ class OnboardingSignals:
     prompt_sample_templates: int = 0
     prompt_run_exists: bool = False
     prompt_committed_version_exists: bool = False
+    prompt_comparable_versions_exist: bool = False
     prompt_comparison_completed: bool = False
     prompt_next_loop_action_exists: bool = False
     prompt_first_loop_completed: bool = False
@@ -246,6 +247,7 @@ class OnboardingSignals:
             "first_prompt_id": self.first_prompt_id,
             "latest_prompt_id": self.latest_prompt_id,
             "prompt_sample_templates": self.prompt_sample_templates,
+            "prompt_comparable_versions_exist": self.prompt_comparable_versions_exist,
             "agents": self.agents,
             "agent_prototype_runs": self.agent_prototype_runs,
             "agent_id": self.agent_id,
@@ -597,6 +599,7 @@ def collect_onboarding_signals(*, user, organization, workspace):
         prompt_sample_templates=prompt_signals.sample_prompt_count,
         prompt_run_exists=prompt_signals.has_test_run,
         prompt_committed_version_exists=prompt_signals.has_committed_version,
+        prompt_comparable_versions_exist=prompt_signals.has_comparable_versions,
         prompt_comparison_completed=prompt_signals.comparison_completed,
         prompt_next_loop_action_exists=prompt_signals.has_next_loop_action,
         prompt_first_loop_completed=prompt_signals.first_loop_completed,

@@ -17,6 +17,7 @@ class PromptOnboardingSignals:
     latest_prompt_name: str | None = None
     run_count: int = 0
     committed_version_count: int = 0
+    comparable_version_count: int = 0
     draft_version_count: int = 0
     comparison_completed: bool = False
     next_loop_action_count: int = 0
@@ -38,6 +39,10 @@ class PromptOnboardingSignals:
         return self.committed_version_count > 0
 
     @property
+    def has_comparable_versions(self):
+        return self.comparable_version_count > 1
+
+    @property
     def has_next_loop_action(self):
         return self.next_loop_action_count > 0
 
@@ -46,7 +51,7 @@ class PromptOnboardingSignals:
         return (
             self.has_real_prompt
             and self.has_test_run
-            and self.has_committed_version
+            and self.has_comparable_versions
             and self.comparison_completed
             and self.has_next_loop_action
         )
@@ -59,6 +64,7 @@ class PromptOnboardingSignals:
             "has_real_prompt": self.has_real_prompt,
             "has_test_run": self.has_test_run,
             "has_committed_version": self.has_committed_version,
+            "has_comparable_versions": self.has_comparable_versions,
             "has_comparison": self.comparison_completed,
             "has_next_loop_action": self.has_next_loop_action,
             "is_sample": False,
@@ -135,6 +141,18 @@ def collect_prompt_onboarding_signals(*, user, organization, workspace):
         for version in versions
         if not version.is_draft and (version.commit_message or version.is_default)
     ]
+    committed_run_versions_by_template = {}
+    for version in committed_versions:
+        if not _safe_json_has_value(version.output):
+            continue
+        template_id = version.original_template_id
+        committed_run_versions_by_template[template_id] = (
+            committed_run_versions_by_template.get(template_id, 0) + 1
+        )
+    comparable_version_count = max(
+        committed_run_versions_by_template.values(),
+        default=0,
+    )
     draft_versions = [version for version in versions if version.is_draft]
     default_version = next(
         (version for version in versions if version.is_default), None
@@ -183,6 +201,7 @@ def collect_prompt_onboarding_signals(*, user, organization, workspace):
         latest_prompt_name=latest_template.name,
         run_count=len(run_versions) + (1 if latest_run else 0),
         committed_version_count=len(committed_versions),
+        comparable_version_count=comparable_version_count,
         draft_version_count=len(draft_versions),
         comparison_completed=comparison_completed,
         next_loop_action_count=next_loop_count,

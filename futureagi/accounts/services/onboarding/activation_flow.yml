@@ -1755,6 +1755,7 @@ stage_rules:
       all:
         - context_equals:
             primary_path: prompt
+        - signal: prompt_comparable_versions_exist
         - signal: prompt_comparison_completed
         - signal_not: prompt_next_loop_action_exists
   - stage: compare_prompt_versions
@@ -1762,7 +1763,7 @@ stage_rules:
       all:
         - context_equals:
             primary_path: prompt
-        - signal: prompt_committed_version_exists
+        - signal: prompt_comparable_versions_exist
         - signal_not: prompt_comparison_completed
   - stage: save_prompt_version
     when:
@@ -1770,7 +1771,7 @@ stage_rules:
         - context_equals:
             primary_path: prompt
         - signal: prompt_run_exists
-        - signal_not: prompt_committed_version_exists
+        - signal_not: prompt_comparable_versions_exist
   - stage: run_prompt_test
     when:
       all:

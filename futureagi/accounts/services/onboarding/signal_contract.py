@@ -27,6 +27,7 @@ SUPPORTED_ONBOARDING_STAGE_RULE_SIGNALS = frozenset(
         "gateway_request_is_error",
         "latest_prompt_id",
         "observe_project_exists",
+        "prompt_comparable_versions_exist",
         "prompt_committed_version_exists",
         "prompt_comparison_completed",
         "prompt_first_loop_completed",

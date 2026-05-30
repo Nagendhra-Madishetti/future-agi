@@ -73,6 +73,30 @@ describe("PromptOnboardingFocusPanel", () => {
     expect(onOpenSaveVersion).toHaveBeenCalledTimes(1);
   });
 
+  it("guides compare mode to create a second version before version history", async () => {
+    const onCreateSecondVersion = vi.fn();
+
+    render(
+      <PromptOnboardingFocusPanel
+        compareNeedsSecondVersion
+        currentTab="Playground"
+        mode="compare"
+        onCreateSecondVersion={onCreateSecondVersion}
+      />,
+    );
+
+    expect(screen.getByText("Create a second version")).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /create second version/i }),
+    );
+
+    expect(onCreateSecondVersion).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", { name: /open version history/i }),
+    ).toBeNull();
+  });
+
   it("shows the onboarding source default prompt guidance", () => {
     render(
       <PromptOnboardingFocusPanel

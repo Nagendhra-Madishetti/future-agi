@@ -60,9 +60,11 @@ const resolveFocusCopy = ({ mode, source }) => {
 
 export default function PromptOnboardingFocusPanel({
   blocker,
+  compareNeedsSecondVersion = false,
   currentTab,
   isRunDisabled = false,
   mode,
+  onCreateSecondVersion,
   onOpenEvaluation,
   onOpenMetrics,
   onOpenPlayground,
@@ -72,7 +74,18 @@ export default function PromptOnboardingFocusPanel({
   source,
   tourAnchor,
 }) {
-  const copy = resolveFocusCopy({ mode, source });
+  const isCompareMode = mode === "compare";
+  const baseCopy = resolveFocusCopy({ mode, source });
+  const copy =
+    isCompareMode && compareNeedsSecondVersion
+      ? {
+          title: "Create a second version",
+          description:
+            "Edit the prompt, run it, and save one more version before comparing behavior.",
+          steps: ["Baseline", "Second run", "Second version"],
+          targetTab: "Playground",
+        }
+      : baseCopy;
 
   if (!copy) {
     return null;
@@ -80,7 +93,6 @@ export default function PromptOnboardingFocusPanel({
 
   const isRunMode = mode === "run-test";
   const isSaveMode = mode === "save-version";
-  const isCompareMode = mode === "compare";
   const isMetricMode = mode === "metrics";
   const isFailureMode = mode === "add-failure";
   const isOnTargetTab = currentTab === copy.targetTab;
@@ -97,6 +109,12 @@ export default function PromptOnboardingFocusPanel({
       return {
         label: "Save version",
         onClick: onOpenSaveVersion,
+      };
+    }
+    if (isCompareMode && compareNeedsSecondVersion) {
+      return {
+        label: "Create second version",
+        onClick: onCreateSecondVersion,
       };
     }
     if (isCompareMode) {
@@ -189,9 +207,11 @@ export default function PromptOnboardingFocusPanel({
 
 PromptOnboardingFocusPanel.propTypes = {
   blocker: PropTypes.string,
+  compareNeedsSecondVersion: PropTypes.bool,
   currentTab: PropTypes.string,
   isRunDisabled: PropTypes.bool,
   mode: PropTypes.string,
+  onCreateSecondVersion: PropTypes.func,
   onOpenEvaluation: PropTypes.func,
   onOpenMetrics: PropTypes.func,
   onOpenPlayground: PropTypes.func,

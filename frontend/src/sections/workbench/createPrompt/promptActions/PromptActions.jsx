@@ -59,6 +59,7 @@ import PromptOnboardingFocusPanel from "./PromptOnboardingFocusPanel";
 import {
   buildPromptCreatedHref,
   buildPromptEditorHref,
+  countCommittedPromptVersions,
   getPromptOnboardingRouteParams,
   PROMPT_ONBOARDING_MODES,
   shouldAdvancePromptRunOnboarding,
@@ -342,6 +343,14 @@ const PromptActions = () => {
   const onboardingSource = promptOnboardingParams.isOnboarding
     ? "onboarding"
     : searchParams.get("source");
+  const committedVersionCount = useMemo(
+    () => countCommittedPromptVersions(versions),
+    [versions],
+  );
+  const compareNeedsSecondVersion =
+    onboardingSource === "onboarding" &&
+    onboardingMode === PROMPT_ONBOARDING_MODES.COMPARE &&
+    committedVersionCount < 2;
 
   useEffect(() => {
     if (
@@ -393,6 +402,11 @@ const PromptActions = () => {
       { replace: true },
     );
   }, [id, navigate, onboardingMode, onboardingSource]);
+
+  const handleCreateSecondVersion = useCallback(() => {
+    setCurrentTab("Playground");
+    addToCompare();
+  }, [addToCompare, setCurrentTab]);
 
   const handleRunPrompt = () => {
     if (buttonTooltip) {
@@ -776,9 +790,11 @@ const PromptActions = () => {
 
       <PromptOnboardingFocusPanel
         blocker={buttonTooltip}
+        compareNeedsSecondVersion={compareNeedsSecondVersion}
         currentTab={currentTab}
         isRunDisabled={isRunPromptDisabled}
         mode={onboardingMode}
+        onCreateSecondVersion={handleCreateSecondVersion}
         onOpenEvaluation={handleOpenEvaluation}
         onOpenMetrics={handleOpenMetrics}
         onOpenPlayground={handleOpenPlayground}

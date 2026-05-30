@@ -29,6 +29,7 @@ import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/use
 import {
   buildPromptComparisonCompletedPayload,
   buildPromptEditorHref,
+  countCommittedPromptVersions,
   getPromptOnboardingRouteParams,
   PROMPT_ONBOARDING_MODES,
   shouldAdvancePromptCompareOnboarding,
@@ -109,12 +110,14 @@ const VersionHistoryChild = ({ onClose }) => {
       selectedVersions?.[0]?.version,
       ...compareSelectedVersions.map((version) => version.template_version),
     ].filter(Boolean);
+    const committedVersionCount = countCommittedPromptVersions(versions);
 
     applyCompare(compareSelectedVersions);
 
     if (
       shouldAdvancePromptCompareOnboarding({
         mode: promptOnboardingParams.mode,
+        committedVersionCount,
         selectedVersionCount: comparedVersions.length,
         source: onboardingSource,
       })

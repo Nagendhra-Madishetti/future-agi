@@ -646,6 +646,7 @@ class ActivationPromptStateSerializer(serializers.Serializer):
     has_real_prompt = serializers.BooleanField()
     has_test_run = serializers.BooleanField()
     has_committed_version = serializers.BooleanField()
+    has_comparable_versions = serializers.BooleanField(default=False)
     has_comparison = serializers.BooleanField()
     has_next_loop_action = serializers.BooleanField()
     is_sample = serializers.BooleanField(default=False)

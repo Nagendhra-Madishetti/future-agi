@@ -141,7 +141,7 @@ def test_prompt_run_without_committed_version_returns_save_baseline(
 
 
 @pytest.mark.django_db
-def test_prompt_version_without_comparison_returns_compare_versions(
+def test_single_prompt_version_without_comparison_returns_save_baseline(
     organization,
     workspace,
     user,
@@ -161,8 +161,44 @@ def test_prompt_version_without_comparison_returns_compare_versions(
 
     payload = _prompt_state(user, organization, workspace)
 
+    assert payload["stage"] == "save_prompt_version"
+    assert payload["recommended_action"]["id"] == "save_prompt_version"
+    assert payload["prompt"]["has_committed_version"] is True
+    assert payload["prompt"]["has_comparable_versions"] is False
+
+
+@pytest.mark.django_db
+def test_comparable_prompt_versions_without_comparison_returns_compare_versions(
+    organization,
+    workspace,
+    user,
+):
+    template = create_prompt_template(
+        organization=organization,
+        workspace=workspace,
+        user=user,
+    )
+    create_prompt_version(
+        template=template,
+        version="v1",
+        is_draft=False,
+        is_default=True,
+        commit_message="Baseline",
+        output=["hello"],
+    )
+    create_prompt_version(
+        template=template,
+        version="v2",
+        is_draft=False,
+        commit_message="Safer answer",
+        output=["hello again"],
+    )
+
+    payload = _prompt_state(user, organization, workspace)
+
     assert payload["stage"] == "compare_prompt_versions"
     assert payload["recommended_action"]["id"] == "compare_prompt_versions"
+    assert payload["prompt"]["has_comparable_versions"] is True
 
 
 @pytest.mark.django_db
@@ -178,10 +214,18 @@ def test_prompt_comparison_without_next_loop_returns_prompt_next_loop(
     )
     create_prompt_version(
         template=template,
+        version="v1",
         is_draft=False,
         is_default=True,
         commit_message="Baseline",
         output=["hello"],
+    )
+    create_prompt_version(
+        template=template,
+        version="v2",
+        is_draft=False,
+        commit_message="Safer answer",
+        output=["hello again"],
     )
     record_event(
         user=user,
@@ -208,10 +252,18 @@ def test_prompt_first_loop_activates_prompt_path(organization, workspace, user):
     )
     create_prompt_version(
         template=template,
+        version="v1",
         is_draft=False,
         is_default=True,
         commit_message="Baseline",
         output=["hello"],
+    )
+    create_prompt_version(
+        template=template,
+        version="v2",
+        is_draft=False,
+        commit_message="Safer answer",
+        output=["hello again"],
     )
     record_event(
         user=user,

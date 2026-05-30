@@ -122,14 +122,40 @@ export const shouldAdvancePromptRunOnboarding = ({
 export const shouldAdvancePromptSaveOnboarding = ({ mode, source } = {}) =>
   source === "onboarding" && mode === PROMPT_ONBOARDING_MODES.SAVE_VERSION;
 
+export const isCommittedPromptVersion = (version = {}) => {
+  if (!version) return false;
+
+  const isDraft = version.isDraft ?? version.is_draft;
+  const isDefault = version.isDefault ?? version.is_default;
+  const commitMessage = version.commitMessage ?? version.commit_message;
+
+  return Boolean(version) && !isDraft && Boolean(isDefault || commitMessage);
+};
+
+export const countCommittedPromptVersions = (versions = []) =>
+  new Set(
+    versions
+      .filter(isCommittedPromptVersion)
+      .map(
+        (version) =>
+          version.templateVersion ||
+          version.template_version ||
+          version.version ||
+          version.id,
+      )
+      .filter(Boolean),
+  ).size;
+
 export const shouldAdvancePromptCompareOnboarding = ({
+  committedVersionCount,
   mode,
   selectedVersionCount,
   source,
 } = {}) =>
   source === "onboarding" &&
   mode === PROMPT_ONBOARDING_MODES.COMPARE &&
-  selectedVersionCount > 1;
+  selectedVersionCount > 1 &&
+  committedVersionCount > 1;
 
 export const isPromptFailureCaptureOnboarding = ({ mode, source } = {}) =>
   source === "onboarding" && mode === PROMPT_ONBOARDING_MODES.ADD_FAILURE;

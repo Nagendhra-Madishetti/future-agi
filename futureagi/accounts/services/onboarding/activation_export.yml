@@ -80,6 +80,7 @@ payload_allowlist:
     - gateway_requests
     - gateway_sample_request_count
     - observe_projects
+    - prompt_comparable_versions_exist
     - prompt_committed_version_exists
     - prompt_comparison_completed
     - prompt_comparisons
