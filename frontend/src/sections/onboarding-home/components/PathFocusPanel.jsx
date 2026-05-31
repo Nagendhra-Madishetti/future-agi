@@ -68,7 +68,7 @@ export default function PathFocusPanel({
   const currentStep = currentIndex === null ? null : plan.steps[currentIndex];
   const visibleSteps =
     singleActionFocus && currentIndex !== null
-      ? plan.steps.filter((_, index) => index !== currentIndex)
+      ? plan.steps.filter((_, index) => index > currentIndex)
       : plan.steps;
 
   return (
@@ -84,10 +84,14 @@ export default function PathFocusPanel({
     >
       <Stack spacing={2}>
         <ObservePanelHeader
-          eyebrow={plan.eyebrow}
+          eyebrow={singleActionFocus ? "Selected flow" : plan.eyebrow}
           title={plan.title}
-          description={plan.description}
-          chips={plan.chips}
+          description={
+            singleActionFocus
+              ? "Do the highlighted step now. The later steps stay visible so the setup path is clear."
+              : plan.description
+          }
+          chips={singleActionFocus ? [] : plan.chips}
         />
 
         {singleActionFocus ? (
@@ -119,13 +123,13 @@ export default function PathFocusPanel({
           justifyContent="space-between"
         >
           <Typography variant="subtitle2">
-            {singleActionFocus ? "What happens next" : "Setup checklist"}
+            {singleActionFocus ? "After this" : "Setup checklist"}
           </Typography>
           {singleActionFocus && currentIndex !== null ? (
             <Chip
               size="small"
               variant="outlined"
-              label={`${visibleSteps.length} remaining`}
+              label={`${visibleSteps.length} steps left`}
             />
           ) : null}
         </Stack>
@@ -148,6 +152,10 @@ export default function PathFocusPanel({
                 step.status ||
                 stepStatus({ index: originalIndex, activeIndex: currentIndex });
               const statusCopy = STATUS_COPY[status] || STATUS_COPY.queued;
+              const statusLabel =
+                singleActionFocus && status === "queued"
+                  ? `Step ${originalIndex + 1}`
+                  : statusCopy.label;
 
               return (
                 <Box
@@ -186,7 +194,7 @@ export default function PathFocusPanel({
                       </Stack>
                       <Chip
                         size="small"
-                        label={statusCopy.label}
+                        label={statusLabel}
                         color={status === "complete" ? "success" : "default"}
                         variant={status === "complete" ? "filled" : "outlined"}
                       />

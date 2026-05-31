@@ -70,7 +70,7 @@ const QUICK_STARTS = {
     fixture: "agentNoAgent",
   },
   gateway: {
-    buttonText: "Setup gateway",
+    buttonText: "Set up gateway",
     expectedActionText: "Add provider",
     expectedAttribution: {
       quick_start_goal: "control_model_traffic",
@@ -204,7 +204,7 @@ async function main() {
     await expectVisibleText(page, "What do you want to set up first?");
     await expectVisibleText(
       page,
-      "Choose one workflow. We will show every setup step next.",
+      "Choose one setup flow. We will show the current action and the remaining setup steps next.",
     );
     const quickStartInitiallyVisible = await isVisibleButtonText(
       page,
@@ -248,11 +248,11 @@ async function main() {
       await expectVisibleText(page, "Sample trace review");
       await expectVisibleText(page, "Connect your app", { exact: true });
     } else {
-      await expectVisibleText(page, "Set up your first workflow", {
+      await expectVisibleText(page, QUICK_START.buttonText, {
         exact: true,
       });
-      await expectVisibleText(page, `You chose ${QUICK_START.buttonText}`);
-      await expectVisibleText(page, "What happens next", { exact: true });
+      await expectVisibleText(page, "Complete the highlighted action first.");
+      await expectVisibleText(page, "After this", { exact: true });
       await expectVisibleText(page, "Step 1 of");
       await expectVisibleText(page, QUICK_START.expectedActionText, {
         exact: true,

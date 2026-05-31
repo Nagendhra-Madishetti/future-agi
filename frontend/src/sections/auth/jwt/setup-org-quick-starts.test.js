@@ -26,7 +26,7 @@ describe("setup org product-loop quick starts", () => {
       ["observe", "monitor_production_ai_app", "Connect your agent", "observe"],
       ["prompt", "improve_prompts", "Test prompts or agent prompts", "prompt"],
       ["agent", "build_ai_agent", "Prototype agent", "agent"],
-      ["gateway", "control_model_traffic", "Setup gateway", "gateway"],
+      ["gateway", "control_model_traffic", "Set up gateway", "gateway"],
       ["evals", "evaluate_quality", "Test AI using simulation", "evals"],
       ["voice", "connect_voice_ai_agent", "Connect a voice AI agent", "voice"],
       [

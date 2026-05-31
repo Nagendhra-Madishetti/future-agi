@@ -51,7 +51,7 @@ export const SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS = [
   quickStart("route_llm_traffic_safely", {
     id: "gateway",
     goal: "control_model_traffic",
-    buttonLabel: "Setup gateway",
+    buttonLabel: "Set up gateway",
     shortDescription: "Add a provider, create a key, and send a request.",
     icon: "mdi:transit-connection-variant",
   }),

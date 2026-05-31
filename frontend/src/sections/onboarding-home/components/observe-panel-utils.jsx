@@ -38,6 +38,11 @@ const STATUS_COPY = {
   },
 };
 
+const REFRESHABLE_FOCUS_STAGES = new Set([
+  "waiting_for_first_trace",
+  "waiting_for_first_trace_sample_available",
+]);
+
 const fallbackStepStatus = ({ index, activeIndex }) => {
   if (index < activeIndex) return "complete";
   if (index === activeIndex) return "current";
@@ -101,12 +106,10 @@ export function CurrentStepGuide({ step, stage, stepNumber, totalSteps }) {
       }}
     >
       <Stack spacing={0.75} sx={{ maxWidth: 720 }}>
-        <Chip
-          size="small"
-          variant="outlined"
-          label={progressLabel}
-          sx={{ alignSelf: "flex-start" }}
-        />
+        <Stack direction="row" spacing={0.75} flexWrap="wrap">
+          <Chip size="small" color="primary" label="Do this now" />
+          <Chip size="small" variant="outlined" label={progressLabel} />
+        </Stack>
         <Typography variant="h6" color="text.primary">
           {step.label}
         </Typography>
@@ -139,7 +142,7 @@ export function ObserveJourneyProgress({
   const currentIndex = Math.max(steps.indexOf(currentStep), 0);
   const visibleSteps =
     singleActionFocus && currentStep
-      ? steps.filter((_, index) => index !== currentIndex)
+      ? steps.filter((_, index) => index > currentIndex)
       : steps;
 
   if (singleActionFocus && !showCurrentStepGuide && visibleSteps.length === 0) {
@@ -163,13 +166,13 @@ export function ObserveJourneyProgress({
         justifyContent="space-between"
       >
         <Typography variant="subtitle2">
-          {singleActionFocus ? "What happens next" : "Setup checklist"}
+          {singleActionFocus ? "After this" : "Setup checklist"}
         </Typography>
         {singleActionFocus ? (
           <Chip
             size="small"
             variant="outlined"
-            label={`${visibleSteps.length} remaining`}
+            label={`${visibleSteps.length} steps left`}
           />
         ) : null}
       </Stack>
@@ -194,6 +197,10 @@ export function ObserveJourneyProgress({
                 activeIndex: currentIndex,
               });
             const statusCopy = STATUS_COPY[status] || STATUS_COPY.queued;
+            const statusLabel =
+              singleActionFocus && status === "queued"
+                ? `Step ${originalIndex + 1}`
+                : statusCopy.label;
 
             return (
               <Box
@@ -230,7 +237,7 @@ export function ObserveJourneyProgress({
                     </Stack>
                     <Chip
                       size="small"
-                      label={statusCopy.label}
+                      label={statusLabel}
                       color={status === "complete" ? "success" : "default"}
                       variant={status === "complete" ? "filled" : "outlined"}
                     />
@@ -279,6 +286,10 @@ export function ObservePanelActions({
       : null;
   const fallbackHref = observeActionHref(fallbackAction);
   const showSecondaryRoutes = !singleActionFocus || !primaryHref;
+  const showCheckAgain = Boolean(
+    onCheckAgain &&
+      (!singleActionFocus || REFRESHABLE_FOCUS_STAGES.has(journeyStep?.stage)),
+  );
   const primaryLabel =
     singleActionFocus && journeyStep?.label
       ? journeyStep.label
@@ -317,7 +328,7 @@ export function ObservePanelActions({
           {fallbackAction.ctaLabel || "Fallback"}
         </Button>
       ) : null}
-      {onCheckAgain ? (
+      {showCheckAgain ? (
         <Button
           variant="text"
           onClick={onCheckAgain}

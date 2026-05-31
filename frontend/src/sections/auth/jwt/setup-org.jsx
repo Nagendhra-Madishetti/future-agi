@@ -54,13 +54,13 @@ const QUICK_START_ROLE = "AI Builder";
 const SETUP_SIDE_PANEL_STEPS = [
   {
     icon: "mdi:cursor-default-click-outline",
-    label: "Choose what to set up",
-    description: "Pick the workflow you want working first.",
+    label: "Choose a setup flow",
+    description: "Pick the product area you want working first.",
   },
   {
     icon: "mdi:clipboard-check-outline",
-    label: "Follow one checklist",
-    description: "The next screen shows every step for that workflow.",
+    label: "Follow one guided path",
+    description: "The next screen highlights the current action.",
   },
   {
     icon: "mdi:database-eye-outline",
@@ -701,14 +701,13 @@ const SetupOrganization = ({ getStarted = false }) => {
     return (
       <Stack spacing={1.5}>
         <Stack spacing={0.5}>
-          <Typography variant="subtitle2">Start with one workflow</Typography>
+          <Typography variant="subtitle2">Choose one setup flow</Typography>
           <Typography variant="body2" color="text.secondary">
-            Pick the workflow you want working first. The next screen shows all
-            setup steps for that choice.
+            Pick the product area you want working first. The next screen keeps
+            that setup flow focused on one action at a time.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            This becomes your first goal. Team invites can wait until setup is
-            working.
+            Team invites can wait until setup is working.
           </Typography>
         </Stack>
 
@@ -1091,7 +1090,8 @@ const SetupOrganization = ({ getStarted = false }) => {
                   lineHeight: "36px",
                 }}
               >
-                Choose one workflow. We will show every setup step next.
+                Choose one setup flow. We will show the current action and the
+                remaining setup steps next.
               </Typography>
             </Box>
 

@@ -55,7 +55,7 @@ export const ONBOARDING_GOAL_OPTIONS = [
     id: "route_llm_traffic_safely",
     goal: "route_llm_traffic_safely",
     primaryPath: "gateway",
-    label: "Setup gateway",
+    label: "Set up gateway",
     description: "Add a provider, create a key, and send a gateway request.",
     estimatedMinutes: 7,
   },

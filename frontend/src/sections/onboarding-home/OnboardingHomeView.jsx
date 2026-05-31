@@ -136,7 +136,7 @@ const SETUP_QUICK_START_ERROR_FALLBACKS = {
     description: "Add a provider, create a key, and send one gateway request.",
     href: "/dashboard/gateway/providers?source=onboarding&tour_anchor=gateway_provider_button&journey_step=configure_gateway_provider",
     label: "Add provider",
-    title: "Setup gateway",
+    title: "Set up gateway",
   },
   observe: {
     description:
@@ -784,8 +784,9 @@ export default function OnboardingHomeView() {
           }
         : {
             eyebrow: "First setup",
-            title: "Set up your first workflow",
-            description: `You chose ${selectedSetupQuickStart.buttonLabel}. Start with Step 1 below, then continue through the remaining setup steps.`,
+            title: selectedSetupQuickStart.buttonLabel,
+            description:
+              "Complete the highlighted action first. The checklist below shows the rest of this setup flow.",
           }
       : quickStartMismatchAction
         ? {

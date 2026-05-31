@@ -1060,7 +1060,7 @@ function pathFocusProfile(pathFocus) {
       primaryPath: "gateway",
       goal: "control_model_traffic",
       stage: "run_gateway_request",
-      pathLabel: "Setup gateway",
+      pathLabel: "Set up gateway",
       pathDescription:
         "Add a provider, create a key, and send a gateway request.",
       flagName: "onboarding_gateway_path",

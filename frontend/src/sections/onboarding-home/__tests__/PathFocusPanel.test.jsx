@@ -128,7 +128,7 @@ describe("PathFocusPanel", () => {
     expect(within(panel).queryByRole("link", { name: /show tip/i })).toBeNull();
   });
 
-  it("keeps first-run focus on the current action before showing the full path", async () => {
+  it("keeps first-run focus on the current action and later steps", async () => {
     const onPrimaryClick = vi.fn();
     renderPanel("promptCreatedNoRun", {
       onPrimaryClick,
@@ -140,9 +140,19 @@ describe("PathFocusPanel", () => {
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Run one focused example before saving.",
     );
+    expect(within(panel).getByText("After this")).toBeVisible();
+    expect(within(panel).getByText("4 steps left")).toBeVisible();
     expect(
       screen.queryByTestId("path-focus-step-start_prompt"),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("path-focus-step-run_prompt_test"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(
+        screen.getByTestId("path-focus-step-save_prompt_version"),
+      ).getByText("Step 3"),
+    ).toBeVisible();
     expect(
       within(panel).queryByRole("link", { name: /open workbench/i }),
     ).not.toBeInTheDocument();
@@ -154,19 +164,6 @@ describe("PathFocusPanel", () => {
     expect(onPrimaryClick).toHaveBeenCalledWith(
       expect.objectContaining({ id: "run_prompt_test" }),
     );
-
-    await userEvent.click(
-      within(panel).getByRole("button", { name: /show full path/i }),
-    );
-
-    expect(
-      screen.getByTestId("path-focus-step-start_prompt"),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId("path-focus-step-run_prompt_test")).getByText(
-        "Now",
-      ),
-    ).toBeVisible();
   });
 
   it("offers a replay link after the current destination tip was dismissed", () => {

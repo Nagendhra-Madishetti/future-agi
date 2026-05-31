@@ -623,7 +623,7 @@ const availableGoals = [
     id: "control_model_traffic",
     goal: "control_model_traffic",
     primary_path: "gateway",
-    label: "Setup gateway",
+    label: "Set up gateway",
     description: "Add a provider, create a key, and send a gateway request.",
     estimated_minutes: 7,
     disabled: false,

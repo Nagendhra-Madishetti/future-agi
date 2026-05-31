@@ -327,7 +327,7 @@ async function main() {
     });
     await expectVisibleText(
       page,
-      "Choose one workflow. We will show every setup step next.",
+      "Choose one setup flow. We will show the current action and the remaining setup steps next.",
       { timeout: 90000 },
     );
     await waitForBrowserFrame();
@@ -367,14 +367,14 @@ async function main() {
         hasObserveQuickStartParams(setupOrgHomeUrl),
         `Expected setup-org Home URL quick-start attribution, got ${setupOrgHomeUrl}`,
       );
-      await expectVisibleText(page, "Set up your first workflow", {
+      await expectVisibleText(page, "Connect your agent", {
         exact: true,
         timeout: 45000,
       });
-      await expectVisibleText(page, "You chose Connect your agent", {
+      await expectVisibleText(page, "Complete the highlighted action first.", {
         timeout: 45000,
       });
-      await expectVisibleText(page, "What happens next", {
+      await expectVisibleText(page, "After this", {
         exact: true,
         timeout: 45000,
       });
