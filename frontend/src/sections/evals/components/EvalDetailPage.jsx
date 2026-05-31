@@ -69,6 +69,7 @@ import {
   buildEvalSourceFixHref,
   EVAL_FIX_RERUN_ORIGINS,
   EVAL_REVIEW_ACTIONS,
+  evalSetupQuickStartAttributionFromSearch,
   getEvalDetailTabFromSearch,
   getEvalReviewOnboardingCopy,
   getEvalReviewOnboardingParams,
@@ -217,6 +218,10 @@ const EvalDetailPage = () => {
     () => getEvalReviewOnboardingParams(searchParams),
     [searchParams],
   );
+  const onboardingQuickStartAttribution = useMemo(
+    () => evalSetupQuickStartAttributionFromSearch(searchParams),
+    [searchParams],
+  );
   const reviewOnboardingCopy = useMemo(
     () => getEvalReviewOnboardingCopy(reviewOnboardingParams),
     [reviewOnboardingParams],
@@ -234,6 +239,7 @@ const EvalDetailPage = () => {
 
     return buildEvalSourceFixHref({
       evalId,
+      quickStartAttribution: onboardingQuickStartAttribution,
       runId: reviewOnboardingParams.runId,
       sourceId: reviewOnboardingParams.sourceId,
       sourceType: reviewOnboardingParams.sourceType,
@@ -244,6 +250,7 @@ const EvalDetailPage = () => {
     reviewOnboardingParams.runId,
     reviewOnboardingParams.sourceId,
     reviewOnboardingParams.sourceType,
+    onboardingQuickStartAttribution,
   ]);
   const reviewScorerEditHref = useMemo(() => {
     if (!reviewOnboardingParams.isOnboarding) return null;
@@ -251,6 +258,7 @@ const EvalDetailPage = () => {
     return buildEvalScorerEditHref({
       evalId,
       previousRunId: reviewOnboardingParams.runId,
+      quickStartAttribution: onboardingQuickStartAttribution,
       rerunFrom: EVAL_FIX_RERUN_ORIGINS.SCORER_EDIT,
       sourceId: reviewOnboardingParams.sourceId,
       sourceType: reviewOnboardingParams.sourceType,
@@ -261,6 +269,7 @@ const EvalDetailPage = () => {
     reviewOnboardingParams.runId,
     reviewOnboardingParams.sourceId,
     reviewOnboardingParams.sourceType,
+    onboardingQuickStartAttribution,
   ]);
   const handleReviewActionPreferenceChange = useCallback((nextPreference) => {
     setReviewActionPreference((currentPreference) => {
@@ -304,6 +313,7 @@ const EvalDetailPage = () => {
 
     return buildEvalPostRepairHomeHref({
       previousRunId: reviewOnboardingParams.previousRunId,
+      quickStartAttribution: onboardingQuickStartAttribution,
       rerunFrom: reviewOnboardingParams.rerunFrom,
       runId: reviewOnboardingParams.runId,
       sourceId: reviewOnboardingParams.sourceId,
@@ -316,6 +326,7 @@ const EvalDetailPage = () => {
     reviewOnboardingParams.runId,
     reviewOnboardingParams.sourceId,
     reviewOnboardingParams.sourceType,
+    onboardingQuickStartAttribution,
   ]);
 
   useEffect(() => {
@@ -327,13 +338,19 @@ const EvalDetailPage = () => {
         buildEvalReviewRouteFocusPayload({
           evalId,
           previousRunId: reviewOnboardingParams.previousRunId,
+          quickStartAttribution: onboardingQuickStartAttribution,
           rerunFrom: reviewOnboardingParams.rerunFrom,
           route: "eval_detail",
           runId: reviewOnboardingParams.runId,
         }),
       );
     }
-  }, [evalId, recordActivationEvent, reviewOnboardingParams]);
+  }, [
+    evalId,
+    onboardingQuickStartAttribution,
+    recordActivationEvent,
+    reviewOnboardingParams,
+  ]);
 
   const handleTabChange = useCallback(
     (_, val) => {
@@ -362,6 +379,7 @@ const EvalDetailPage = () => {
           evalId,
           evalLogId: reviewActionPreference?.evalLogId,
           previousRunId: reviewOnboardingParams.previousRunId,
+          quickStartAttribution: onboardingQuickStartAttribution,
           rerunFrom: reviewOnboardingParams.rerunFrom,
           reviewOutcome: reviewOutcomeForRun,
           runId: reviewOnboardingParams.runId,
@@ -376,6 +394,7 @@ const EvalDetailPage = () => {
   }, [
     evalId,
     navigate,
+    onboardingQuickStartAttribution,
     postRepairHomeHref,
     recordActivationEvent,
     reviewActionPreference?.evalLogId,
@@ -400,6 +419,7 @@ const EvalDetailPage = () => {
           buildEvalSourceFixCtaClickedPayload({
             evalId,
             fixRoute: reviewSourceFixHref,
+            quickStartAttribution: onboardingQuickStartAttribution,
             runId: reviewOnboardingParams.runId,
             sourceId: reviewOnboardingParams.sourceId,
             sourceType: reviewOnboardingParams.sourceType,
@@ -419,6 +439,7 @@ const EvalDetailPage = () => {
           buildEvalScorerEditCtaClickedPayload({
             editRoute: reviewScorerEditHref,
             evalId,
+            quickStartAttribution: onboardingQuickStartAttribution,
             runId: reviewOnboardingParams.runId,
             sourceId: reviewOnboardingParams.sourceId,
             sourceType: reviewOnboardingParams.sourceType,
@@ -434,6 +455,7 @@ const EvalDetailPage = () => {
     handlePostRepairContinue,
     isCompletedRepairReview,
     navigate,
+    onboardingQuickStartAttribution,
     postRepairHomeHref,
     recordActivationEvent,
     reviewOnboardingParams.runId,

@@ -53,6 +53,7 @@ import {
   buildEvalSourceFixRerunClickedPayload,
   buildEvalSourceFixRouteFocusPayload,
   EVAL_FIX_RERUN_ORIGINS,
+  evalSetupQuickStartAttributionFromSearch,
   getEvalSourceFixOnboardingCopy,
   getEvalSourceFixOnboardingParams,
 } from "src/sections/evals/components/evalCreateOnboarding";
@@ -140,6 +141,10 @@ const DevelopDetailView = () => {
     () => getEvalSourceFixOnboardingParams(location.search),
     [location.search],
   );
+  const onboardingQuickStartAttribution = useMemo(
+    () => evalSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const sourceFixOnboardingCopy = useMemo(
     () =>
       getEvalSourceFixOnboardingCopy({
@@ -159,11 +164,16 @@ const DevelopDetailView = () => {
     return buildEvalRunStepHref({
       evalId: sourceFixOnboardingParams.evalId,
       previousRunId: sourceFixOnboardingParams.runId,
+      quickStartAttribution: onboardingQuickStartAttribution,
       rerunFrom: EVAL_FIX_RERUN_ORIGINS.SOURCE_FIX,
       sourceId: sourceFixOnboardingParams.sourceId,
       sourceType: sourceFixOnboardingParams.sourceType,
     });
-  }, [showEvalSourceFixBanner, sourceFixOnboardingParams]);
+  }, [
+    onboardingQuickStartAttribution,
+    showEvalSourceFixBanner,
+    sourceFixOnboardingParams,
+  ]);
 
   const SkeletonHeader = () => {
     return <Skeleton width="60%" />;
@@ -335,13 +345,18 @@ const DevelopDetailView = () => {
     void recordActivationEventRequest(
       buildEvalSourceFixRouteFocusPayload({
         evalId: sourceFixOnboardingParams.evalId,
+        quickStartAttribution: onboardingQuickStartAttribution,
         route: "develop_dataset",
         runId: sourceFixOnboardingParams.runId,
         sourceId: sourceFixOnboardingParams.sourceId,
         sourceType: sourceFixOnboardingParams.sourceType,
       }),
     ).catch(() => undefined);
-  }, [showEvalSourceFixBanner, sourceFixOnboardingParams]);
+  }, [
+    onboardingQuickStartAttribution,
+    showEvalSourceFixBanner,
+    sourceFixOnboardingParams,
+  ]);
 
   const handleSourceFixRerun = useCallback(() => {
     if (!sourceFixRerunHref) return;
@@ -350,6 +365,7 @@ const DevelopDetailView = () => {
     void recordActivationEventRequest(
       buildEvalSourceFixRerunClickedPayload({
         evalId: sourceFixOnboardingParams.evalId,
+        quickStartAttribution: onboardingQuickStartAttribution,
         rerunRoute: sourceFixRerunHref,
         route: "develop_dataset",
         runId: sourceFixOnboardingParams.runId,
@@ -357,7 +373,12 @@ const DevelopDetailView = () => {
         sourceType: sourceFixOnboardingParams.sourceType,
       }),
     ).finally(navigateToRerun);
-  }, [navigate, sourceFixOnboardingParams, sourceFixRerunHref]);
+  }, [
+    navigate,
+    onboardingQuickStartAttribution,
+    sourceFixOnboardingParams,
+    sourceFixRerunHref,
+  ]);
 
   const getRightSection = () => {
     if (isCompareDataset && currentTab === "data") {

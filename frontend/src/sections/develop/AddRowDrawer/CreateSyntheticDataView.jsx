@@ -31,6 +31,7 @@ import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/use
 import {
   buildEvalDatasetCreatedPayload,
   buildEvalScorerSourceHref,
+  evalSetupQuickStartAttributionFromSearch,
 } from "../../evals/components/evalCreateOnboarding";
 
 const allTabList = [
@@ -128,6 +129,10 @@ const CreateSyntheticDataView = ({
   const isEvalDatasetOnboarding =
     onboardingDatasetParams.get("source") === "onboarding" &&
     onboardingDatasetParams.get("action") === "create-eval-dataset";
+  const onboardingQuickStartAttribution = useMemo(
+    () => evalSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const methods = useForm({
     defaultValues: getSyntheticDefaultValues(editData),
     resolver: zodResolver(validationSchema),
@@ -213,10 +218,14 @@ const CreateSyntheticDataView = ({
         recordActivationEvent?.(
           buildEvalDatasetCreatedPayload({
             datasetId,
+            quickStartAttribution: onboardingQuickStartAttribution,
             sourceMethod: "synthetic",
           }),
         );
-        nextHref = buildEvalScorerSourceHref({ sourceId: datasetId });
+        nextHref = buildEvalScorerSourceHref({
+          quickStartAttribution: onboardingQuickStartAttribution,
+          sourceId: datasetId,
+        });
       }
       if (onClose) onClose();
       setTimeout(() => {

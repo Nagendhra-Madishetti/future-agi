@@ -60,6 +60,7 @@ import {
   buildEvalSourceSelectedPayload,
   buildEvalSourceSetupHref,
   EVAL_CREATE_ONBOARDING_STEPS,
+  evalSetupQuickStartAttributionFromSearch,
   getEvalCreateInitialSourceTab,
   getEvalCreateOnboardingCopy,
   getEvalCreateOnboardingParams,
@@ -183,6 +184,10 @@ const EvalCreatePage = () => {
     () => getEvalCreateOnboardingParams(location.search),
     [location.search],
   );
+  const onboardingQuickStartAttribution = useMemo(
+    () => evalSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const onboardingCopy = useMemo(
     () => getEvalCreateOnboardingCopy(onboardingParams),
     [onboardingParams],
@@ -208,10 +213,12 @@ const EvalCreatePage = () => {
       onboardingParams.isOnboarding &&
       onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.DATA
     ) {
-      return buildEvalSourceSetupHref();
+      return buildEvalSourceSetupHref({
+        quickStartAttribution: onboardingQuickStartAttribution,
+      });
     }
     return null;
-  }, [onboardingParams]);
+  }, [onboardingParams, onboardingQuickStartAttribution]);
   const onboardingTraceProjectId = useMemo(() => {
     if (
       onboardingParams.isOnboarding &&
@@ -337,6 +344,7 @@ const EvalCreatePage = () => {
             evalType: mode === "composite" ? "composite" : evalType,
             isComposite: mode === "composite",
             mode,
+            quickStartAttribution: onboardingQuickStartAttribution,
             result,
             runId: completedRunId,
             sourceId: onboardingParams.sourceId,
@@ -351,6 +359,7 @@ const EvalCreatePage = () => {
               isComposite: mode === "composite",
               mode,
               previousRunId: onboardingParams.previousRunId,
+              quickStartAttribution: onboardingQuickStartAttribution,
               rerunFrom: onboardingParams.rerunFrom,
               result,
               runId: completedRunId,
@@ -363,6 +372,7 @@ const EvalCreatePage = () => {
           buildEvalReviewStepHref({
             evalId: draftId,
             previousRunId: onboardingParams.previousRunId,
+            quickStartAttribution: onboardingQuickStartAttribution,
             rerunFrom: onboardingParams.rerunFrom,
             runId: completedRunId,
             sourceId: onboardingParams.sourceId,
@@ -377,6 +387,7 @@ const EvalCreatePage = () => {
       mode,
       navigate,
       onboardingParams,
+      onboardingQuickStartAttribution,
       queryClient,
       recordActivationEvent,
     ],
@@ -487,6 +498,7 @@ const EvalCreatePage = () => {
       buildEvalRouteFocusPayload({
         draftId,
         previousRunId: onboardingParams.previousRunId,
+        quickStartAttribution: onboardingQuickStartAttribution,
         rerunFrom: onboardingParams.rerunFrom,
         runId: onboardingParams.runId,
         sourceId: onboardingParams.sourceId,
@@ -494,7 +506,12 @@ const EvalCreatePage = () => {
         step: onboardingParams.step,
       }),
     );
-  }, [draftId, onboardingParams, recordActivationEvent]);
+  }, [
+    draftId,
+    onboardingParams,
+    onboardingQuickStartAttribution,
+    recordActivationEvent,
+  ]);
 
   const handleOnboardingSourceSelected = useCallback(
     ({ rowType, sourceId, sourceType, surface } = {}) => {
@@ -515,6 +532,7 @@ const EvalCreatePage = () => {
       recordActivationEvent?.(
         buildEvalSourceSelectedPayload({
           draftId,
+          quickStartAttribution: onboardingQuickStartAttribution,
           rowType,
           sourceId,
           sourceType,
@@ -523,7 +541,12 @@ const EvalCreatePage = () => {
         }),
       );
     },
-    [draftId, onboardingParams, recordActivationEvent],
+    [
+      draftId,
+      onboardingParams,
+      onboardingQuickStartAttribution,
+      recordActivationEvent,
+    ],
   );
 
   const handleConfirmOnboardingSource = useCallback(() => {
@@ -546,11 +569,18 @@ const EvalCreatePage = () => {
     navigate(
       buildEvalScorerSourceHref({
         evalId: draftId,
+        quickStartAttribution: onboardingQuickStartAttribution,
         sourceId: onboardingParams.sourceId,
         sourceType: onboardingParams.sourceType,
       }),
     );
-  }, [draftId, handleOnboardingSourceSelected, navigate, onboardingParams]);
+  }, [
+    draftId,
+    handleOnboardingSourceSelected,
+    navigate,
+    onboardingParams,
+    onboardingQuickStartAttribution,
+  ]);
 
   useEffect(() => {
     if (!draftId || !shouldAutoConfirmOnboardingSource) return;
@@ -769,6 +799,7 @@ const EvalCreatePage = () => {
           buildEvalScorerCreatedPayload({
             evalId: draftId,
             evalType,
+            quickStartAttribution: onboardingQuickStartAttribution,
             sourceId: onboardingParams.sourceId,
             sourceType: onboardingParams.sourceType,
             step: onboardingParams.step,
@@ -780,6 +811,7 @@ const EvalCreatePage = () => {
           ? buildEvalRunStepHref({
               evalId: draftId,
               previousRunId: onboardingParams.previousRunId,
+              quickStartAttribution: onboardingQuickStartAttribution,
               rerunFrom: onboardingParams.rerunFrom,
               sourceId: onboardingParams.sourceId,
               sourceType: onboardingParams.sourceType,
@@ -812,6 +844,7 @@ const EvalCreatePage = () => {
     model,
     onboardingParams,
     recordActivationEvent,
+    onboardingQuickStartAttribution,
   ]);
 
   useEffect(() => {
@@ -916,6 +949,7 @@ const EvalCreatePage = () => {
             evalId: result.id,
             evalType: "composite",
             isComposite: true,
+            quickStartAttribution: onboardingQuickStartAttribution,
             sourceId: onboardingParams.sourceId,
             sourceType: onboardingParams.sourceType,
             step: onboardingParams.step,
@@ -947,6 +981,7 @@ const EvalCreatePage = () => {
     enqueueSnackbar,
     navigate,
     onboardingParams,
+    onboardingQuickStartAttribution,
     recordActivationEvent,
   ]);
 
@@ -983,6 +1018,7 @@ const EvalCreatePage = () => {
             isComposite: mode === "composite",
             mode,
             previousRunId: onboardingParams.previousRunId,
+            quickStartAttribution: onboardingQuickStartAttribution,
             rerunFrom: onboardingParams.rerunFrom,
             sourceId: onboardingParams.sourceId,
             sourceType: onboardingParams.sourceType,
@@ -1011,6 +1047,7 @@ const EvalCreatePage = () => {
     enqueueSnackbar,
     evalType,
     onboardingParams,
+    onboardingQuickStartAttribution,
     recordActivationEvent,
   ]);
 

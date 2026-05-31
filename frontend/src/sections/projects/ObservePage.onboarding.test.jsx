@@ -142,6 +142,7 @@ vi.mock("src/sections/evals/components/evalCreateOnboarding", () => ({
   buildEvalRunStepHref: vi.fn(),
   buildEvalSourceFixRerunClickedPayload: vi.fn(),
   buildEvalSourceFixRouteFocusPayload: vi.fn(),
+  evalSetupQuickStartAttributionFromSearch: vi.fn(() => ({})),
   EVAL_FIX_RERUN_ORIGINS: {
     SOURCE_FIX: "source_fix",
   },

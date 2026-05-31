@@ -48,6 +48,7 @@ import {
   buildEvalSourceFixCtaClickedPayload,
   buildEvalSourceFixHref,
   EVAL_FIX_RERUN_ORIGINS,
+  evalSetupQuickStartAttributionFromSearch,
   evalUsageLogMatchesRun,
   getEvalReviewActionKind,
   getEvalUsageLogId,
@@ -437,6 +438,10 @@ const EvalUsageTab = ({
     () => getEvalFailureActionOnboardingParams(location.search),
     [location.search],
   );
+  const onboardingQuickStartAttribution = useMemo(
+    () => evalSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const sourceFixHref = useMemo(() => {
     if (
       !failureActionOnboardingParams.isOnboarding ||
@@ -446,6 +451,7 @@ const EvalUsageTab = ({
     }
     return buildEvalSourceFixHref({
       evalId: templateId,
+      quickStartAttribution: onboardingQuickStartAttribution,
       runId: failureActionOnboardingParams.runId,
       sourceId: failureActionOnboardingParams.sourceId,
       sourceType: failureActionOnboardingParams.sourceType,
@@ -456,6 +462,7 @@ const EvalUsageTab = ({
     failureActionOnboardingParams.sourceId,
     failureActionOnboardingParams.sourceType,
     failureActionOnboardingParams.step,
+    onboardingQuickStartAttribution,
     templateId,
   ]);
   const scorerEditHref = useMemo(() => {
@@ -470,6 +477,7 @@ const EvalUsageTab = ({
     return buildEvalScorerEditHref({
       evalId: templateId,
       previousRunId: failureActionOnboardingParams.runId,
+      quickStartAttribution: onboardingQuickStartAttribution,
       rerunFrom: EVAL_FIX_RERUN_ORIGINS.SCORER_EDIT,
       sourceId: failureActionOnboardingParams.sourceId,
       sourceType: failureActionOnboardingParams.sourceType,
@@ -480,6 +488,7 @@ const EvalUsageTab = ({
     failureActionOnboardingParams.sourceId,
     failureActionOnboardingParams.sourceType,
     failureActionOnboardingParams.step,
+    onboardingQuickStartAttribution,
     templateId,
   ]);
   const isRepairReviewOnboarding = Boolean(
@@ -685,6 +694,7 @@ const EvalUsageTab = ({
       buildEvalFailuresReviewedPayload({
         evalId: templateId,
         evalLogId,
+        quickStartAttribution: onboardingQuickStartAttribution,
         reviewOutcome,
         rowSource: detailRow.source,
         runId: failureActionOnboardingParams.runId,
@@ -696,6 +706,7 @@ const EvalUsageTab = ({
           evalId: templateId,
           evalLogId,
           previousRunId: failureActionOnboardingParams.previousRunId,
+          quickStartAttribution: onboardingQuickStartAttribution,
           rerunFrom: failureActionOnboardingParams.rerunFrom,
           reviewOutcome,
           rowSource: detailRow.source,
@@ -715,6 +726,7 @@ const EvalUsageTab = ({
     failureActionOnboardingParams.sourceId,
     failureActionOnboardingParams.sourceType,
     failureActionOnboardingParams.step,
+    onboardingQuickStartAttribution,
     recordActivationEvent,
     templateId,
   ]);
@@ -735,6 +747,7 @@ const EvalUsageTab = ({
           evalLogId: logId || row?.id,
           feedbackId,
           fixRoute: sourceFixHref,
+          quickStartAttribution: onboardingQuickStartAttribution,
           rowSource: row?.source,
           runId: failureActionOnboardingParams.runId,
           sourceId: failureActionOnboardingParams.sourceId,
@@ -745,6 +758,7 @@ const EvalUsageTab = ({
     },
     [
       failureActionOnboardingParams,
+      onboardingQuickStartAttribution,
       recordActivationEvent,
       sourceFixHref,
       templateId,
@@ -761,6 +775,7 @@ const EvalUsageTab = ({
             evalId: templateId,
             evalLogId: getEvalUsageLogId(row),
             fixRoute: sourceFixHref,
+            quickStartAttribution: onboardingQuickStartAttribution,
             rowSource: row?.source,
             runId: failureActionOnboardingParams.runId,
             sourceId: failureActionOnboardingParams.sourceId,
@@ -777,6 +792,7 @@ const EvalUsageTab = ({
       failureActionOnboardingParams.sourceId,
       failureActionOnboardingParams.sourceType,
       navigate,
+      onboardingQuickStartAttribution,
       recordActivationEvent,
       sourceFixHref,
       templateId,
@@ -793,6 +809,7 @@ const EvalUsageTab = ({
             editRoute: scorerEditHref,
             evalId: templateId,
             evalLogId: getEvalUsageLogId(row),
+            quickStartAttribution: onboardingQuickStartAttribution,
             rowSource: row?.source,
             runId: failureActionOnboardingParams.runId,
             sourceId: failureActionOnboardingParams.sourceId,
@@ -809,6 +826,7 @@ const EvalUsageTab = ({
       failureActionOnboardingParams.sourceId,
       failureActionOnboardingParams.sourceType,
       navigate,
+      onboardingQuickStartAttribution,
       recordActivationEvent,
       scorerEditHref,
       templateId,

@@ -6,13 +6,14 @@ import DatasetOptions from "./DatasetOptions";
 import UploadFileModal from "./UploadFileModal";
 import ManuallyCreateDataset from "./ManuallyCreateDataset";
 import ImportFromHuggingFace from "./ImportFromHuggingFace";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { paths } from "src/routes/paths";
 import AddSDKModal from "./AddSDKModal";
 import SyntheticDataDrawer from "../AddRowDrawer/CreateSyntheticData";
 import { trackEvent, Events, PropertyName } from "src/utils/Mixpanel";
 import ExistingDatasetModal from "../AddRowDrawer/ExistingDatasetModal";
 import { useDeploymentMode } from "src/hooks/useDeploymentMode";
+import { appendEvalOnboardingAttributionToHref } from "src/sections/evals/components/evalCreateOnboarding";
 
 const options = [
   {
@@ -95,6 +96,7 @@ const AddDatasetDrawer = ({
   const [syntheticDataDrawerOpen, setSyntheticDataDrawerOpen] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { isOSS } = useDeploymentMode();
   const filteredOptions = isOSS
     ? options.filter((o) => o.id !== "synthetic-data")
@@ -272,7 +274,14 @@ const AddDatasetDrawer = ({
                             "add from importFromHuggingFace",
                         });
                         trackEvent(Events.datasetFromHuggingFaceClicked);
-                        navigate(paths.dashboard.huggingface);
+                        navigate(
+                          isEvalSourceContext
+                            ? appendEvalOnboardingAttributionToHref(
+                                paths.dashboard.huggingface,
+                                location.search,
+                              )
+                            : paths.dashboard.huggingface,
+                        );
                       }
                       if (option.id === "addFromExistingDataset") {
                         trackEvent(Events.datasetTypeChoosed, {
@@ -288,11 +297,12 @@ const AddDatasetDrawer = ({
                         trackEvent(Events.syntheticDatasetCreationClicked);
                         // setSyntheticDataDrawerOpen(true);
                         navigate(
-                          `/dashboard/develop/create-synthetic-dataset${
-                            isEvalSourceContext
-                              ? "?source=onboarding&action=create-eval-dataset"
-                              : ""
-                          }`,
+                          isEvalSourceContext
+                            ? appendEvalOnboardingAttributionToHref(
+                                "/dashboard/develop/create-synthetic-dataset?source=onboarding&action=create-eval-dataset",
+                                location.search,
+                              )
+                            : "/dashboard/develop/create-synthetic-dataset",
                         );
                       }
                     }}

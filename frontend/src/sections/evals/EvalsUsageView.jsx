@@ -25,6 +25,7 @@ import EvalOnboardingFocusPanel from "./components/EvalOnboardingFocusPanel";
 import {
   buildEvalReviewDetailHref,
   buildEvalReviewRouteFocusPayload,
+  evalSetupQuickStartAttributionFromSearch,
   getEvalReviewOnboardingCopy,
   getEvalReviewOnboardingParams,
 } from "./components/evalCreateOnboarding";
@@ -141,6 +142,10 @@ const EvalsUsageView = () => {
     () => getEvalReviewOnboardingParams(location.search),
     [location.search],
   );
+  const onboardingQuickStartAttribution = useMemo(
+    () => evalSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const reviewOnboardingCopy = useMemo(
     () => getEvalReviewOnboardingCopy(reviewOnboardingParams),
     [reviewOnboardingParams],
@@ -159,12 +164,17 @@ const EvalsUsageView = () => {
     recordActivationEvent?.(
       buildEvalReviewRouteFocusPayload({
         previousRunId: reviewOnboardingParams.previousRunId,
+        quickStartAttribution: onboardingQuickStartAttribution,
         rerunFrom: reviewOnboardingParams.rerunFrom,
         route: "eval_usage_list",
         runId: reviewOnboardingParams.runId,
       }),
     );
-  }, [recordActivationEvent, reviewOnboardingParams]);
+  }, [
+    onboardingQuickStartAttribution,
+    recordActivationEvent,
+    reviewOnboardingParams,
+  ]);
 
   const dataSource = useMemo(
     () => ({

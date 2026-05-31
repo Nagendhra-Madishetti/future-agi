@@ -30,6 +30,7 @@ import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/use
 import {
   buildEvalDatasetCreatedPayload,
   buildEvalScorerSourceHref,
+  evalSetupQuickStartAttributionFromSearch,
 } from "../evals/components/evalCreateOnboarding";
 
 // ── Derived datasets cell ──
@@ -206,6 +207,10 @@ const DevelopView = () => {
   const isEvalDatasetOnboarding =
     onboardingDatasetParams.get("source") === "onboarding" &&
     onboardingDatasetParams.get("action") === "create-eval-dataset";
+  const onboardingQuickStartAttribution = useMemo(
+    () => evalSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
 
   const debouncedSearch = useDebounce(searchQuery.trim(), 500);
 
@@ -236,13 +241,21 @@ const DevelopView = () => {
       recordActivationEvent?.(
         buildEvalDatasetCreatedPayload({
           datasetId,
+          quickStartAttribution: onboardingQuickStartAttribution,
           sourceMethod,
         }),
       );
 
-      return buildEvalScorerSourceHref({ sourceId: datasetId });
+      return buildEvalScorerSourceHref({
+        quickStartAttribution: onboardingQuickStartAttribution,
+        sourceId: datasetId,
+      });
     },
-    [isEvalDatasetOnboarding, recordActivationEvent],
+    [
+      isEvalDatasetOnboarding,
+      onboardingQuickStartAttribution,
+      recordActivationEvent,
+    ],
   );
 
   // Selected rows

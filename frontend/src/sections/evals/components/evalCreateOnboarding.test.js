@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendEvalOnboardingAttributionToHref,
   buildEvalCreateDraftHref,
   buildEvalDatasetCreatedPayload,
   buildEvalFixRerunCompletedPayload,
@@ -28,6 +29,7 @@ import {
   EVAL_CREATE_ONBOARDING_STEPS,
   EVAL_CREATE_SOURCE_TABS,
   EVAL_FIX_RERUN_ORIGINS,
+  evalSetupQuickStartAttributionFromSearch,
   evalCreateOnboardingStage,
   evalUsageLogMatchesRun,
   getEvalReviewActionKind,
@@ -48,6 +50,9 @@ import {
   shouldAutoConfirmEvalOnboardingSource,
   shouldAutoSaveEvalOnboardingStarterScorer,
 } from "./evalCreateOnboarding";
+
+const EVAL_QUICK_START_SEARCH =
+  "?quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals";
 
 describe("evalCreateOnboarding", () => {
   it("parses eval create onboarding query params", () => {
@@ -172,6 +177,51 @@ describe("evalCreateOnboarding", () => {
       }),
     ).toBe(
       "/dashboard/evaluations/create/eval-1?source=onboarding&step=run&source_type=dataset&source_id=data-1&rerun_from=source_fix&previous_run_id=run-1",
+    );
+  });
+
+  it("keeps setup quick-start attribution across eval create routes", () => {
+    const attribution = evalSetupQuickStartAttributionFromSearch(
+      EVAL_QUICK_START_SEARCH,
+    );
+
+    expect(attribution).toEqual({
+      quick_start_goal: "evaluate_quality",
+      quick_start_id: "evals",
+      quick_start_primary_path: "evals",
+    });
+    expect(
+      appendEvalOnboardingAttributionToHref(
+        "/dashboard/evaluations/create?source=onboarding",
+        attribution,
+      ),
+    ).toBe(
+      "/dashboard/evaluations/create?source=onboarding&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals",
+    );
+    expect(
+      buildEvalSourceSetupHref({
+        search: EVAL_QUICK_START_SEARCH,
+      }),
+    ).toBe(
+      "/dashboard/develop?source=onboarding&action=create-eval-dataset&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals",
+    );
+    expect(
+      buildEvalScorerSourceHref({
+        quickStartAttribution: attribution,
+        sourceId: "data-1",
+      }),
+    ).toBe(
+      "/dashboard/evaluations/create?source=onboarding&step=scorer&source_type=dataset&source_id=data-1&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals",
+    );
+    expect(
+      buildEvalRunStepHref({
+        evalId: "eval-1",
+        quickStartAttribution: attribution,
+        sourceId: "data-1",
+        sourceType: "dataset",
+      }),
+    ).toBe(
+      "/dashboard/evaluations/create/eval-1?source=onboarding&step=run&source_type=dataset&source_id=data-1&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals",
     );
   });
 
@@ -447,6 +497,40 @@ describe("evalCreateOnboarding", () => {
     expect(payload.metadata).not.toHaveProperty("name");
   });
 
+  it("adds setup quick-start attribution to eval activation payloads", () => {
+    const attribution = evalSetupQuickStartAttributionFromSearch(
+      EVAL_QUICK_START_SEARCH,
+    );
+
+    expect(
+      buildEvalDatasetCreatedPayload({
+        datasetId: "data-1",
+        quickStartAttribution: attribution,
+        sourceMethod: "manual",
+      }),
+    ).toMatchObject({
+      eventName: "eval_dataset_created",
+      quick_start_goal: "evaluate_quality",
+      quick_start_id: "evals",
+      quick_start_primary_path: "evals",
+    });
+
+    expect(
+      buildEvalFirstQualityLoopCompletedPayload({
+        evalId: "eval-1",
+        previousRunId: "run-1",
+        quickStartAttribution: attribution,
+        rerunFrom: EVAL_FIX_RERUN_ORIGINS.SOURCE_FIX,
+        runId: "run-2",
+      }),
+    ).toMatchObject({
+      eventName: "first_quality_loop_completed",
+      quick_start_goal: "evaluate_quality",
+      quick_start_id: "evals",
+      quick_start_primary_path: "evals",
+    });
+  });
+
   it("builds a scorer-created payload without source content", () => {
     expect(
       buildEvalScorerCreatedPayload({
@@ -715,6 +799,57 @@ describe("evalCreateOnboarding", () => {
 
     expect(buildEvalReviewDetailHref("eval-1", "?tab=usage")).toBe(
       "/dashboard/evaluations/eval-1",
+    );
+  });
+
+  it("keeps setup quick-start attribution across eval review and repair routes", () => {
+    const attribution = evalSetupQuickStartAttributionFromSearch(
+      EVAL_QUICK_START_SEARCH,
+    );
+
+    expect(
+      buildEvalReviewStepHref({
+        evalId: "eval-1",
+        quickStartAttribution: attribution,
+        runId: "run-1",
+        sourceId: "data-1",
+        sourceType: "dataset",
+      }),
+    ).toBe(
+      "/dashboard/evaluations/eval-1?tab=usage&source=onboarding&step=review&run_id=run-1&source_type=dataset&source_id=data-1&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals",
+    );
+    expect(
+      buildEvalReviewDetailHref(
+        "eval-1",
+        `?tab=usage&source=onboarding&step=review&run_id=run-1&source_type=dataset&source_id=data-1&${EVAL_QUICK_START_SEARCH.slice(
+          1,
+        )}`,
+      ),
+    ).toBe(
+      "/dashboard/evaluations/eval-1?tab=usage&source=onboarding&step=review&run_id=run-1&source_type=dataset&source_id=data-1&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals",
+    );
+    expect(
+      buildEvalSourceFixHref({
+        evalId: "eval-1",
+        quickStartAttribution: attribution,
+        runId: "run-1",
+        sourceId: "data-1",
+        sourceType: "dataset",
+      }),
+    ).toBe(
+      "/dashboard/develop/data-1?source=onboarding&step=fix-eval-failure&source_type=dataset&source_id=data-1&eval_id=eval-1&run_id=run-1&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals",
+    );
+    expect(
+      buildEvalPostRepairHomeHref({
+        previousRunId: "run-1",
+        quickStartAttribution: attribution,
+        rerunFrom: EVAL_FIX_RERUN_ORIGINS.SOURCE_FIX,
+        runId: "run-2",
+        sourceId: "data-1",
+        sourceType: "dataset",
+      }),
+    ).toBe(
+      "/dashboard/home?source=onboarding&target_event=first_quality_loop_completed&target_route=activation_home&run_id=run-2&source_type=dataset&source_id=data-1&rerun_from=source_fix&previous_run_id=run-1&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals",
     );
   });
 

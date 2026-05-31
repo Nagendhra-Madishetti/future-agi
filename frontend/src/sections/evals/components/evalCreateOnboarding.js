@@ -1,3 +1,8 @@
+import {
+  appendSetupQuickStartAttributionToHref,
+  setupQuickStartAttributionParams,
+} from "src/sections/auth/jwt/setup-org-quick-starts";
+
 const DEFAULT_ARTIFACT_ID = "eval-onboarding";
 const EVAL_REVIEW_ARTIFACT_ID = "eval-review";
 const EVAL_FIX_ARTIFACT_ID = "eval-failure-action";
@@ -212,6 +217,33 @@ const toSearchParams = (search = "") =>
     ? new URLSearchParams(search)
     : new URLSearchParams(search);
 
+export const evalSetupQuickStartAttributionFromSearch = (search = "") => {
+  const params = toSearchParams(search);
+  return {
+    quick_start_goal: params.get("quick_start_goal"),
+    quick_start_id: params.get("quick_start_id"),
+    quick_start_primary_path: params.get("quick_start_primary_path"),
+  };
+};
+
+export const appendEvalOnboardingAttributionToHref = (
+  href,
+  attributionOrSearch = {},
+) =>
+  appendSetupQuickStartAttributionToHref(
+    href,
+    attributionOrSearch instanceof URLSearchParams ||
+      typeof attributionOrSearch === "string"
+      ? evalSetupQuickStartAttributionFromSearch(attributionOrSearch)
+      : attributionOrSearch,
+  );
+
+const evalQuickStartAttributionInput = ({
+  quickStartAttribution,
+  search,
+} = {}) =>
+  quickStartAttribution || evalSetupQuickStartAttributionFromSearch(search);
+
 const normalizeFixRerunOrigin = (value) =>
   validFixRerunOrigins.has(value) ? value : null;
 
@@ -358,11 +390,19 @@ export const buildEvalCreateDraftHref = (draftId, search = "") => {
   return `/dashboard/evaluations/create/${draftId}${query ? `?${query}` : ""}`;
 };
 
-export const buildEvalSourceSetupHref = () =>
-  "/dashboard/develop?source=onboarding&action=create-eval-dataset";
+export const buildEvalSourceSetupHref = ({
+  quickStartAttribution,
+  search,
+} = {}) =>
+  appendEvalOnboardingAttributionToHref(
+    "/dashboard/develop?source=onboarding&action=create-eval-dataset",
+    evalQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
 
 export const buildEvalScorerSourceHref = ({
   evalId,
+  quickStartAttribution,
+  search,
   sourceId,
   sourceType = "dataset",
 } = {}) => {
@@ -372,13 +412,18 @@ export const buildEvalScorerSourceHref = ({
   params.set("source_type", sourceType || "dataset");
   if (sourceId) params.set("source_id", sourceId);
 
-  return `/dashboard/evaluations/create${evalId ? `/${evalId}` : ""}?${params.toString()}`;
+  return appendEvalOnboardingAttributionToHref(
+    `/dashboard/evaluations/create${evalId ? `/${evalId}` : ""}?${params.toString()}`,
+    evalQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
 };
 
 export const buildEvalScorerEditHref = ({
   evalId,
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
+  search,
   sourceId,
   sourceType,
 } = {}) => {
@@ -391,13 +436,18 @@ export const buildEvalScorerEditHref = ({
   if (sourceId) params.set("source_id", sourceId);
   appendEvalFixRerunParams(params, { previousRunId, rerunFrom });
 
-  return `/dashboard/evaluations/create/${evalId}?${params.toString()}`;
+  return appendEvalOnboardingAttributionToHref(
+    `/dashboard/evaluations/create/${evalId}?${params.toString()}`,
+    evalQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
 };
 
 export const buildEvalRunStepHref = ({
   evalId,
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
+  search,
   sourceId,
   sourceType,
 } = {}) => {
@@ -408,7 +458,10 @@ export const buildEvalRunStepHref = ({
   if (sourceId) params.set("source_id", sourceId);
   appendEvalFixRerunParams(params, { previousRunId, rerunFrom });
 
-  return `/dashboard/evaluations/create/${evalId}?${params.toString()}`;
+  return appendEvalOnboardingAttributionToHref(
+    `/dashboard/evaluations/create/${evalId}?${params.toString()}`,
+    evalQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
 };
 
 export const getEvalRunResultId = (result = {}) =>
@@ -570,8 +623,10 @@ export const getEvalSourceFixOnboardingCopy = ({ sourceType } = {}) =>
 export const buildEvalReviewStepHref = ({
   evalId,
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
   runId,
+  search,
   sourceId,
   sourceType,
 } = {}) => {
@@ -587,7 +642,10 @@ export const buildEvalReviewStepHref = ({
   if (sourceId) params.set("source_id", sourceId);
   appendEvalFixRerunParams(params, { previousRunId, rerunFrom });
 
-  return `${basePath}?${params.toString()}`;
+  return appendEvalOnboardingAttributionToHref(
+    `${basePath}?${params.toString()}`,
+    evalQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
 };
 
 export const buildEvalReviewDetailHref = (evalId, search = "") => {
@@ -601,6 +659,7 @@ export const buildEvalReviewDetailHref = (evalId, search = "") => {
     runId: reviewParams.runId,
     previousRunId: reviewParams.previousRunId,
     rerunFrom: reviewParams.rerunFrom,
+    search,
     sourceId: reviewParams.sourceId,
     sourceType: reviewParams.sourceType,
   });
@@ -608,7 +667,9 @@ export const buildEvalReviewDetailHref = (evalId, search = "") => {
 
 export const buildEvalSourceFixHref = ({
   evalId,
+  quickStartAttribution,
   runId,
+  search,
   sourceId,
   sourceType,
 } = {}) => {
@@ -630,13 +691,18 @@ export const buildEvalSourceFixHref = ({
   if (evalId) params.set("eval_id", evalId);
   if (runId) params.set("run_id", runId);
 
-  return `${basePath}?${params.toString()}`;
+  return appendEvalOnboardingAttributionToHref(
+    `${basePath}?${params.toString()}`,
+    evalQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
 };
 
 export const buildEvalPostRepairHomeHref = ({
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
   runId,
+  search,
   sourceId,
   sourceType,
 } = {}) => {
@@ -649,7 +715,10 @@ export const buildEvalPostRepairHomeHref = ({
   if (sourceId) params.set("source_id", sourceId);
   appendEvalFixRerunParams(params, { previousRunId, rerunFrom });
 
-  return `/dashboard/home?${params.toString()}`;
+  return appendEvalOnboardingAttributionToHref(
+    `/dashboard/home?${params.toString()}`,
+    evalQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
 };
 
 export const evalCreateOnboardingStage = (step) =>
@@ -658,6 +727,7 @@ export const evalCreateOnboardingStage = (step) =>
 export const buildEvalRouteFocusPayload = ({
   draftId,
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
   runId,
   sourceId,
@@ -694,11 +764,13 @@ export const buildEvalRouteFocusPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
 export const buildEvalSourceSelectedPayload = ({
   draftId,
+  quickStartAttribution,
   rowType,
   sourceId,
   sourceType,
@@ -731,11 +803,13 @@ export const buildEvalSourceSelectedPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
 export const buildEvalDatasetCreatedPayload = ({
   datasetId,
+  quickStartAttribution,
   sourceMethod,
 } = {}) => {
   const artifactId = safeKeyPart(datasetId, "eval-source");
@@ -756,6 +830,7 @@ export const buildEvalDatasetCreatedPayload = ({
     }),
     idempotencyKey: ["eval_dataset_created", "dataset", artifactId].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -763,6 +838,7 @@ export const buildEvalScorerCreatedPayload = ({
   evalId,
   evalType,
   isComposite = false,
+  quickStartAttribution,
   sourceId,
   sourceType,
   step,
@@ -790,6 +866,7 @@ export const buildEvalScorerCreatedPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -799,6 +876,7 @@ export const buildEvalRunClickedPayload = ({
   isComposite = false,
   mode,
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
   sourceId,
   sourceType,
@@ -830,6 +908,7 @@ export const buildEvalRunClickedPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -838,6 +917,7 @@ export const buildEvalRunCompletedPayload = ({
   evalType,
   isComposite = false,
   mode,
+  quickStartAttribution,
   result = {},
   runId,
   sourceId,
@@ -875,6 +955,7 @@ export const buildEvalRunCompletedPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -884,6 +965,7 @@ export const buildEvalFixRerunCompletedPayload = ({
   isComposite = false,
   mode,
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
   result = {},
   runId,
@@ -925,12 +1007,14 @@ export const buildEvalFixRerunCompletedPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
 export const buildEvalReviewRouteFocusPayload = ({
   evalId,
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
   route = "eval_detail",
   runId,
@@ -959,11 +1043,13 @@ export const buildEvalReviewRouteFocusPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
 export const buildEvalSourceFixRouteFocusPayload = ({
   evalId,
+  quickStartAttribution,
   route,
   runId,
   sourceId,
@@ -995,11 +1081,13 @@ export const buildEvalSourceFixRouteFocusPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
 export const buildEvalSourceFixRerunClickedPayload = ({
   evalId,
+  quickStartAttribution,
   rerunRoute,
   route,
   runId,
@@ -1033,12 +1121,14 @@ export const buildEvalSourceFixRerunClickedPayload = ({
       safeKeyPart(evalId || sourceId || runId, "eval-source-fix"),
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
 export const buildEvalFailuresReviewedPayload = ({
   evalId,
   evalLogId,
+  quickStartAttribution,
   reviewOutcome,
   reviewSurface = "usage_log_detail",
   rowSource,
@@ -1072,6 +1162,7 @@ export const buildEvalFailuresReviewedPayload = ({
       safeKeyPart(evalId, "no-eval"),
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -1079,6 +1170,7 @@ export const buildEvalFixRerunReviewedPayload = ({
   evalId,
   evalLogId,
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
   reviewOutcome,
   reviewSurface = "usage_log_detail",
@@ -1121,6 +1213,7 @@ export const buildEvalFixRerunReviewedPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -1130,6 +1223,7 @@ export const buildEvalFailureActionCreatedPayload = ({
   evalLogId,
   feedbackId,
   fixRoute,
+  quickStartAttribution,
   rowSource,
   runId,
   sourceId,
@@ -1166,6 +1260,7 @@ export const buildEvalFailureActionCreatedPayload = ({
       safeKeyPart(evalId, "no-eval"),
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -1173,6 +1268,7 @@ export const buildEvalSourceFixCtaClickedPayload = ({
   evalId,
   evalLogId,
   fixRoute,
+  quickStartAttribution,
   rowSource,
   runId,
   sourceId,
@@ -1206,6 +1302,7 @@ export const buildEvalSourceFixCtaClickedPayload = ({
       safeKeyPart(evalId, "no-eval"),
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -1213,6 +1310,7 @@ export const buildEvalScorerEditCtaClickedPayload = ({
   editRoute,
   evalId,
   evalLogId,
+  quickStartAttribution,
   rowSource,
   runId,
   sourceId,
@@ -1246,6 +1344,7 @@ export const buildEvalScorerEditCtaClickedPayload = ({
       safeKeyPart(evalLogId || runId, "no-run"),
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -1253,6 +1352,7 @@ export const buildEvalFirstQualityLoopCompletedPayload = ({
   evalId,
   evalLogId,
   previousRunId,
+  quickStartAttribution,
   rerunFrom,
   reviewOutcome,
   runId,
@@ -1288,5 +1388,6 @@ export const buildEvalFirstQualityLoopCompletedPayload = ({
       artifactId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };

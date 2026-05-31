@@ -8,6 +8,9 @@ import {
 } from "src/utils/test-utils";
 import EvalCreatePage from "./EvalCreatePage";
 
+const EVAL_QUICK_START_QUERY =
+  "quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals";
+
 const mocks = vi.hoisted(() => ({
   axiosGet: vi.fn(),
   axiosPost: vi.fn(),
@@ -176,8 +179,7 @@ describe("EvalCreatePage onboarding source handoff", () => {
 
   it("auto-saves the untouched trace starter scorer and opens the run step", async () => {
     renderWithRouter(<EvalCreatePage />, {
-      route:
-        "/dashboard/evaluations/create/eval-draft-1?source=onboarding&step=scorer&source_type=trace_project&source_id=project-1",
+      route: `/dashboard/evaluations/create/eval-draft-1?source=onboarding&step=scorer&source_type=trace_project&source_id=project-1&${EVAL_QUICK_START_QUERY}`,
     });
 
     await waitFor(() =>
@@ -206,11 +208,17 @@ describe("EvalCreatePage onboarding source handoff", () => {
     expect(new URLSearchParams(window.location.search).get("source_id")).toBe(
       "project-1",
     );
+    expect(
+      new URLSearchParams(window.location.search).get("quick_start_id"),
+    ).toBe("evals");
     expect(mocks.recordActivationEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         eventName: "eval_scorer_created",
         artifactId: "eval-draft-1",
         artifactType: "eval_scorer",
+        quick_start_goal: "evaluate_quality",
+        quick_start_id: "evals",
+        quick_start_primary_path: "evals",
         metadata: expect.objectContaining({
           eval_id: "eval-draft-1",
           eval_type: "code",
