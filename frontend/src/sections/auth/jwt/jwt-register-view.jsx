@@ -332,6 +332,7 @@ export default function JwtRegisterView() {
         size="small"
         name="email"
         label="Business Email ID"
+        helperText="Use your work email. Personal email access may require an invite."
       />
       {!onboarding_token && (
         <RHFTextField
