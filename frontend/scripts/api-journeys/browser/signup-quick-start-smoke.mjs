@@ -55,6 +55,9 @@ async function main() {
   const runId = `${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 8)}`;
+  const smokeClientIp =
+    process.env.ONBOARDING_SMOKE_CLIENT_IP ||
+    (ALLOW_REMOTE ? "" : smokeClientIpForRun(runId));
   const user = {
     email:
       process.env.ONBOARDING_SIGNUP_EMAIL ||
@@ -79,6 +82,7 @@ async function main() {
     sampleProjectResponses: [],
     setupPosts: [],
     signupPosts: [],
+    smokeClientIp: smokeClientIp || null,
     tokenPosts: [],
     traceDetailRequests: [],
   };
@@ -191,7 +195,9 @@ async function main() {
     if (/^\/tracer\/trace\/[^/]+\/$/.test(path) && request.method() === "GET") {
       evidence.traceDetailRequests.push(path);
     }
-    request.continue();
+    request.continue({
+      headers: headersWithSmokeClientIp(request.headers(), smokeClientIp),
+    });
   });
   page.on("response", async (response) => {
     const url = safeUrl(response.url());
@@ -208,6 +214,7 @@ async function main() {
       url &&
       url.origin === new URL(API_BASE).origin &&
       path === "/accounts/sample-project/" &&
+      response.request().method() === "POST" &&
       response.status() < 400
     ) {
       try {
@@ -539,6 +546,7 @@ async function main() {
           setup_org_entry_url: setupOrgEntryUrl,
           setup_org_home_url: setupOrgHomeUrl,
           screenshot: SCREENSHOT_PATH,
+          smoke_client_ip: smokeClientIp || null,
           signup_post: evidence.signupPosts[0],
           token_post: evidence.tokenPosts[0],
         },
@@ -1449,6 +1457,7 @@ async function main() {
         screenshot: SCREENSHOT_PATH,
         setup_posts: evidence.setupPosts,
         setup_quick_start: "observe",
+        smoke_client_ip: smokeClientIp || null,
         signup_post: evidence.signupPosts[0],
         token_post: evidence.tokenPosts[0],
       },
@@ -2416,6 +2425,23 @@ async function safeSignupFormState(page) {
   } catch (error) {
     return { error: error.message };
   }
+}
+
+function smokeClientIpForRun(runId) {
+  let hash = 0;
+  for (const char of runId) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return `198.51.${hash % 256}.${(Math.floor(hash / 256) % 254) + 1}`;
+}
+
+function headersWithSmokeClientIp(headers, smokeClientIp) {
+  if (!smokeClientIp) return headers;
+  return {
+    ...headers,
+    "X-Forwarded-For": smokeClientIp,
+    "X-Real-IP": smokeClientIp,
+  };
 }
 
 async function prepareBrowserLikeSmokeRuntime({ browser, page }) {

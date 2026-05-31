@@ -263,22 +263,51 @@ function missingProperties(value, keys) {
   );
 }
 
+function expectedDailyQualityAvailable(evidence = {}) {
+  return evidence.expected_daily_quality_available !== false;
+}
+
+function isAhaMomentContractValid(event, { dailyQualityAvailable } = {}) {
+  const properties = event?.properties || {};
+  return (
+    event?.event === "onboarding_aha_moment_reached" &&
+    properties.source === "onboarding" &&
+    properties.quick_start_goal === "monitor_production_ai_app" &&
+    properties.quick_start_id === "observe" &&
+    properties.quick_start_primary_path === "observe" &&
+    properties.primary_path === "observe" &&
+    properties.activation_stage === "activated" &&
+    properties.activation_event_name === "first_quality_loop_completed" &&
+    properties.activation_event_path === "evals" &&
+    properties.daily_quality_available === dailyQualityAvailable &&
+    properties.is_sample !== true
+  );
+}
+
+function sampleProjectContract(evidence = {}) {
+  const responseResult = evidence.sample_project_response?.result;
+  if (hasObject(responseResult)) {
+    return {
+      activation_state: responseResult.activation_state,
+      sample_project: responseResult.sample_project,
+    };
+  }
+
+  return {
+    activation_state: evidence.sample_open_state,
+    sample_project: evidence.sample_open_state?.sample_project,
+  };
+}
+
 function launchMetricReportEntry(child, expected, report) {
   const evidence = report?.evidence || {};
   const ahaProperties = evidence.aha_moment_posthog_event?.properties || {};
-  const uiAhaContractValid =
-    evidence.aha_moment_posthog_event?.event ===
-      "onboarding_aha_moment_reached" &&
-    ahaProperties.source === "onboarding" &&
-    ahaProperties.quick_start_goal === "monitor_production_ai_app" &&
-    ahaProperties.quick_start_id === "observe" &&
-    ahaProperties.quick_start_primary_path === "observe" &&
-    ahaProperties.primary_path === "observe" &&
-    ahaProperties.activation_stage === "activated" &&
-    ahaProperties.activation_event_name === "first_quality_loop_completed" &&
-    ahaProperties.activation_event_path === "evals" &&
-    ahaProperties.daily_quality_available === true &&
-    ahaProperties.is_sample !== true;
+  const uiAhaContractValid = isAhaMomentContractValid(
+    evidence.aha_moment_posthog_event,
+    {
+      dailyQualityAvailable: expectedDailyQualityAvailable(evidence),
+    },
+  );
   return {
     id: expected.id,
     mode: expected.mode,
@@ -460,18 +489,17 @@ function validateSampleEvidence(checks, childId, report) {
     `${childId}:sample:not_real_signal`,
     "Sample proof does not expose first real observe or trace identifiers.",
   );
+  const sampleContract = sampleProjectContract(evidence);
   addCheck(
     checks,
-    evidence.sample_project_response?.result?.sample_project?.created ===
-      true &&
+    sampleContract.sample_project?.created === true &&
       sameSampleTraceRoute(
-        evidence.sample_project_response?.result?.sample_project?.entry_route,
+        sampleContract.sample_project?.entry_route,
         evidence.sample_trace_url,
       ) &&
-      evidence.sample_project_response?.result?.activation_state
-        ?.is_activated === false,
+      sampleContract.activation_state?.is_activated === false,
     `${childId}:sample:response_contract`,
-    "Sample proof response created a sample project without activating the workspace.",
+    "Sample proof created a sample project without activating the workspace.",
   );
 }
 
@@ -480,7 +508,6 @@ function validateRealQualityLoopEvidence(checks, childId, report) {
   addEvidenceFieldChecks(checks, childId, evidence, [
     "aha_moment_posthog_event",
     "browser_state",
-    "daily_quality_cta_href",
     "eval_first_quality_loop_completed_event",
     "eval_fix_rerun_completed_event",
     "eval_fix_rerun_reviewed_event",
@@ -499,6 +526,25 @@ function validateRealQualityLoopEvidence(checks, childId, report) {
     "signup_post",
     "token_post",
   ]);
+  const shouldHaveDailyQuality = expectedDailyQualityAvailable(evidence);
+  addCheck(
+    checks,
+    shouldHaveDailyQuality
+      ? evidence.daily_quality_cta_href !== undefined &&
+          evidence.daily_quality_cta_href !== null
+      : evidence.daily_quality_cta_href === undefined ||
+          evidence.daily_quality_cta_href === null,
+    `${childId}:evidence:daily_quality_cta_href`,
+    shouldHaveDailyQuality
+      ? "Evidence field daily_quality_cta_href is present."
+      : "Evidence field daily_quality_cta_href is absent when daily quality is unavailable.",
+  );
+  addCheck(
+    checks,
+    typeof evidence.expected_daily_quality_available === "boolean",
+    `${childId}:evidence:expected_daily_quality_available`,
+    "Evidence field expected_daily_quality_available is explicit.",
+  );
   addCheck(
     checks,
     evidence.setup_quick_start === "observe",
@@ -534,26 +580,9 @@ function validateRealQualityLoopEvidence(checks, childId, report) {
   );
   addCheck(
     checks,
-    evidence.aha_moment_posthog_event?.event ===
-      "onboarding_aha_moment_reached" &&
-      evidence.aha_moment_posthog_event?.properties?.source === "onboarding" &&
-      evidence.aha_moment_posthog_event?.properties?.quick_start_goal ===
-        "monitor_production_ai_app" &&
-      evidence.aha_moment_posthog_event?.properties?.quick_start_id ===
-        "observe" &&
-      evidence.aha_moment_posthog_event?.properties
-        ?.quick_start_primary_path === "observe" &&
-      evidence.aha_moment_posthog_event?.properties?.primary_path ===
-        "observe" &&
-      evidence.aha_moment_posthog_event?.properties?.activation_stage ===
-        "activated" &&
-      evidence.aha_moment_posthog_event?.properties?.activation_event_name ===
-        "first_quality_loop_completed" &&
-      evidence.aha_moment_posthog_event?.properties?.activation_event_path ===
-        "evals" &&
-      evidence.aha_moment_posthog_event?.properties?.daily_quality_available ===
-        true &&
-      evidence.aha_moment_posthog_event?.properties?.is_sample !== true,
+    isAhaMomentContractValid(evidence.aha_moment_posthog_event, {
+      dailyQualityAvailable: shouldHaveDailyQuality,
+    }),
     `${childId}:real_loop:aha_posthog`,
     "Real proof captures the frontend Aha PostHog marker with observe quick-start attribution.",
   );
