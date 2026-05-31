@@ -287,6 +287,7 @@ export default function AgentBuilder() {
           <NodeSelectionPanel
             width={SELECTION_PANEL_WIDTH}
             disabled={isLoadingTemplate || isRunning || isVersionLoading}
+            onboardingMode={onboardingMode}
           />
           <Box
             sx={{

@@ -9,6 +9,7 @@ import {
 } from "src/api/agent-playground/agent-playground";
 import { useAgentPlaygroundStoreShallow } from "../store";
 import NodeCard from "../components/NodeCard";
+import AgentOnboardingFocusPanel from "../components/AgentOnboardingFocusPanel";
 import useAddNodeOptimistic from "./hooks/useAddNodeOptimistic";
 
 const NodeCardSkeleton = () => (
@@ -28,7 +29,11 @@ const NodeCardSkeleton = () => (
   </Box>
 );
 
-export default function NodeSelectionPanel({ width, disabled = false }) {
+export default function NodeSelectionPanel({
+  width,
+  disabled = false,
+  onboardingMode,
+}) {
   const { addNode } = useAddNodeOptimistic();
   const { setCenter, getZoom } = useReactFlow();
 
@@ -65,6 +70,16 @@ export default function NodeSelectionPanel({ width, disabled = false }) {
     },
     [addNode, disabled, setCenter, getZoom],
   );
+
+  const isAddEvalMode = onboardingMode === "add-eval";
+  const evalNode = useMemo(
+    () => nodesList.find((node) => node.id === "eval"),
+    [nodesList],
+  );
+  const handleAddEvalNode = useCallback(() => {
+    if (!evalNode) return;
+    handleNodeClick(evalNode);
+  }, [evalNode, handleNodeClick]);
 
   const handleDragStart = useCallback(
     (event, node) => {
@@ -105,6 +120,28 @@ export default function NodeSelectionPanel({ width, disabled = false }) {
         }),
       }}
     >
+      <AgentOnboardingFocusPanel
+        currentStep="Coverage"
+        description="Add an eval node for the reviewed behavior, then save and rerun the workflow to prove the agent stays reliable."
+        hidden={!isAddEvalMode}
+        blocker={
+          disabled ? "Builder busy" : !evalNode ? "Eval unavailable" : null
+        }
+        primaryAction={{
+          label: "Add eval node",
+          onClick: handleAddEvalNode,
+          disabled: disabled || !evalNode,
+          tourAnchor: "agent_eval_node_button",
+        }}
+        steps={[
+          { label: "Agent", complete: true },
+          { label: "Scenario", complete: true },
+          { label: "Review", complete: true },
+          { label: "Coverage", complete: false },
+        ]}
+        title="Add coverage from the reviewed run"
+        sx={{ mb: 1.5 }}
+      />
       <Stack spacing={1}>
         {isLoading ? (
           <>
@@ -115,6 +152,11 @@ export default function NodeSelectionPanel({ width, disabled = false }) {
           nodesList.map((node) => (
             <Box
               key={node.id}
+              data-tour-anchor={
+                isAddEvalMode && node.id === "eval"
+                  ? "agent_eval_node_card"
+                  : undefined
+              }
               onClick={() => handleNodeClick(node)}
               onDragStart={(e) => handleDragStart(e, node)}
               draggable={!disabled}
@@ -139,4 +181,5 @@ export default function NodeSelectionPanel({ width, disabled = false }) {
 NodeSelectionPanel.propTypes = {
   width: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
   disabled: PropTypes.bool,
+  onboardingMode: PropTypes.string,
 };

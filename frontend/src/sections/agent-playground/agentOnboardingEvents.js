@@ -47,20 +47,40 @@ const agentQuickStartAttributionInput = ({
 export const buildAgentBuilderHref = ({
   agentId,
   onboarding = "run-scenario",
+  journeyStep,
   quickStartAttribution,
   search,
+  tourAnchor,
   versionId,
 } = {}) => {
   if (!agentId) return null;
   const params = new URLSearchParams();
   if (versionId) params.set("version", versionId);
   if (onboarding) params.set("onboarding", onboarding);
+  if (tourAnchor) params.set("tour_anchor", tourAnchor);
+  if (journeyStep) params.set("journey_step", journeyStep);
 
   return appendAgentOnboardingAttributionToHref(
     `/dashboard/agents/playground/${agentId}/build?${params.toString()}`,
     agentQuickStartAttributionInput({ quickStartAttribution, search }),
   );
 };
+
+export const buildAgentEvalBuilderHref = ({
+  agentId,
+  quickStartAttribution,
+  search,
+  versionId,
+} = {}) =>
+  buildAgentBuilderHref({
+    agentId,
+    journeyStep: "save_agent_eval",
+    onboarding: "add-eval",
+    quickStartAttribution,
+    search,
+    tourAnchor: "agent_eval_node_button",
+    versionId,
+  });
 
 export const buildAgentReviewRunHref = ({
   agentId,

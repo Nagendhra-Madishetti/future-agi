@@ -4,6 +4,7 @@ import {
   appendAgentOnboardingAttributionToHref,
   buildAgentBuilderHref,
   buildAgentCreatedPayload,
+  buildAgentEvalBuilderHref,
   buildAgentOnboardingReturnHref,
   buildAgentPrototypeRunCompletedPayload,
   buildAgentReviewRunHref,
@@ -48,6 +49,15 @@ describe("agentOnboardingEvents", () => {
       }),
     ).toBe(
       "/dashboard/agents/playground/agent-1/executions?onboarding=review-run&quick_start_goal=build_ai_agent&quick_start_id=agent&quick_start_primary_path=agent",
+    );
+    expect(
+      buildAgentEvalBuilderHref({
+        agentId: "agent-1",
+        quickStartAttribution: attribution,
+        versionId: "version-1",
+      }),
+    ).toBe(
+      "/dashboard/agents/playground/agent-1/build?version=version-1&onboarding=add-eval&tour_anchor=agent_eval_node_button&journey_step=save_agent_eval&quick_start_goal=build_ai_agent&quick_start_id=agent&quick_start_primary_path=agent",
     );
   });
 
