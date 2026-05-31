@@ -115,6 +115,33 @@ export const buildAgentCreatedPayload = ({
   ...setupQuickStartAttributionParams(quickStartAttribution),
 });
 
+export const buildAgentPrototypeRunCompletedPayload = ({
+  agentId,
+  executionId,
+  quickStartAttribution,
+  status,
+  versionId,
+} = {}) => ({
+  eventName: "agent_prototype_run_completed",
+  primaryPath: "agent",
+  stage: "run_agent_scenario",
+  source: "agent_playground",
+  artifactType: "graph_execution",
+  artifactId: String(executionId || "graph-execution"),
+  metadata: compactObject({
+    agent_id: agentId,
+    graph_execution_id: executionId,
+    status,
+    version_id: versionId,
+  }),
+  idempotencyKey: [
+    "agent_prototype_run_completed",
+    executionId || "graph-execution",
+  ].join(":"),
+  isSample: false,
+  ...setupQuickStartAttributionParams(quickStartAttribution),
+});
+
 export const buildAgentTraceReviewedPayload = ({
   agentId,
   executionId,

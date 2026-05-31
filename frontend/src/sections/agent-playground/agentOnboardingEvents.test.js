@@ -5,6 +5,7 @@ import {
   buildAgentBuilderHref,
   buildAgentCreatedPayload,
   buildAgentOnboardingReturnHref,
+  buildAgentPrototypeRunCompletedPayload,
   buildAgentReviewRunHref,
   buildAgentTraceReviewedPayload,
 } from "./agentOnboardingEvents";
@@ -62,6 +63,30 @@ describe("agentOnboardingEvents", () => {
       }),
     ).toMatchObject({
       eventName: "agent_created",
+      quick_start_goal: "build_ai_agent",
+      quick_start_id: "agent",
+      quick_start_primary_path: "agent",
+    });
+    expect(
+      buildAgentPrototypeRunCompletedPayload({
+        agentId: "agent-1",
+        executionId: "execution-1",
+        quickStartAttribution: attribution,
+        status: "success",
+        versionId: "version-1",
+      }),
+    ).toMatchObject({
+      eventName: "agent_prototype_run_completed",
+      primaryPath: "agent",
+      stage: "run_agent_scenario",
+      source: "agent_playground",
+      metadata: {
+        agent_id: "agent-1",
+        graph_execution_id: "execution-1",
+        status: "success",
+        version_id: "version-1",
+      },
+      idempotencyKey: "agent_prototype_run_completed:execution-1",
       quick_start_goal: "build_ai_agent",
       quick_start_id: "agent",
       quick_start_primary_path: "agent",

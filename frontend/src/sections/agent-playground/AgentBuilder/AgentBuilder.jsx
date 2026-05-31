@@ -2,6 +2,7 @@ import { Box, CircularProgress } from "@mui/material";
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   startTransition,
@@ -32,6 +33,8 @@ import { VERSION_STATUS } from "../utils/constants";
 import { useParams, useSearchParams, Navigate } from "react-router-dom";
 import { enqueueSnackbar } from "notistack";
 import useExecutionSync from "../hooks/useExecutionSync";
+import useAgentOnboardingRunCompletion from "../hooks/useAgentOnboardingRunCompletion";
+import { agentSetupQuickStartAttributionFromSearch } from "../agentOnboardingEvents";
 
 const SELECTION_PANEL_WIDTH = "230px";
 
@@ -178,6 +181,19 @@ export default function AgentBuilder() {
   const nodeDrawerResize = useNodeDrawerResize(isDrawerOpen);
   const onboardingMode = searchParams.get("onboarding");
   const tourAnchor = searchParams.get("tour_anchor");
+  const agentQuickStartAttribution = useMemo(
+    () => agentSetupQuickStartAttributionFromSearch(searchParams),
+    [searchParams],
+  );
+
+  useAgentOnboardingRunCompletion({
+    agentId,
+    executionData,
+    executionId,
+    onboardingMode,
+    quickStartAttribution: agentQuickStartAttribution,
+    versionId,
+  });
 
   const hasNodes = nodes?.length > 0;
 
