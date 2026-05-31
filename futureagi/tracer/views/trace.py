@@ -4648,19 +4648,40 @@ class UsersView(APIView):
                 page_size = 10
                 current_page = 0
 
+            # CH25 EndUser cutover (DESIGN §4.3): the curated source is now the
+            # v2 `end_users` RMT, which has NO `workspace_id` column (schema
+            # 017). The legacy `tracer_enduser.workspace_id` filter was this
+            # view's ONLY server-side workspace guard, so isolation must now
+            # route through the workspace's projects. Resolve the allowed
+            # project set (the is_default / null-workspace fan-out is encoded by
+            # `_project_queryset_for_request`); if a specific project_id was
+            # requested, keep it only when it is in scope (else the result is
+            # empty — never an org-wide scan).
+            allowed_project_ids = list(
+                _project_queryset_for_request(request).values_list("id", flat=True)
+            )
+            allowed_project_id_strs = {str(p) for p in allowed_project_ids}
+            empty_scope = False
+            if project_id:
+                if project_id in allowed_project_id_strs:
+                    scoped_project_ids = [project_id]
+                else:
+                    scoped_project_ids = []
+                    empty_scope = True
+            else:
+                scoped_project_ids = [str(p) for p in allowed_project_ids]
+                empty_scope = not scoped_project_ids
+
             analytics = AnalyticsQueryService()
             builder = UserListQueryBuilder(
                 organization_id=str(organization_id),
-                workspace_id=str(request.workspace.id),
-                project_id=project_id,
+                project_ids=scoped_project_ids,
                 search=search_name,
                 limit=limit,
                 offset=offset,
                 filters=filters,
                 sort_params=sort_params,
-                include_null_workspace=bool(
-                    getattr(request.workspace, "is_default", False)
-                ),
+                empty_scope=empty_scope,
             )
             query, params = builder.build()
             result = analytics.execute_ch_query(query, params, timeout_ms=30000)

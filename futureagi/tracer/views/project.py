@@ -3,16 +3,12 @@ from datetime import datetime, timedelta
 import structlog
 from django.db import models
 from django.db.models import Count
-from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
 from accounts.utils import get_request_organization
-
-logger = structlog.get_logger(__name__)
-from analytics.utils import mixpanel_slack_notfy, track_mixpanel_event
 from tfc.middleware.db_health_check import db_connection_required
 from tfc.middleware.query_timeout import monitor_query_performance
 from tfc.routers import uses_db
@@ -22,19 +18,13 @@ from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tracer.db_routing import DATABASE_FOR_PROJECT_LIST
 from tracer.models.eval_task import EvalTask
-from tracer.models.monitor import UserAlertMonitor, UserAlertMonitorLog
+from tracer.models.monitor import UserAlertMonitor
 from tracer.models.observation_span import ObservationSpan
 from tracer.models.project import Project
 from tracer.models.project_version import ProjectVersion
 from tracer.models.trace import Trace
 from tracer.models.trace_scan import TraceScanConfig
 from tracer.models.trace_session import TraceSession
-from tracer.queries.error_analysis import TraceErrorAnalysisDB
-from tracer.queries.end_users import (
-    build_user_graph_pg,
-    build_user_metrics_pg,
-    build_users_aggregate_graph_pg,
-)
 from tracer.serializers.project import (
     ProjectDetailResponseSerializer,
     ProjectGraphDataQuerySerializer,
@@ -65,6 +55,8 @@ from tracer.utils.constants import (
 )
 from tracer.utils.graphs_optimized import get_all_system_metrics
 from tracer.utils.helper import get_default_project_version_config, get_sort_query
+
+logger = structlog.get_logger(__name__)
 
 
 class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
@@ -718,9 +710,7 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                         "num_guardrails_triggered": row.get(
                             "num_guardrails_triggered", 0
                         ),
-                        "num_traces_with_errors": row.get(
-                            "num_traces_with_errors", 0
-                        ),
+                        "num_traces_with_errors": row.get("num_traces_with_errors", 0),
                         "num_sessions": row.get("num_sessions", 0),
                     }
                 )
@@ -767,21 +757,14 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                         interval=interval,
                     )
                     query, params = builder.build()
-                    result = analytics.execute_ch_query(
-                        query, params, timeout_ms=10000
-                    )
-                    ch_data = builder.format_result(
-                        result.data, result.columns or []
-                    )
+                    result = analytics.execute_ch_query(query, params, timeout_ms=10000)
+                    ch_data = builder.format_result(result.data, result.columns or [])
 
-                    metric_key = (
-                        metric_id if metric_id in ch_data else "active_users"
-                    )
+                    metric_key = metric_id if metric_id in ch_data else "active_users"
                     metric_points = ch_data.get(metric_key, [])
                     traffic_points = ch_data.get("traffic", [])
                     traffic_by_ts = {
-                        t.get("timestamp"): t.get("traffic", 0)
-                        for t in traffic_points
+                        t.get("timestamp"): t.get("traffic", 0) for t in traffic_points
                     }
                     graph_data = {
                         "metric_name": metric_id,
@@ -928,7 +911,6 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                 )
                 extra_where, extra_params = fb.translate(filters)
                 extra_clause = f"AND {extra_where}" if extra_where else ""
-                workspace_clause = ""
                 params = {
                     "project_id": project_id,
                     "end_user_id": end_user_id,
@@ -939,14 +921,13 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                 }
                 if getattr(request, "workspace", None):
                     params["workspace_id"] = str(request.workspace.id)
-                    if bool(getattr(request.workspace, "is_default", False)):
-                        workspace_clause = (
-                            "AND (workspace_id = toUUID(%(workspace_id)s) "
-                            "OR isNull(workspace_id))"
-                        )
-                    else:
-                        workspace_clause = "AND workspace_id = toUUID(%(workspace_id)s)"
 
+                # CH25 EndUser cutover (DESIGN §4.3): curated source is the v2
+                # `end_users` RMT. It has no `workspace_id` (schema 017), so the
+                # workspace clause is dropped here — `project_id` is validated
+                # upstream via `_get_project_in_scope`, and the subquery already
+                # pins to a single enduser by (id, organization_id, project_id),
+                # which fully constrains the row without the workspace guard.
                 query = f"""
                 SELECT
                     {bucket_fn}(created_at) AS time_bucket,
@@ -959,14 +940,12 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                 WHERE project_id = %(project_id)s
                   AND is_deleted = 0
                   AND end_user_id IN (
-                    SELECT id
-                    FROM tracer_enduser FINAL
-                    WHERE id = toUUID(%(end_user_id)s)
+                    SELECT end_user_id
+                    FROM end_users FINAL
+                    WHERE end_user_id = toUUID(%(end_user_id)s)
                       AND organization_id = toUUID(%(org_id)s)
                       AND project_id = toUUID(%(project_id)s)
-                      AND _peerdb_is_deleted = 0
-                      AND deleted = 0
-                      {workspace_clause}
+                      AND is_deleted = 0
                   )
                   AND created_at >= %(start_date)s
                   AND created_at < %(end_date)s
