@@ -56,6 +56,9 @@ describe("onboarding home events", () => {
     expect(OnboardingHomeEvents.activationEventRecorded).toBe(
       "onboarding_activation_event_recorded",
     );
+    expect(OnboardingHomeEvents.setupQuickStartAutoHandoff).toBe(
+      "onboarding_setup_quick_start_auto_handoff",
+    );
   });
 
   it("exposes daily quality analytics events", () => {

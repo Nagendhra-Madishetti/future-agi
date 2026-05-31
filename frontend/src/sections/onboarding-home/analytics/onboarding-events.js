@@ -26,6 +26,7 @@ export const OnboardingHomeEvents = {
   sampleProjectOpenFailed: "sample_project_open_failed",
   sampleProjectHideClicked: "sample_project_hide_clicked",
   sampleToRealSetupClicked: "sample_to_real_setup_clicked",
+  setupQuickStartAutoHandoff: "onboarding_setup_quick_start_auto_handoff",
   postLoginDestinationResolved: "onboarding_post_login_destination_resolved",
 };
 

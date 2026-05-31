@@ -850,7 +850,7 @@ describe("OnboardingHomeView", () => {
     );
   });
 
-  it("tracks canonical home and recommendation view events", async () => {
+  it("routes setup observe quick-start directly to trace setup", async () => {
     mocks.useActivationState.mockReturnValue({
       state: normalizedFixture("observeNoSetup"),
       isLoading: false,
@@ -864,19 +864,6 @@ describe("OnboardingHomeView", () => {
       "/dashboard/home?source=setup_org&quick_start_id=observe&quick_start_goal=monitor_production_ai_app&quick_start_primary_path=observe",
     );
 
-    expect(screen.getByTestId("observe-setup-panel")).toBeVisible();
-    expect(
-      screen.queryByTestId("sample-project-panel"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("onboarding-state-summary"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("onboarding-product-loop-stepper"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("onboarding-path-card-grid"),
-    ).not.toBeInTheDocument();
     expect(mocks.useActivationState).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "setup_org",
@@ -884,6 +871,30 @@ describe("OnboardingHomeView", () => {
         quickStartId: "observe",
         quickStartPrimaryPath: "observe",
       }),
+    );
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/dashboard/observe");
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get("setup")).toBe("true");
+      expect(params.get("source")).toBe("onboarding");
+      expect(params.get("quick_start_goal")).toBe("monitor_production_ai_app");
+      expect(params.get("quick_start_id")).toBe("observe");
+      expect(params.get("quick_start_primary_path")).toBe("observe");
+    });
+    await waitFor(() =>
+      expect(mocks.trackOnboardingHomeEvent).toHaveBeenCalledWith(
+        "onboarding_setup_quick_start_auto_handoff",
+        expect.objectContaining({
+          source: "setup_org",
+          quick_start_goal: "monitor_production_ai_app",
+          quick_start_id: "observe",
+          quick_start_primary_path: "observe",
+          recommended_action_id: "create_observe_project",
+          action_id: "create_observe_project",
+          route:
+            "/dashboard/observe?setup=true&source=onboarding&quick_start_goal=monitor_production_ai_app&quick_start_id=observe&quick_start_primary_path=observe",
+        }),
+      ),
     );
     await waitFor(() =>
       expect(mocks.trackOnboardingHomeEvent).toHaveBeenCalledWith(
@@ -902,14 +913,6 @@ describe("OnboardingHomeView", () => {
           permission_limited: false,
         }),
       ),
-    );
-    expect(mocks.trackOnboardingHomeEvent).toHaveBeenCalledWith(
-      "onboarding_recommended_action_viewed",
-      expect.objectContaining({
-        recommended_action_id: "create_observe_project",
-        target_success_event: "observe_project_created",
-        route_available: true,
-      }),
     );
     expect(readPersistedSetupQuickStartAttribution()).toEqual({
       quickStartGoal: "monitor_production_ai_app",

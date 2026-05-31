@@ -117,6 +117,40 @@ const actionWithSetupQuickStartAttribution = (action, context) => {
   return href === action.href ? action : { ...action, href };
 };
 
+const SETUP_QUICK_START_DIRECT_HANDOFFS = {
+  observe: {
+    actionId: "create_observe_project",
+    primaryPath: "observe",
+    stage: "connect_observability",
+  },
+};
+
+const setupQuickStartDirectHandoffHref = ({ searchContext, state }) => {
+  if (searchContext.source !== "setup_org" || !searchContext.quickStartId) {
+    return null;
+  }
+
+  const handoff = SETUP_QUICK_START_DIRECT_HANDOFFS[searchContext.quickStartId];
+  const action = state?.recommendedAction;
+  if (!handoff || !action?.href) return null;
+  if (state.isActivated || state.permissions?.permissionLimited) return null;
+  if (
+    state.stage !== handoff.stage ||
+    state.primaryPath !== handoff.primaryPath
+  ) {
+    return null;
+  }
+  if (
+    action.id !== handoff.actionId ||
+    action.blocked ||
+    !action.routeAvailable
+  ) {
+    return null;
+  }
+
+  return appendSetupQuickStartAttributionToHref(action.href, searchContext);
+};
+
 const OBSERVE_PANEL_STAGES = new Set([
   "connect_observability",
   "waiting_for_first_trace",
@@ -178,6 +212,7 @@ export default function OnboardingHomeView() {
   const activationEmailContextRef = useRef({});
   const ahaMomentTrackedRef = useRef(new Set());
   const samplePreviewAutoOpenRef = useRef(false);
+  const setupQuickStartHandoffRef = useRef(new Set());
 
   const searchContext = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -263,6 +298,16 @@ export default function OnboardingHomeView() {
     });
 
   const renderedState = saveGoal.data || state;
+  const setupQuickStartHandoffHref = useMemo(
+    () =>
+      renderedState
+        ? setupQuickStartDirectHandoffHref({
+            searchContext,
+            state: renderedState,
+          })
+        : null,
+    [renderedState, searchContext],
+  );
   const goalOptions = useMemo(
     () => getGoalOptionsForState(renderedState),
     [renderedState],
@@ -397,6 +442,41 @@ export default function OnboardingHomeView() {
       route_available: action.routeAvailable,
     });
   }, [isError, renderedState?.recommendedAction, trackContext]);
+
+  useEffect(() => {
+    if (!trackContext || isError || isLoading || !setupQuickStartHandoffHref) {
+      return;
+    }
+
+    const handoffKey = [
+      renderedState?.workspaceId || workspaceId || "workspace",
+      searchContext.quickStartId,
+      setupQuickStartHandoffHref,
+    ].join(":");
+    if (setupQuickStartHandoffRef.current.has(handoffKey)) return;
+
+    setupQuickStartHandoffRef.current.add(handoffKey);
+    trackOnboardingHomeEvent(OnboardingHomeEvents.setupQuickStartAutoHandoff, {
+      ...trackContext,
+      action_id: renderedState?.recommendedAction?.id,
+      action_kind: renderedState?.recommendedAction?.kind,
+      route: setupQuickStartHandoffHref,
+      route_available: renderedState?.recommendedAction?.routeAvailable,
+    });
+    navigate(setupQuickStartHandoffHref, { replace: true });
+  }, [
+    isError,
+    isLoading,
+    navigate,
+    renderedState?.recommendedAction?.id,
+    renderedState?.recommendedAction?.kind,
+    renderedState?.recommendedAction?.routeAvailable,
+    renderedState?.workspaceId,
+    searchContext.quickStartId,
+    setupQuickStartHandoffHref,
+    trackContext,
+    workspaceId,
+  ]);
 
   useEffect(() => {
     if (!trackContext || isError || !renderedState?.isActivated) return;
