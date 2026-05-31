@@ -74,6 +74,7 @@ const createEmptyBudget = () => ({
   threshold_value: "",
   action: "notify",
   notify_emails: "",
+  notify_slack_webhook: "",
   thresholds: DEFAULT_BUDGET_THRESHOLDS.map((stage) => ({ ...stage })),
 });
 
@@ -107,6 +108,11 @@ function formatEmailRecipients(recipients) {
   return Array.isArray(recipients) ? recipients.join(", ") : "";
 }
 
+function normalizeSlackWebhook(value) {
+  const webhook = (value || "").trim();
+  return webhook || null;
+}
+
 function budgetFormToPayload(budget) {
   return {
     name: budget.name.trim(),
@@ -114,6 +120,7 @@ function budgetFormToPayload(budget) {
     threshold_value: budget.threshold_value,
     action: budget.action,
     notify_emails: parseEmailRecipients(budget.notify_emails),
+    notify_slack_webhook: normalizeSlackWebhook(budget.notify_slack_webhook),
     thresholds: normalizeBudgetThresholds(budget.thresholds),
   };
 }
@@ -176,6 +183,7 @@ export default function BudgetManager() {
       threshold_value: String(budget.threshold_value),
       action: budget.action,
       notify_emails: formatEmailRecipients(budget.notify_emails),
+      notify_slack_webhook: budget.notify_slack_webhook || "",
       thresholds: normalizeBudgetThresholds(budget.thresholds),
     });
     setDialogOpen(true);
@@ -351,6 +359,13 @@ export default function BudgetManager() {
                         variant="outlined"
                       />
                     )}
+                    {budget.notify_slack_webhook && (
+                      <Chip
+                        label="Slack webhook"
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
                     <IconButton
                       size="small"
                       onClick={() => handleOpenEdit(budget)}
@@ -507,6 +522,20 @@ export default function BudgetManager() {
               }
               placeholder="ops@example.com, finance@example.com"
               helperText="Leave empty to notify organization admins."
+            />
+            <TextField
+              label="Slack webhook"
+              fullWidth
+              size="small"
+              value={newBudget.notify_slack_webhook}
+              onChange={(e) =>
+                setNewBudget({
+                  ...newBudget,
+                  notify_slack_webhook: e.target.value,
+                })
+              }
+              placeholder="https://hooks.slack.com/services/..."
+              helperText="Optional. Shared Slack channels can also be managed from notification settings."
             />
           </Stack>
         </DialogContent>

@@ -91162,6 +91162,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "string",
           "minLength": 1
         },
+        "notify_slack_webhook": {
+          "title": "Notify slack webhook",
+          "type": "string",
+          "format": "uri",
+          "x-nullable": true
+        },
         "thresholds": {
           "type": "array",
           "items": {
@@ -101885,6 +101891,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "format": "email",
             "minLength": 1
           }
+        },
+        "notify_slack_webhook": {
+          "title": "Notify slack webhook",
+          "type": "string",
+          "format": "uri",
+          "x-nullable": true
         },
         "is_active": {
           "title": "Is active",
