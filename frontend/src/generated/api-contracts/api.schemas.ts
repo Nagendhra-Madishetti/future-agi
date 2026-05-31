@@ -24504,7 +24504,7 @@ export interface UsageBudgetApi {
   /** @minLength 1 */
   action: string;
   notify_emails?: string[];
-  notify_slack_webhook?: string | null;
+  notify_slack_webhook?: string;
   is_active?: boolean;
   /** @minLength 1 */
   last_triggered_period?: string;
@@ -24539,7 +24539,7 @@ export interface UsageBudgetMutationRequestApi {
   threshold_value?: string;
   action?: UsageBudgetMutationRequestApiAction;
   notify_emails?: string[];
-  notify_slack_webhook?: string | null;
+  notify_slack_webhook?: string;
   thresholds?: UsageBudgetThresholdApi[];
   is_active?: boolean;
 }
@@ -24554,7 +24554,7 @@ export interface UsageBudgetMutationResultApi {
   threshold_value: string;
   /** @minLength 1 */
   action: string;
-  notify_slack_webhook?: string | null;
+  notify_slack_webhook?: string;
   thresholds?: UsageBudgetThresholdApi[];
   is_active?: boolean;
 }

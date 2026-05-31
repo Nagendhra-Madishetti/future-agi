@@ -49927,7 +49927,7 @@ export const UsageV2BudgetsListResponse = zod.object({
   "threshold_value": zod.string(),
   "action": zod.string().min(1),
   "notify_emails": zod.array(zod.string().email().min(1)).optional(),
-  "notify_slack_webhook": zod.string().url().nullable().optional(),
+  "notify_slack_webhook": zod.string().url().optional(),
   "is_active": zod.boolean().optional(),
   "last_triggered_period": zod.string().min(1).optional(),
   "last_triggered_at": zod.string().datetime({"offset":true}).optional(),
@@ -49957,7 +49957,7 @@ export const UsageV2BudgetsCreateBody = zod.object({
   "threshold_value": zod.string().optional(),
   "action": zod.enum(['notify', 'warn', 'pause']).optional(),
   "notify_emails": zod.array(zod.string().email().min(1)).optional(),
-  "notify_slack_webhook": zod.string().url().nullable().optional(),
+  "notify_slack_webhook": zod.string().url().optional(),
   "thresholds": zod.array(zod.object({
   "percent": zod.number(),
   "enabled": zod.boolean().optional(),
@@ -49981,7 +49981,7 @@ export const UsageV2BudgetsCreateResponse = zod.object({
   "scope": zod.string().min(1).optional(),
   "threshold_value": zod.string().min(1),
   "action": zod.string().min(1),
-  "notify_slack_webhook": zod.string().url().nullable().optional(),
+  "notify_slack_webhook": zod.string().url().optional(),
   "thresholds": zod.array(zod.object({
   "percent": zod.number(),
   "enabled": zod.boolean().optional(),
@@ -50011,7 +50011,7 @@ export const UsageV2BudgetsUpdateBody = zod.object({
   "threshold_value": zod.string().optional(),
   "action": zod.enum(['notify', 'warn', 'pause']).optional(),
   "notify_emails": zod.array(zod.string().email().min(1)).optional(),
-  "notify_slack_webhook": zod.string().url().nullable().optional(),
+  "notify_slack_webhook": zod.string().url().optional(),
   "thresholds": zod.array(zod.object({
   "percent": zod.number(),
   "enabled": zod.boolean().optional(),
@@ -50035,7 +50035,7 @@ export const UsageV2BudgetsUpdateResponse = zod.object({
   "scope": zod.string().min(1).optional(),
   "threshold_value": zod.string().min(1),
   "action": zod.string().min(1),
-  "notify_slack_webhook": zod.string().url().nullable().optional(),
+  "notify_slack_webhook": zod.string().url().optional(),
   "thresholds": zod.array(zod.object({
   "percent": zod.number(),
   "enabled": zod.boolean().optional(),
