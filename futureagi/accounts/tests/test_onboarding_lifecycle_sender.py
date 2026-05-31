@@ -21,6 +21,10 @@ from accounts.models import (
 )
 from accounts.models.workspace import Workspace
 from accounts.services.onboarding.activation_events import record_event
+from accounts.services.onboarding.lifecycle_eligibility import (
+    LifecycleDecision,
+    lifecycle_campaign_send_enabled,
+)
 from accounts.services.onboarding.lifecycle_preview_approval import (
     APPROVAL_METADATA_KEY,
     PREVIEW_APPROVAL_MISSING_REASON,
@@ -387,6 +391,75 @@ def _sent_send_log_for_campaign(
     )
 
 
+def _decision_for_log(log, campaign, *, now):
+    return LifecycleDecision(
+        run_id=uuid.uuid4(),
+        user=log.user,
+        organization=log.organization,
+        workspace=log.workspace,
+        status=OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE,
+        campaign=campaign,
+        activation_state={
+            "stage": log.activation_stage,
+            "primary_path": log.primary_path,
+            "recommended_action": {
+                "id": campaign["target_action_id"],
+                "href": log.target_url,
+            },
+        },
+        target_url=log.target_url,
+        eligible_at=log.eligible_at,
+        evaluated_at=now,
+        metadata={"source": "test"},
+    )
+
+
+def test_lifecycle_send_flag_uses_campaign_specific_gate():
+    campaign = {"send_flag": "onboarding_email_prompt_enabled"}
+
+    assert (
+        lifecycle_campaign_send_enabled(
+            campaign,
+            flags=_flags(onboarding_email_prompt_enabled=True),
+        )
+        is True
+    )
+    assert (
+        lifecycle_campaign_send_enabled(
+            campaign,
+            flags=_flags(onboarding_email_prompt_enabled=False),
+        )
+        is False
+    )
+    assert (
+        lifecycle_campaign_send_enabled(
+            campaign,
+            flags=_flags(
+                onboarding_lifecycle_send_enabled=False,
+                onboarding_email_prompt_enabled=True,
+            ),
+        )
+        is False
+    )
+
+
+def test_lifecycle_send_flag_defaults_to_global_gate():
+    assert (
+        lifecycle_campaign_send_enabled(
+            {},
+            flags=_flags(),
+        )
+        is True
+    )
+    assert (
+        lifecycle_campaign_send_enabled(
+            {},
+            flags=_flags(onboarding_lifecycle_send_enabled=False),
+        )
+        is False
+    )
+
+
 @pytest.mark.django_db
 @override_settings(
     ONBOARDING_FEATURE_FLAGS=_flags(onboarding_lifecycle_send_enabled=False)
@@ -405,6 +478,60 @@ def test_send_flag_off_suppresses_before_helper(
     assert send_log.status == OnboardingLifecycleSendLog.STATUS_SUPPRESSED
     assert send_log.suppression_reason == "send_flag_disabled"
     helper.assert_not_called()
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_campaign_send_flag_off_suppresses_before_allowlist(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    log = _eligible_log(user, organization, workspace, now=now)
+    campaign = {
+        **lifecycle_campaign_by_key("welcome_resume_goal"),
+        "send_flag": "onboarding_email_daily_digest_enabled",
+    }
+    decision = _decision_for_log(log, campaign, now=now)
+
+    with patch(
+        "accounts.services.onboarding.lifecycle_sender._fresh_decision",
+        return_value=(None, _flags(), decision),
+    ):
+        send_log = queue_onboarding_lifecycle_email(log, now=now)
+
+    assert send_log.status == OnboardingLifecycleSendLog.STATUS_SUPPRESSED
+    assert send_log.suppression_reason == "send_flag_disabled"
+
+
+@pytest.mark.django_db
+@override_settings(
+    ONBOARDING_FEATURE_FLAGS=_flags(onboarding_email_daily_digest_enabled=True)
+)
+def test_campaign_send_flag_on_allows_queue_when_global_flag_on(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    _allow_user(user)
+    log = _eligible_log(user, organization, workspace, now=now)
+    campaign = {
+        **lifecycle_campaign_by_key("welcome_resume_goal"),
+        "send_flag": "onboarding_email_daily_digest_enabled",
+    }
+    flags = _flags(onboarding_email_daily_digest_enabled=True)
+    decision = _decision_for_log(log, campaign, now=now)
+
+    with patch(
+        "accounts.services.onboarding.lifecycle_sender._fresh_decision",
+        return_value=(None, flags, decision),
+    ):
+        send_log = queue_onboarding_lifecycle_email(log, now=now)
+
+    assert send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED
+    assert send_log.suppression_reason is None
 
 
 @pytest.mark.django_db

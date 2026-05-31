@@ -979,12 +979,20 @@ def write_lifecycle_evaluation(decision):
     )
 
 
+def lifecycle_campaign_send_enabled(campaign, *, flags):
+    if not flags.get("onboarding_lifecycle_send_enabled"):
+        return False
+    send_flag = (campaign or {}).get("send_flag") or "onboarding_lifecycle_send_enabled"
+    return bool(flags.get(send_flag))
+
+
 def lifecycle_preview_from_decision(decision, *, flags):
     campaign = decision.campaign or {}
     metadata = decision.metadata or {}
+    send_enabled = lifecycle_campaign_send_enabled(campaign, flags=flags)
     return {
         "dry_run_enabled": bool(flags.get("onboarding_lifecycle_dry_run_enabled")),
-        "send_enabled": bool(flags.get("onboarding_lifecycle_send_enabled")),
+        "send_enabled": send_enabled,
         "status": decision.status,
         "next_campaign_key": campaign.get("campaign_key"),
         "template_key": campaign.get("template_key"),
@@ -996,5 +1004,5 @@ def lifecycle_preview_from_decision(decision, *, flags):
         "target_action_id": campaign.get("target_action_id"),
         "target_url": decision.target_url,
         "digest_preview": metadata.get("digest_preview"),
-        "dry_run_only": not bool(flags.get("onboarding_lifecycle_send_enabled")),
+        "dry_run_only": not send_enabled,
     }

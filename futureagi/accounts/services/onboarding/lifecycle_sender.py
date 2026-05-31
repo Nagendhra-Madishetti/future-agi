@@ -28,6 +28,7 @@ from accounts.services.onboarding.lifecycle_completion import (
 )
 from accounts.services.onboarding.lifecycle_eligibility import (
     evaluate_lifecycle_decision,
+    lifecycle_campaign_send_enabled,
 )
 from accounts.services.onboarding.lifecycle_launch_packets import (
     LAUNCH_PACKET_METADATA_KEY,
@@ -551,10 +552,10 @@ def _suppression_reason(
     campaign = decision.campaign
     if not flags.get("onboarding_lifecycle_email_dry_run"):
         return "dry_run_not_eligible"
-    if not flags.get("onboarding_lifecycle_send_enabled"):
-        return "send_flag_disabled"
     if not campaign:
         return "dry_run_not_eligible"
+    if not lifecycle_campaign_send_enabled(campaign, flags=flags):
+        return "send_flag_disabled"
     if not flags.get(campaign["dry_run_flag"]):
         return "campaign_flag_disabled"
     if evaluation_log.status != OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE:
