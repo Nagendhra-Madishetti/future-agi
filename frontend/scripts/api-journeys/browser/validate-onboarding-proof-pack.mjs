@@ -15,6 +15,18 @@ const SAMPLE_QUICK_START_ATTRIBUTION = Object.freeze({
   quick_start_id: "sample_preview",
   quick_start_primary_path: "sample",
 });
+const OBSERVE_QUICK_START_ATTRIBUTION = Object.freeze({
+  quick_start_goal: "monitor_production_ai_app",
+  quick_start_id: "observe",
+  quick_start_primary_path: "observe",
+});
+const OBSERVE_DIRECT_HANDOFF_PARAMS = Object.freeze({
+  setup: "true",
+  source: "onboarding",
+  tour_anchor: "observe_create_project_button",
+  journey_step: "connect_observability",
+  ...OBSERVE_QUICK_START_ATTRIBUTION,
+});
 const QUICK_START_QUERY_KEYS = Object.freeze(
   Object.keys(SAMPLE_QUICK_START_ATTRIBUTION),
 );
@@ -167,6 +179,31 @@ function hasSampleQuickStartAttribution(value) {
   );
 }
 
+function hasExpectedParams(value, expected) {
+  const params = paramsObject(value);
+  return Object.entries(expected).every(
+    ([key, expectedValue]) => params?.[key] === expectedValue,
+  );
+}
+
+function isObserveDirectHandoffUrl(value) {
+  const url = safeUrl(value);
+  return (
+    Boolean(url) &&
+    url.pathname === "/dashboard/observe" &&
+    hasExpectedParams(value, OBSERVE_DIRECT_HANDOFF_PARAMS)
+  );
+}
+
+function isSetupOrgHomeUrl(value) {
+  const url = safeUrl(value);
+  return (
+    Boolean(url) &&
+    url.pathname === "/dashboard/home" &&
+    url.searchParams.get("source") === "setup_org"
+  );
+}
+
 function sameSampleTraceRoute(responseEntryRoute, browserRoute) {
   const responseUrl = safeUrl(responseEntryRoute);
   const browserUrl = safeUrl(browserRoute);
@@ -257,6 +294,10 @@ function launchMetricReportEntry(child, expected, report) {
     ),
     sample_zero_click_entry:
       evidence.sample_trace_entry?.clicks_after_quick_start === 0,
+    setup_direct_handoff: isObserveDirectHandoffUrl(
+      evidence.setup_org_entry_url,
+    ),
+    setup_home_stop: isSetupOrgHomeUrl(evidence.setup_org_home_url),
     backend_loop_completed:
       evidence.eval_first_quality_loop_completed_event?.event_name ===
         "first_quality_loop_completed" &&
@@ -310,6 +351,12 @@ function buildLaunchMetrics(entries, checks) {
     },
     ui_aha: {
       real_proof_count: realEntries.length,
+      setup_direct_handoff_count: realEntries.filter(
+        (entry) => entry.setup_direct_handoff,
+      ).length,
+      setup_home_stop_count: realEntries.filter(
+        (entry) => entry.setup_home_stop,
+      ).length,
       backend_loop_completed_count: backendLoopCount,
       ui_aha_count: uiAhaEntries.length,
       backend_to_ui_aha_rate: ratio(uiAhaEntries.length, backendLoopCount),
@@ -448,6 +495,7 @@ function validateRealQualityLoopEvidence(checks, childId, report) {
     "real_trace_review_event",
     "real_trace_review_state",
     "screenshot",
+    "setup_org_entry_url",
     "signup_post",
     "token_post",
   ]);
@@ -456,6 +504,18 @@ function validateRealQualityLoopEvidence(checks, childId, report) {
     evidence.setup_quick_start === "observe",
     `${childId}:real_loop:quick_start`,
     "Real proof used the observe quick start.",
+  );
+  addCheck(
+    checks,
+    isObserveDirectHandoffUrl(evidence.setup_org_entry_url),
+    `${childId}:real_loop:setup_direct_handoff`,
+    "Real proof enters Observe setup directly from setup quick start.",
+  );
+  addCheck(
+    checks,
+    !isSetupOrgHomeUrl(evidence.setup_org_home_url),
+    `${childId}:real_loop:no_setup_home_stop`,
+    "Real proof does not accept the old setup-org Home stop before first action.",
   );
   addCheck(
     checks,

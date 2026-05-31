@@ -115,6 +115,9 @@ function reportFor(child, dir, overrides = {}) {
     },
     real_trace_review_state: { stage: "review_first_trace" },
     screenshot: "/tmp/real.png",
+    setup_org_entry_url:
+      "/dashboard/observe?setup=true&source=onboarding&tour_anchor=observe_create_project_button&journey_step=connect_observability&quick_start_goal=monitor_production_ai_app&quick_start_id=observe&quick_start_primary_path=observe",
+    setup_org_home_url: null,
     setup_quick_start: "observe",
     signup_post: { email: "new@example.com", password: "[redacted]" },
     token_post: { email: "new@example.com", password: "[redacted]" },
@@ -187,6 +190,8 @@ test("proof pack validator accepts a complete desktop and mobile Aha pack", asyn
     "onboarding-real-signup-proof-pack-launch-metrics-2026-05-31.v1",
   );
   assert.equal(result.launch_metrics.ui_aha.real_proof_count, 2);
+  assert.equal(result.launch_metrics.ui_aha.setup_direct_handoff_count, 2);
+  assert.equal(result.launch_metrics.ui_aha.setup_home_stop_count, 0);
   assert.equal(result.launch_metrics.ui_aha.backend_loop_completed_count, 2);
   assert.equal(result.launch_metrics.ui_aha.ui_aha_count, 2);
   assert.equal(result.launch_metrics.ui_aha.backend_to_ui_aha_rate, 1);
@@ -202,6 +207,39 @@ test("proof pack validator accepts a complete desktop and mobile Aha pack", asyn
   assert.equal(result.launch_metrics.sample.zero_click_count, 2);
   assert.equal(result.launch_metrics.sample.activated_count, 0);
   assert.equal(result.launch_metrics.guardrails.failed_check_count, 0);
+});
+
+test("proof pack validator rejects real signup that stops on Home before Observe setup", async () => {
+  const { manifestPath } = await writeProofPack({
+    reports: {
+      "signup-quick-start-real": {
+        evidence: {
+          setup_org_entry_url:
+            "/dashboard/home?source=setup_org&quick_start_goal=monitor_production_ai_app&quick_start_id=observe&quick_start_primary_path=observe",
+          setup_org_home_url:
+            "/dashboard/home?source=setup_org&quick_start_goal=monitor_production_ai_app&quick_start_id=observe&quick_start_primary_path=observe",
+        },
+      },
+    },
+  });
+
+  const result = await validateProofPack(manifestPath);
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.launch_metrics.ui_aha.setup_direct_handoff_count, 1);
+  assert.equal(result.launch_metrics.ui_aha.setup_home_stop_count, 1);
+  assert(
+    result.failed_checks.some(
+      (check) =>
+        check.key === "signup-quick-start-real:real_loop:setup_direct_handoff",
+    ),
+  );
+  assert(
+    result.failed_checks.some(
+      (check) =>
+        check.key === "signup-quick-start-real:real_loop:no_setup_home_stop",
+    ),
+  );
 });
 
 test("proof pack validator rejects a failed child report", async () => {
