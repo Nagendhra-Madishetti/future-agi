@@ -46,7 +46,7 @@ import {
   getVersionedEvalName,
   useAgentDefinitions,
 } from "./common";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { ShowComponent } from "../show";
 import CustomTooltip from "../tooltip";
 import { useAgentDefinitionVersions } from "src/api/agent-definition/agent-definition-version";
@@ -56,6 +56,12 @@ import { isUUID } from "src/utils/utils";
 import { IOSSwitch } from "../Switch/IOSSwitch";
 import { getIconForAgentDefinitions } from "src/sections/scenarios/common";
 import { AGENT_TYPES, isLiveKitProvider } from "src/sections/agents/constants";
+import {
+  buildVoiceRunTestHref,
+  getVoiceOnboardingParams,
+  voiceSetupQuickStartAttributionFromSearch,
+  VOICE_ONBOARDING_MODES,
+} from "src/sections/test/onboardingVoiceRouteEvents";
 
 const steps = [
   {
@@ -269,6 +275,15 @@ const CreateRunTestPage = ({
   const filteredScenarios = scenarios;
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const voiceParams = useMemo(
+    () => getVoiceOnboardingParams(location.search),
+    [location.search],
+  );
+  const voiceQuickStartAttribution = useMemo(
+    () => voiceSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
 
   const {
     agentDefinitions,
@@ -527,7 +542,16 @@ const CreateRunTestPage = ({
     onSuccess: (data) => {
       enqueueSnackbar("Test created successfully!", { variant: "success" });
       onClose();
-      navigate(`/dashboard/simulate/test/${data.id}/runs`);
+      const voiceRunHref =
+        voiceParams.mode === VOICE_ONBOARDING_MODES.CREATE_TEST_CALL
+          ? buildVoiceRunTestHref({
+              agentDefinitionId:
+                voiceParams.agentDefinitionId || formData.agentDefinitionId,
+              quickStartAttribution: voiceQuickStartAttribution,
+              testId: data.id,
+            })
+          : null;
+      navigate(voiceRunHref || `/dashboard/simulate/test/${data.id}/runs`);
       // Navigate to run tests list page
     },
   });

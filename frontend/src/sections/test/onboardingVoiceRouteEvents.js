@@ -1,3 +1,8 @@
+import {
+  appendSetupQuickStartAttributionToHref,
+  setupQuickStartAttributionParams,
+} from "src/sections/auth/jwt/setup-org-quick-starts";
+
 export const VOICE_ONBOARDING_MODES = Object.freeze({
   CREATE_AGENT: "create-voice-agent",
   CREATE_TEST_CALL: "create-test-call",
@@ -30,8 +35,42 @@ const compactMetadata = (metadata) =>
     ),
   );
 
+const toSearchParams = (search = "") =>
+  search instanceof URLSearchParams
+    ? search
+    : typeof search === "string" && search.startsWith("?")
+      ? new URLSearchParams(search.slice(1))
+      : new URLSearchParams(search);
+
+export const voiceSetupQuickStartAttributionFromSearch = (search = "") => {
+  const params = toSearchParams(search);
+  return {
+    quick_start_goal: params.get("quick_start_goal"),
+    quick_start_id: params.get("quick_start_id"),
+    quick_start_primary_path: params.get("quick_start_primary_path"),
+  };
+};
+
+export const appendVoiceOnboardingAttributionToHref = (
+  href,
+  attributionOrSearch = {},
+) =>
+  appendSetupQuickStartAttributionToHref(
+    href,
+    attributionOrSearch instanceof URLSearchParams ||
+      typeof attributionOrSearch === "string"
+      ? voiceSetupQuickStartAttributionFromSearch(attributionOrSearch)
+      : attributionOrSearch,
+  );
+
+const voiceQuickStartAttributionInput = ({
+  quickStartAttribution,
+  search,
+} = {}) =>
+  quickStartAttribution || voiceSetupQuickStartAttributionFromSearch(search);
+
 export const getVoiceOnboardingParams = (search = "") => {
-  const params = new URLSearchParams(search);
+  const params = toSearchParams(search);
   const journeyMode = MODE_BY_JOURNEY_STEP[params.get("journey_step")] || "";
   return {
     mode: params.get("onboarding") || journeyMode,
@@ -42,8 +81,92 @@ export const getVoiceOnboardingParams = (search = "") => {
   };
 };
 
+const appendVoiceAgentDefinitionParam = (params, agentDefinitionId) => {
+  if (agentDefinitionId) {
+    params.set("agent_definition_id", agentDefinitionId);
+  }
+};
+
+export const buildVoiceCreateTestHref = ({
+  agentDefinitionId,
+  quickStartAttribution,
+  search,
+} = {}) => {
+  const params = new URLSearchParams();
+  params.set("from", "onboarding");
+  params.set("onboarding", VOICE_ONBOARDING_MODES.CREATE_TEST_CALL);
+  appendVoiceAgentDefinitionParam(params, agentDefinitionId);
+
+  return appendVoiceOnboardingAttributionToHref(
+    `/dashboard/simulate/test?${params.toString()}`,
+    voiceQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
+};
+
+export const buildVoiceRunTestHref = ({
+  agentDefinitionId,
+  quickStartAttribution,
+  search,
+  testId,
+} = {}) => {
+  if (!testId) return null;
+  const params = new URLSearchParams();
+  params.set("from", "onboarding");
+  params.set("onboarding", VOICE_ONBOARDING_MODES.RUN_TEST_CALL);
+  appendVoiceAgentDefinitionParam(params, agentDefinitionId);
+
+  return appendVoiceOnboardingAttributionToHref(
+    `/dashboard/simulate/test/${testId}/runs?${params.toString()}`,
+    voiceQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
+};
+
+export const buildVoiceReviewCallHref = ({
+  agentDefinitionId,
+  callId,
+  executionId,
+  quickStartAttribution,
+  search,
+  testId,
+} = {}) => {
+  if (!testId || !executionId) return null;
+  const params = new URLSearchParams();
+  params.set("from", "onboarding");
+  params.set("onboarding", VOICE_ONBOARDING_MODES.REVIEW_CALL);
+  appendVoiceAgentDefinitionParam(params, agentDefinitionId);
+  if (callId) params.set("call_id", callId);
+
+  return appendVoiceOnboardingAttributionToHref(
+    `/dashboard/simulate/test/${testId}/${executionId}/call-details?${params.toString()}`,
+    voiceQuickStartAttributionInput({ quickStartAttribution, search }),
+  );
+};
+
 export const isVoiceOnboardingMode = (mode) =>
   Object.values(VOICE_ONBOARDING_MODES).includes(mode);
+
+export const buildVoiceAgentCreatedPayload = ({
+  agentDefinitionId,
+  provider,
+  quickStartAttribution,
+} = {}) => ({
+  eventName: "voice_agent_created",
+  primaryPath: "voice",
+  stage: "create_voice_agent",
+  source: "voice_agent_definition_create",
+  artifactType: "voice_agent",
+  artifactId: String(agentDefinitionId || "voice-agent"),
+  metadata: compactMetadata({
+    agent_definition_id: agentDefinitionId,
+    provider,
+  }),
+  idempotencyKey: [
+    "voice_agent_created",
+    agentDefinitionId || "voice-agent",
+  ].join(":"),
+  isSample: false,
+  ...setupQuickStartAttributionParams(quickStartAttribution),
+});
 
 export const buildVoiceRouteFocusPayload = ({
   mode,
@@ -52,6 +175,7 @@ export const buildVoiceRouteFocusPayload = ({
   executionId,
   callId,
   agentDefinitionId,
+  quickStartAttribution,
 }) => {
   if (!isVoiceOnboardingMode(mode)) return null;
 
@@ -79,6 +203,7 @@ export const buildVoiceRouteFocusPayload = ({
       callId || agentDefinitionId || "no-artifact",
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
@@ -86,6 +211,7 @@ export const buildVoiceCallReviewedPayload = ({
   testId,
   executionId,
   callId,
+  quickStartAttribution,
 }) => ({
   eventName: "voice_call_reviewed",
   primaryPath: "voice",
@@ -105,12 +231,14 @@ export const buildVoiceCallReviewedPayload = ({
     callId || "call-details",
   ].join(":"),
   isSample: false,
+  ...setupQuickStartAttributionParams(quickStartAttribution),
 });
 
 export const buildVoiceSuccessCriteriaAddedPayload = ({
   testId,
   callId,
   evalConfig,
+  quickStartAttribution,
 }) => {
   const evalId =
     evalConfig?.id ||
@@ -139,10 +267,15 @@ export const buildVoiceSuccessCriteriaAddedPayload = ({
       evalId,
     ].join(":"),
     isSample: false,
+    ...setupQuickStartAttributionParams(quickStartAttribution),
   };
 };
 
-export const buildVoiceMonitorOpenedPayload = ({ testId, source }) => ({
+export const buildVoiceMonitorOpenedPayload = ({
+  testId,
+  source,
+  quickStartAttribution,
+}) => ({
   eventName: "voice_call_monitor_opened",
   primaryPath: "voice",
   stage: "voice_monitor_calls",
@@ -154,14 +287,26 @@ export const buildVoiceMonitorOpenedPayload = ({ testId, source }) => ({
   }),
   idempotencyKey: ["voice_call_monitor_opened", testId].join(":"),
   isSample: false,
+  ...setupQuickStartAttributionParams(quickStartAttribution),
 });
 
 export const buildVoiceOnboardingReturnHref = ({
   eventName = "voice_success_criteria_added",
+  quickStartAttribution,
+  search,
+  ...attributionInput
 } = {}) => {
   const params = new URLSearchParams();
   params.set("source", "onboarding");
   params.set("target_event", eventName);
 
-  return `/dashboard/home?${params.toString()}`;
+  return appendVoiceOnboardingAttributionToHref(
+    `/dashboard/home?${params.toString()}`,
+    voiceQuickStartAttributionInput({
+      quickStartAttribution:
+        quickStartAttribution ||
+        (Object.keys(attributionInput).length ? attributionInput : undefined),
+      search,
+    }),
+  );
 };

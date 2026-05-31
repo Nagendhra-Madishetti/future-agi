@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PropTypes from "prop-types";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import Iconify from "src/components/iconify";
 import { DataTable, DataTablePagination } from "src/components/data-table";
@@ -22,6 +22,12 @@ import {
 } from "src/sections/common/simulation";
 
 import { useTestDetailContext } from "../context/TestDetailContext";
+import {
+  buildVoiceReviewCallHref,
+  getVoiceOnboardingParams,
+  voiceSetupQuickStartAttributionFromSearch,
+  VOICE_ONBOARDING_MODES,
+} from "../onboardingVoiceRouteEvents";
 import { useTestRunsGridStore } from "../states";
 import { useTestRunsSearchStoreShallow } from "./states";
 
@@ -367,12 +373,21 @@ function EmptyState() {
 const TestRunsGrid = ({ agentType, simulationType }) => {
   const { testId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
 
   const search = useTestRunsSearchStoreShallow((s) => s.search);
   const debouncedSearch = useDebounce(search?.trim() || "", 300);
+  const voiceParams = useMemo(
+    () => getVoiceOnboardingParams(location.search),
+    [location.search],
+  );
+  const voiceQuickStartAttribution = useMemo(
+    () => voiceSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
 
   // Reset page when search changes
   useEffect(() => {
@@ -445,9 +460,36 @@ const TestRunsGrid = ({ agentType, simulationType }) => {
         [PropertyName.id]: row.id,
         [PropertyName.propId]: testId,
       });
-      navigate(`/dashboard/simulate/test/${testId}/${row.id}`);
+      const voiceReviewHref =
+        voiceParams.mode === VOICE_ONBOARDING_MODES.RUN_TEST_CALL &&
+        (agentType ?? AGENT_TYPES.VOICE) === AGENT_TYPES.VOICE
+          ? buildVoiceReviewCallHref({
+              agentDefinitionId: voiceParams.agentDefinitionId,
+              callId:
+                row.call_id ||
+                row.callId ||
+                row.call_execution_id ||
+                row.callExecutionId ||
+                row.trace_id ||
+                row.traceId ||
+                row.id,
+              executionId: row.id,
+              quickStartAttribution: voiceQuickStartAttribution,
+              testId,
+            })
+          : null;
+      navigate(
+        voiceReviewHref || `/dashboard/simulate/test/${testId}/${row.id}`,
+      );
     },
-    [navigate, testId],
+    [
+      agentType,
+      navigate,
+      testId,
+      voiceParams.agentDefinitionId,
+      voiceParams.mode,
+      voiceQuickStartAttribution,
+    ],
   );
 
   const showEmpty =

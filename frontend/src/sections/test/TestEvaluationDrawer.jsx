@@ -25,6 +25,7 @@ import {
   buildVoiceOnboardingReturnHref,
   buildVoiceSuccessCriteriaAddedPayload,
   getVoiceOnboardingParams,
+  voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "./onboardingVoiceRouteEvents";
 import {
@@ -43,7 +44,14 @@ const TestEvaluationDrawer = ({ executionIds, onSuccessOfAdditionOfEvals }) => {
     mutate: recordActivationEvent,
     mutateAsync: recordActivationEventAsync,
   } = useRecordActivationEvent();
-  const voiceParams = getVoiceOnboardingParams(location.search);
+  const voiceParams = useMemo(
+    () => getVoiceOnboardingParams(location.search),
+    [location.search],
+  );
+  const voiceQuickStartAttribution = useMemo(
+    () => voiceSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const routeMode = new URLSearchParams(location.search).get("onboarding");
   const isSuccessCriteriaMode =
     voiceParams.mode === VOICE_ONBOARDING_MODES.SUCCESS_CRITERIA;
@@ -140,6 +148,7 @@ const TestEvaluationDrawer = ({ executionIds, onSuccessOfAdditionOfEvals }) => {
               ...payload,
               id: editing?.id,
             },
+            quickStartAttribution: voiceQuickStartAttribution,
           });
           try {
             if (recordActivationEventAsync) {
@@ -206,6 +215,7 @@ const TestEvaluationDrawer = ({ executionIds, onSuccessOfAdditionOfEvals }) => {
       recordActivationEvent,
       recordActivationEventAsync,
       voiceParams.callId,
+      voiceQuickStartAttribution,
     ],
   );
 

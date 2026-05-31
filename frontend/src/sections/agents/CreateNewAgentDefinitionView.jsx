@@ -38,8 +38,12 @@ import { PERMISSIONS, RolePermission } from "src/utils/rolePermissionMapping";
 import { useDeploymentMode } from "src/hooks/useDeploymentMode";
 import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/useRecordActivationEvent";
 import {
+  appendVoiceOnboardingAttributionToHref,
+  buildVoiceAgentCreatedPayload,
+  buildVoiceCreateTestHref,
   buildVoiceRouteFocusPayload,
   getVoiceOnboardingParams,
+  voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "src/sections/test/onboardingVoiceRouteEvents";
 
@@ -75,7 +79,14 @@ const CreateNewAgentDefinitionView = () => {
   const livekitValidated = watch("_livekitCredentialsValid");
 
   const watchedValues = watch();
-  const voiceParams = getVoiceOnboardingParams(location.search);
+  const voiceParams = useMemo(
+    () => getVoiceOnboardingParams(location.search),
+    [location.search],
+  );
+  const voiceQuickStartAttribution = useMemo(
+    () => voiceSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const isVoiceCreateMode =
     voiceParams.mode === VOICE_ONBOARDING_MODES.CREATE_AGENT;
 
@@ -89,6 +100,7 @@ const CreateNewAgentDefinitionView = () => {
     recordActivationEvent?.(
       buildVoiceRouteFocusPayload({
         mode: voiceParams.mode,
+        quickStartAttribution: voiceQuickStartAttribution,
         source: "voice_agent_definition_create",
       }),
     );
@@ -98,6 +110,7 @@ const CreateNewAgentDefinitionView = () => {
     isVoiceCreateMode,
     recordActivationEvent,
     setValue,
+    voiceQuickStartAttribution,
     voiceParams.mode,
   ]);
 
@@ -295,6 +308,23 @@ const CreateNewAgentDefinitionView = () => {
         variant: "success",
       });
 
+      if (isVoiceCreateMode) {
+        recordActivationEvent?.(
+          buildVoiceAgentCreatedPayload({
+            agentDefinitionId: newAgentDefId,
+            provider: payload.provider,
+            quickStartAttribution: voiceQuickStartAttribution,
+          }),
+        );
+        navigate(
+          buildVoiceCreateTestHref({
+            agentDefinitionId: newAgentDefId,
+            quickStartAttribution: voiceQuickStartAttribution,
+          }),
+        );
+        return;
+      }
+
       navigate(`${paths.dashboard.simulate.agentDefinition}/${newAgentDefId}`, {
         state: {
           newAgent: true,
@@ -347,7 +377,14 @@ const CreateNewAgentDefinitionView = () => {
               fontWeight="fontWeightMedium"
               color="text.disabled"
               onClick={() => {
-                navigate(paths.dashboard.simulate.agentDefinition);
+                navigate(
+                  isVoiceCreateMode
+                    ? appendVoiceOnboardingAttributionToHref(
+                        paths.dashboard.simulate.agentDefinition,
+                        voiceQuickStartAttribution,
+                      )
+                    : paths.dashboard.simulate.agentDefinition,
+                );
               }}
               sx={{ cursor: "pointer" }}
             >

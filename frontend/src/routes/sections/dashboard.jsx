@@ -1459,7 +1459,7 @@ export const dashboardRoutes = (
           children: [
             {
               index: true,
-              element: <Navigate to="call-details" replace />,
+              element: <NavigatePreserveSearch to="call-details" />,
             },
             {
               path: "call-details",

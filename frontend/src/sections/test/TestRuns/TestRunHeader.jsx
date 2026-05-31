@@ -35,6 +35,7 @@ import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/use
 import {
   buildVoiceRouteFocusPayload,
   getVoiceOnboardingParams,
+  voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "../onboardingVoiceRouteEvents";
 
@@ -121,6 +122,10 @@ const TestRunHeader = () => {
     () => getVoiceOnboardingParams(location.search),
     [location.search],
   );
+  const voiceQuickStartAttribution = useMemo(
+    () => voiceSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const isRunTestCallMode =
     voiceParams.mode === VOICE_ONBOARDING_MODES.RUN_TEST_CALL;
 
@@ -134,6 +139,7 @@ const TestRunHeader = () => {
     recordActivationEvent?.(
       buildVoiceRouteFocusPayload({
         mode: voiceParams.mode,
+        quickStartAttribution: voiceQuickStartAttribution,
         source: "voice_simulation_runs",
         testId,
         agentDefinitionId: voiceParams.agentDefinitionId,
@@ -145,6 +151,7 @@ const TestRunHeader = () => {
     recordActivationEvent,
     setSdkCodeOpen,
     testId,
+    voiceQuickStartAttribution,
     voiceParams.agentDefinitionId,
     voiceParams.mode,
   ]);

@@ -14,6 +14,7 @@ import React, {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -40,6 +41,7 @@ import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/use
 import {
   buildVoiceRouteFocusPayload,
   getVoiceOnboardingParams,
+  voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "./onboardingVoiceRouteEvents";
 import TestOnboardingFocusPanel from "./TestOnboardingFocusPanel";
@@ -133,7 +135,14 @@ const TestDetailHeader = () => {
   const agentType = configSnapshot?.agent_type ?? configSnapshot?.agentType;
   const sourceType = testData?.source_type ?? testData?.sourceType;
   const isPromptSimulation = sourceType === SIMULATION_TYPE.PROMPT;
-  const voiceParams = getVoiceOnboardingParams(location.search);
+  const voiceParams = useMemo(
+    () => getVoiceOnboardingParams(location.search),
+    [location.search],
+  );
+  const voiceQuickStartAttribution = useMemo(
+    () => voiceSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const routeMode = new URLSearchParams(location.search).get("onboarding");
   const isEvalRouteMode = isEvalOnboardingMode(routeMode);
   const isSuccessCriteriaMode =
@@ -166,6 +175,7 @@ const TestDetailHeader = () => {
     recordActivationEvent?.(
       buildVoiceRouteFocusPayload({
         mode: voiceParams.mode,
+        quickStartAttribution: voiceQuickStartAttribution,
         source: "voice_success_criteria_route",
         testId,
         callId: voiceParams.callId,
@@ -176,6 +186,7 @@ const TestDetailHeader = () => {
     recordActivationEvent,
     setOpenTestEvaluation,
     testId,
+    voiceQuickStartAttribution,
     voiceParams.callId,
     voiceParams.mode,
   ]);
@@ -230,7 +241,7 @@ const TestDetailHeader = () => {
       resetTestRunsState();
       resetState();
       navigate(
-        `/dashboard/simulate/test/${selectedTestId}/${lastParam}/${location.search || ""}`,
+        `/dashboard/simulate/test/${selectedTestId}/${lastParam}${location.search || ""}`,
       );
     },
     [location.search, navigate],

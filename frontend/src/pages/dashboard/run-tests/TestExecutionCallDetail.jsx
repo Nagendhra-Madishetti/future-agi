@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation, useParams } from "react-router-dom";
 import CallDetails from "src/sections/test-detail/CallDetails";
@@ -6,6 +6,7 @@ import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/use
 import {
   buildVoiceCallReviewedPayload,
   getVoiceOnboardingParams,
+  voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "src/sections/test/onboardingVoiceRouteEvents";
 
@@ -13,7 +14,14 @@ const TestExecutionCallDetail = () => {
   const { testId, executionId } = useParams();
   const location = useLocation();
   const { mutate: recordActivationEvent } = useRecordActivationEvent();
-  const voiceParams = getVoiceOnboardingParams(location.search);
+  const voiceParams = useMemo(
+    () => getVoiceOnboardingParams(location.search),
+    [location.search],
+  );
+  const voiceQuickStartAttribution = useMemo(
+    () => voiceSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const isVoiceReview = voiceParams.mode === VOICE_ONBOARDING_MODES.REVIEW_CALL;
   const isAgentOnboardingReview =
     voiceParams.from === "onboarding" && !isVoiceReview;
@@ -27,6 +35,7 @@ const TestExecutionCallDetail = () => {
           testId,
           executionId,
           callId: voiceParams.callId,
+          quickStartAttribution: voiceQuickStartAttribution,
         }),
       );
       return;
@@ -53,6 +62,7 @@ const TestExecutionCallDetail = () => {
     isVoiceReview,
     recordActivationEvent,
     testId,
+    voiceQuickStartAttribution,
     voiceParams.callId,
   ]);
 

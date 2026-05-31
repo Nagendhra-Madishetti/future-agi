@@ -18,6 +18,7 @@ import {
   buildVoiceMonitorOpenedPayload,
   buildVoiceRouteFocusPayload,
   getVoiceOnboardingParams,
+  voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "../onboardingVoiceRouteEvents";
 
@@ -33,6 +34,10 @@ const CallLogsView = () => {
     () => getVoiceOnboardingParams(location.search),
     [location.search],
   );
+  const voiceQuickStartAttribution = useMemo(
+    () => voiceSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
   const isMonitorCallsMode =
     voiceParams.mode === VOICE_ONBOARDING_MODES.MONITOR_CALLS;
 
@@ -42,17 +47,25 @@ const CallLogsView = () => {
     recordActivationEvent?.(
       buildVoiceRouteFocusPayload({
         mode: voiceParams.mode,
+        quickStartAttribution: voiceQuickStartAttribution,
         source: "voice_call_logs",
         testId,
       }),
     );
     recordActivationEvent?.(
       buildVoiceMonitorOpenedPayload({
+        quickStartAttribution: voiceQuickStartAttribution,
         testId,
         source: "voice_call_logs",
       }),
     );
-  }, [isMonitorCallsMode, recordActivationEvent, testId, voiceParams.mode]);
+  }, [
+    isMonitorCallsMode,
+    recordActivationEvent,
+    testId,
+    voiceQuickStartAttribution,
+    voiceParams.mode,
+  ]);
 
   const debouncedSearchText = useDebounce(searchText, 500);
 
@@ -100,7 +113,9 @@ const CallLogsView = () => {
             <Button
               variant="contained"
               onClick={() => {
-                navigate(`/dashboard/simulate/test/${testId}/runs`);
+                navigate(
+                  `/dashboard/simulate/test/${testId}/runs${location.search || ""}`,
+                );
               }}
               sx={{
                 bgcolor: "primary.main",

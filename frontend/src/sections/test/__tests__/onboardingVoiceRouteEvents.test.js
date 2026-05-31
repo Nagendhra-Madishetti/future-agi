@@ -1,13 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendVoiceOnboardingAttributionToHref,
+  buildVoiceAgentCreatedPayload,
   buildVoiceCallReviewedPayload,
+  buildVoiceCreateTestHref,
   buildVoiceMonitorOpenedPayload,
   buildVoiceOnboardingReturnHref,
+  buildVoiceReviewCallHref,
   buildVoiceRouteFocusPayload,
+  buildVoiceRunTestHref,
   buildVoiceSuccessCriteriaAddedPayload,
   getVoiceOnboardingParams,
+  voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "../onboardingVoiceRouteEvents";
+
+const VOICE_QUICK_START_SEARCH =
+  "?quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice";
 
 describe("onboardingVoiceRouteEvents", () => {
   it("reads voice onboarding route params", () => {
@@ -102,6 +111,99 @@ describe("onboardingVoiceRouteEvents", () => {
     });
   });
 
+  it("keeps setup quick-start attribution across voice onboarding routes", () => {
+    const attribution = voiceSetupQuickStartAttributionFromSearch(
+      VOICE_QUICK_START_SEARCH,
+    );
+
+    expect(attribution).toEqual({
+      quick_start_goal: "connect_voice_ai_agent",
+      quick_start_id: "voice",
+      quick_start_primary_path: "voice",
+    });
+    expect(
+      appendVoiceOnboardingAttributionToHref(
+        "/dashboard/simulate/test?from=onboarding",
+        attribution,
+      ),
+    ).toBe(
+      "/dashboard/simulate/test?from=onboarding&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
+    );
+    expect(
+      buildVoiceCreateTestHref({
+        agentDefinitionId: "agent-1",
+        quickStartAttribution: attribution,
+      }),
+    ).toBe(
+      "/dashboard/simulate/test?from=onboarding&onboarding=create-test-call&agent_definition_id=agent-1&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
+    );
+    expect(
+      buildVoiceRunTestHref({
+        agentDefinitionId: "agent-1",
+        search: VOICE_QUICK_START_SEARCH,
+        testId: "test-1",
+      }),
+    ).toBe(
+      "/dashboard/simulate/test/test-1/runs?from=onboarding&onboarding=run-test-call&agent_definition_id=agent-1&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
+    );
+    expect(
+      buildVoiceReviewCallHref({
+        agentDefinitionId: "agent-1",
+        executionId: "execution-1",
+        quickStartAttribution: attribution,
+        testId: "test-1",
+      }),
+    ).toBe(
+      "/dashboard/simulate/test/test-1/execution-1/call-details?from=onboarding&onboarding=review-voice-call&agent_definition_id=agent-1&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
+    );
+  });
+
+  it("adds setup quick-start attribution to voice activation payloads", () => {
+    const attribution = voiceSetupQuickStartAttributionFromSearch(
+      VOICE_QUICK_START_SEARCH,
+    );
+
+    expect(
+      buildVoiceAgentCreatedPayload({
+        agentDefinitionId: "agent-1",
+        provider: "livekit",
+        quickStartAttribution: attribution,
+      }),
+    ).toMatchObject({
+      eventName: "voice_agent_created",
+      quick_start_goal: "connect_voice_ai_agent",
+      quick_start_id: "voice",
+      quick_start_primary_path: "voice",
+    });
+
+    expect(
+      buildVoiceRouteFocusPayload({
+        mode: VOICE_ONBOARDING_MODES.RUN_TEST_CALL,
+        quickStartAttribution: attribution,
+        source: "voice_simulation_runs",
+        testId: "test-1",
+      }),
+    ).toMatchObject({
+      eventName: "onboarding_voice_route_focus_viewed",
+      quick_start_goal: "connect_voice_ai_agent",
+      quick_start_id: "voice",
+      quick_start_primary_path: "voice",
+    });
+
+    expect(
+      buildVoiceCallReviewedPayload({
+        testId: "test-1",
+        executionId: "execution-1",
+        quickStartAttribution: attribution,
+      }),
+    ).toMatchObject({
+      eventName: "voice_call_reviewed",
+      quick_start_goal: "connect_voice_ai_agent",
+      quick_start_id: "voice",
+      quick_start_primary_path: "voice",
+    });
+  });
+
   it("builds the canonical voice review event", () => {
     expect(
       buildVoiceCallReviewedPayload({
@@ -178,6 +280,27 @@ describe("onboardingVoiceRouteEvents", () => {
   it("builds the voice onboarding home return destination", () => {
     expect(buildVoiceOnboardingReturnHref()).toBe(
       "/dashboard/home?source=onboarding&target_event=voice_success_criteria_added",
+    );
+    expect(
+      buildVoiceOnboardingReturnHref({
+        search: VOICE_QUICK_START_SEARCH,
+      }),
+    ).toBe(
+      "/dashboard/home?source=onboarding&target_event=voice_success_criteria_added&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
+    );
+    expect(
+      buildVoiceOnboardingReturnHref(
+        buildVoiceSuccessCriteriaAddedPayload({
+          testId: "test-1",
+          callId: "call-1",
+          evalConfig: { name: "call_quality" },
+          quickStartAttribution: voiceSetupQuickStartAttributionFromSearch(
+            VOICE_QUICK_START_SEARCH,
+          ),
+        }),
+      ),
+    ).toBe(
+      "/dashboard/home?source=onboarding&target_event=voice_success_criteria_added&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
     );
   });
 });

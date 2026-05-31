@@ -1628,6 +1628,44 @@ describe("OnboardingHomeView", () => {
     expect(cta).not.toHaveAttribute("href");
   });
 
+  it("keeps setup quick-start attribution on the voice primary action", () => {
+    mocks.useActivationState.mockReturnValue({
+      state: pathState({
+        action: pathAction({
+          id: "create_voice_agent",
+          kind: "setup",
+          title: "Create voice agent",
+          description: "Create or connect one voice agent.",
+          href: "/dashboard/simulate/agent-definitions/create-new-agent-definition?source=onboarding&onboarding=create-voice-agent",
+          ctaLabel: "Create agent",
+          targetPath: "voice",
+        }),
+        goal: "connect_voice_ai_agent",
+        pathDescription: "Run or review a call with clear success criteria.",
+        pathLabel: "Connect a voice AI agent",
+        primaryPath: "voice",
+        stage: "create_voice_agent",
+      }),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView(
+      "/dashboard/home?source=setup_org&quick_start_id=voice&quick_start_goal=connect_voice_ai_agent&quick_start_primary_path=voice",
+    );
+
+    const panel = screen.getByTestId("path-focus-panel-voice");
+    expect(
+      within(panel).getByRole("link", { name: /create agent/i }),
+    ).toHaveAttribute(
+      "href",
+      "/dashboard/simulate/agent-definitions/create-new-agent-definition?source=onboarding&onboarding=create-voice-agent&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice&tour_anchor=voice_agent_button&journey_step=create_voice_agent",
+    );
+  });
+
   it("saves a selected goal through the goal mutation", async () => {
     const mutateAsync = vi
       .fn()
