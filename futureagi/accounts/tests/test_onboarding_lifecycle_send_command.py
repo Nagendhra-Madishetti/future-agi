@@ -247,6 +247,26 @@ def _launch_packet_path(
     return packet_path
 
 
+def _batch_payload(**overrides):
+    payload = {
+        "approval_manifest_sha256": None,
+        "approval_record_sha256": None,
+        "dry_run_report_sha256": None,
+        "dry_run_report_review_record_sha256": None,
+        "launch_packet_sha256": None,
+        "run_id": "00000000-0000-0000-0000-000000000999",
+        "evaluated": 0,
+        "sent": 0,
+        "suppressed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "status_counts": {},
+        "suppression_counts": {},
+    }
+    payload.update(overrides)
+    return payload
+
+
 @pytest.mark.django_db
 @override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
 def test_send_command_dry_run_writes_no_send_logs(organization, workspace, user):
@@ -265,6 +285,86 @@ def test_send_command_dry_run_writes_no_send_logs(organization, workspace, user)
 
     assert "evaluated=1" in output.getvalue()
     assert not OnboardingLifecycleSendLog.no_workspace_objects.exists()
+
+
+def test_send_command_rejects_include_receipt_backed_for_dry_run():
+    with pytest.raises(
+        CommandError,
+        match="--include-receipt-backed is only supported for sends",
+    ):
+        call_command(
+            "run_onboarding_lifecycle_send",
+            "--cohort",
+            "internal",
+            "--limit",
+            "1",
+            "--dry-run",
+            "--include-receipt-backed",
+            stdout=StringIO(),
+        )
+
+
+def test_send_command_passes_include_receipt_backed_to_batch():
+    preview_approval = SimpleNamespace(
+        manifest_sha256="a" * 64,
+        approval_record_sha256="b" * 64,
+    )
+    dry_run_report_review = SimpleNamespace(
+        report=SimpleNamespace(sha256="c" * 64),
+        review_record_sha256="d" * 64,
+    )
+    launch_packet = SimpleNamespace(sha256="e" * 64)
+    batch_result = SimpleNamespace(
+        to_payload=lambda: _batch_payload(
+            approval_manifest_sha256=preview_approval.manifest_sha256,
+            approval_record_sha256=preview_approval.approval_record_sha256,
+            dry_run_report_sha256=dry_run_report_review.report.sha256,
+            dry_run_report_review_record_sha256=(
+                dry_run_report_review.review_record_sha256
+            ),
+            launch_packet_sha256=launch_packet.sha256,
+        )
+    )
+
+    with (
+        patch(
+            "accounts.management.commands.run_onboarding_lifecycle_send.load_lifecycle_preview_approval",
+            return_value=preview_approval,
+        ),
+        patch(
+            "accounts.management.commands.run_onboarding_lifecycle_send.load_lifecycle_send_dry_run_report_review",
+            return_value=dry_run_report_review,
+        ),
+        patch(
+            "accounts.management.commands.run_onboarding_lifecycle_send.load_lifecycle_launch_packet",
+            return_value=launch_packet,
+        ),
+        patch(
+            "accounts.management.commands.run_onboarding_lifecycle_send.send_limited_onboarding_lifecycle_batch",
+            return_value=batch_result,
+        ) as send_batch,
+    ):
+        call_command(
+            "run_onboarding_lifecycle_send",
+            "--cohort",
+            "internal",
+            "--limit",
+            "1",
+            "--approval-manifest",
+            "/tmp/approval-manifest.json",
+            "--approval-record",
+            "/tmp/approval-record.json",
+            "--dry-run-report",
+            "/tmp/lifecycle-send-dry-run-report.json",
+            "--dry-run-report-review-record",
+            "/tmp/lifecycle-send-dry-run-report-review.json",
+            "--launch-packet",
+            "/tmp/lifecycle-launch-packet.json",
+            "--include-receipt-backed",
+            stdout=StringIO(),
+        )
+
+    assert send_batch.call_args.kwargs["include_receipt_backed"] is True
 
 
 @pytest.mark.django_db

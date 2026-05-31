@@ -78,6 +78,21 @@ LIFECYCLE_SEND_CONTEXT_METADATA_KEYS = (
     "observe_credentials_ready_at",
     "observe_credential_step",
 )
+RECEIPT_BACKED_SEND_METADATA_KEYS = (
+    "source",
+    "receipt_id",
+    "idempotency_key",
+    "export_log_id",
+    "payload_hash",
+    "deployment_mode",
+    "deployment_region",
+    "plan_tier",
+    "primary_cohort_key",
+    "cohort_keys",
+    "journey_config_schema_version",
+    "receipt_template_key",
+)
+UNPAID_RECEIPT_PLAN_TIERS = frozenset({"", "free", "oss", "open_source", "community"})
 
 
 @dataclass(frozen=True)
@@ -447,7 +462,7 @@ def _fresh_decision(evaluation_log, now):
     return context, flags, decision
 
 
-def _receipt_backed_dry_run_decision(evaluation_log, now):
+def _receipt_backed_decision(evaluation_log, now, *, source):
     flags = get_onboarding_flags(
         user=evaluation_log.user,
         organization=evaluation_log.organization,
@@ -485,7 +500,7 @@ def _receipt_backed_dry_run_decision(evaluation_log, now):
         suppression_details=evaluation_log.suppression_details or {},
         evaluated_at=now,
         metadata={
-            "source": "activation_fact_receipt_dry_run",
+            "source": source,
             "receipt_id": metadata.get("receipt_id"),
             "receipt_lifecycle_send_enabled": metadata.get(
                 "receipt_lifecycle_send_enabled"
@@ -496,6 +511,22 @@ def _receipt_backed_dry_run_decision(evaluation_log, now):
         },
     )
     return flags, decision
+
+
+def _receipt_backed_dry_run_decision(evaluation_log, now):
+    return _receipt_backed_decision(
+        evaluation_log,
+        now,
+        source="activation_fact_receipt_dry_run",
+    )
+
+
+def _receipt_backed_send_decision(evaluation_log, now):
+    return _receipt_backed_decision(
+        evaluation_log,
+        now,
+        source="activation_fact_receipt_send",
+    )
 
 
 def _denylisted(evaluation_log):
@@ -629,6 +660,27 @@ def _missing_required_digest_preview(evaluation_log, campaign, decision):
     return not bool(_digest_preview_for(decision, evaluation_log))
 
 
+def _receipt_backed_suppression_reason(evaluation_log):
+    if not evaluation_log.source_receipt_id:
+        return None
+    metadata = (
+        evaluation_log.metadata if isinstance(evaluation_log.metadata, dict) else {}
+    )
+    receipt = getattr(evaluation_log, "source_receipt", None)
+    if receipt:
+        if receipt.deployment_mode != "cloud":
+            return "receipt_not_cloud"
+        if receipt.plan_tier in UNPAID_RECEIPT_PLAN_TIERS:
+            return "receipt_unpaid_plan"
+        if receipt.email_suppressed:
+            return "receipt_email_suppressed"
+    if not metadata.get("receipt_lifecycle_send_enabled"):
+        return "receipt_send_disabled"
+    if metadata.get("receipt_lifecycle_dry_run_only"):
+        return "receipt_dry_run_only"
+    return None
+
+
 def _suppression_reason(
     evaluation_log,
     flags,
@@ -650,6 +702,9 @@ def _suppression_reason(
         return "campaign_flag_disabled"
     if evaluation_log.status != OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE:
         return "dry_run_not_eligible"
+    receipt_reason = _receipt_backed_suppression_reason(evaluation_log)
+    if receipt_reason:
+        return receipt_reason
     if decision.status != OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE:
         if decision.suppression_reason == "target_event_complete":
             return "target_success_event_completed"
@@ -711,6 +766,14 @@ def _send_log_defaults(
     ).get("digest_preview")
     if digest_preview:
         metadata["digest_preview"] = digest_preview
+    if evaluation_log.source_receipt_id:
+        evaluation_metadata = (
+            evaluation_log.metadata if isinstance(evaluation_log.metadata, dict) else {}
+        )
+        for key in RECEIPT_BACKED_SEND_METADATA_KEYS:
+            value = evaluation_metadata.get(key)
+            if value is not None and value != "":
+                metadata[key] = value
     for key in LIFECYCLE_SEND_CONTEXT_METADATA_KEYS:
         value = (decision.metadata or {}).get(key)
         if value in {None, ""}:
@@ -888,9 +951,13 @@ def queue_onboarding_lifecycle_email(
     preview_approval=None,
     dry_run_report_review=None,
     launch_packet=None,
+    receipt_backed=False,
 ):
     now = now or timezone.now()
-    _context, flags, decision = _fresh_decision(evaluation_log, now)
+    if receipt_backed:
+        flags, decision = _receipt_backed_send_decision(evaluation_log, now)
+    else:
+        _context, flags, decision = _fresh_decision(evaluation_log, now)
     campaign = decision.campaign or evaluation_log.registry_snapshot or {}
     send_log = _get_or_create_send_log(
         evaluation_log,
@@ -1047,6 +1114,7 @@ def send_limited_onboarding_lifecycle_batch(
     preview_approval=None,
     dry_run_report_review=None,
     launch_packet=None,
+    include_receipt_backed=False,
 ):
     now = now or timezone.now()
     if not dry_run and (
@@ -1065,8 +1133,10 @@ def send_limited_onboarding_lifecycle_batch(
     queryset = OnboardingLifecycleEvaluationLog.no_workspace_objects.filter(
         status=OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE,
     ).order_by("-evaluated_at")
-    if not dry_run:
+    if not dry_run and not include_receipt_backed:
         queryset = queryset.filter(source_receipt__isnull=True)
+    if not dry_run and include_receipt_backed:
+        queryset = queryset.select_related("source_receipt")
     if campaign_group:
         queryset = queryset.filter(campaign_group=campaign_group)
     if user_id:
@@ -1120,6 +1190,7 @@ def send_limited_onboarding_lifecycle_batch(
             preview_approval=preview_approval,
             dry_run_report_review=dry_run_report_review,
             launch_packet=launch_packet,
+            receipt_backed=bool(evaluation_log.source_receipt_id),
         )
         if send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED:
             send_log = send_onboarding_lifecycle_email(send_log, now=now)

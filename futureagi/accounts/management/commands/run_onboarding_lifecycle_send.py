@@ -36,6 +36,7 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run-report")
         parser.add_argument("--dry-run-report-review-record")
         parser.add_argument("--launch-packet")
+        parser.add_argument("--include-receipt-backed", action="store_true")
         parser.add_argument("--now")
 
     def handle(self, *args, **options):
@@ -49,6 +50,8 @@ class Command(BaseCommand):
             raise CommandError("--dry-run-report is only supported for sends.")
         if options["dry_run"] and options.get("launch_packet"):
             raise CommandError("--launch-packet is only supported for sends.")
+        if options["dry_run"] and options["include_receipt_backed"]:
+            raise CommandError("--include-receipt-backed is only supported for sends.")
         now = None
         if options.get("now"):
             now = parse_datetime(options["now"])
@@ -136,6 +139,7 @@ class Command(BaseCommand):
             preview_approval=preview_approval,
             dry_run_report_review=dry_run_report_review,
             launch_packet=launch_packet,
+            include_receipt_backed=options["include_receipt_backed"],
         )
         payload = result.to_payload()
         if options.get("report_output"):

@@ -3,6 +3,7 @@ import json
 import uuid
 from datetime import timedelta
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from django.core.management import call_command
@@ -133,6 +134,50 @@ def _allow_user_for_lifecycle_send(user):
         environment="local",
         reason="test",
     )
+
+
+class _ApprovedPreview:
+    manifest_sha256 = "a" * 64
+    approval_record_sha256 = "b" * 64
+
+    def has_campaign(self, campaign_key):
+        return campaign_key == "observe_waiting_for_first_trace"
+
+    def metadata_for_campaign(self, campaign_key):
+        return {
+            "campaign_key": campaign_key,
+            "manifest_sha256": self.manifest_sha256,
+            "approval_record_sha256": self.approval_record_sha256,
+            "approved_by": "Lifecycle reviewer <reviewer@example.com>",
+        }
+
+
+class _ReviewedDryRun:
+    report = SimpleNamespace(sha256="c" * 64)
+    review_record_sha256 = "d" * 64
+
+    def has_sendable_candidate(self, evaluation_log_id):
+        return True
+
+    def metadata_for_send(self):
+        return {
+            "path": "/tmp/lifecycle-send-dry-run-report.json",
+            "sha256": self.report.sha256,
+            "review_record_sha256": self.review_record_sha256,
+            "reviewed_by": "Lifecycle reviewer <reviewer@example.com>",
+        }
+
+
+class _ReadyLaunchPacket:
+    sha256 = "e" * 64
+
+    def metadata_for_send(self):
+        return {
+            "path": "/tmp/lifecycle-launch-packet.json",
+            "sha256": self.sha256,
+            "status": "ready",
+            "command": "run_onboarding_lifecycle_send",
+        }
 
 
 def test_receipt_lifecycle_metadata_keeps_receipt_send_disabled():
@@ -446,18 +491,112 @@ def test_receipt_sourced_lifecycle_logs_remain_excluded_from_real_send_batch(
 ):
     _receipt(organization, workspace, user)
     import_activation_fact_lifecycle_evaluations(limit=10)
-    preview_approval = SimpleNamespace(approval_record_sha256="b" * 64)
 
     result = send_limited_onboarding_lifecycle_batch(
         cohort="internal",
         limit=10,
-        preview_approval=preview_approval,
-        dry_run_report_review=object(),
+        preview_approval=_ApprovedPreview(),
+        dry_run_report_review=_ReviewedDryRun(),
+        launch_packet=_ReadyLaunchPacket(),
     )
 
     assert result.evaluated == 0
     assert result.sent == 0
     assert OnboardingLifecycleSendLog.no_workspace_objects.count() == 0
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_lifecycle_send_flags())
+def test_receipt_sourced_lifecycle_logs_can_enter_manual_real_send_batch(
+    organization,
+    workspace,
+    user,
+):
+    receipt = _receipt(organization, workspace, user)
+    import_activation_fact_lifecycle_evaluations(limit=10)
+    _allow_user_for_lifecycle_send(user)
+
+    with (
+        patch(
+            "accounts.services.onboarding.lifecycle_sender._cloud_lifecycle_delivery_enabled",
+            return_value=True,
+        ),
+        patch("accounts.services.onboarding.lifecycle_sender.email_helper") as helper,
+    ):
+        result = send_limited_onboarding_lifecycle_batch(
+            cohort="internal",
+            limit=10,
+            preview_approval=_ApprovedPreview(),
+            dry_run_report_review=_ReviewedDryRun(),
+            launch_packet=_ReadyLaunchPacket(),
+            include_receipt_backed=True,
+        )
+
+    assert result.evaluated == 1
+    assert result.sent == 1
+    assert result.status_counts == {OnboardingLifecycleSendLog.STATUS_SENT: 1}
+    helper.assert_called_once()
+    send_log = OnboardingLifecycleSendLog.no_workspace_objects.get()
+    assert send_log.status == OnboardingLifecycleSendLog.STATUS_SENT
+    assert send_log.target_route == (
+        "/dashboard/observe/project-1/llm-tracing?"
+        "source=onboarding_email&campaign_key=observe_waiting_for_first_trace"
+        "&target_event=trace_received"
+    )
+    assert send_log.metadata["source"] == "activation_fact_receipt"
+    assert send_log.metadata["receipt_id"] == str(receipt.id)
+    assert send_log.metadata["plan_tier"] == "payg"
+    assert send_log.metadata["primary_cohort_key"] == "observe_waiting_first_trace"
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_lifecycle_send_flags())
+def test_receipt_sourced_lifecycle_real_send_respects_dry_run_only_flag(
+    organization,
+    workspace,
+    user,
+):
+    _receipt(
+        organization,
+        workspace,
+        user,
+        metadata={
+            "source": "activation_fact_receiver",
+            "lifecycle_send_enabled": True,
+            "lifecycle_dry_run_only": True,
+            "lifecycle_target_route": "/dashboard/observe/project-1/llm-tracing",
+            "lifecycle_target_action_id": "send_first_trace",
+            "lifecycle_target_success_event": "trace_received",
+        },
+    )
+    import_activation_fact_lifecycle_evaluations(limit=10)
+    _allow_user_for_lifecycle_send(user)
+
+    with (
+        patch(
+            "accounts.services.onboarding.lifecycle_sender._cloud_lifecycle_delivery_enabled",
+            return_value=True,
+        ),
+        patch("accounts.services.onboarding.lifecycle_sender.email_helper") as helper,
+    ):
+        result = send_limited_onboarding_lifecycle_batch(
+            cohort="internal",
+            limit=10,
+            preview_approval=_ApprovedPreview(),
+            dry_run_report_review=_ReviewedDryRun(),
+            launch_packet=_ReadyLaunchPacket(),
+            include_receipt_backed=True,
+        )
+
+    assert result.evaluated == 1
+    assert result.sent == 0
+    assert result.suppressed == 1
+    assert result.suppression_counts == {"receipt_dry_run_only": 1}
+    helper.assert_not_called()
+    assert OnboardingLifecycleSendLog.no_workspace_objects.filter(
+        status=OnboardingLifecycleSendLog.STATUS_SUPPRESSED,
+        suppression_reason="receipt_dry_run_only",
+    ).exists()
 
 
 @pytest.mark.django_db
