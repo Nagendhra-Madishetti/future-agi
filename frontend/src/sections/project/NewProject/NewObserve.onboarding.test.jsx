@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "src/utils/test-utils";
+import { renderWithRouter, screen, within } from "src/utils/test-utils";
 
 import NewObserve from "./NewObserve";
 
@@ -71,7 +71,7 @@ describe("NewObserve onboarding setup", () => {
       isSuccess: true,
     });
 
-    render(
+    renderWithRouter(
       <NewObserve
         showFirstTraceGuide
         setupVerification={{
@@ -81,6 +81,7 @@ describe("NewObserve onboarding setup", () => {
           title: "Checking for your first trace",
         }}
       />,
+      { route: "/dashboard/observe?setup=true&source=onboarding" },
     );
 
     const guide = screen.getByTestId("observe-first-trace-guide");
@@ -107,7 +108,7 @@ describe("NewObserve onboarding setup", () => {
     expect(apiKeysLink).toBeVisible();
     expect(apiKeysLink).toHaveAttribute(
       "href",
-      "/dashboard/settings/api_keys?source=onboarding&target=observe_first_trace&action=create&key_name=Observe+first+trace&return_to=%2Fdashboard%2Fobserve%3Fsetup%3Dtrue%26source%3Donboarding",
+      "/dashboard/settings/api_keys?source=onboarding&target=observe_first_trace&action=create&key_name=Observe+first+trace&return_to=%2Fdashboard%2Fobserve%3Fsetup%3Dtrue%26source%3Donboarding%26credential_step%3Ddone",
     );
     expect(
       within(guide).getByText("from futureagi import trace"),
@@ -120,5 +121,39 @@ describe("NewObserve onboarding setup", () => {
     ).toHaveTextContent("Checking for your first trace");
     expect(screen.getByText("Full setup reference")).toBeVisible();
     expect(screen.getByText("Instrumentation options")).toBeVisible();
+  });
+
+  it("acknowledges copied credentials after returning from key creation", () => {
+    mocks.useQuery.mockReturnValue({
+      data: codeBlockFixture,
+      error: null,
+      isLoading: false,
+      isSuccess: true,
+    });
+
+    renderWithRouter(
+      <NewObserve
+        showFirstTraceGuide
+        setupVerification={{
+          description: "Run one request after pasting the keys.",
+          status: "waiting",
+          title: "Checking for your first trace",
+        }}
+      />,
+      {
+        route:
+          "/dashboard/observe?setup=true&source=onboarding&credential_step=done",
+      },
+    );
+
+    const guide = screen.getByTestId("observe-first-trace-guide");
+    expect(
+      within(guide).getByText(
+        "Credentials copied. Paste both values into the snippet, then run one request.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(guide).getByRole("link", { name: /Create another key/i }),
+    ).toBeVisible();
   });
 });

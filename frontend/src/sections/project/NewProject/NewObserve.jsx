@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import PropTypes from "prop-types";
 import React, { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Events, handleOnDocsClicked, trackEvent } from "src/utils/Mixpanel";
 import { useQuery } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
@@ -33,12 +34,15 @@ const CODE_SECTION_ALIASES = {
   projectAddCode: "project_add_code",
 };
 
+const OBSERVE_ONBOARDING_SETUP_RETURN_HREF =
+  "/dashboard/observe?setup=true&source=onboarding&credential_step=done";
+
 const API_KEYS_ONBOARDING_PARAMS = new URLSearchParams({
   source: "onboarding",
   target: "observe_first_trace",
   action: "create",
   key_name: "Observe first trace",
-  return_to: "/dashboard/observe?setup=true&source=onboarding",
+  return_to: OBSERVE_ONBOARDING_SETUP_RETURN_HREF,
 });
 const API_KEYS_ONBOARDING_HREF = `${paths.dashboard.settings.apiKeys}?${API_KEYS_ONBOARDING_PARAMS.toString()}`;
 
@@ -108,6 +112,7 @@ VerificationAlert.propTypes = {
 };
 
 const FirstTraceSetupGuide = ({
+  credentialsCopied,
   getCodeBySection,
   languageTab,
   onLanguageChange,
@@ -242,12 +247,21 @@ const FirstTraceSetupGuide = ({
                 startIcon={<Iconify icon="mdi:key-outline" width={16} />}
                 sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
               >
-                Create API key
+                {credentialsCopied ? "Create another key" : "Create API key"}
               </Button>
             </Stack>
-            <Typography variant="caption" color="text.secondary">
-              Use a real API key and secret key before running the snippet.
-            </Typography>
+            {credentialsCopied ? (
+              <Alert severity="success" icon={false} sx={{ py: 0.5 }}>
+                <Typography variant="caption">
+                  Credentials copied. Paste both values into the snippet, then
+                  run one request.
+                </Typography>
+              </Alert>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                Use a real API key and secret key before running the snippet.
+              </Typography>
+            )}
             <InstructionCodeCopy
               ariaLabel="Copy project keys"
               text={getCodeBySection("keys")}
@@ -273,6 +287,7 @@ const FirstTraceSetupGuide = ({
 };
 
 FirstTraceSetupGuide.propTypes = {
+  credentialsCopied: PropTypes.bool,
   getCodeBySection: PropTypes.func.isRequired,
   languageTab: PropTypes.string.isRequired,
   onLanguageChange: PropTypes.func.isRequired,
@@ -291,6 +306,10 @@ FirstTraceSetupGuide.propTypes = {
 const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
   const theme = useTheme();
   const [languageTab, setLanguageTab] = useState("python");
+  const [searchParams] = useSearchParams();
+  const credentialsCopied =
+    searchParams.get("credential_step") === "done" &&
+    searchParams.get("source") === "onboarding";
   const {
     data: keysData,
     isSuccess,
@@ -353,6 +372,7 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
         <>
           {showFirstTraceGuide ? (
             <FirstTraceSetupGuide
+              credentialsCopied={credentialsCopied}
               getCodeBySection={getCodeBySection}
               languageTab={languageTab}
               onLanguageChange={setLanguageTab}
