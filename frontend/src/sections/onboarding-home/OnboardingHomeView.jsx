@@ -646,7 +646,7 @@ export default function OnboardingHomeView() {
       ? {
           title: "Sample data is a preview",
           description:
-            "Use it to inspect screens. Real setup still starts from a setup workflow.",
+            "Use it to inspect screens. Real setup still starts from one product task.",
         }
       : null;
   const isFirstRunQuickStartFocus =
@@ -800,12 +800,12 @@ export default function OnboardingHomeView() {
             eyebrow: "Sample preview",
             title: "Preview sample data",
             description:
-              "Open the sample trace to inspect screens. Real setup still starts from a setup workflow.",
+              "Open the sample trace to inspect screens. Real setup still starts from one product task.",
           }
         : {
             eyebrow: "First setup",
             title: selectedSetupQuickStart.buttonLabel,
-            description: `You chose ${selectedSetupQuickStart.buttonLabel}. Start with ${firstRunCurrentStepLabel}. Complete this action first; the full setup path stays below.`,
+            description: `Start with ${firstRunCurrentStepLabel}. The steps below show what comes next, one action at a time.`,
             surfaceLabel: selectedSetupQuickStart.surfaceLabel,
           }
       : quickStartMismatchAction

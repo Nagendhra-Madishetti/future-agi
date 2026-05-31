@@ -57,18 +57,18 @@ const QUICK_START_ROLE = "AI Builder";
 const SETUP_SIDE_PANEL_STEPS = [
   {
     icon: "mdi:cursor-default-click-outline",
-    label: "Choose one setup path",
-    description: "Pick the workflow that matches your first job.",
+    label: "Choose one product task",
+    description: "Pick the area you want to set up first.",
   },
   {
     icon: "mdi:clipboard-check-outline",
     label: "Start with one action",
-    description: "Home opens with the first action selected.",
+    description: "The next screen highlights exactly where to begin.",
   },
   {
     icon: "mdi:database-eye-outline",
-    label: "Complete real setup",
-    description: "Sample data stays available, but it does not finish setup.",
+    label: "Use sample data only as a preview",
+    description: "Sample screens stay available, but they do not finish setup.",
   },
 ];
 
@@ -269,8 +269,8 @@ const SetupOrgSidePanel = () => (
         </Typography>
         <Typography variant="h4">Choose what to set up first</Typography>
         <Typography variant="body1" color="text.secondary">
-          Pick the workflow that matches your first job. The workspace will open
-          with that action selected.
+          Pick the product area you want to use first. The workspace will open
+          with the first action highlighted.
         </Typography>
       </Stack>
 
@@ -657,7 +657,7 @@ const SetupOrganization = ({ getStarted = false }) => {
       >
         <Stack
           component="span"
-          spacing={1}
+          spacing={0.75}
           sx={{ display: "flex", minWidth: 0, width: "100%" }}
         >
           <Stack
@@ -750,17 +750,8 @@ const SetupOrganization = ({ getStarted = false }) => {
             component="span"
             sx={{
               display: "block",
-              border: "1px solid",
-              borderColor: option.featured
-                ? "rgba(255,255,255,0.36)"
-                : "divider",
-              borderRadius: 0.5,
-              px: 1,
-              py: 0.75,
-              bgcolor: option.featured
-                ? "rgba(255,255,255,0.10)"
-                : "background.neutral",
               width: "100%",
+              mt: 0.25,
             }}
           >
             <Stack component="span" spacing={0.25} sx={{ display: "flex" }}>
@@ -775,7 +766,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                   textTransform: "uppercase",
                 }}
               >
-                First step
+                Start here
               </Typography>
               <Typography
                 component="span"
@@ -800,7 +791,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                   lineHeight: 1.25,
                 }}
               >
-                Next: {option.pathPreview}
+                Then: {option.pathPreview}
               </Typography>
             </Stack>
           </Box>
@@ -826,8 +817,8 @@ const SetupOrganization = ({ getStarted = false }) => {
           <Typography variant="subtitle2">Preview sample data</Typography>
         </Stack>
         <Typography variant="body2" color="text.secondary">
-          Optional preview only. This does not complete setup; choose a setup
-          workflow above to set up your workspace with real data.
+          Optional preview only. This does not complete setup; choose one
+          product task above to set up your workspace with real data.
         </Typography>
         <Box
           sx={{
@@ -871,11 +862,12 @@ const SetupOrganization = ({ getStarted = false }) => {
       <Stack spacing={1.5}>
         <Stack spacing={0.5}>
           <Typography variant="body2" color="text.secondary">
-            Choose one setup workflow. The next screen opens with the first step
-            selected and the remaining setup steps visible.
+            Choose the first product task for this workspace. The next screen
+            opens the right product area and highlights where to begin.
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Team invites can wait until setup is working.
+            Sample data is available for preview, but it will not finish setup.
+            Team invites can wait.
           </Typography>
         </Stack>
 
@@ -1257,8 +1249,8 @@ const SetupOrganization = ({ getStarted = false }) => {
                   maxWidth: 520,
                 }}
               >
-                Pick the workflow that matches your first job. You will see the
-                first step and the full setup path next.
+                Pick the product area you want to use first. You will see the
+                first action and the next steps after it.
               </Typography>
             </Box>
 

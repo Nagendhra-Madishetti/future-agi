@@ -193,7 +193,7 @@ async function main() {
     await expectVisibleText(page, "What do you want to set up first?");
     await expectVisibleText(
       page,
-      "Pick the workflow that matches your first job. You will see the first step and the full setup path next.",
+      "Pick the product area you want to use first. You will see the first action and the next steps after it.",
     );
     const quickStartInitiallyVisible = await isVisibleButtonText(
       page,
@@ -247,7 +247,7 @@ async function main() {
         page,
         `Start with ${QUICK_START.expectedActionText}.`,
       );
-      await expectVisibleText(page, "Full setup path", { exact: true });
+      await expectVisibleText(page, "What happens next", { exact: true });
       await expectVisibleText(page, "Step 1 of");
       await expectVisibleText(page, QUICK_START.expectedActionText, {
         exact: true,

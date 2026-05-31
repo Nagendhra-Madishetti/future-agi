@@ -107,7 +107,7 @@ export function CurrentStepGuide({ step, stage, stepNumber, totalSteps }) {
     >
       <Stack spacing={0.75} sx={{ maxWidth: 720 }}>
         <Stack direction="row" spacing={0.75} flexWrap="wrap">
-          <Chip size="small" color="primary" label="Do this now" />
+          <Chip size="small" color="primary" label="Start here" />
           <Chip size="small" variant="outlined" label={progressLabel} />
         </Stack>
         <Typography variant="h6" color="text.primary">
@@ -163,7 +163,7 @@ export function ObserveJourneyProgress({
         justifyContent="space-between"
       >
         <Typography variant="subtitle2">
-          {singleActionFocus ? "Full setup path" : "Setup checklist"}
+          {singleActionFocus ? "What happens next" : "Setup checklist"}
         </Typography>
         {singleActionFocus ? (
           <Chip
@@ -195,9 +195,11 @@ export function ObserveJourneyProgress({
               });
             const statusCopy = STATUS_COPY[status] || STATUS_COPY.queued;
             const statusLabel =
-              singleActionFocus && status === "queued"
-                ? `Step ${originalIndex + 1}`
-                : statusCopy.label;
+              singleActionFocus && status === "current"
+                ? "Start"
+                : singleActionFocus && status === "queued"
+                  ? `Step ${originalIndex + 1}`
+                  : statusCopy.label;
 
             return (
               <Box

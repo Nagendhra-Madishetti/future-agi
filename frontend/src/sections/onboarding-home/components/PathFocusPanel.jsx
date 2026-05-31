@@ -118,7 +118,7 @@ export default function PathFocusPanel({
           justifyContent="space-between"
         >
           <Typography variant="subtitle2">
-            {singleActionFocus ? "Full setup path" : "Setup checklist"}
+            {singleActionFocus ? "What happens next" : "Setup checklist"}
           </Typography>
           {singleActionFocus && currentIndex !== null ? (
             <Chip
@@ -148,9 +148,11 @@ export default function PathFocusPanel({
                 stepStatus({ index: originalIndex, activeIndex: currentIndex });
               const statusCopy = STATUS_COPY[status] || STATUS_COPY.queued;
               const statusLabel =
-                singleActionFocus && status === "queued"
-                  ? `Step ${originalIndex + 1}`
-                  : statusCopy.label;
+                singleActionFocus && status === "current"
+                  ? "Start"
+                  : singleActionFocus && status === "queued"
+                    ? `Step ${originalIndex + 1}`
+                    : statusCopy.label;
 
               return (
                 <Box

@@ -288,7 +288,7 @@ const observeSetupFallbackAction = (overrides = {}) =>
     id: "open_observe_setup_fallback",
     kind: "fallback",
     title: "Open observe setup",
-    description: "Return to the observe setup path and send the first trace.",
+    description: "Return to Observe and send the first trace.",
     href: "/dashboard/observe?setup=true&source=onboarding",
     cta_label: "Start with observe",
     estimated_minutes: null,
