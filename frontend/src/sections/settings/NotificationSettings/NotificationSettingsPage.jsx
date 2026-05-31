@@ -12,6 +12,12 @@ import {
   Paper,
   Stack,
   Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -55,6 +61,15 @@ const EXTERNAL_CHANNEL_FAMILIES = new Set([
   "observe_monitor",
   "eval_quality_alert",
 ]);
+
+const STATUS_COLORS = {
+  eligible: "info",
+  suppressed: "warning",
+  sent: "success",
+  failed: "error",
+  clicked: "secondary",
+  completed: "success",
+};
 
 function decisionKey(family, channel) {
   return `${family}:${channel}`;
@@ -104,6 +119,43 @@ function channelsForFamily(family, externalChannels) {
   return Array.from(channels);
 }
 
+function titleize(value) {
+  return String(value || "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatDateTime(value) {
+  if (!value) return "Not sent";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not sent";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function channelUpdatePayload(channel, overrides = {}) {
+  const payload = {
+    id: channel.id,
+    scope: channel.scope || "workspace",
+    type: channel.type,
+    display_name: overrides.display_name ?? channel.display_name,
+    is_active:
+      overrides.is_active ??
+      (channel.is_active === undefined || channel.is_active),
+  };
+  if (overrides.config) payload.config = overrides.config;
+  if (channel.metadata && Object.keys(channel.metadata).length > 0) {
+    payload.metadata = channel.metadata;
+  }
+  return { channels: [payload] };
+}
+
 export default function NotificationSettingsPage() {
   const queryClient = useQueryClient();
   const [slackName, setSlackName] = useState("");
@@ -111,6 +163,10 @@ export default function NotificationSettingsPage() {
   const [webhookName, setWebhookName] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
+  const [editingChannelId, setEditingChannelId] = useState(null);
+  const [editChannelName, setEditChannelName] = useState("");
+  const [editChannelUrl, setEditChannelUrl] = useState("");
+  const [editChannelSecret, setEditChannelSecret] = useState("");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["notification-preferences"],
@@ -156,6 +212,17 @@ export default function NotificationSettingsPage() {
   }, [data]);
 
   const channels = useMemo(() => data?.channels || [], [data?.channels]);
+  const deliveryLogs = useMemo(
+    () => data?.delivery_logs || [],
+    [data?.delivery_logs],
+  );
+  const familyLabels = useMemo(() => {
+    const labels = new Map();
+    (data?.families || []).forEach((family) => {
+      labels.set(family.id, family.label);
+    });
+    return labels;
+  }, [data?.families]);
   const canManageWorkspace = Boolean(data?.can_manage_workspace);
   const externalChannels = useMemo(
     () => configuredExternalChannels(channels),
@@ -224,6 +291,57 @@ export default function NotificationSettingsPage() {
           queryClient.invalidateQueries({
             queryKey: ["notification-preferences"],
           });
+        },
+      },
+    );
+  };
+
+  const handleToggleChannel = (channel, checked) => {
+    patchMutation.mutate(
+      channelUpdatePayload(channel, { is_active: checked }),
+      {
+        onSuccess: () => {
+          enqueueSnackbar(checked ? "Channel enabled" : "Channel disabled", {
+            variant: "success",
+          });
+        },
+      },
+    );
+  };
+
+  const handleEditChannel = (channel) => {
+    setEditingChannelId(channel.id);
+    setEditChannelName(channel.display_name || "");
+    setEditChannelUrl("");
+    setEditChannelSecret("");
+  };
+
+  const handleCancelEditChannel = () => {
+    setEditingChannelId(null);
+    setEditChannelName("");
+    setEditChannelUrl("");
+    setEditChannelSecret("");
+  };
+
+  const handleSaveChannel = (channel) => {
+    const config = {};
+    if (editChannelUrl && channel.type === "slack_webhook") {
+      config.webhook_url = editChannelUrl;
+    }
+    if (editChannelUrl && channel.type === "webhook") {
+      config.url = editChannelUrl;
+      if (editChannelSecret) config.secret = editChannelSecret;
+    }
+
+    patchMutation.mutate(
+      channelUpdatePayload(channel, {
+        display_name: editChannelName.trim() || channel.display_name,
+        ...(Object.keys(config).length > 0 ? { config } : {}),
+      }),
+      {
+        onSuccess: () => {
+          handleCancelEditChannel();
+          enqueueSnackbar("Channel updated", { variant: "success" });
         },
       },
     );
@@ -426,6 +544,30 @@ export default function NotificationSettingsPage() {
                           size="small"
                           variant="outlined"
                         />
+                        <Switch
+                          size="small"
+                          checked={
+                            channel.is_active === undefined || channel.is_active
+                          }
+                          disabled={
+                            !canManageWorkspace || patchMutation.isPending
+                          }
+                          onChange={(event) =>
+                            handleToggleChannel(channel, event.target.checked)
+                          }
+                          inputProps={{
+                            "aria-label": `${channel.display_name} active`,
+                          }}
+                        />
+                        <IconButton
+                          size="small"
+                          disabled={!canManageWorkspace}
+                          onClick={() => handleEditChannel(channel)}
+                          title="Edit channel"
+                          aria-label={`Edit ${channel.display_name}`}
+                        >
+                          <Iconify icon="mdi:pencil-outline" width={18} />
+                        </IconButton>
                         <IconButton
                           size="small"
                           disabled={
@@ -438,6 +580,70 @@ export default function NotificationSettingsPage() {
                         </IconButton>
                       </Stack>
                     </Stack>
+                    {editingChannelId === channel.id && (
+                      <Stack
+                        direction={{ xs: "column", md: "row" }}
+                        spacing={1.5}
+                        sx={{ mt: 1.5 }}
+                      >
+                        <TextField
+                          label="Channel display name"
+                          value={editChannelName}
+                          onChange={(event) =>
+                            setEditChannelName(event.target.value)
+                          }
+                          size="small"
+                          fullWidth
+                        />
+                        <TextField
+                          label={
+                            channel.type === "slack_webhook"
+                              ? "New Slack webhook URL"
+                              : "New webhook URL"
+                          }
+                          value={editChannelUrl}
+                          onChange={(event) =>
+                            setEditChannelUrl(event.target.value)
+                          }
+                          helperText="Leave blank to keep the current endpoint."
+                          size="small"
+                          fullWidth
+                          type="password"
+                        />
+                        {channel.type === "webhook" && (
+                          <TextField
+                            label="New webhook token"
+                            value={editChannelSecret}
+                            onChange={(event) =>
+                              setEditChannelSecret(event.target.value)
+                            }
+                            helperText="Requires a new webhook URL."
+                            size="small"
+                            fullWidth
+                            type="password"
+                          />
+                        )}
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            variant="contained"
+                            onClick={() => handleSaveChannel(channel)}
+                            disabled={
+                              patchMutation.isPending ||
+                              !editChannelName.trim() ||
+                              Boolean(editChannelSecret && !editChannelUrl)
+                            }
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            variant="text"
+                            onClick={handleCancelEditChannel}
+                          >
+                            Cancel
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    )}
                   </Box>
                 ))}
               </Stack>
@@ -519,6 +725,87 @@ export default function NotificationSettingsPage() {
                 </Button>
               </Stack>
             </Stack>
+          </Stack>
+        </Paper>
+
+        <Paper variant="outlined" sx={{ p: 2.25, borderRadius: 1 }}>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="subtitle1">Delivery log</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Recent notification sends, suppressions, tests, and failures.
+              </Typography>
+            </Box>
+
+            {deliveryLogs.length === 0 ? (
+              <Alert severity="info">No delivery events yet.</Alert>
+            ) : (
+              <TableContainer>
+                <Table size="small" aria-label="Notification delivery log">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Event</TableCell>
+                      <TableCell>Channel</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Recipient</TableCell>
+                      <TableCell align="right">Time</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {deliveryLogs.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell>
+                          <Stack spacing={0.25}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {familyLabels.get(log.family) ||
+                                titleize(log.family)}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {log.notification_key || log.source_type}
+                              {log.stage ? ` - ${log.stage}` : ""}
+                            </Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>{CHANNEL_LABELS[log.channel]}</TableCell>
+                        <TableCell>
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            alignItems="center"
+                          >
+                            <Chip
+                              label={titleize(log.status)}
+                              color={STATUS_COLORS[log.status] || "default"}
+                              size="small"
+                              variant="outlined"
+                            />
+                            {log.suppressed_reason && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                {titleize(log.suppressed_reason)}
+                              </Typography>
+                            )}
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          {log.recipient_identifier_masked ||
+                            log.recipient_type ||
+                            "Workspace"}
+                        </TableCell>
+                        <TableCell align="right">
+                          {formatDateTime(log.sent_at || log.created_at)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Stack>
         </Paper>
       </Stack>

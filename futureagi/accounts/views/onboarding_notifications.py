@@ -117,9 +117,9 @@ class NotificationSettingsView(APIView):
                     channel_id=item.get("id"),
                     type=item["type"],
                     display_name=item["display_name"],
-                    config=item.get("config") or {},
+                    config=item["config"] if "config" in item else None,
                     is_active=item.get("is_active", True),
-                    metadata=item.get("metadata") or {},
+                    metadata=item["metadata"] if "metadata" in item else None,
                 )
         except ValidationError as exc:
             return self._gm.bad_request(_validation_detail(exc))

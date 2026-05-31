@@ -291,4 +291,147 @@ describe("NotificationSettingsPage", () => {
     ).not.toBeChecked();
     expect(within(dailyQuality).getByText("Opt-in")).toBeInTheDocument();
   });
+
+  it("lets workspace admins disable a channel without resubmitting the endpoint", async () => {
+    const user = userEvent.setup();
+    mockGet.mockResolvedValue({
+      data: {
+        result: settingsResult({
+          channels: [
+            {
+              id: "slack-channel-1",
+              scope: "workspace",
+              type: "slack_webhook",
+              display_name: "Daily quality Slack",
+              target_identifier: "Slack webhook",
+              is_active: true,
+            },
+          ],
+        }),
+      },
+    });
+
+    const { default: NotificationSettingsPage } = await import(
+      "../NotificationSettingsPage"
+    );
+    renderWithQuery(<NotificationSettingsPage />);
+
+    await user.click(
+      await screen.findByLabelText("Daily quality Slack active"),
+    );
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+    expect(mockPatch).toHaveBeenCalledWith(
+      "/accounts/notification-preferences/",
+      {
+        channels: [
+          {
+            id: "slack-channel-1",
+            scope: "workspace",
+            type: "slack_webhook",
+            display_name: "Daily quality Slack",
+            is_active: false,
+          },
+        ],
+      },
+    );
+  });
+
+  it("lets workspace admins edit a channel display name without exposing the endpoint", async () => {
+    const user = userEvent.setup();
+    mockGet.mockResolvedValue({
+      data: {
+        result: settingsResult({
+          channels: [
+            {
+              id: "slack-channel-1",
+              scope: "workspace",
+              type: "slack_webhook",
+              display_name: "Daily quality Slack",
+              target_identifier: "Slack webhook",
+              is_active: true,
+            },
+          ],
+        }),
+      },
+    });
+
+    const { default: NotificationSettingsPage } = await import(
+      "../NotificationSettingsPage"
+    );
+    renderWithQuery(<NotificationSettingsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Edit Daily quality Slack" }),
+    );
+    await user.clear(screen.getByLabelText("Channel display name"));
+    await user.type(
+      screen.getByLabelText("Channel display name"),
+      "Growth Slack",
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+    expect(mockPatch).toHaveBeenCalledWith(
+      "/accounts/notification-preferences/",
+      {
+        channels: [
+          {
+            id: "slack-channel-1",
+            scope: "workspace",
+            type: "slack_webhook",
+            display_name: "Growth Slack",
+            is_active: true,
+          },
+        ],
+      },
+    );
+  });
+
+  it("renders recent notification delivery events", async () => {
+    mockGet.mockResolvedValue({
+      data: {
+        result: settingsResult({
+          delivery_logs: [
+            {
+              id: "delivery-log-1",
+              family: "usage_budget",
+              source_type: "usage_budget",
+              source_id: "budget-1",
+              channel: "slack",
+              recipient_type: "slack_webhook",
+              recipient_identifier_masked: "Slack webhook",
+              notification_key: "budget_threshold_80",
+              stage: "80",
+              severity: "warning",
+              status: "suppressed",
+              suppressed_reason: "channel_disabled",
+              route_url: "/dashboard/gateway/budgets",
+              sent_at: null,
+              created_at: "2026-05-31T12:00:00Z",
+              metadata: {},
+            },
+          ],
+        }),
+      },
+    });
+
+    const { default: NotificationSettingsPage } = await import(
+      "../NotificationSettingsPage"
+    );
+    renderWithQuery(<NotificationSettingsPage />);
+
+    const table = await screen.findByRole("table", {
+      name: "Notification delivery log",
+    });
+    expect(
+      within(table).getByText("Usage and budget alerts"),
+    ).toBeInTheDocument();
+    expect(
+      within(table).getByText("budget_threshold_80 - 80"),
+    ).toBeInTheDocument();
+    expect(within(table).getByText("Suppressed")).toBeInTheDocument();
+    expect(within(table).getByText("Channel Disabled")).toBeInTheDocument();
+    expect(within(table).getByText("Slack webhook")).toBeInTheDocument();
+  });
 });

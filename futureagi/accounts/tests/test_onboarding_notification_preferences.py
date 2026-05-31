@@ -9,6 +9,7 @@ from accounts.models import (
     NotificationPreference,
 )
 from accounts.services.onboarding.notification_preferences import (
+    notification_channel_delivery_config,
     notification_preference_decision,
     record_notification_delivery,
     upsert_notification_preference,
@@ -25,6 +26,58 @@ def test_notification_settings_get_returns_registered_families(auth_client):
     assert "product_onboarding" in family_ids
     assert "usage_budget" in family_ids
     assert result["can_manage_workspace"] is True
+
+
+@pytest.mark.django_db
+def test_notification_settings_get_returns_recent_delivery_logs(
+    auth_client,
+    organization,
+    workspace,
+    user,
+):
+    record_notification_delivery(
+        organization=organization,
+        workspace=workspace,
+        user=user,
+        family=NotificationPreference.FAMILY_PRODUCT_ONBOARDING,
+        source_type="onboarding_lifecycle",
+        source_id="welcome-1",
+        channel=NotificationPreference.CHANNEL_EMAIL,
+        status=NotificationDeliveryLog.STATUS_SENT,
+        recipient_type="email",
+        recipient_identifier="owner@example.com",
+        notification_key="welcome_choose_goal",
+        stage="choose_goal",
+        severity="info",
+    )
+    record_notification_delivery(
+        organization=organization,
+        workspace=workspace,
+        user=user,
+        family=NotificationPreference.FAMILY_USAGE_BUDGET,
+        source_type="usage_budget",
+        source_id="budget-1",
+        channel=NotificationPreference.CHANNEL_SLACK,
+        status=NotificationDeliveryLog.STATUS_SUPPRESSED,
+        recipient_type="slack_webhook",
+        recipient_identifier="alerts@example.com",
+        notification_key="budget_threshold_80",
+        stage="80",
+        severity="warning",
+        suppressed_reason="channel_disabled",
+    )
+
+    response = auth_client.get("/accounts/notification-preferences/")
+
+    assert response.status_code == 200
+    logs = response.json()["result"]["delivery_logs"]
+    assert [log["notification_key"] for log in logs[:2]] == [
+        "budget_threshold_80",
+        "welcome_choose_goal",
+    ]
+    assert logs[0]["recipient_identifier_masked"] == "al***@example.com"
+    assert logs[0]["status"] == NotificationDeliveryLog.STATUS_SUPPRESSED
+    assert logs[0]["suppressed_reason"] == "channel_disabled"
 
 
 @pytest.mark.django_db
@@ -137,6 +190,156 @@ def test_slack_channel_is_masked_and_testable(auth_client):
         source_id=str(channel.id),
         notification_key="notification_channel_test",
     ).exists()
+
+
+@pytest.mark.django_db
+def test_channel_can_be_disabled_without_resubmitting_secret_config(auth_client):
+    create_response = auth_client.patch(
+        "/accounts/notification-preferences/",
+        {
+            "channels": [
+                {
+                    "scope": "workspace",
+                    "type": "slack_webhook",
+                    "display_name": "Workspace alerts",
+                    "config": {
+                        "webhook_url": (
+                            "https://hooks.slack.com/services/T000/B000/secret"
+                        )
+                    },
+                    "is_active": True,
+                    "metadata": {"owner": "growth"},
+                }
+            ]
+        },
+        format="json",
+    )
+    assert create_response.status_code == 200
+    channel = NotificationChannel.no_workspace_objects.get()
+    encrypted_config = channel.encrypted_config
+
+    update_response = auth_client.patch(
+        "/accounts/notification-preferences/",
+        {
+            "channels": [
+                {
+                    "id": str(channel.id),
+                    "scope": "workspace",
+                    "type": "slack_webhook",
+                    "display_name": "Workspace alerts paused",
+                    "is_active": False,
+                }
+            ]
+        },
+        format="json",
+    )
+
+    assert update_response.status_code == 200
+    channel.refresh_from_db()
+    assert channel.display_name == "Workspace alerts paused"
+    assert channel.is_active is False
+    assert channel.encrypted_config == encrypted_config
+    assert channel.metadata == {"owner": "growth"}
+    assert notification_channel_delivery_config(channel)["webhook_url"].endswith(
+        "/secret"
+    )
+
+
+@pytest.mark.django_db
+def test_channel_endpoint_can_be_edited_with_new_secret_config(auth_client):
+    auth_client.patch(
+        "/accounts/notification-preferences/",
+        {
+            "channels": [
+                {
+                    "scope": "workspace",
+                    "type": "webhook",
+                    "display_name": "Lifecycle webhook",
+                    "config": {
+                        "url": "https://example.com/hooks/old",
+                        "secret": "old-token",
+                    },
+                    "is_active": True,
+                }
+            ]
+        },
+        format="json",
+    )
+    channel = NotificationChannel.no_workspace_objects.get()
+
+    response = auth_client.patch(
+        "/accounts/notification-preferences/",
+        {
+            "channels": [
+                {
+                    "id": str(channel.id),
+                    "scope": "workspace",
+                    "type": "webhook",
+                    "display_name": "Lifecycle webhook",
+                    "config": {
+                        "url": "https://example.com/hooks/new",
+                        "secret": "new-token",
+                    },
+                    "is_active": True,
+                }
+            ]
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    channel.refresh_from_db()
+    assert channel.target_identifier == "https://.../new"
+    assert notification_channel_delivery_config(channel) == {
+        "url": "https://example.com/hooks/new",
+        "secret": "new-token",
+    }
+
+
+@pytest.mark.django_db
+def test_workspace_channel_update_rejects_wrong_scope(auth_client):
+    auth_client.patch(
+        "/accounts/notification-preferences/",
+        {
+            "channels": [
+                {
+                    "scope": "workspace",
+                    "type": "slack_webhook",
+                    "display_name": "Workspace alerts",
+                    "config": {
+                        "webhook_url": (
+                            "https://hooks.slack.com/services/T000/B000/secret"
+                        )
+                    },
+                    "is_active": True,
+                }
+            ]
+        },
+        format="json",
+    )
+    channel = NotificationChannel.no_workspace_objects.get()
+
+    response = auth_client.patch(
+        "/accounts/notification-preferences/",
+        {
+            "channels": [
+                {
+                    "id": str(channel.id),
+                    "scope": "organization",
+                    "type": "slack_webhook",
+                    "display_name": "Moved alerts",
+                    "is_active": False,
+                }
+            ]
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    channel.refresh_from_db()
+    assert channel.workspace_id is not None
+    assert channel.display_name == "Workspace alerts"
+    assert channel.is_active is True
 
 
 @pytest.mark.django_db

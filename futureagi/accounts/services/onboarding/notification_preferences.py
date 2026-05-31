@@ -429,13 +429,29 @@ def upsert_notification_channel(
 ):
     if type not in dict(NotificationChannel.TYPE_CHOICES):
         raise ValidationError({"type": "Invalid notification channel type."})
-    config = _normalize_settings(config)
-    if type == NotificationChannel.TYPE_SLACK_WEBHOOK and not config.get("webhook_url"):
+    channel = None
+    if channel_id:
+        channel = NotificationChannel.no_workspace_objects.get(
+            id=channel_id,
+            organization=organization,
+        )
+        if channel.workspace_id != getattr(workspace, "id", None):
+            raise ValidationError({"channel_id": "Notification channel not found."})
+
+    config_was_provided = config is not None
+    config = _normalize_settings(config) if config_was_provided else {}
+    effective_config = config if config_was_provided else {}
+    if channel and not config_was_provided:
+        effective_config = _decrypt_channel_config(channel)
+
+    if type == NotificationChannel.TYPE_SLACK_WEBHOOK and not effective_config.get(
+        "webhook_url"
+    ):
         raise ValidationError({"config": "Slack webhook URL is required."})
-    if type == NotificationChannel.TYPE_WEBHOOK and not config.get("url"):
+    if type == NotificationChannel.TYPE_WEBHOOK and not effective_config.get("url"):
         raise ValidationError({"config": "Webhook URL is required."})
     if type == NotificationChannel.TYPE_EMAIL_LIST and not (
-        config.get("emails") or config.get("recipients")
+        effective_config.get("emails") or effective_config.get("recipients")
     ):
         raise ValidationError({"config": "At least one email is required."})
 
@@ -444,21 +460,16 @@ def upsert_notification_channel(
         "workspace": workspace,
         "type": type,
         "display_name": display_name.strip(),
-        "target_identifier": _target_identifier(type, config, display_name),
+        "target_identifier": _target_identifier(type, effective_config, display_name),
         "is_active": bool(is_active),
-        "metadata": metadata or {},
     }
-    encrypted = _encrypt_channel_config(config)
-    if encrypted:
+    if metadata is not None or not channel:
+        fields["metadata"] = metadata or {}
+    encrypted = _encrypt_channel_config(config) if config_was_provided else None
+    if config_was_provided:
         fields["encrypted_config"] = encrypted
 
-    if channel_id:
-        channel = NotificationChannel.no_workspace_objects.get(
-            id=channel_id,
-            organization=organization,
-        )
-        if channel.workspace_id and workspace and channel.workspace_id != workspace.id:
-            raise ValidationError({"channel_id": "Notification channel not found."})
+    if channel:
         for key, value in fields.items():
             setattr(channel, key, value)
         channel.save()
