@@ -18,6 +18,7 @@ import {
   appendSetupQuickStartAttributionToHref,
   normalizeSetupQuickStartAttribution,
   persistSetupQuickStartAttribution,
+  readPersistedSetupQuickStartAttribution,
 } from "src/sections/auth/jwt/setup-org-quick-starts";
 import { shouldShowSampleAsPrimary } from "./activation-state-utils";
 import { useActivationState } from "./hooks/useActivationState";
@@ -180,11 +181,19 @@ export default function OnboardingHomeView() {
 
   const searchContext = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    const quickStartAttribution = normalizeSetupQuickStartAttribution({
+    const hasQuickStartQuery =
+      params.has("quick_start_goal") ||
+      params.has("quick_start_id") ||
+      params.has("quick_start_primary_path");
+    const queryQuickStartAttribution = normalizeSetupQuickStartAttribution({
       quickStartGoal: params.get("quick_start_goal"),
       quickStartId: params.get("quick_start_id"),
       quickStartPrimaryPath: params.get("quick_start_primary_path"),
     });
+    const quickStartAttribution =
+      queryQuickStartAttribution.quickStartId || hasQuickStartQuery
+        ? queryQuickStartAttribution
+        : readPersistedSetupQuickStartAttribution();
 
     return {
       source: params.get("source") || "home",

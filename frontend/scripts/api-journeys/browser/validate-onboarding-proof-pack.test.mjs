@@ -65,6 +65,21 @@ function reportFor(child, dir, overrides = {}) {
     token_post: { email: "new@example.com", password: "[redacted]" },
   };
   const realEvidence = {
+    aha_moment_posthog_event: {
+      event: "onboarding_aha_moment_reached",
+      properties: {
+        source: "onboarding",
+        quick_start_goal: "monitor_production_ai_app",
+        quick_start_id: "observe",
+        quick_start_primary_path: "observe",
+        primary_path: "observe",
+        activation_stage: "activated",
+        activation_event_name: "first_quality_loop_completed",
+        activation_event_path: "evals",
+        daily_quality_available: true,
+        is_sample: false,
+      },
+    },
     browser_state: {
       initialRender: "done",
       organizationId: "org-1",
@@ -209,6 +224,36 @@ test("proof pack validator rejects missing real quality-loop completion", async 
     result.failed_checks.some(
       (check) =>
         check.key === "signup-quick-start-mobile-real:real_loop:completion",
+    ),
+  );
+});
+
+test("proof pack validator rejects missing frontend Aha PostHog marker", async () => {
+  const { manifestPath } = await writeProofPack({
+    reports: {
+      "signup-quick-start-real": {
+        evidence: {
+          aha_moment_posthog_event: {
+            event: "onboarding_aha_moment_reached",
+            properties: {
+              source: "onboarding",
+              quick_start_id: "sample_preview",
+              activation_event_name: "first_quality_loop_completed",
+              daily_quality_available: true,
+              is_sample: false,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const result = await validateProofPack(manifestPath);
+
+  assert.equal(result.status, "failed");
+  assert(
+    result.failed_checks.some(
+      (check) => check.key === "signup-quick-start-real:real_loop:aha_posthog",
     ),
   );
 });

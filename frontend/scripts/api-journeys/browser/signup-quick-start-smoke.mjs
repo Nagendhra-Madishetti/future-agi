@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
@@ -63,6 +64,7 @@ async function main() {
     evalTemplateResponses: [],
     evalUsageResponses: [],
     onboardingPosts: [],
+    posthogEvents: [],
     sampleProjectPosts: [],
     sampleProjectResponses: [],
     setupPosts: [],
@@ -121,6 +123,9 @@ async function main() {
         body: `window.__FUTURE_AGI_CONFIG__ = { VITE_HOST_API: ${JSON.stringify(API_BASE)} };`,
       });
       return;
+    }
+    if (isPostHogCaptureRequest(url, request.method())) {
+      evidence.posthogEvents.push(...postHogEventsFromRequest(request));
     }
     if (!url || url.origin !== apiOrigin) {
       request.continue();
@@ -1196,6 +1201,9 @@ async function main() {
     await expectVisibleText(page, "Next best step", {
       timeout: 60000,
     });
+    const ahaMomentPostHogEvent = await waitForAhaMomentPostHogEvent(
+      evidence.posthogEvents,
+    );
     const evalPostRepairHomeUrl = page.url();
 
     assert(evidence.signupPosts.length === 1, "Expected one signup POST.");
@@ -1382,6 +1390,7 @@ async function main() {
         eval_repair_run_id: repairEvalRunId,
         eval_post_repair_home_url: evalPostRepairHomeUrl,
         daily_quality_cta_href: dailyQualityCtaHref,
+        aha_moment_posthog_event: ahaMomentPostHogEvent,
         eval_first_quality_loop_completed_event:
           evidence.activationEventPosts.find(
             (payload) =>
@@ -1845,6 +1854,133 @@ function parseJsonPostData(requestOrData) {
   } catch {
     return {};
   }
+}
+
+function isPostHogCaptureRequest(url, method) {
+  if (!url || method !== "POST") return false;
+  const hostname = url.hostname.toLowerCase();
+  const pathname = slashPath(url.pathname);
+  return (
+    hostname.includes("posthog") &&
+    ["/batch/", "/capture/", "/e/"].includes(pathname)
+  );
+}
+
+function postHogEventsFromRequest(request) {
+  const payload = parsePostHogPayload(request.postData());
+  return extractPostHogEvents(payload).map(summarizePostHogEvent);
+}
+
+function parsePostHogPayload(rawValue) {
+  if (!rawValue) return null;
+  const directPayload = parseJsonValue(rawValue);
+  if (directPayload) return directPayload;
+
+  const params = new URLSearchParams(rawValue);
+  const dataValue = params.get("data");
+  if (!dataValue) return null;
+
+  const jsonPayload = parseJsonValue(dataValue);
+  if (jsonPayload) return jsonPayload;
+
+  try {
+    return JSON.parse(Buffer.from(dataValue, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function parseJsonValue(value) {
+  if (!value || typeof value !== "string") return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function extractPostHogEvents(payload) {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload.flatMap(extractPostHogEvents);
+  if (Array.isArray(payload.batch)) {
+    return payload.batch.flatMap(extractPostHogEvents);
+  }
+  if (Array.isArray(payload.events)) {
+    return payload.events.flatMap(extractPostHogEvents);
+  }
+  if (typeof payload.event === "string") return [payload];
+  return [];
+}
+
+const POSTHOG_EVIDENCE_PROPERTY_KEYS = new Set([
+  "activated_at",
+  "activation_event_name",
+  "activation_event_occurred_at",
+  "activation_event_path",
+  "activation_stage",
+  "daily_quality_available",
+  "feature_flag_variant",
+  "home_mode",
+  "is_sample",
+  "organization_id",
+  "primary_path",
+  "quick_start_goal",
+  "quick_start_id",
+  "quick_start_primary_path",
+  "request_id",
+  "source",
+  "stage",
+  "target_event",
+  "target_route",
+  "user_id",
+  "workspace_id",
+]);
+
+function summarizePostHogEvent(event = {}) {
+  const properties =
+    event.properties && typeof event.properties === "object"
+      ? Object.fromEntries(
+          Object.entries(event.properties).filter(([key, value]) => {
+            if (!POSTHOG_EVIDENCE_PROPERTY_KEYS.has(key)) return false;
+            return value !== undefined && value !== null && value !== "";
+          }),
+        )
+      : {};
+
+  return {
+    event: event.event,
+    properties,
+  };
+}
+
+async function waitForAhaMomentPostHogEvent(posthogEvents) {
+  let ahaMomentPostHogEvent = null;
+  await waitForCondition(
+    () => {
+      ahaMomentPostHogEvent = posthogEvents.find(isAhaMomentPostHogEvent);
+      return Boolean(ahaMomentPostHogEvent);
+    },
+    "Expected frontend Aha moment PostHog event with observe quick-start attribution.",
+    45000,
+  );
+  return ahaMomentPostHogEvent;
+}
+
+function isAhaMomentPostHogEvent(event) {
+  const properties = event?.properties || {};
+  return (
+    event?.event === "onboarding_aha_moment_reached" &&
+    properties.source === "onboarding" &&
+    properties.quick_start_goal === "monitor_production_ai_app" &&
+    properties.quick_start_id === "observe" &&
+    properties.quick_start_primary_path === "observe" &&
+    properties.primary_path === "observe" &&
+    properties.activation_stage === "activated" &&
+    properties.activation_event_name === "first_quality_loop_completed" &&
+    properties.activation_event_path === "evals" &&
+    properties.daily_quality_available === true &&
+    properties.is_sample !== true
+  );
 }
 
 function authenticatedApiHeaders(authState) {

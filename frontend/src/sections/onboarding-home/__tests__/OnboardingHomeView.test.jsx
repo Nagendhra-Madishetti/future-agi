@@ -5,7 +5,10 @@ import { renderWithRouter } from "src/utils/test-utils";
 import { getActivationStateFixture } from "../fixtures/activation-state.fixtures";
 import { normalizeActivationState } from "../activation-state-utils";
 import OnboardingHomeView from "../OnboardingHomeView";
-import { readPersistedSetupQuickStartAttribution } from "src/sections/auth/jwt/setup-org-quick-starts";
+import {
+  persistSetupQuickStartAttribution,
+  readPersistedSetupQuickStartAttribution,
+} from "src/sections/auth/jwt/setup-org-quick-starts";
 
 const mocks = vi.hoisted(() => ({
   useActivationState: vi.fn(),
@@ -795,6 +798,51 @@ describe("OnboardingHomeView", () => {
     expect(ahaCalls()).toHaveLength(1);
   });
 
+  it("keeps setup quick-start attribution on the post-Aha route", async () => {
+    persistSetupQuickStartAttribution({
+      quickStartGoal: "monitor_production_ai_app",
+      quickStartId: "observe",
+      quickStartPrimaryPath: "observe",
+    });
+    mocks.useActivationState.mockReturnValue({
+      state: normalizedFixture("observeFirstLoopComplete"),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView(
+      "/dashboard/home?source=onboarding&target_event=first_quality_loop_completed&target_route=activation_home",
+    );
+
+    expect(mocks.useActivationState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "onboarding",
+        targetEvent: "first_quality_loop_completed",
+        quickStartGoal: "monitor_production_ai_app",
+        quickStartId: "observe",
+        quickStartPrimaryPath: "observe",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.trackOnboardingHomeEvent).toHaveBeenCalledWith(
+        "onboarding_aha_moment_reached",
+        expect.objectContaining({
+          source: "onboarding",
+          target_event: "first_quality_loop_completed",
+          quick_start_goal: "monitor_production_ai_app",
+          quick_start_id: "observe",
+          quick_start_primary_path: "observe",
+          activation_event_name: "first_quality_loop_completed",
+          daily_quality_available: true,
+          is_sample: false,
+        }),
+      ),
+    );
+  });
+
   it("tracks canonical home and recommendation view events", async () => {
     mocks.useActivationState.mockReturnValue({
       state: normalizedFixture("observeNoSetup"),
@@ -1050,6 +1098,11 @@ describe("OnboardingHomeView", () => {
   });
 
   it("drops unrecognized quick-start URL attribution before tracking", async () => {
+    persistSetupQuickStartAttribution({
+      quickStartGoal: "monitor_production_ai_app",
+      quickStartId: "observe",
+      quickStartPrimaryPath: "observe",
+    });
     mocks.useActivationState.mockReturnValue({
       state: normalizedFixture("observeNoSetup"),
       isLoading: false,

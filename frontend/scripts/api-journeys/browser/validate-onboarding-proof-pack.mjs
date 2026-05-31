@@ -270,6 +270,7 @@ function validateSampleEvidence(checks, childId, report) {
 function validateRealQualityLoopEvidence(checks, childId, report) {
   const evidence = report.evidence || {};
   addEvidenceFieldChecks(checks, childId, evidence, [
+    "aha_moment_posthog_event",
     "browser_state",
     "daily_quality_cta_href",
     "eval_first_quality_loop_completed_event",
@@ -309,6 +310,31 @@ function validateRealQualityLoopEvidence(checks, childId, report) {
       evidence.eval_first_quality_loop_completed_event?.is_sample !== true,
     `${childId}:real_loop:completion`,
     "Real proof records non-sample first quality loop completion.",
+  );
+  addCheck(
+    checks,
+    evidence.aha_moment_posthog_event?.event ===
+      "onboarding_aha_moment_reached" &&
+      evidence.aha_moment_posthog_event?.properties?.source === "onboarding" &&
+      evidence.aha_moment_posthog_event?.properties?.quick_start_goal ===
+        "monitor_production_ai_app" &&
+      evidence.aha_moment_posthog_event?.properties?.quick_start_id ===
+        "observe" &&
+      evidence.aha_moment_posthog_event?.properties
+        ?.quick_start_primary_path === "observe" &&
+      evidence.aha_moment_posthog_event?.properties?.primary_path ===
+        "observe" &&
+      evidence.aha_moment_posthog_event?.properties?.activation_stage ===
+        "activated" &&
+      evidence.aha_moment_posthog_event?.properties?.activation_event_name ===
+        "first_quality_loop_completed" &&
+      evidence.aha_moment_posthog_event?.properties?.activation_event_path ===
+        "evals" &&
+      evidence.aha_moment_posthog_event?.properties?.daily_quality_available ===
+        true &&
+      evidence.aha_moment_posthog_event?.properties?.is_sample !== true,
+    `${childId}:real_loop:aha_posthog`,
+    "Real proof captures the frontend Aha PostHog marker with observe quick-start attribution.",
   );
   addCheck(
     checks,
