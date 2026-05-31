@@ -4,6 +4,7 @@ import { render, screen, userEvent, waitFor } from "src/utils/test-utils";
 import CreateApiKey from "./CreateApiKey";
 
 const mocks = vi.hoisted(() => ({
+  copyToClipboard: vi.fn(),
   mutationData: null,
   mutate: vi.fn(),
   reset: vi.fn(),
@@ -55,12 +56,13 @@ vi.mock("notistack", () => ({
 }));
 
 vi.mock("src/utils/utils", () => ({
-  copyToClipboard: vi.fn(),
+  copyToClipboard: mocks.copyToClipboard,
 }));
 
 describe("CreateApiKey onboarding defaults", () => {
   beforeEach(() => {
     mocks.mutationData = null;
+    mocks.copyToClipboard.mockClear();
     mocks.mutate.mockClear();
     mocks.reset.mockClear();
   });
@@ -99,13 +101,33 @@ describe("CreateApiKey onboarding defaults", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /next/i }));
 
+    const returnAction = await screen.findByRole("link", {
+      name: /back to trace setup/i,
+    });
+    expect(returnAction).toHaveAttribute(
+      "href",
+      "/dashboard/observe?setup=true&source=onboarding",
+    );
+    expect(returnAction).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.getByText("Copy both keys before returning to trace setup."),
+    ).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /copy api key/i }),
+    );
+    expect(mocks.copyToClipboard).toHaveBeenCalledWith("api-key");
+    expect(returnAction).toHaveAttribute("aria-disabled", "true");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /copy secret key/i }),
+    );
+    expect(mocks.copyToClipboard).toHaveBeenCalledWith("secret-key");
+
     await waitFor(() => {
       expect(
         screen.getByRole("link", { name: /back to trace setup/i }),
-      ).toHaveAttribute(
-        "href",
-        "/dashboard/observe?setup=true&source=onboarding",
-      );
+      ).not.toHaveAttribute("aria-disabled", "true");
     });
   });
 });
