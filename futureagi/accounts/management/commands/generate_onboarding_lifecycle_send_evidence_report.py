@@ -26,6 +26,7 @@ class Command(BaseCommand):
         parser.add_argument("--require-snooze", action="store_true")
         parser.add_argument("--require-frequency-cap", action="store_true")
         parser.add_argument("--require-completion-suppression", action="store_true")
+        parser.add_argument("--require-receipt-backed", action="store_true")
 
     def handle(self, *args, **options):
         now = None
@@ -48,6 +49,7 @@ class Command(BaseCommand):
                 snooze=options["require_snooze"],
                 frequency_cap=options["require_frequency_cap"],
                 completion_suppression=options["require_completion_suppression"],
+                receipt_backed=options["require_receipt_backed"],
             )
         except ImproperlyConfigured as exc:
             raise CommandError(str(exc)) from exc

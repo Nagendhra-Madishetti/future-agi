@@ -16,6 +16,7 @@ from accounts.services.onboarding.lifecycle_preview_approval import (
     load_lifecycle_preview_approval,
 )
 from accounts.services.onboarding.lifecycle_send_evidence import (
+    CORE_REQUIREMENT_KEYS,
     REQUIREMENT_KEYS,
     load_lifecycle_send_evidence_report,
 )
@@ -81,10 +82,16 @@ def _evidence_references_launch_packet(evidence_report, launch_packet):
 
 def _required_evidence_missing(evidence_report):
     missing = []
-    for key in REQUIREMENT_KEYS:
+    for key in CORE_REQUIREMENT_KEYS:
         if evidence_report.requirements.get(key) is not True:
             missing.append(f"evidence_requirement_{key}")
         elif evidence_report.aggregate_evidence.get(key) is not True:
+            missing.append(f"evidence_{key}")
+    for key in set(REQUIREMENT_KEYS) - set(CORE_REQUIREMENT_KEYS):
+        if (
+            evidence_report.requirements.get(key) is True
+            and evidence_report.aggregate_evidence.get(key) is not True
+        ):
             missing.append(f"evidence_{key}")
     return missing
 

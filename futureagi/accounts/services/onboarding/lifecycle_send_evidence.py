@@ -26,7 +26,7 @@ from accounts.services.onboarding.lifecycle_send_reports import (
 )
 
 SEND_EVIDENCE_REPORT_SCHEMA_VERSION = (
-    "onboarding-lifecycle-send-evidence-report-2026-05-30.v1"
+    "onboarding-lifecycle-send-evidence-report-2026-05-31.v2"
 )
 SEND_EVIDENCE_REPORT_SOURCE = "onboarding_lifecycle_send_evidence_report"
 SEND_EVIDENCE_REPORT_PASSED_STATUS = "passed"
@@ -42,7 +42,12 @@ REQUIREMENT_KEYS = (
     "snooze",
     "frequency_cap",
     "completion_suppression",
+    "receipt_backed",
 )
+CORE_REQUIREMENT_KEYS = tuple(
+    key for key in REQUIREMENT_KEYS if key != "receipt_backed"
+)
+UNPAID_RECEIPT_PLAN_TIERS = frozenset({"", "free", "oss", "open_source", "community"})
 
 
 @dataclass(frozen=True)
@@ -153,6 +158,58 @@ def _delivery_logs_for(send_log):
     )
 
 
+def _valid_sha(value):
+    if not isinstance(value, str) or len(value) != 64:
+        return False
+    try:
+        int(value, 16)
+    except ValueError:
+        return False
+    return True
+
+
+def _receipt_payload(send_log):
+    metadata = send_log.metadata if isinstance(send_log.metadata, dict) else {}
+    evaluation_log = send_log.evaluation_log
+    receipt = getattr(evaluation_log, "source_receipt", None)
+    receipt_id = metadata.get("receipt_id") or (str(receipt.id) if receipt else None)
+    payload_hash = metadata.get("payload_hash") or (
+        receipt.payload_hash if receipt else None
+    )
+    deployment_mode = metadata.get("deployment_mode") or (
+        receipt.deployment_mode if receipt else None
+    )
+    plan_tier = metadata.get("plan_tier") or (receipt.plan_tier if receipt else None)
+    deployment_region = metadata.get("deployment_region") or (
+        receipt.deployment_region if receipt else None
+    )
+    primary_cohort_key = metadata.get("primary_cohort_key") or (
+        receipt.primary_cohort_key if receipt else None
+    )
+    is_receipt_backed = bool(
+        evaluation_log.source_receipt_id
+        and receipt_id
+        and _valid_sha(payload_hash)
+        and deployment_mode == "cloud"
+        and plan_tier not in UNPAID_RECEIPT_PLAN_TIERS
+        and metadata.get("source") == "activation_fact_receipt"
+    )
+    return {
+        "is_receipt_backed": is_receipt_backed,
+        "source_receipt_id": (
+            str(evaluation_log.source_receipt_id)
+            if evaluation_log.source_receipt_id
+            else None
+        ),
+        "receipt_id": receipt_id,
+        "payload_hash": payload_hash,
+        "deployment_mode": deployment_mode,
+        "deployment_region": deployment_region,
+        "plan_tier": plan_tier,
+        "primary_cohort_key": primary_cohort_key,
+    }
+
+
 def _preference_for(send_log):
     return (
         OnboardingLifecyclePreference.no_workspace_objects.filter(
@@ -170,6 +227,7 @@ def _preference_for(send_log):
 
 def _evidence_flags(send_log, delivery_logs, preference):
     metadata = send_log.metadata if isinstance(send_log.metadata, dict) else {}
+    receipt = _receipt_payload(send_log)
     email_delivery = any(
         delivery.channel == NotificationPreference.CHANNEL_EMAIL
         for delivery in delivery_logs
@@ -221,6 +279,7 @@ def _evidence_flags(send_log, delivery_logs, preference):
         "snooze": bool(preference and preference.snoozed_until is not None),
         "frequency_cap": frequency_cap,
         "completion_suppression": completion_suppression,
+        "receipt_backed": receipt["is_receipt_backed"],
     }
 
 
@@ -229,6 +288,7 @@ def _send_log_payload(send_log):
     preference = _preference_for(send_log)
     metadata = send_log.metadata if isinstance(send_log.metadata, dict) else {}
     flags = _evidence_flags(send_log, delivery_logs, preference)
+    receipt = _receipt_payload(send_log)
     delivery_counts = Counter(
         f"{delivery.channel}:{delivery.status}" for delivery in delivery_logs
     )
@@ -270,6 +330,7 @@ def _send_log_payload(send_log):
         "evidence": flags,
         "delivery_counts": dict(delivery_counts),
         "delivery_logs": [_delivery_payload(log) for log in delivery_logs],
+        "receipt": receipt,
         "preference": {
             "exists": preference is not None,
             "onboarding_enabled": (
@@ -302,6 +363,7 @@ def _load_send_logs(send_log_ids):
         send_log = (
             OnboardingLifecycleSendLog.no_workspace_objects.select_related(
                 "evaluation_log",
+                "evaluation_log__source_receipt",
                 "user",
                 "organization",
                 "workspace",
