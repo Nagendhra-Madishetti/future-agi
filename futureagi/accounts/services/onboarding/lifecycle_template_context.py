@@ -54,6 +54,7 @@ def preheader_for_campaign(campaign):
 
 
 def build_lifecycle_template_context(*, send_log, campaign, target_route, now=None):
+    send_metadata = send_log.metadata or {}
     click_token = sign_lifecycle_token(send_log=send_log, kind="click", now=now)
     unsubscribe_token = sign_lifecycle_token(
         send_log=send_log,
@@ -94,7 +95,13 @@ def build_lifecycle_template_context(*, send_log, campaign, target_route, now=No
         "snooze_url": lifecycle_endpoint_path("snooze", snooze_token, {"days": 7}),
         "support_url": absolute_lifecycle_url(SUPPORT_URL),
         "target_route": target_route,
-        "digest_preview": (send_log.metadata or {}).get("digest_preview"),
+        "digest_preview": send_metadata.get("digest_preview"),
+        "observe_credentials_ready": bool(
+            send_metadata.get("observe_credentials_ready")
+        ),
+        "observe_credentials_ready_at": send_metadata.get(
+            "observe_credentials_ready_at"
+        ),
     }
 
 

@@ -80,12 +80,17 @@ BASE_REQUIRED_CONTEXT_KEYS = frozenset(
     }
 )
 DIGEST_PREVIEW_TEMPLATE_KEYS = frozenset({"daily_quality_open_actions_v1"})
+OBSERVE_CREDENTIAL_CONTEXT_TEMPLATE_KEYS = frozenset(
+    {"observe_waiting_for_first_trace_v1"}
+)
 
 
 def required_context_keys_for_template(template_key):
     keys = set(BASE_REQUIRED_CONTEXT_KEYS)
     if template_key in DIGEST_PREVIEW_TEMPLATE_KEYS:
         keys.add("digest_preview")
+    if template_key in OBSERVE_CREDENTIAL_CONTEXT_TEMPLATE_KEYS:
+        keys |= {"observe_credentials_ready", "observe_credentials_ready_at"}
     return frozenset(keys)
 
 

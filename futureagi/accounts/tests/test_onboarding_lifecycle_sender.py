@@ -391,7 +391,7 @@ def _sent_send_log_for_campaign(
     )
 
 
-def _decision_for_log(log, campaign, *, now):
+def _decision_for_log(log, campaign, *, now, metadata=None):
     return LifecycleDecision(
         run_id=uuid.uuid4(),
         user=log.user,
@@ -410,7 +410,7 @@ def _decision_for_log(log, campaign, *, now):
         target_url=log.target_url,
         eligible_at=log.eligible_at,
         evaluated_at=now,
-        metadata={"source": "test"},
+        metadata=metadata or {"source": "test"},
     )
 
 
@@ -532,6 +532,50 @@ def test_campaign_send_flag_on_allows_queue_when_global_flag_on(
 
     assert send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED
     assert send_log.suppression_reason is None
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_flags())
+def test_queue_carries_observe_credentials_ready_context(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    _allow_user(user)
+    log = _eligible_log(
+        user,
+        organization,
+        workspace,
+        now=now,
+        campaign_key="observe_waiting_for_first_trace",
+        activation_stage="waiting_for_first_trace",
+        primary_path="observe",
+        target_url="/dashboard/observe/project-1/llm-tracing?source=onboarding",
+    )
+    campaign = lifecycle_campaign_by_key("observe_waiting_for_first_trace")
+    decision = _decision_for_log(
+        log,
+        campaign,
+        now=now,
+        metadata={
+            "source": "test",
+            "observe_credentials_ready": True,
+            "observe_credentials_ready_at": now.isoformat(),
+            "observe_credential_step": "done",
+        },
+    )
+
+    with patch(
+        "accounts.services.onboarding.lifecycle_sender._fresh_decision",
+        return_value=(None, _flags(), decision),
+    ):
+        send_log = queue_onboarding_lifecycle_email(log, now=now)
+
+    assert send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED
+    assert send_log.metadata["observe_credentials_ready"] is True
+    assert send_log.metadata["observe_credentials_ready_at"] == now.isoformat()
+    assert send_log.metadata["observe_credential_step"] == "done"
 
 
 @pytest.mark.django_db

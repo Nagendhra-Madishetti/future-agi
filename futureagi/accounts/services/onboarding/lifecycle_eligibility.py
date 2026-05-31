@@ -24,6 +24,10 @@ from accounts.services.onboarding.lifecycle_send_policy import (
 from tracer.models.project import Project
 from tracer.models.trace import Trace
 
+OBSERVE_CREDENTIAL_READY_EVENT = "onboarding_observe_route_focus_viewed"
+OBSERVE_CREDENTIAL_READY_ROUTE_MODE = "setup-observe"
+OBSERVE_CREDENTIAL_READY_STEP = "done"
+
 
 @dataclass(frozen=True)
 class LifecycleDecision:
@@ -162,6 +166,36 @@ def _first_observe_created_at(activation_state, workspace):
         workspace=workspace,
     ).first()
     return project.created_at if project else None
+
+
+def _latest_observe_credentials_ready_event(organization, workspace):
+    return (
+        OnboardingActivationEvent.no_workspace_objects.filter(
+            organization=organization,
+            workspace=workspace,
+            event_name=OBSERVE_CREDENTIAL_READY_EVENT,
+            product_path="observe",
+            is_sample=False,
+            metadata__route_mode=OBSERVE_CREDENTIAL_READY_ROUTE_MODE,
+            metadata__credential_step=OBSERVE_CREDENTIAL_READY_STEP,
+        )
+        .order_by("-occurred_at", "-created_at")
+        .first()
+    )
+
+
+def _observe_ready_for_first_trace_at(activation_state, organization, workspace):
+    project_created_at = _first_observe_created_at(activation_state, workspace)
+    credentials_ready_event = _latest_observe_credentials_ready_event(
+        organization,
+        workspace,
+    )
+    credentials_ready_at = (
+        credentials_ready_event.occurred_at if credentials_ready_event else None
+    )
+    if project_created_at and credentials_ready_at:
+        return max(project_created_at, credentials_ready_at)
+    return project_created_at or credentials_ready_at
 
 
 def _first_trace_created_at(activation_state, workspace):
@@ -388,7 +422,11 @@ def stage_started_at(*, activation_state, organization, workspace, now):
         "waiting_for_first_trace",
         "waiting_for_first_trace_sample_available",
     }:
-        return _first_observe_created_at(activation_state, workspace)
+        return _observe_ready_for_first_trace_at(
+            activation_state,
+            organization,
+            workspace,
+        )
     if stage == "review_first_trace":
         return _first_trace_created_at(activation_state, workspace)
     if stage == "create_trace_evaluator":
@@ -721,6 +759,37 @@ def _url_with_campaign_params(url, campaign):
     return f"{url}{separator}{params}"
 
 
+def _observe_credentials_ready_metadata(
+    organization,
+    workspace,
+    activation_state,
+    campaign,
+):
+    if (
+        not campaign
+        or campaign.get("campaign_key") != "observe_waiting_for_first_trace"
+    ):
+        return {}
+    if activation_state.get("primary_path") != "observe":
+        return {}
+    if activation_state.get("stage") not in {
+        "waiting_for_first_trace",
+        "waiting_for_first_trace_sample_available",
+    }:
+        return {}
+    event = _latest_observe_credentials_ready_event(organization, workspace)
+    if not event:
+        return {}
+    project_created_at = _first_observe_created_at(activation_state, workspace)
+    if project_created_at and event.occurred_at < project_created_at:
+        return {}
+    return {
+        "observe_credentials_ready": True,
+        "observe_credentials_ready_at": event.occurred_at.isoformat(),
+        "observe_credential_step": OBSERVE_CREDENTIAL_READY_STEP,
+    }
+
+
 def _campaign_permission_suppression(activation_state, campaign):
     if not campaign:
         return None
@@ -914,6 +983,14 @@ def evaluate_lifecycle_decision(
         "source": source,
         "send_enabled": bool(flags.get("onboarding_lifecycle_send_enabled")),
     }
+    metadata.update(
+        _observe_credentials_ready_metadata(
+            organization,
+            workspace,
+            activation_state,
+            campaign,
+        )
+    )
     digest_preview = build_lifecycle_digest_preview(
         organization=organization,
         workspace=workspace,

@@ -73,6 +73,11 @@ COMPLETABLE_SEND_STATUSES = {
     OnboardingLifecycleSendLog.STATUS_SENT,
     OnboardingLifecycleSendLog.STATUS_CLICKED,
 }
+LIFECYCLE_SEND_CONTEXT_METADATA_KEYS = (
+    "observe_credentials_ready",
+    "observe_credentials_ready_at",
+    "observe_credential_step",
+)
 
 
 @dataclass(frozen=True)
@@ -706,6 +711,12 @@ def _send_log_defaults(
     ).get("digest_preview")
     if digest_preview:
         metadata["digest_preview"] = digest_preview
+    for key in LIFECYCLE_SEND_CONTEXT_METADATA_KEYS:
+        value = (decision.metadata or {}).get(key)
+        if value in {None, ""}:
+            value = (evaluation_log.metadata or {}).get(key)
+        if value not in {None, ""}:
+            metadata[key] = value
     campaign_key = campaign.get("campaign_key") or evaluation_log.campaign_key
     if preview_approval and preview_approval.has_campaign(campaign_key):
         metadata[APPROVAL_METADATA_KEY] = preview_approval.metadata_for_campaign(

@@ -159,6 +159,34 @@ def test_lifecycle_email_template_renders_for_campaign(
         assert "Review trace regression" in preview["html"]
 
 
+@pytest.mark.django_db
+def test_observe_waiting_template_uses_credential_ready_context(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    campaign = lifecycle_campaign_by_key("observe_waiting_for_first_trace")
+    send_log = _send_log_for_campaign(campaign, organization, workspace, user, now)
+    send_log.metadata = {
+        **(send_log.metadata or {}),
+        "observe_credentials_ready": True,
+        "observe_credentials_ready_at": now.isoformat(),
+    }
+    send_log.save(update_fields=["metadata", "updated_at"])
+
+    preview = render_lifecycle_email_preview(
+        send_log=send_log,
+        campaign=campaign,
+        target_route=send_log.target_route,
+        now=now,
+    )
+
+    assert preview["context"]["observe_credentials_ready"] is True
+    assert "has credentials ready for the first observe trace" in preview["text"]
+    assert "Paste the copied values into your SDK" in preview["text"]
+
+
 def test_lifecycle_preview_command_writes_no_send_snapshot(tmp_path):
     output = StringIO()
 
