@@ -73,6 +73,7 @@ const createEmptyBudget = () => ({
   scope: "ai_credits",
   threshold_value: "",
   action: "notify",
+  is_active: true,
   notify_emails: "",
   notify_slack_webhook: "",
   thresholds: DEFAULT_BUDGET_THRESHOLDS.map((stage) => ({ ...stage })),
@@ -119,6 +120,7 @@ function budgetFormToPayload(budget) {
     scope: budget.scope,
     threshold_value: budget.threshold_value,
     action: budget.action,
+    is_active: budget.is_active !== false,
     notify_emails: parseEmailRecipients(budget.notify_emails),
     notify_slack_webhook: normalizeSlackWebhook(budget.notify_slack_webhook),
     thresholds: normalizeBudgetThresholds(budget.thresholds),
@@ -175,6 +177,24 @@ export default function BudgetManager() {
     },
   });
 
+  const activeToggleMutation = useMutation({
+    mutationFn: ({ id, isActive }) =>
+      axios.put(endpoints.settings.v2.budgetDetail(id), {
+        is_active: isActive,
+      }),
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["v2-budgets"] });
+      enqueueSnackbar(
+        variables.isActive ? "Budget enabled" : "Budget disabled",
+        {
+          variant: "success",
+        },
+      );
+    },
+    onError: () =>
+      enqueueSnackbar("Failed to update budget status", { variant: "error" }),
+  });
+
   const handleOpenEdit = useCallback((budget) => {
     setEditingId(budget.id);
     setNewBudget({
@@ -182,6 +202,7 @@ export default function BudgetManager() {
       scope: budget.scope,
       threshold_value: String(budget.threshold_value),
       action: budget.action,
+      is_active: budget.is_active !== false,
       notify_emails: formatEmailRecipients(budget.notify_emails),
       notify_slack_webhook: budget.notify_slack_webhook || "",
       thresholds: normalizeBudgetThresholds(budget.thresholds),
@@ -212,6 +233,13 @@ export default function BudgetManager() {
       ),
     }));
   }, []);
+
+  const handleBudgetActiveToggle = useCallback(
+    (budget, isActive) => {
+      activeToggleMutation.mutate({ id: budget.id, isActive });
+    },
+    [activeToggleMutation],
+  );
 
   // Threshold must be a positive decimal. HTML `type="number"` accepts
   // `e` / `E` as scientific-notation exponents (`1e5` parses as 100000),
@@ -293,17 +321,23 @@ export default function BudgetManager() {
             const thresholdStages = normalizeBudgetThresholds(
               budget.thresholds,
             );
+            const isActive = budget.is_active !== false;
 
             return (
               <Paper
                 key={budget.id}
                 variant="outlined"
-                sx={{ p: 2, borderRadius: 2 }}
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  opacity: isActive ? 1 : 0.72,
+                }}
               >
                 <Stack
-                  direction="row"
+                  direction={{ xs: "column", md: "row" }}
                   justifyContent="space-between"
-                  alignItems="center"
+                  alignItems={{ xs: "stretch", md: "center" }}
+                  spacing={2}
                 >
                   <Stack direction="row" alignItems="center" spacing={1.5}>
                     <Iconify
@@ -345,7 +379,38 @@ export default function BudgetManager() {
                       </Stack>
                     </Box>
                   </Stack>
-                  <Stack direction="row" spacing={1} alignItems="center">
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    justifyContent={{ xs: "space-between", md: "flex-end" }}
+                    flexWrap="wrap"
+                    useFlexGap
+                  >
+                    <FormControlLabel
+                      sx={{ mr: 0 }}
+                      control={
+                        <Switch
+                          size="small"
+                          checked={isActive}
+                          onChange={(event) =>
+                            handleBudgetActiveToggle(
+                              budget,
+                              event.target.checked,
+                            )
+                          }
+                          disabled={activeToggleMutation.isPending}
+                          inputProps={{
+                            "aria-label": `${budget.name} active`,
+                          }}
+                        />
+                      }
+                      label={
+                        <Typography variant="caption" color="text.secondary">
+                          {isActive ? "Active" : "Disabled"}
+                        </Typography>
+                      }
+                    />
                     <Chip
                       label={actionConfig.label}
                       size="small"

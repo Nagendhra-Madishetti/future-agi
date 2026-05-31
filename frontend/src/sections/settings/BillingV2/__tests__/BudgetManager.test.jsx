@@ -58,6 +58,7 @@ describe("BudgetManager", () => {
               scope: "ai_credits",
               threshold_value: "5000",
               action: "warn",
+              is_active: true,
               notify_emails: ["ops@example.com"],
               notify_slack_webhook:
                 "https://hooks.slack.com/services/T000/B000/EXISTING",
@@ -114,6 +115,7 @@ describe("BudgetManager", () => {
       scope: "ai_credits",
       threshold_value: "5000",
       action: "notify",
+      is_active: true,
       notify_emails: ["ops@example.com", "finance@example.com"],
       notify_slack_webhook: "https://hooks.slack.com/services/T000/B000/SECRET",
       thresholds: [
@@ -136,6 +138,7 @@ describe("BudgetManager", () => {
               scope: "gateway_requests",
               threshold_value: "10000",
               action: "pause",
+              is_active: true,
               notify_emails: [],
               notify_slack_webhook:
                 "https://hooks.slack.com/services/T000/B000/OLD",
@@ -170,6 +173,7 @@ describe("BudgetManager", () => {
       scope: "gateway_requests",
       threshold_value: "10000",
       action: "pause",
+      is_active: true,
       notify_emails: [],
       notify_slack_webhook: null,
       thresholds: [
@@ -178,5 +182,89 @@ describe("BudgetManager", () => {
         { percent: 100, enabled: true, severity: "critical" },
       ],
     });
+  });
+
+  it("toggles an existing budget active state without deleting it", async () => {
+    const user = userEvent.setup();
+    mockGet.mockResolvedValue({
+      data: {
+        result: {
+          budgets: [
+            {
+              id: 9,
+              name: "Gateway guardrail",
+              scope: "gateway_requests",
+              threshold_value: "10000",
+              action: "pause",
+              is_active: false,
+              notify_emails: [],
+              notify_slack_webhook: null,
+              thresholds: [
+                { percent: 50, enabled: true, severity: "info" },
+                { percent: 80, enabled: true, severity: "warning" },
+                { percent: 100, enabled: true, severity: "critical" },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    const { default: BudgetManager } = await import("../BudgetManager");
+    renderWithQuery(<BudgetManager />);
+
+    expect(await screen.findByText("Gateway guardrail")).toBeInTheDocument();
+    expect(screen.getByText("Disabled")).toBeInTheDocument();
+
+    const activeSwitch = screen.getByLabelText("Gateway guardrail active");
+    expect(activeSwitch).not.toBeChecked();
+
+    await user.click(activeSwitch);
+
+    await waitFor(() => expect(mockPut).toHaveBeenCalledTimes(1));
+    expect(mockPut).toHaveBeenCalledWith("/usage/v2/budgets/9/", {
+      is_active: true,
+    });
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it("disables an active budget with a partial update", async () => {
+    const user = userEvent.setup();
+    mockGet.mockResolvedValue({
+      data: {
+        result: {
+          budgets: [
+            {
+              id: 10,
+              name: "AI spend guardrail",
+              scope: "ai_credits",
+              threshold_value: "5000",
+              action: "warn",
+              is_active: true,
+              notify_emails: [],
+              notify_slack_webhook: null,
+              thresholds: [
+                { percent: 50, enabled: true, severity: "info" },
+                { percent: 80, enabled: true, severity: "warning" },
+                { percent: 100, enabled: true, severity: "critical" },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    const { default: BudgetManager } = await import("../BudgetManager");
+    renderWithQuery(<BudgetManager />);
+
+    expect(await screen.findByText("AI spend guardrail")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("AI spend guardrail active"));
+
+    await waitFor(() => expect(mockPut).toHaveBeenCalledTimes(1));
+    expect(mockPut).toHaveBeenCalledWith("/usage/v2/budgets/10/", {
+      is_active: false,
+    });
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 });
