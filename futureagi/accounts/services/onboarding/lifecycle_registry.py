@@ -63,6 +63,7 @@ TARGET_EVENTS_WITH_INTENTIONAL_ACTION_MISMATCH = {
     "daily_quality_open_actions",
     "observe_sample_bridge",
 }
+JOURNEY_TARGET_ACTION_MISMATCH_ALLOWED = {"observe_sample_bridge"}
 
 
 def _config_error(message: str) -> ImproperlyConfigured:
@@ -105,6 +106,59 @@ def _load_config_file() -> dict:
     except yaml.YAMLError as exc:
         raise _config_error(f"{CONFIG_PATH.name} is not valid YAML.") from exc
     return _mapping(raw, CONFIG_PATH.name)
+
+
+def _journey_steps_for_path(activation_config: dict, primary_path: str) -> list[dict]:
+    for journey in activation_config["journeys"].values():
+        if journey["primary_path"] == primary_path:
+            return _sequence(journey.get("steps"), f"journeys.{primary_path}.steps")
+    return []
+
+
+def _step_matches_entry_stage(step: dict, entry_stage: str) -> bool:
+    return entry_stage == step.get("stage") or entry_stage in step.get(
+        "active_stages",
+        [],
+    )
+
+
+def _validate_journey_alignment(
+    campaign: dict,
+    path: str,
+    activation_config: dict,
+) -> None:
+    primary_path = campaign["primary_path"]
+    if primary_path == "any" or campaign["route_strategy"] == "daily_quality":
+        return
+
+    journey_steps = _journey_steps_for_path(activation_config, primary_path)
+    if not journey_steps:
+        raise _config_error(f"{path}.primary_path has no configured journey.")
+
+    entry_stages = campaign["entry_stages"]
+    unmatched_stages = [
+        stage
+        for stage in entry_stages
+        if not any(_step_matches_entry_stage(step, stage) for step in journey_steps)
+    ]
+    if unmatched_stages:
+        raise _config_error(
+            f"{path}.entry_stages are not present in the {primary_path} journey."
+        )
+
+    if campaign["campaign_key"] in JOURNEY_TARGET_ACTION_MISMATCH_ALLOWED:
+        return
+
+    reachable_actions = {
+        step["action_id"]
+        for step in journey_steps
+        for stage in entry_stages
+        if _step_matches_entry_stage(step, stage)
+    }
+    if campaign["target_action_id"] not in reachable_actions:
+        raise _config_error(
+            f"{path}.target_action_id is not reachable from its entry stages."
+        )
 
 
 def _validate_campaign(campaign: dict, path: str, activation_config: dict) -> None:
@@ -172,6 +226,7 @@ def _validate_campaign(campaign: dict, path: str, activation_config: dict) -> No
     for stage in stages:
         if stage not in ACTIVATION_STAGES:
             raise _config_error(f"{path}.entry_stages contains unknown stage.")
+    _validate_journey_alignment(campaign, path, activation_config)
 
     modes = campaign.get("daily_quality_modes")
     if modes is not None:

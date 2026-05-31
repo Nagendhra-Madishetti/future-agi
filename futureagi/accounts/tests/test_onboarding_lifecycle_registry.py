@@ -90,7 +90,7 @@ def test_prompt_campaigns_are_configured_as_real_only():
         if campaign["campaign_group"] == "prompt"
     ]
 
-    assert len(campaigns) == 5
+    assert len(campaigns) == 6
     for campaign in campaigns:
         assert campaign["primary_path"] == "prompt"
         assert campaign["sample_policy"] == "real_only"
@@ -136,6 +136,25 @@ def test_lifecycle_registry_rejects_primary_path_target_action_mismatch():
     config = _valid_lifecycle_config()
     campaign = _campaign(config, "prompt_create_first")
     campaign["primary_path"] = "agent"
+
+    with pytest.raises(ImproperlyConfigured):
+        _validate_config(config)
+
+
+def test_lifecycle_registry_rejects_entry_stage_outside_path_journey():
+    config = _valid_lifecycle_config()
+    campaign = _campaign(config, "prompt_create_first")
+    campaign["entry_stages"] = ["create_agent"]
+
+    with pytest.raises(ImproperlyConfigured):
+        _validate_config(config)
+
+
+def test_lifecycle_registry_rejects_target_action_outside_entry_stage():
+    config = _valid_lifecycle_config()
+    campaign = _campaign(config, "prompt_run_first_test")
+    campaign["target_action_id"] = "compare_prompt_versions"
+    campaign["target_success_event"] = "prompt_comparison_completed"
 
     with pytest.raises(ImproperlyConfigured):
         _validate_config(config)
