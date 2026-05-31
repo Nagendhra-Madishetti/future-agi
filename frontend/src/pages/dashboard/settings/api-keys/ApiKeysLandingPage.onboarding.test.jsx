@@ -32,9 +32,10 @@ vi.mock("src/utils/axios", () => ({
 }));
 
 vi.mock("./CreateApiKey", () => {
-  const CreateApiKey = ({ open }) => (
+  const CreateApiKey = ({ initialKeyName, open }) => (
     <div
       data-testid="create-api-key-dialog"
+      data-initial-key-name={initialKeyName || ""}
       data-open={open ? "true" : "false"}
     >
       {open ? "Create key dialog open" : "Create key dialog closed"}
@@ -42,6 +43,7 @@ vi.mock("./CreateApiKey", () => {
   );
 
   CreateApiKey.propTypes = {
+    initialKeyName: PropTypes.string,
     open: PropTypes.bool,
   };
 
@@ -54,13 +56,17 @@ describe("ApiKeysLandingPage onboarding handoff", () => {
   it("opens key creation from the observe first-trace deep link", () => {
     renderWithRouter(<ApiKeysLandingPage />, {
       route:
-        "/dashboard/settings/api_keys?source=onboarding&target=observe_first_trace&action=create",
+        "/dashboard/settings/api_keys?source=onboarding&target=observe_first_trace&action=create&key_name=Observe+first+trace",
     });
 
     expect(screen.getByTestId("api-keys-grid")).toBeVisible();
     expect(screen.getByTestId("create-api-key-dialog")).toHaveAttribute(
       "data-open",
       "true",
+    );
+    expect(screen.getByTestId("create-api-key-dialog")).toHaveAttribute(
+      "data-initial-key-name",
+      "Observe first trace",
     );
   });
 

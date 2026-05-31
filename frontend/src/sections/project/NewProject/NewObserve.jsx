@@ -33,7 +33,13 @@ const CODE_SECTION_ALIASES = {
   projectAddCode: "project_add_code",
 };
 
-const API_KEYS_ONBOARDING_HREF = `${paths.dashboard.settings.apiKeys}?source=onboarding&target=observe_first_trace&action=create`;
+const API_KEYS_ONBOARDING_PARAMS = new URLSearchParams({
+  source: "onboarding",
+  target: "observe_first_trace",
+  action: "create",
+  key_name: "Observe first trace",
+});
+const API_KEYS_ONBOARDING_HREF = `${paths.dashboard.settings.apiKeys}?${API_KEYS_ONBOARDING_PARAMS.toString()}`;
 
 const FIRST_TRACE_STEPS = [
   {

@@ -107,7 +107,7 @@ describe("NewObserve onboarding setup", () => {
     expect(apiKeysLink).toBeVisible();
     expect(apiKeysLink).toHaveAttribute(
       "href",
-      "/dashboard/settings/api_keys?source=onboarding&target=observe_first_trace&action=create",
+      "/dashboard/settings/api_keys?source=onboarding&target=observe_first_trace&action=create&key_name=Observe+first+trace",
     );
     expect(
       within(guide).getByText("from futureagi import trace"),

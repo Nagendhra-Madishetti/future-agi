@@ -15,15 +15,22 @@ import Iconify from "src/components/iconify";
 import { LoadingButton } from "@mui/lab";
 import axios, { endpoints } from "src/utils/axios";
 import { useMutation } from "@tanstack/react-query";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ShowComponent } from "src/components/show";
 import { enqueueSnackbar } from "notistack";
 import { copyToClipboard } from "src/utils/utils";
 import SvgColor from "src/components/svg-color";
 
-const CreateApiKey = ({ open, onClose, refreshGrid }) => {
+const CreateApiKey = ({ initialKeyName = "", open, onClose, refreshGrid }) => {
   const [keyName, setKeyName] = useState("");
   const [showKeys, setShowKeys] = useState(false);
+  const normalizedInitialKeyName = initialKeyName.trim();
+
+  useEffect(() => {
+    if (open && normalizedInitialKeyName) {
+      setKeyName(normalizedInitialKeyName);
+    }
+  }, [normalizedInitialKeyName, open]);
 
   const handleClose = () => {
     setKeyName("");
@@ -262,6 +269,7 @@ const CreateApiKey = ({ open, onClose, refreshGrid }) => {
 export default CreateApiKey;
 
 CreateApiKey.propTypes = {
+  initialKeyName: PropTypes.string,
   open: PropTypes.bool,
   onClose: PropTypes.func,
   refreshGrid: PropTypes.func,

@@ -35,6 +35,9 @@ const ApiKeysLandingPage = () => {
     searchParams.get("source") === "onboarding" &&
     searchParams.get("target") === "observe_first_trace" &&
     searchParams.get("action") === "create";
+  const onboardingKeyName = shouldAutoOpenCreateApiKey
+    ? searchParams.get("key_name")?.trim()
+    : "";
 
   useEffect(() => {
     if (shouldAutoOpenCreateApiKey) {
@@ -218,6 +221,7 @@ const ApiKeysLandingPage = () => {
       </ShowComponent>
       <CreateApiKey
         open={openCreateApiKey}
+        initialKeyName={onboardingKeyName}
         onClose={() => setOpenCreateApiKey(false)}
         refreshGrid={() => {
           refreshGrid();
