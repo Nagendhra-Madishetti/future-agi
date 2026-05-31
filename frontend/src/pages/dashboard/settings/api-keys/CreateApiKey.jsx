@@ -16,12 +16,19 @@ import { LoadingButton } from "@mui/lab";
 import axios, { endpoints } from "src/utils/axios";
 import { useMutation } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useState } from "react";
+import { RouterLink } from "src/routes/components";
 import { ShowComponent } from "src/components/show";
 import { enqueueSnackbar } from "notistack";
 import { copyToClipboard } from "src/utils/utils";
 import SvgColor from "src/components/svg-color";
 
-const CreateApiKey = ({ initialKeyName = "", open, onClose, refreshGrid }) => {
+const CreateApiKey = ({
+  completionHref = "",
+  initialKeyName = "",
+  open,
+  onClose,
+  refreshGrid,
+}) => {
   const [keyName, setKeyName] = useState("");
   const [showKeys, setShowKeys] = useState(false);
   const normalizedInitialKeyName = initialKeyName.trim();
@@ -58,6 +65,9 @@ const CreateApiKey = ({ initialKeyName = "", open, onClose, refreshGrid }) => {
   const isSecretKey = useMemo(() => {
     return createdKey && showKeys && open;
   }, [showKeys, createdKey, open]);
+  const completionActionProps = completionHref
+    ? { component: RouterLink, href: completionHref }
+    : {};
 
   const keyResult = createdKey?.data?.result || {};
   const keys = {
@@ -248,6 +258,7 @@ const CreateApiKey = ({ initialKeyName = "", open, onClose, refreshGrid }) => {
               Cancel
             </Button>
             <LoadingButton
+              {...completionActionProps}
               type="button"
               size="small"
               fullWidth
@@ -257,7 +268,7 @@ const CreateApiKey = ({ initialKeyName = "", open, onClose, refreshGrid }) => {
               loading={loading}
               disabled={!keyName}
             >
-              Done
+              {completionHref ? "Back to trace setup" : "Done"}
             </LoadingButton>
           </DialogActions>
         </ShowComponent>
@@ -269,6 +280,7 @@ const CreateApiKey = ({ initialKeyName = "", open, onClose, refreshGrid }) => {
 export default CreateApiKey;
 
 CreateApiKey.propTypes = {
+  completionHref: PropTypes.string,
   initialKeyName: PropTypes.string,
   open: PropTypes.bool,
   onClose: PropTypes.func,

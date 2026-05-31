@@ -32,8 +32,9 @@ vi.mock("src/utils/axios", () => ({
 }));
 
 vi.mock("./CreateApiKey", () => {
-  const CreateApiKey = ({ initialKeyName, open }) => (
+  const CreateApiKey = ({ completionHref, initialKeyName, open }) => (
     <div
+      data-completion-href={completionHref || ""}
       data-testid="create-api-key-dialog"
       data-initial-key-name={initialKeyName || ""}
       data-open={open ? "true" : "false"}
@@ -43,6 +44,7 @@ vi.mock("./CreateApiKey", () => {
   );
 
   CreateApiKey.propTypes = {
+    completionHref: PropTypes.string,
     initialKeyName: PropTypes.string,
     open: PropTypes.bool,
   };
@@ -56,7 +58,7 @@ describe("ApiKeysLandingPage onboarding handoff", () => {
   it("opens key creation from the observe first-trace deep link", () => {
     renderWithRouter(<ApiKeysLandingPage />, {
       route:
-        "/dashboard/settings/api_keys?source=onboarding&target=observe_first_trace&action=create&key_name=Observe+first+trace",
+        "/dashboard/settings/api_keys?source=onboarding&target=observe_first_trace&action=create&key_name=Observe+first+trace&return_to=%2Fdashboard%2Fobserve%3Fsetup%3Dtrue%26source%3Donboarding",
     });
 
     expect(screen.getByTestId("api-keys-grid")).toBeVisible();
@@ -67,6 +69,22 @@ describe("ApiKeysLandingPage onboarding handoff", () => {
     expect(screen.getByTestId("create-api-key-dialog")).toHaveAttribute(
       "data-initial-key-name",
       "Observe first trace",
+    );
+    expect(screen.getByTestId("create-api-key-dialog")).toHaveAttribute(
+      "data-completion-href",
+      "/dashboard/observe?setup=true&source=onboarding",
+    );
+  });
+
+  it("drops unsafe onboarding return targets", () => {
+    renderWithRouter(<ApiKeysLandingPage />, {
+      route:
+        "/dashboard/settings/api_keys?source=onboarding&target=observe_first_trace&action=create&return_to=https%3A%2F%2Fexample.com",
+    });
+
+    expect(screen.getByTestId("create-api-key-dialog")).toHaveAttribute(
+      "data-completion-href",
+      "",
     );
   });
 

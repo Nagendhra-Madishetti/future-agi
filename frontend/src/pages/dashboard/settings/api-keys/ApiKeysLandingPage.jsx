@@ -38,6 +38,14 @@ const ApiKeysLandingPage = () => {
   const onboardingKeyName = shouldAutoOpenCreateApiKey
     ? searchParams.get("key_name")?.trim()
     : "";
+  const rawOnboardingReturnHref = shouldAutoOpenCreateApiKey
+    ? searchParams.get("return_to")?.trim()
+    : "";
+  const onboardingCompletionHref =
+    rawOnboardingReturnHref?.startsWith("/dashboard/observe") &&
+    !rawOnboardingReturnHref.startsWith("//")
+      ? rawOnboardingReturnHref
+      : "";
 
   useEffect(() => {
     if (shouldAutoOpenCreateApiKey) {
@@ -221,6 +229,7 @@ const ApiKeysLandingPage = () => {
       </ShowComponent>
       <CreateApiKey
         open={openCreateApiKey}
+        completionHref={onboardingCompletionHref}
         initialKeyName={onboardingKeyName}
         onClose={() => setOpenCreateApiKey(false)}
         refreshGrid={() => {

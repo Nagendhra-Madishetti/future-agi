@@ -38,6 +38,7 @@ const API_KEYS_ONBOARDING_PARAMS = new URLSearchParams({
   target: "observe_first_trace",
   action: "create",
   key_name: "Observe first trace",
+  return_to: "/dashboard/observe?setup=true&source=onboarding",
 });
 const API_KEYS_ONBOARDING_HREF = `${paths.dashboard.settings.apiKeys}?${API_KEYS_ONBOARDING_PARAMS.toString()}`;
 
