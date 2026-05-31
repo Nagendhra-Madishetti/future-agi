@@ -31,7 +31,7 @@ import {
   isGatewayLogOnboardingMode,
 } from "./gatewayLogOnboarding";
 import {
-  appendGatewayOnboardingAttributionToHref,
+  buildGatewayPolicyConfigHref,
   gatewaySetupQuickStartAttributionFromSearch,
   getGatewayOnboardingRouteParams,
 } from "../gatewayOnboardingEvents";
@@ -142,16 +142,13 @@ const RequestExplorerSection = () => {
   }, [onboardingTargetRow]);
 
   const handleOpenFallbacks = useCallback(() => {
-    const params = new URLSearchParams();
-    params.set("source", "onboarding");
-    if (onboardingRequestId) {
-      params.set("request_id", onboardingRequestId);
-    }
     navigate(
-      appendGatewayOnboardingAttributionToHref(
-        `/dashboard/gateway/fallbacks?${params.toString()}`,
-        gatewayQuickStartAttribution,
-      ),
+      buildGatewayPolicyConfigHref({
+        policyType: "fallback",
+        quickStartAttribution: gatewayQuickStartAttribution,
+        requestId: onboardingRequestId,
+        tourAnchor: "gateway_policy_button",
+      }),
     );
   }, [gatewayQuickStartAttribution, navigate, onboardingRequestId]);
 

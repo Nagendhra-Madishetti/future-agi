@@ -131,6 +131,37 @@ export const buildGatewayRequestReviewHref = ({
   );
 };
 
+export const buildGatewayPolicyConfigHref = ({
+  policyType = "fallback",
+  quickStartAttribution,
+  requestId,
+  search,
+  tourAnchor,
+} = {}) => {
+  const policyPath =
+    {
+      budget: "/dashboard/gateway/budgets",
+      fallback: "/dashboard/gateway/fallbacks",
+      guardrail: "/dashboard/gateway/guardrails/configuration",
+    }[policyType] || "/dashboard/gateway/fallbacks";
+  const params = new URLSearchParams();
+  params.set("source", "onboarding");
+  params.set("onboarding", GATEWAY_ONBOARDING_MODES.ADD_POLICY);
+  params.set("journey_step", "add_gateway_policy");
+  if (requestId) {
+    params.set("request_id", requestId);
+  }
+  if (tourAnchor) {
+    params.set("tour_anchor", tourAnchor);
+  }
+
+  return appendGatewayOnboardingAttributionToHref(
+    `${policyPath}?${params.toString()}`,
+    quickStartAttribution ||
+      gatewaySetupQuickStartAttributionFromSearch(search),
+  );
+};
+
 export const buildGatewayRequestSeenPayload = ({
   gatewayId = DEFAULT_GATEWAY_ID,
   quickStartAttribution,

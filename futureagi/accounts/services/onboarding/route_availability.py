@@ -257,6 +257,8 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
     gateway_policy_params = {}
     if gateway_route_modes_enabled:
         gateway_policy_params["source"] = "onboarding"
+        gateway_policy_params["onboarding"] = "add-policy"
+        gateway_policy_params["journey_step"] = "add_gateway_policy"
     if gateway_request_id:
         gateway_policy_params["request_id"] = gateway_request_id
     gateway_policy_href = _with_query(gateway_policy_path, gateway_policy_params)

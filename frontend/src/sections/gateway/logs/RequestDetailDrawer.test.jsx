@@ -4,6 +4,15 @@ import { render, screen, userEvent, waitFor } from "src/utils/test-utils";
 import RequestDetailDrawer from "./RequestDetailDrawer";
 
 const mockRecordActivationEventMutate = vi.hoisted(() => vi.fn());
+const mockNavigate = vi.hoisted(() => vi.fn());
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 vi.mock("./hooks/useRequestDetail", () => ({
   default: () => ({
@@ -107,6 +116,35 @@ describe("RequestDetailDrawer", () => {
           quick_start_primary_path: "gateway",
         }),
       ),
+    );
+  });
+
+  it("routes reviewed gateway logs into policy controls with attribution", async () => {
+    render(
+      <RequestDetailDrawer
+        open
+        logId="log-detail-id"
+        onboardingMode="review-request"
+        onClose={vi.fn()}
+        quickStartAttribution={{
+          quick_start_goal: "control_model_traffic",
+          quick_start_id: "gateway",
+          quick_start_primary_path: "gateway",
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("gateway-policy-handoff")).toBeVisible();
+    expect(
+      screen.getByText("Turn the reviewed request into a guardrail"),
+    ).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /tune guardrail/i }),
+    );
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      "/dashboard/gateway/guardrails/configuration?source=onboarding&onboarding=add-policy&journey_step=add_gateway_policy&request_id=req-detail-1234567890&tour_anchor=gateway_policy_button&quick_start_goal=control_model_traffic&quick_start_id=gateway&quick_start_primary_path=gateway",
     );
   });
 });

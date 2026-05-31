@@ -213,6 +213,8 @@ def test_gateway_reviewed_request_without_policy_returns_add_policy(
 
     assert payload["stage"] == "add_gateway_policy"
     assert payload["recommended_action"]["id"] == "gateway_add_policy"
+    assert "onboarding=add-policy" in payload["recommended_action"]["href"]
+    assert "journey_step=add_gateway_policy" in payload["recommended_action"]["href"]
     assert payload["gateway"]["has_review"] is True
     assert payload["gateway"]["has_policy"] is False
 
@@ -251,6 +253,7 @@ def test_gateway_guardrail_review_routes_to_guardrail_policy(
     assert payload["recommended_action"]["href"].startswith(
         "/dashboard/gateway/guardrails/configuration?"
     )
+    assert "onboarding=add-policy" in payload["recommended_action"]["href"]
 
 
 @pytest.mark.django_db

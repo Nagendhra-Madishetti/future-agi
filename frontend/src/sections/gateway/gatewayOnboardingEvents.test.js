@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildGatewayPolicyConfigHref,
   buildGatewayRequestReviewHref,
   buildGatewayRequestSeenPayload,
   buildGatewayFallbackPolicyCreatedPayload,
@@ -173,6 +174,34 @@ describe("gatewayOnboardingEvents", () => {
     );
     expect(buildGatewayRequestReviewHref()).toBe(
       "/dashboard/gateway/logs?onboarding=review-request",
+    );
+  });
+
+  it("builds gateway policy configuration routes from reviewed logs", () => {
+    expect(
+      buildGatewayPolicyConfigHref({
+        policyType: "fallback",
+        requestId: "req-123",
+        search: GATEWAY_QUICK_START_SEARCH,
+        tourAnchor: "gateway_policy_button",
+      }),
+    ).toBe(
+      "/dashboard/gateway/fallbacks?source=onboarding&onboarding=add-policy&journey_step=add_gateway_policy&request_id=req-123&tour_anchor=gateway_policy_button&quick_start_goal=control_model_traffic&quick_start_id=gateway&quick_start_primary_path=gateway",
+    );
+    expect(
+      buildGatewayPolicyConfigHref({
+        policyType: "guardrail",
+        requestId: "req-123",
+      }),
+    ).toBe(
+      "/dashboard/gateway/guardrails/configuration?source=onboarding&onboarding=add-policy&journey_step=add_gateway_policy&request_id=req-123",
+    );
+    expect(
+      buildGatewayPolicyConfigHref({
+        policyType: "budget",
+      }),
+    ).toBe(
+      "/dashboard/gateway/budgets?source=onboarding&onboarding=add-policy&journey_step=add_gateway_policy",
     );
   });
 
