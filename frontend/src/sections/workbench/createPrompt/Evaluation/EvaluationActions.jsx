@@ -208,6 +208,7 @@ const EvaluationActions = () => {
               buildPromptEditorHref({
                 promptId: id,
                 mode: PROMPT_ONBOARDING_MODES.METRICS,
+                search: searchParams,
                 selectedVersions:
                   getSelectedPromptVersionsFromSearch(searchParams),
               }),

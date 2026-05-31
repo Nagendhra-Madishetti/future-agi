@@ -1,3 +1,5 @@
+import { appendSetupQuickStartAttributionToHref } from "src/sections/auth/jwt/setup-org-quick-starts";
+
 export const PROMPT_ONBOARDING_MODES = {
   CREATE_PROMPT: "create-prompt",
   RUN_TEST: "run-test",
@@ -70,6 +72,15 @@ const toSearchParams = (search = "") =>
     ? new URLSearchParams(search)
     : new URLSearchParams(search);
 
+const setupQuickStartAttributionFromSearch = (search = "") => {
+  const params = toSearchParams(search);
+  return {
+    quick_start_goal: params.get("quick_start_goal"),
+    quick_start_id: params.get("quick_start_id"),
+    quick_start_primary_path: params.get("quick_start_primary_path"),
+  };
+};
+
 const safeKeyPart = (value, fallback) =>
   String(value || fallback)
     .replace(/[^a-zA-Z0-9_-]/g, "-")
@@ -112,6 +123,7 @@ export const buildPromptEditorHref = ({
   journeyStep,
   mode,
   promptId,
+  search,
   selectedVersions,
 } = {}) => {
   if (!promptId) return null;
@@ -137,7 +149,10 @@ export const buildPromptEditorHref = ({
     }
   }
 
-  return `/dashboard/workbench/create/${promptId}?${params.toString()}`;
+  return appendSetupQuickStartAttributionToHref(
+    `/dashboard/workbench/create/${promptId}?${params.toString()}`,
+    setupQuickStartAttributionFromSearch(search),
+  );
 };
 
 export const buildPromptCreatedHref = ({ promptId, search } = {}) => {
@@ -155,7 +170,7 @@ export const buildPromptCreatedHref = ({ promptId, search } = {}) => {
       ? PROMPT_ONBOARDING_MODES.RUN_TEST
       : mode;
 
-  return buildPromptEditorHref({ promptId, mode: nextMode });
+  return buildPromptEditorHref({ promptId, mode: nextMode, search });
 };
 
 export const shouldAdvancePromptRunOnboarding = ({

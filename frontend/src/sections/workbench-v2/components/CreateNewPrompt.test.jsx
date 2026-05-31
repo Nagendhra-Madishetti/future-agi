@@ -92,16 +92,26 @@ describe("CreateNewPrompt onboarding routes", () => {
 
   it("continues onboarding-created prompts into run-test mode", async () => {
     renderPromptDialog(
-      "/dashboard/workbench/all?source=onboarding&action=create-prompt",
+      "/dashboard/workbench/all?source=onboarding&action=create-prompt&quick_start_goal=improve_prompts&quick_start_id=prompt&quick_start_primary_path=prompt",
     );
 
     await userEvent.click(screen.getByText("Start from scratch"));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent(
-        "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",
-      ),
-    );
+    await waitFor(() => {
+      const [path, query] = screen
+        .getByTestId("location")
+        .textContent.split("?");
+      const params = new URLSearchParams(query);
+
+      expect(path).toBe("/dashboard/workbench/create/prompt-1");
+      expect(params.get("source")).toBe("onboarding");
+      expect(params.get("onboarding")).toBe("run-test");
+      expect(params.get("tour_anchor")).toBe("prompt_run_test_button");
+      expect(params.get("journey_step")).toBe("run_prompt_test");
+      expect(params.get("quick_start_goal")).toBe("improve_prompts");
+      expect(params.get("quick_start_id")).toBe("prompt");
+      expect(params.get("quick_start_primary_path")).toBe("prompt");
+    });
   });
 
   it("keeps non-onboarding prompt creation routes clean", async () => {

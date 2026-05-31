@@ -81,6 +81,69 @@ describe("promptOnboardingRoute", () => {
     );
   });
 
+  it("preserves setup quick-start attribution on guided prompt editor routes", () => {
+    [
+      [
+        PROMPT_ONBOARDING_MODES.RUN_TEST,
+        {
+          onboarding: PROMPT_ONBOARDING_MODES.RUN_TEST,
+          tourAnchor: "prompt_run_test_button",
+          journeyStep: "run_prompt_test",
+        },
+      ],
+      [
+        PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+        {
+          onboarding: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+          tourAnchor: "prompt_save_version_button",
+          journeyStep: "save_prompt_version",
+        },
+      ],
+      [
+        PROMPT_ONBOARDING_MODES.COMPARE,
+        {
+          onboarding: PROMPT_ONBOARDING_MODES.COMPARE,
+          tourAnchor: "prompt_compare_versions_button",
+          journeyStep: "compare_prompt_versions",
+        },
+      ],
+      [
+        PROMPT_ONBOARDING_MODES.ADD_FAILURE,
+        {
+          onboarding: PROMPT_ONBOARDING_MODES.ADD_FAILURE,
+          tab: "Evaluation",
+          tourAnchor: "prompt_add_example_button",
+          journeyStep: "prompt_next_loop",
+        },
+      ],
+      [
+        PROMPT_ONBOARDING_MODES.METRICS,
+        {
+          onboarding: PROMPT_ONBOARDING_MODES.METRICS,
+          tab: "Metrics",
+        },
+      ],
+    ].forEach(([mode, expected]) => {
+      const href = buildPromptEditorHref({
+        promptId: "prompt-1",
+        mode,
+        search:
+          "?source=onboarding&quick_start_goal=improve_prompts&quick_start_id=prompt&quick_start_primary_path=prompt",
+      });
+      const params = new URLSearchParams(href.split("?")[1]);
+
+      expect(href).toContain("/dashboard/workbench/create/prompt-1?");
+      expect(params.get("source")).toBe("onboarding");
+      expect(params.get("onboarding")).toBe(expected.onboarding);
+      expect(params.get("tab")).toBe(expected.tab || null);
+      expect(params.get("tour_anchor")).toBe(expected.tourAnchor || null);
+      expect(params.get("journey_step")).toBe(expected.journeyStep || null);
+      expect(params.get("quick_start_goal")).toBe("improve_prompts");
+      expect(params.get("quick_start_id")).toBe("prompt");
+      expect(params.get("quick_start_primary_path")).toBe("prompt");
+    });
+  });
+
   it("preserves selected prompt versions on guided editor routes", () => {
     const selectedVersions = [
       { version: "v1", isDraft: false },
@@ -168,6 +231,18 @@ describe("promptOnboardingRoute", () => {
       }),
     ).toBe(
       "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",
+    );
+  });
+
+  it("carries setup quick-start attribution after prompt creation", () => {
+    expect(
+      buildPromptCreatedHref({
+        promptId: "prompt-1",
+        search:
+          "?source=onboarding&action=create-prompt&quick_start_goal=improve_prompts&quick_start_id=prompt&quick_start_primary_path=prompt",
+      }),
+    ).toBe(
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test&quick_start_goal=improve_prompts&quick_start_id=prompt&quick_start_primary_path=prompt",
     );
   });
 

@@ -132,16 +132,25 @@ describe("EvaluationActions prompt onboarding", () => {
 
   it("moves guided add-failure routes to metrics after an evaluation is added", async () => {
     renderActions(
-      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=add-failure",
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=add-failure&quick_start_goal=improve_prompts&quick_start_id=prompt&quick_start_primary_path=prompt",
     );
 
     await userEvent.click(screen.getByText("simulate evaluation added"));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent(
-        "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=metrics&tab=Metrics",
-      ),
-    );
+    await waitFor(() => {
+      const [path, query] = screen
+        .getByTestId("location")
+        .textContent.split("?");
+      const params = new URLSearchParams(query);
+
+      expect(path).toBe("/dashboard/workbench/create/prompt-1");
+      expect(params.get("source")).toBe("onboarding");
+      expect(params.get("onboarding")).toBe("metrics");
+      expect(params.get("tab")).toBe("Metrics");
+      expect(params.get("quick_start_goal")).toBe("improve_prompts");
+      expect(params.get("quick_start_id")).toBe("prompt");
+      expect(params.get("quick_start_primary_path")).toBe("prompt");
+    });
   });
 
   it("keeps compared prompt versions when moving add-failure routes to metrics", async () => {

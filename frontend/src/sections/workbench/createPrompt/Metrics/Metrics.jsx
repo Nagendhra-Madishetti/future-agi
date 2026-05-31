@@ -13,6 +13,10 @@ import { paths } from "src/routes/paths";
 import { enqueueSnackbar } from "src/components/snackbar";
 import { useRecordActivationEvent } from "src/sections/onboarding-home/hooks/useRecordActivationEvent";
 import {
+  appendSetupQuickStartAttributionToHref,
+  readPersistedSetupQuickStartAttribution,
+} from "src/sections/auth/jwt/setup-org-quick-starts";
+import {
   buildPromptFirstQualityLoopCompletedPayload,
   getPromptOnboardingRouteParams,
   PROMPT_ONBOARDING_MODES,
@@ -61,8 +65,14 @@ const MetricsTabs = () => {
           promptId: id,
         }),
       );
+      const routeAttribution = Object.fromEntries(searchParams);
       navigate(
-        `${paths.dashboard.home}?mode=daily-quality&source=onboarding&target_event=first_quality_loop_completed`,
+        appendSetupQuickStartAttributionToHref(
+          `${paths.dashboard.home}?mode=daily-quality&source=onboarding&target_event=first_quality_loop_completed`,
+          routeAttribution.quick_start_id
+            ? routeAttribution
+            : readPersistedSetupQuickStartAttribution(),
+        ),
         { replace: true },
       );
     } catch {

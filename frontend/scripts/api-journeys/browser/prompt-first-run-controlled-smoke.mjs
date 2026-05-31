@@ -21,6 +21,21 @@ const SCREENSHOT_PATH =
   "/tmp/prompt-first-run-controlled-smoke.png";
 const FAILURE_SCREENSHOT_PATH =
   "/tmp/prompt-first-run-controlled-smoke-failure.png";
+const SETUP_QUICK_START_ATTRIBUTION_STORAGE_KEY =
+  "futureagi.setup_quick_start_attribution";
+const PROMPT_QUICK_START_ATTRIBUTION = {
+  quickStartGoal: "improve_prompts",
+  quickStartId: "prompt",
+  quickStartPrimaryPath: "prompt",
+};
+const PROMPT_QUICK_START_PARAMS = {
+  quick_start_goal: "improve_prompts",
+  quick_start_id: "prompt",
+  quick_start_primary_path: "prompt",
+};
+const PROMPT_QUICK_START_QUERY = new URLSearchParams(
+  PROMPT_QUICK_START_PARAMS,
+).toString();
 
 const state = {
   promptName: "Prompt onboarding smoke",
@@ -84,7 +99,7 @@ async function main() {
 
   try {
     await page.goto(
-      `${APP_BASE}/dashboard/workbench/all?source=onboarding&action=create-prompt`,
+      `${APP_BASE}/dashboard/workbench/all?source=onboarding&action=create-prompt&${PROMPT_QUICK_START_QUERY}`,
       { waitUntil: "domcontentloaded" },
     );
     await waitForVisibleText(page, "Create prompt", { exact: true });
@@ -96,17 +111,15 @@ async function main() {
     await waitForVisibleText(page, "Create a new prompt", { exact: true });
     await clickVisibleText(page, "Start from scratch", { exact: true });
     await waitForPath(page, `/dashboard/workbench/create/${PROMPT_ID}`);
-    if ((await searchParamValue(page, "onboarding")) !== "run-test") {
-      await page.goto(
-        `${APP_BASE}/dashboard/workbench/create/${PROMPT_ID}?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test`,
-        { waitUntil: "domcontentloaded" },
-      );
-      await waitForPath(page, `/dashboard/workbench/create/${PROMPT_ID}`);
-    }
+    assert(
+      (await searchParamValue(page, "onboarding")) === "run-test",
+      "Prompt creation did not continue to the guided run-test route.",
+    );
     await waitForSearchParam(page, "onboarding", "run-test");
     await expectSelector(page, '[data-testid="prompt-onboarding-focus"]');
     await waitForVisibleText(page, "Run one prompt test", { exact: true });
     evidence.create_route = await currentRelativeUrl(page);
+    assertPromptQuickStartParams(evidence.create_route, "create route");
 
     await typeIntoPromptEditor(
       page,
@@ -119,6 +132,7 @@ async function main() {
       exact: true,
     });
     evidence.first_run_route = await currentRelativeUrl(page);
+    assertPromptQuickStartParams(evidence.first_run_route, "first run route");
 
     await commitCurrentOnboardingVersion(page, {
       message: "Baseline support-ticket prompt",
@@ -130,6 +144,10 @@ async function main() {
     );
     await waitForVisibleText(page, "Create a second version", { exact: true });
     evidence.baseline_commit_route = await currentRelativeUrl(page);
+    assertPromptQuickStartParams(
+      evidence.baseline_commit_route,
+      "baseline commit route",
+    );
 
     await dismissTourIfPresent(page);
     await clickVisibleText(page, "Create second version", { exact: true });
@@ -148,6 +166,7 @@ async function main() {
       exact: true,
     });
     evidence.second_run_route = await currentRelativeUrl(page);
+    assertPromptQuickStartParams(evidence.second_run_route, "second run route");
 
     await commitCurrentOnboardingVersion(page, {
       message: "Second support-ticket prompt",
@@ -155,6 +174,10 @@ async function main() {
     await waitForSearchParam(page, "journey_step", "compare_prompt_versions");
     await waitForVisibleText(page, "Compare prompt versions", { exact: true });
     evidence.second_commit_route = await currentRelativeUrl(page);
+    assertPromptQuickStartParams(
+      evidence.second_commit_route,
+      "second commit route",
+    );
 
     await dismissTourIfPresent(page);
     await clickVisibleText(page, "Open version history", { exact: true });
@@ -184,6 +207,10 @@ async function main() {
       "Failure capture did not keep both compared prompt versions.",
     );
     evidence.failure_capture_route = await currentRelativeUrl(page);
+    assertPromptQuickStartParams(
+      evidence.failure_capture_route,
+      "failure capture route",
+    );
 
     await clickSelector(
       page,
@@ -229,6 +256,7 @@ async function main() {
       "Prompt onboarding metrics showed the generic add-prompt empty state.",
     );
     evidence.metrics_route = await currentRelativeUrl(page);
+    assertPromptQuickStartParams(evidence.metrics_route, "metrics route");
 
     assert(evalConfigPosts.length === 1, "Evaluation config POST missing.");
     const evalConfigPayload = evalConfigPosts[0];
@@ -267,6 +295,7 @@ async function main() {
       "first_quality_loop_completed",
     );
     evidence.finish_loop_route = await currentRelativeUrl(page);
+    assertPromptQuickStartParams(evidence.finish_loop_route, "finish route");
 
     await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
     evidence.screenshot = SCREENSHOT_PATH;
@@ -282,6 +311,18 @@ async function main() {
       activationEventNames.includes("first_quality_loop_completed"),
       "Prompt first quality loop completion event was not recorded.",
     );
+    const promptAhaEvents = activationEventPosts.filter((payload) =>
+      ["prompt_comparison_completed", "first_quality_loop_completed"].includes(
+        payload?.event_name,
+      ),
+    );
+    assert(
+      promptAhaEvents.length === 2,
+      `Expected two prompt Aha activation events, got ${promptAhaEvents.length}.`,
+    );
+    promptAhaEvents.forEach((payload) => {
+      assertPromptQuickStartMetadata(payload, payload?.event_name);
+    });
     assert(apiFailures.length === 0, `API failures: ${apiFailures.join("; ")}`);
     assert(pageErrors.length === 0, `Page errors: ${pageErrors.join("; ")}`);
     assert(
@@ -300,6 +341,13 @@ async function main() {
           evidence: {
             ...evidence,
             activation_event_names: activationEventNames,
+            prompt_aha_events: promptAhaEvents.map((payload) => ({
+              event_name: payload.event_name,
+              quick_start_goal: payload.metadata?.quick_start_goal,
+              quick_start_id: payload.metadata?.quick_start_id,
+              quick_start_primary_path:
+                payload.metadata?.quick_start_primary_path,
+            })),
             prompt_request_count: promptRequests.length,
             stubbed_api_request_count: stubbedApiRequests.length,
           },
@@ -825,7 +873,14 @@ async function installBrowserState(page, auth) {
     };
   });
   await page.evaluateOnNewDocument(
-    ({ tokens, organizationId, workspaceId, user }) => {
+    ({
+      quickStartAttribution,
+      setupQuickStartStorageKey,
+      tokens,
+      organizationId,
+      workspaceId,
+      user,
+    }) => {
       localStorage.setItem("accessToken", tokens.access);
       localStorage.setItem("refreshToken", tokens.refresh || "");
       localStorage.setItem("rememberMe", "true");
@@ -843,10 +898,16 @@ async function installBrowserState(page, auth) {
       sessionStorage.setItem("workspaceRole", "Owner");
       sessionStorage.setItem("currentUserId", user.id);
       sessionStorage.setItem("futureagi-current-user-id", user.id);
+      sessionStorage.setItem(
+        setupQuickStartStorageKey,
+        JSON.stringify(quickStartAttribution),
+      );
     },
     {
+      quickStartAttribution: PROMPT_QUICK_START_ATTRIBUTION,
       tokens: auth.tokens,
       organizationId: auth.organizationId,
+      setupQuickStartStorageKey: SETUP_QUICK_START_ATTRIBUTION_STORAGE_KEY,
       workspaceId: auth.workspaceId,
       user: auth.user,
     },
@@ -1282,6 +1343,27 @@ async function currentRelativeUrl(page) {
   return page.evaluate(
     () => `${window.location.pathname}${window.location.search}`,
   );
+}
+
+function assertPromptQuickStartParams(route, label) {
+  const url = new URL(route, APP_BASE);
+  for (const [key, expected] of Object.entries(PROMPT_QUICK_START_PARAMS)) {
+    const actual = url.searchParams.get(key);
+    assert(
+      actual === expected,
+      `Expected ${label} ${key}=${expected}, got ${actual} in ${route}`,
+    );
+  }
+}
+
+function assertPromptQuickStartMetadata(payload, label) {
+  const metadata = payload?.metadata || {};
+  for (const [key, expected] of Object.entries(PROMPT_QUICK_START_PARAMS)) {
+    assert(
+      metadata?.[key] === expected,
+      `Expected ${label} metadata ${key}=${expected}, got ${metadata?.[key]}`,
+    );
+  }
 }
 
 function createStubbedAuthenticatedContext() {

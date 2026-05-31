@@ -219,6 +219,7 @@ async function main() {
     });
     await clickVisibleButtonText(page, QUICK_START.buttonText);
     let homeParams = null;
+    let primaryActionHref = null;
     let sampleTraceUrl = null;
     if (QUICK_START.directSampleTrace) {
       await waitForSampleTraceRoute(page, { timeout: 30000 });
@@ -253,6 +254,18 @@ async function main() {
           exact: true,
         });
       }
+      primaryActionHref = await firstPanelHref(
+        page,
+        QUICK_START.expectedSelector,
+      );
+      assert(
+        primaryActionHref,
+        `Expected primary action href in ${QUICK_START.expectedSelector}.`,
+      );
+      assertExpectedAttribution(
+        paramsObject(primaryActionHref),
+        QUICK_START.expectedAttribution,
+      );
     }
 
     const browserState = await page.evaluate(() => ({
@@ -357,6 +370,7 @@ async function main() {
             console_messages: consoleMessages,
             home_params: homeParams,
             onboarding_post: onboardingPosts[0],
+            primary_action_href: primaryActionHref,
             request_failures: requestFailures,
             sample_project_post: sampleProjectPosts[0],
             sample_project_response: sampleProjectResponses[0],
@@ -1064,6 +1078,14 @@ function hasSampleQuickStartParams(value) {
   return Object.entries(SAMPLE_QUICK_START_METADATA).every(
     ([key, expected]) => params?.[key] === expected,
   );
+}
+
+async function firstPanelHref(page, selector) {
+  return page.evaluate((panelSelector) => {
+    const panel = document.querySelector(panelSelector);
+    const link = panel?.querySelector("a[href]");
+    return link?.getAttribute("href") || null;
+  }, selector);
 }
 
 function paramsObject(value) {

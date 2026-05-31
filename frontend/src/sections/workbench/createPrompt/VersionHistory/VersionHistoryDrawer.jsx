@@ -153,6 +153,7 @@ const VersionHistoryChild = ({ onClose }) => {
         buildPromptEditorHref({
           promptId: id,
           mode: PROMPT_ONBOARDING_MODES.ADD_FAILURE,
+          search: searchParams,
           selectedVersions: nextCompareVersions.map((version) =>
             toSelectedPromptVersion(version, id),
           ),

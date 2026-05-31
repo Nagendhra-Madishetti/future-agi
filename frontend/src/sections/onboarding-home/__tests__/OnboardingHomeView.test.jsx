@@ -622,6 +622,34 @@ describe("OnboardingHomeView", () => {
     );
   });
 
+  it("keeps setup quick-start attribution on prompt path actions", () => {
+    mocks.useActivationState.mockReturnValue({
+      state: normalizedFixture("promptNoPrompt"),
+      isLoading: false,
+      isRefetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderView(
+      "/dashboard/home?source=setup_org&quick_start_id=prompt&quick_start_goal=improve_prompts&quick_start_primary_path=prompt",
+    );
+
+    const panel = screen.getByTestId("path-focus-panel-prompt");
+    const href = within(panel)
+      .getByRole("link", { name: /create prompt/i })
+      .getAttribute("href");
+    const params = new URLSearchParams(href.split("?")[1]);
+
+    expect(href).toContain("/dashboard/workbench/all?");
+    expect(params.get("quick_start_goal")).toBe("improve_prompts");
+    expect(params.get("quick_start_id")).toBe("prompt");
+    expect(params.get("quick_start_primary_path")).toBe("prompt");
+    expect(params.get("tour_anchor")).toBe("prompt_create_button");
+    expect(params.get("journey_step")).toBe("start_prompt");
+  });
+
   it("renders the post-aha screen after the first observe quality loop", () => {
     mocks.useActivationState.mockReturnValue({
       state: normalizedFixture("observeFirstLoopComplete"),

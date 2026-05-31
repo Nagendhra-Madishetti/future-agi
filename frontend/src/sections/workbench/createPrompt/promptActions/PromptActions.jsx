@@ -68,6 +68,7 @@ import {
   shouldAdvancePromptRunOnboarding,
   shouldAdvancePromptSaveOnboarding,
 } from "./promptOnboardingRoute";
+import { appendSetupQuickStartAttributionToHref } from "src/sections/auth/jwt/setup-org-quick-starts";
 
 const PromptActions = () => {
   const theme = useTheme();
@@ -342,6 +343,14 @@ const PromptActions = () => {
     () => getPromptOnboardingRouteParams(searchParams),
     [searchParams],
   );
+  const promptListHref = useMemo(
+    () =>
+      appendSetupQuickStartAttributionToHref(
+        "/dashboard/workbench",
+        Object.fromEntries(searchParams),
+      ),
+    [searchParams],
+  );
   const onboardingMode = promptOnboardingParams.mode;
   const promptOnboardingBlocker =
     onboardingMode === PROMPT_ONBOARDING_MODES.METRICS ? null : buttonTooltip;
@@ -391,6 +400,7 @@ const PromptActions = () => {
       buildPromptEditorHref({
         promptId: id,
         mode: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+        search: searchParams,
         selectedVersions,
       }),
       { replace: true },
@@ -403,6 +413,7 @@ const PromptActions = () => {
     navigate,
     onboardingMode,
     onboardingSource,
+    searchParams,
     selectedVersions,
   ]);
 
@@ -427,6 +438,7 @@ const PromptActions = () => {
         journeyStep: postSaveJourneyStep,
         promptId: id,
         mode: PROMPT_ONBOARDING_MODES.COMPARE,
+        search: searchParams,
         selectedVersions,
       }),
       { replace: true },
@@ -439,6 +451,7 @@ const PromptActions = () => {
     queryClient,
     refetch,
     postSaveJourneyStep,
+    searchParams,
     selectedVersions,
   ]);
 
@@ -450,12 +463,13 @@ const PromptActions = () => {
         buildPromptEditorHref({
           promptId: id,
           mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
+          search: searchParams,
           selectedVersions: nextSelectedVersions,
         }),
         { replace: true },
       );
     }
-  }, [addToCompare, id, navigate, setCurrentTab]);
+  }, [addToCompare, id, navigate, searchParams, setCurrentTab]);
 
   const handleRunPrompt = () => {
     if (buttonTooltip) {
@@ -521,7 +535,7 @@ const PromptActions = () => {
           }}
         >
           <NavLink
-            to="/dashboard/workbench"
+            to={promptListHref}
             style={{
               textDecoration: "none",
               whiteSpace: "nowrap",

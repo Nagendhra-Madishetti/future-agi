@@ -110,6 +110,12 @@ const activationPayloadAttributionContext = (context = {}) =>
     }),
   });
 
+const actionWithSetupQuickStartAttribution = (action, context) => {
+  if (!action?.href) return action;
+  const href = appendSetupQuickStartAttributionToHref(action.href, context);
+  return href === action.href ? action : { ...action, href };
+};
+
 const OBSERVE_PANEL_STAGES = new Set([
   "connect_observability",
   "waiting_for_first_trace",
@@ -799,8 +805,14 @@ export default function OnboardingHomeView() {
     ) : null;
 
   const observePanelProps = {
-    action: renderedState.recommendedAction,
-    fallbackAction: renderedState.fallbackAction,
+    action: actionWithSetupQuickStartAttribution(
+      renderedState.recommendedAction,
+      trackContext,
+    ),
+    fallbackAction: actionWithSetupQuickStartAttribution(
+      renderedState.fallbackAction,
+      trackContext,
+    ),
     onPrimaryClick: handleActionClick,
     onFallbackClick: handleActionClick,
     onCheckAgain: refetch,
