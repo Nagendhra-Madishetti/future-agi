@@ -219,7 +219,7 @@ describe("ProjectWrapperView observe setup onboarding", () => {
     expect(screen.getByText("Credentials copied")).toBeVisible();
     expect(
       screen.getByText(
-        "Paste both copied values into the setup snippet, then run one real or test request.",
+        "Paste both copied values into the Anthropic TypeScript setup snippet, then run one request.",
       ),
     ).toBeVisible();
     expect(screen.getByText("Keys")).toBeVisible();
@@ -243,7 +243,9 @@ describe("ProjectWrapperView observe setup onboarding", () => {
     });
 
     await user.click(
-      screen.getByRole("button", { name: /wait for first trace/i }),
+      screen.getByRole("button", {
+        name: /wait for anthropic typescript trace/i,
+      }),
     );
 
     await waitFor(() => {

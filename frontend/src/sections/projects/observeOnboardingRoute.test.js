@@ -9,6 +9,7 @@ import {
   getObserveFirstTraceReviewTarget,
   getObserveOnboardingCopy,
   getObserveOnboardingParams,
+  getObserveSetupPackageLabel,
   getObserveSetupOnboardingParams,
   getObserveTraceReviewOnboardingParams,
   observeOnboardingStage,
@@ -422,6 +423,53 @@ describe("observeOnboardingRoute", () => {
       currentStep: "Real data",
       primaryLabel: "Send real trace",
       title: "Connect your app",
+    });
+  });
+
+  it("returns package-specific Observe setup and trace-wait copy", () => {
+    expect(
+      getObserveSetupPackageLabel({
+        setupLanguage: "TypeScript",
+        setupProvider: "Anthropic",
+      }),
+    ).toBe("Anthropic TypeScript");
+
+    expect(
+      getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE, {
+        setupLanguage: "typescript",
+        setupProvider: "anthropic",
+      }),
+    ).toMatchObject({
+      currentStep: "Anthropic setup",
+      description:
+        "Use the Anthropic TypeScript setup below, run one request, and keep this page open while we wait for the trace.",
+      primaryLabel: "Open Anthropic setup",
+      title: "Connect Anthropic TypeScript",
+    });
+
+    expect(
+      getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE, {
+        setupLanguage: "typescript",
+        setupProvider: "anthropic",
+      }),
+    ).toMatchObject({
+      currentStep: "Anthropic trace",
+      description:
+        "Keep this page open, run one Anthropic TypeScript request from your app, and we will open the trace when it appears.",
+      primaryLabel: "Open Anthropic setup",
+      title: "Send the first trace",
+    });
+
+    expect(
+      getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE, {
+        credentialsCopied: true,
+        setupLanguage: "typescript",
+        setupProvider: "anthropic",
+      }),
+    ).toMatchObject({
+      description:
+        "Paste both copied values into the Anthropic TypeScript setup snippet, then run one request.",
+      primaryLabel: "Run Anthropic request",
     });
   });
 

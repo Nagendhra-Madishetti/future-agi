@@ -105,7 +105,7 @@ const FIRST_TRACE_STEPS = [
   },
   {
     id: "review",
-    label: "Review and add eval",
+    label: "Review and add evaluator",
     description: "We open the trace, then guide you to create an evaluator.",
   },
 ];

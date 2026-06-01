@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, waitFor } from "src/utils/test-utils";
+import { act, render, screen, waitFor } from "src/utils/test-utils";
 
 import ObservePage from "./ObservePage";
 import {
@@ -87,7 +87,22 @@ vi.mock("./ObserveTabs", () => ({
 }));
 
 vi.mock("./ObserveOnboardingFocusPanel", () => ({
-  default: ({ title }) => <div data-testid="observe-focus">{title}</div>,
+  default: ({ currentStep, description, primaryAction, title }) => (
+    <div data-testid="observe-focus">
+      <div>{currentStep}</div>
+      <div>{title}</div>
+      <div>{description}</div>
+      {primaryAction ? (
+        <button
+          disabled={primaryAction.disabled}
+          onClick={primaryAction.onClick}
+          type="button"
+        >
+          {primaryAction.label}
+        </button>
+      ) : null}
+    </div>
+  ),
 }));
 
 vi.mock("./ReplayDrawer/ReplayDrawer", () => ({
@@ -221,6 +236,18 @@ describe("ObservePage onboarding first-trace handoff", () => {
       "?source=onboarding&onboarding=send-first-trace&selectedTab=trace&provider=anthropic&language=typescript";
 
     render(<ObservePage />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("observe-focus")).toHaveTextContent(
+        "Anthropic trace",
+      ),
+    );
+    expect(screen.getByTestId("observe-focus")).toHaveTextContent(
+      "run one Anthropic TypeScript request",
+    );
+    expect(
+      screen.getByRole("button", { name: /open anthropic setup/i }),
+    ).toBeEnabled();
 
     await waitFor(() =>
       expect(mocks.recordActivationEvent).toHaveBeenCalledWith(

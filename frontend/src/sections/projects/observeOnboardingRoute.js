@@ -35,6 +35,19 @@ const observeSetupProviderAliases = {
   "openai-agents": "openai_agents",
   openaiagents: "openai_agents",
 };
+const observeSetupProviderLabels = {
+  anthropic: "Anthropic",
+  bedrock: "Bedrock",
+  langchain: "LangChain",
+  llamaindex: "LlamaIndex",
+  mcp: "MCP",
+  openai: "OpenAI",
+  openai_agents: "OpenAI Agents",
+};
+const observeSetupLanguageLabels = {
+  python: "Python",
+  typescript: "TypeScript",
+};
 const projectModeSet = new Set([
   OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR,
   OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
@@ -97,6 +110,20 @@ const appendSetupIntentParams = (
   if (safeProvider) params.set("provider", safeProvider);
   if (safeLanguage) params.set("language", safeLanguage);
 };
+
+export const getObserveSetupPackageLabel = ({
+  setupLanguage,
+  setupProvider,
+} = {}) => {
+  const providerLabel =
+    observeSetupProviderLabels[safeSetupProvider(setupProvider)];
+  const languageLabel =
+    observeSetupLanguageLabels[safeSetupLanguage(setupLanguage)];
+  return [providerLabel, languageLabel].filter(Boolean).join(" ");
+};
+
+const getObserveSetupProviderLabel = (setupProvider) =>
+  observeSetupProviderLabels[safeSetupProvider(setupProvider)] || "";
 
 export const getObserveOnboardingParams = (search = "") => {
   const params = new URLSearchParams(search);
@@ -193,31 +220,50 @@ export const observeOnboardingStage = (mode) => {
 
 export const getObserveOnboardingCopy = (
   mode,
-  { credentialsCopied, source } = {},
+  { credentialsCopied, setupLanguage, setupProvider, source } = {},
 ) => {
+  const setupPackageLabel = getObserveSetupPackageLabel({
+    setupLanguage,
+    setupProvider,
+  });
+  const setupProviderLabel = getObserveSetupProviderLabel(setupProvider);
+  const packageSetupDescription = setupPackageLabel
+    ? `Use the ${setupPackageLabel} setup below, run one request, and keep this page open while we wait for the trace.`
+    : null;
+
   if (mode === OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE) {
     if (source === OBSERVE_ONBOARDING_SOURCES.SAMPLE_TRACE_REVIEW) {
       return {
-        currentStep: "Real data",
+        currentStep: setupProviderLabel
+          ? `${setupProviderLabel} setup`
+          : "Real data",
         description:
+          packageSetupDescription ||
           "Use the setup below to send one real or test trace from your app.",
-        primaryLabel: "Send real trace",
+        primaryLabel: setupProviderLabel
+          ? `Send ${setupProviderLabel} trace`
+          : "Send real trace",
         secondaryLabel: null,
         steps: [
           { label: "Sample review", complete: true },
           { label: "Install", complete: false },
           { label: "Trace", complete: false },
         ],
-        title: "Connect your app",
+        title: setupPackageLabel
+          ? `Connect ${setupPackageLabel}`
+          : "Connect your app",
       };
     }
 
     if (credentialsCopied) {
       return {
         currentStep: "Credentials ready",
-        description:
-          "Paste both copied values into the setup snippet, then run one real or test request.",
-        primaryLabel: "Paste keys and run trace",
+        description: setupPackageLabel
+          ? `Paste both copied values into the ${setupPackageLabel} setup snippet, then run one request.`
+          : "Paste both copied values into the setup snippet, then run one real or test request.",
+        primaryLabel: setupProviderLabel
+          ? `Run ${setupProviderLabel} request`
+          : "Paste keys and run trace",
         secondaryLabel: null,
         steps: [
           { label: "Keys", complete: true },
@@ -229,26 +275,36 @@ export const getObserveOnboardingCopy = (
     }
 
     return {
-      currentStep: "Setup",
+      currentStep: setupProviderLabel ? `${setupProviderLabel} setup` : "Setup",
       description:
+        packageSetupDescription ||
         "Install tracing, load your keys, and send one real or test request.",
-      primaryLabel: "Review setup",
+      primaryLabel: setupProviderLabel
+        ? `Open ${setupProviderLabel} setup`
+        : "Review setup",
       secondaryLabel: null,
       steps: [
         { label: "Install", complete: false },
         { label: "Trace", complete: false },
         { label: "Review", complete: false },
       ],
-      title: "Connect Observe to your app",
+      title: setupPackageLabel
+        ? `Connect ${setupPackageLabel}`
+        : "Connect Observe to your app",
     };
   }
 
   if (mode === OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE) {
     return {
-      currentStep: "First trace",
-      description:
-        "Keep this page open, run one production or test request, and we will open the trace when it appears.",
-      primaryLabel: "Open setup",
+      currentStep: setupProviderLabel
+        ? `${setupProviderLabel} trace`
+        : "First trace",
+      description: setupPackageLabel
+        ? `Keep this page open, run one ${setupPackageLabel} request from your app, and we will open the trace when it appears.`
+        : "Keep this page open, run one production or test request, and we will open the trace when it appears.",
+      primaryLabel: setupProviderLabel
+        ? `Open ${setupProviderLabel} setup`
+        : "Open setup",
       secondaryLabel: "Refresh traces",
       steps: [
         { label: "Project", complete: true },

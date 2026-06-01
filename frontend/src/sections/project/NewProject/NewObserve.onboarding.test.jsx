@@ -165,7 +165,7 @@ describe("NewObserve onboarding setup", () => {
     expect(within(guide).getByText("Pick package")).toBeVisible();
     expect(within(guide).getByText("Paste setup")).toBeVisible();
     expect(within(guide).getByText("Run package request")).toBeVisible();
-    expect(within(guide).getByText("Review and add eval")).toBeVisible();
+    expect(within(guide).getByText("Review and add evaluator")).toBeVisible();
     expect(within(guide).getByText("pip install futureagi")).toBeVisible();
     expect(
       within(guide).getByText("export FUTUREAGI_API_KEY=test"),

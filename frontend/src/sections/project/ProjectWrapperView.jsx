@@ -44,6 +44,7 @@ import {
   buildObserveProjectOnboardingHref,
   buildObserveRouteFocusPayload,
   getObserveOnboardingCopy,
+  getObserveSetupPackageLabel,
   getObserveSetupOnboardingParams,
   OBSERVE_ONBOARDING_MODES,
   OBSERVE_ONBOARDING_SOURCES,
@@ -149,13 +150,28 @@ const ProjectWrapperView = () => {
       showObserveSetupFocus
         ? getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE, {
             credentialsCopied: observeSetupOnboardingParams.credentialsCopied,
+            setupLanguage: observeSetupOnboardingParams.setupLanguage,
+            setupProvider: observeSetupOnboardingParams.setupProvider,
             source: observeSetupOnboardingParams.source,
           })
         : null,
     [
       observeSetupOnboardingParams.credentialsCopied,
+      observeSetupOnboardingParams.setupLanguage,
+      observeSetupOnboardingParams.setupProvider,
       observeSetupOnboardingParams.source,
       showObserveSetupFocus,
+    ],
+  );
+  const observeSetupPackageLabel = useMemo(
+    () =>
+      getObserveSetupPackageLabel({
+        setupLanguage: observeSetupOnboardingParams.setupLanguage,
+        setupProvider: observeSetupOnboardingParams.setupProvider,
+      }),
+    [
+      observeSetupOnboardingParams.setupLanguage,
+      observeSetupOnboardingParams.setupProvider,
     ],
   );
   const canOpenObserveSetupSample =
@@ -295,7 +311,9 @@ const ProjectWrapperView = () => {
     if (!observeSetupCopy) return null;
     return {
       label: firstObserveProjectId
-        ? "Wait for first trace"
+        ? observeSetupPackageLabel
+          ? `Wait for ${observeSetupPackageLabel} trace`
+          : "Wait for first trace"
         : isProjectCount
           ? "Open setup"
           : observeSetupCopy.primaryLabel,
@@ -306,6 +324,7 @@ const ProjectWrapperView = () => {
     handleObserveSetupPrimaryAction,
     isProjectCount,
     observeSetupCopy,
+    observeSetupPackageLabel,
   ]);
 
   const openSampleTraceAction = useMemo(() => {

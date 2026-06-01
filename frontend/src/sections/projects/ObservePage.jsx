@@ -165,8 +165,16 @@ const ObservePage = React.memo(() => {
     ? OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE
     : observeOnboardingParams.mode;
   const observeOnboardingCopy = useMemo(
-    () => getObserveOnboardingCopy(observeOnboardingPanelMode),
-    [observeOnboardingPanelMode],
+    () =>
+      getObserveOnboardingCopy(observeOnboardingPanelMode, {
+        setupLanguage: observeOnboardingParams.setupLanguage,
+        setupProvider: observeOnboardingParams.setupProvider,
+      }),
+    [
+      observeOnboardingPanelMode,
+      observeOnboardingParams.setupLanguage,
+      observeOnboardingParams.setupProvider,
+    ],
   );
   const showObserveOnboardingFocus =
     observeOnboardingParams.isOnboarding && Boolean(observeOnboardingCopy);
