@@ -577,6 +577,7 @@ export default function NotificationSettingsPage() {
                           }
                           onClick={() => testMutation.mutate(channel.id)}
                           title="Test channel"
+                          aria-label={`Test ${channel.display_name}`}
                         >
                           <Iconify icon="mdi:send-outline" width={18} />
                         </IconButton>

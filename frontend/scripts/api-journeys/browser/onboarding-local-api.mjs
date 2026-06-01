@@ -17,6 +17,83 @@ const projectIdForIndex = (index) => uuidFor(1000 + index);
 const traceIdForIndex = (index) => uuidFor(2000 + index);
 const evalIdForIndex = (index) => uuidFor(3000 + index);
 const runIdForIndex = (index) => uuidFor(4000 + index);
+const preferenceIdForIndex = (index) => uuidFor(5000 + index);
+const channelIdForIndex = (index) => uuidFor(6000 + index);
+const deliveryLogIdForIndex = (index) => uuidFor(7000 + index);
+const nowIso = () => new Date().toISOString();
+
+const NOTIFICATION_CHANNELS = ["email", "in_app", "slack", "webhook"];
+const NOTIFICATION_FAMILIES = [
+  {
+    id: "product_onboarding",
+    label: "Product onboarding",
+    description: "First action, path recovery, and activation nudges.",
+    default_channels: ["email", "in_app"],
+    non_critical: true,
+    user_controllable: true,
+    workspace_controllable: true,
+  },
+  {
+    id: "daily_quality_digest",
+    label: "Daily quality digest",
+    description: "Return-loop summaries for activated workspaces.",
+    default_channels: ["email", "in_app"],
+    non_critical: true,
+    user_controllable: true,
+    workspace_controllable: true,
+  },
+  {
+    id: "usage_budget",
+    label: "Usage and budget alerts",
+    description: "Budget thresholds, warnings, and blocking usage states.",
+    default_channels: ["email", "in_app"],
+    non_critical: false,
+    user_controllable: false,
+    workspace_controllable: true,
+  },
+  {
+    id: "gateway_alert",
+    label: "Gateway alerts",
+    description: "Gateway cost, latency, errors, and guardrail activity.",
+    default_channels: ["email"],
+    non_critical: false,
+    user_controllable: false,
+    workspace_controllable: true,
+  },
+  {
+    id: "observe_monitor",
+    label: "Observe monitors",
+    description: "Trace, eval, latency, reliability, and spend monitor alerts.",
+    default_channels: ["email"],
+    non_critical: false,
+    user_controllable: false,
+    workspace_controllable: true,
+  },
+  {
+    id: "eval_quality_alert",
+    label: "Eval quality alerts",
+    description: "Eval failures, regressions, and quality-review reminders.",
+    default_channels: ["email"],
+    non_critical: false,
+    user_controllable: false,
+    workspace_controllable: true,
+  },
+  {
+    id: "workspace_admin",
+    label: "Workspace administration",
+    description: "Invites, access, security, and account-state messages.",
+    default_channels: ["email", "in_app"],
+    non_critical: false,
+    user_controllable: false,
+    workspace_controllable: true,
+  },
+];
+
+const CHANNEL_TYPE_TO_DELIVERY = {
+  email_list: "email",
+  slack_webhook: "slack",
+  webhook: "webhook",
+};
 
 const defaultState = () => ({
   activationEvents: [],
@@ -29,6 +106,51 @@ const defaultState = () => ({
     goals: ["monitor_production_ai_app"],
     role: "Subject Matter Expert",
   },
+  notificationChannelCounter: 1,
+  notificationChannels: [
+    {
+      config: {
+        webhook_url: "https://example.com/slack/onboarding-local",
+      },
+      display_name: "Onboarding Slack",
+      id: "stub-slack-channel",
+      is_active: true,
+      last_test_status: "untested",
+      last_tested_at: null,
+      metadata: {},
+      scope: "workspace",
+      target_identifier: "Slack webhook configured",
+      type: "slack_webhook",
+    },
+  ],
+  notificationDeliveryCounter: 1,
+  notificationDeliveryLogs: [
+    {
+      channel: "slack",
+      created_at: nowIso(),
+      family: "usage_budget",
+      id: deliveryLogIdForIndex(1),
+      metadata: {
+        action: "warn",
+        current_usage: "$812",
+        scope: "workspace",
+        threshold_value: "$800",
+      },
+      notification_key: "budget_threshold_80",
+      recipient_identifier_masked: "Slack webhook configured",
+      recipient_type: "slack_webhook",
+      route_url: "/dashboard/settings/billing",
+      sent_at: null,
+      severity: "warning",
+      source_id: "local-budget-1",
+      source_type: "usage_budget",
+      stage: "80",
+      status: "suppressed",
+      suppressed_reason: "channel_disabled",
+    },
+  ],
+  notificationPreferenceCounter: 0,
+  notificationPreferences: [],
   projects: new Map(),
   requests: [],
   traceReviewed: false,
@@ -46,8 +168,6 @@ const firstProjectId = () =>
 
 const firstTraceId = () =>
   Array.from(state.traces.keys())[0] || traceIdForIndex(1);
-
-const nowIso = () => new Date().toISOString();
 
 const clone = (value) => structuredClone(value);
 
@@ -360,6 +480,239 @@ const evalUsagePayload = (templateId) => {
   };
 };
 
+const maskEndpoint = (value) => {
+  const text = String(value || "");
+  if (!text) return "";
+  if (text.length <= 12) return "****";
+  return `${text.slice(0, 8)}...${text.slice(-4)}`;
+};
+
+const maskedChannelConfig = (channel) => {
+  const config = channel.config || {};
+  if (channel.type === "slack_webhook") {
+    return config.webhook_url
+      ? { webhook_url: maskEndpoint(config.webhook_url) }
+      : {};
+  }
+  if (channel.type === "webhook") {
+    return {
+      ...(config.url ? { url: maskEndpoint(config.url) } : {}),
+      ...(config.secret ? { secret: "****" } : {}),
+    };
+  }
+  return {};
+};
+
+const targetIdentifierForChannel = (type, config = {}, displayName = "") => {
+  if (type === "slack_webhook") {
+    return config.webhook_url ? "Slack webhook configured" : "";
+  }
+  if (type === "webhook") return maskEndpoint(config.url || displayName);
+  return "";
+};
+
+const serializeNotificationChannel = (channel) => ({
+  config: maskedChannelConfig(channel),
+  display_name: channel.display_name,
+  id: channel.id,
+  is_active: channel.is_active !== false,
+  last_test_status: channel.last_test_status || "untested",
+  last_tested_at: channel.last_tested_at || null,
+  metadata: channel.metadata || {},
+  scope: channel.scope || "workspace",
+  target_identifier: channel.target_identifier || "",
+  type: channel.type,
+});
+
+const serializeNotificationPreference = (preference) => ({
+  channel: preference.channel,
+  enabled: preference.enabled !== false,
+  family: preference.family,
+  frequency_cap_minutes: preference.frequency_cap_minutes ?? null,
+  id: preference.id,
+  mute_until: preference.mute_until ?? null,
+  scope: preference.scope || "user_workspace",
+  settings: preference.settings || {},
+  source: "stored",
+});
+
+const activeExternalChannelExists = (channel) => {
+  if (!["slack", "webhook"].includes(channel)) return true;
+  return state.notificationChannels.some(
+    (item) =>
+      CHANNEL_TYPE_TO_DELIVERY[item.type] === channel &&
+      item.is_active !== false,
+  );
+};
+
+const preferenceRank = (scope) =>
+  ({
+    user_workspace: 4,
+    user: 3,
+    workspace: 2,
+    organization: 1,
+  })[scope] || 0;
+
+const findStoredNotificationPreference = (familyId, channel) =>
+  [...state.notificationPreferences]
+    .filter(
+      (preference) =>
+        preference.family === familyId && preference.channel === channel,
+    )
+    .sort((a, b) => preferenceRank(b.scope) - preferenceRank(a.scope))[0] ||
+  null;
+
+const notificationPreferenceDecision = (family, channel) => {
+  if (!activeExternalChannelExists(channel)) {
+    return {
+      allowed: false,
+      channel,
+      family: family.id,
+      preference_id: null,
+      reason: "channel_not_configured",
+      source: "channel",
+    };
+  }
+
+  const preference = findStoredNotificationPreference(family.id, channel);
+  if (preference) {
+    return {
+      allowed: preference.enabled !== false,
+      channel,
+      family: family.id,
+      preference_id: preference.id,
+      reason: preference.enabled === false ? "user_disabled_family" : null,
+      source: preference.scope || "user_workspace",
+    };
+  }
+
+  if (!family.default_channels.includes(channel)) {
+    return {
+      allowed: false,
+      channel,
+      family: family.id,
+      preference_id: null,
+      reason: "channel_not_enabled",
+      source: "default",
+    };
+  }
+
+  return {
+    allowed: true,
+    channel,
+    family: family.id,
+    preference_id: null,
+    reason: null,
+    source: "default",
+  };
+};
+
+const notificationSettingsPayload = () => ({
+  can_manage_workspace: true,
+  channels: state.notificationChannels.map(serializeNotificationChannel),
+  decisions: NOTIFICATION_FAMILIES.flatMap((family) =>
+    NOTIFICATION_CHANNELS.map((channel) =>
+      notificationPreferenceDecision(family, channel),
+    ),
+  ),
+  delivery_logs: state.notificationDeliveryLogs.slice(0, 25),
+  families: clone(NOTIFICATION_FAMILIES),
+  preferences: state.notificationPreferences.map(
+    serializeNotificationPreference,
+  ),
+});
+
+const upsertNotificationPreference = (item = {}) => {
+  if (!item.family || !item.channel) return;
+  const scope = item.scope || "user_workspace";
+  const existing = state.notificationPreferences.find(
+    (preference) =>
+      preference.scope === scope &&
+      preference.family === item.family &&
+      preference.channel === item.channel,
+  );
+  const next = {
+    channel: item.channel,
+    enabled: item.enabled !== false,
+    family: item.family,
+    frequency_cap_minutes: item.frequency_cap_minutes ?? null,
+    mute_until: item.mute_until ?? null,
+    scope,
+    settings: item.settings || {},
+  };
+  if (existing) {
+    Object.assign(existing, next);
+    return;
+  }
+  state.notificationPreferenceCounter += 1;
+  state.notificationPreferences.push({
+    ...next,
+    id: preferenceIdForIndex(state.notificationPreferenceCounter),
+  });
+};
+
+const upsertNotificationChannel = (item = {}) => {
+  if (!item.type) return;
+  const existing = item.id
+    ? state.notificationChannels.find((channel) => channel.id === item.id)
+    : null;
+  const previousConfig = existing?.config || {};
+  const config = item.config
+    ? { ...previousConfig, ...item.config }
+    : previousConfig;
+  const next = {
+    config,
+    display_name:
+      item.display_name || existing?.display_name || "Workspace alerts",
+    id:
+      existing?.id ||
+      item.id ||
+      channelIdForIndex(++state.notificationChannelCounter),
+    is_active: item.is_active ?? existing?.is_active ?? true,
+    last_test_status: existing?.last_test_status || "untested",
+    last_tested_at: existing?.last_tested_at || null,
+    metadata: item.metadata || existing?.metadata || {},
+    scope: item.scope || existing?.scope || "workspace",
+    target_identifier: targetIdentifierForChannel(
+      item.type,
+      config,
+      item.display_name || existing?.display_name,
+    ),
+    type: item.type,
+  };
+
+  if (existing) {
+    Object.assign(existing, next);
+    return existing;
+  }
+  state.notificationChannels.push(next);
+  return next;
+};
+
+const recordChannelTestDelivery = (channel) => {
+  state.notificationDeliveryCounter += 1;
+  const deliveryChannel = CHANNEL_TYPE_TO_DELIVERY[channel.type] || "webhook";
+  state.notificationDeliveryLogs.unshift({
+    channel: deliveryChannel,
+    created_at: nowIso(),
+    family: "workspace_admin",
+    id: deliveryLogIdForIndex(state.notificationDeliveryCounter),
+    metadata: { dry_run: true },
+    notification_key: "notification_channel_test",
+    recipient_identifier_masked:
+      channel.target_identifier || targetIdentifierForChannel(channel.type),
+    recipient_type: channel.type,
+    route_url: "",
+    sent_at: null,
+    severity: "info",
+    source_id: channel.id,
+    source_type: "notification_channel",
+    stage: "test",
+    status: "eligible",
+    suppressed_reason: null,
+  });
+};
+
 const handleAuthRoute = async (req, res, path) => {
   if (path === "/accounts/signup/" && req.method === "POST") {
     const body = await readJsonBody(req);
@@ -495,6 +848,41 @@ const handleAuthRoute = async (req, res, path) => {
 
   if (path === "/accounts/sample-project/" && req.method === "POST") {
     writeJson(res, 200, ok(makeActivationState(new URL("http://local/"))));
+    return true;
+  }
+
+  if (path === "/accounts/notification-preferences/" && req.method === "GET") {
+    writeJson(res, 200, ok(notificationSettingsPayload()));
+    return true;
+  }
+
+  if (
+    path === "/accounts/notification-preferences/" &&
+    req.method === "PATCH"
+  ) {
+    const body = await readJsonBody(req);
+    (body.preferences || []).forEach(upsertNotificationPreference);
+    (body.channels || []).forEach(upsertNotificationChannel);
+    writeJson(res, 200, ok(notificationSettingsPayload()));
+    return true;
+  }
+
+  const channelTestMatch = path.match(
+    /^\/accounts\/notification-channels\/([^/]+)\/test\/$/,
+  );
+  if (channelTestMatch && req.method === "POST") {
+    const channelId = decodeURIComponent(channelTestMatch[1]);
+    const channel = state.notificationChannels.find(
+      (item) => item.id === channelId,
+    );
+    if (!channel) {
+      writeJson(res, 404, notFound("Notification channel not found."));
+      return true;
+    }
+    channel.last_tested_at = nowIso();
+    channel.last_test_status = "ready";
+    recordChannelTestDelivery(channel);
+    writeJson(res, 200, ok({ channel: serializeNotificationChannel(channel) }));
     return true;
   }
 

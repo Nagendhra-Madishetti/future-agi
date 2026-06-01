@@ -467,6 +467,41 @@ describe("NotificationSettingsPage", () => {
     );
   });
 
+  it("lets workspace admins test a configured channel", async () => {
+    const user = userEvent.setup();
+    mockGet.mockResolvedValue({
+      data: {
+        result: settingsResult({
+          channels: [
+            {
+              id: "slack-channel-1",
+              scope: "workspace",
+              type: "slack_webhook",
+              display_name: "Daily quality Slack",
+              target_identifier: "Slack webhook",
+              is_active: true,
+            },
+          ],
+        }),
+      },
+    });
+
+    const { default: NotificationSettingsPage } = await import(
+      "../NotificationSettingsPage"
+    );
+    renderWithQuery(<NotificationSettingsPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Test Daily quality Slack" }),
+    );
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(1));
+    expect(mockPost).toHaveBeenCalledWith(
+      "/accounts/notification-channels/slack-channel-1/test/",
+      {},
+    );
+  });
+
   it("renders recent notification delivery events", async () => {
     mockGet.mockResolvedValue({
       data: {

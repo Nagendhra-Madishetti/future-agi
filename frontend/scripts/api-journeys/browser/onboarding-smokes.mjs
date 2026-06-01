@@ -393,6 +393,13 @@ const SMOKES = [
       "Stubbed proof from first-run Home agent CTA through agent creation into run-scenario focus.",
   },
   {
+    id: "notification-settings-controlled",
+    mode: "controlled",
+    file: "notification-settings-smoke.mjs",
+    description:
+      "Local API proof for notification settings, Slack channel tests, and usage-budget preferences.",
+  },
+  {
     id: "onboarding-first-signup-aha-coverage-controlled",
     mode: "controlled",
     suite: true,
