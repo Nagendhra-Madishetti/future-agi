@@ -8,6 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from accounts.services.onboarding.flow_config import (
     _validate_config,
+    configured_goal_options,
     configured_journey_for_path,
     configured_stage_ids,
     get_activation_flow_config,
@@ -68,6 +69,35 @@ def test_activation_flow_exposes_editable_path_journeys():
         "start_prompt",
         "run_prompt_test",
     ]
+
+
+def test_activation_flow_exposes_editable_goal_outcomes():
+    goals = configured_goal_options()
+    outcomes_by_goal = {goal["goal"]: goal["outcome_preview"] for goal in goals}
+
+    assert outcomes_by_goal["monitor_production_ai_app"] == (
+        "A real trace reviewed and an evaluator ready to create."
+    )
+    assert outcomes_by_goal["connect_voice_ai_agent"] == (
+        "A test call transcript with success criteria to add."
+    )
+    assert all(outcome for outcome in outcomes_by_goal.values())
+
+
+def test_activation_flow_requires_safe_goal_outcome_copy():
+    config = _valid_activation_flow_config()
+    config["goals"]["monitor_production_ai_app"].pop("outcome_preview")
+
+    with pytest.raises(ImproperlyConfigured):
+        _validate_config(config)
+
+    config = _valid_activation_flow_config()
+    config["goals"]["monitor_production_ai_app"]["outcome_preview"] = (
+        "Open https://example.invalid"
+    )
+
+    with pytest.raises(ImproperlyConfigured):
+        _validate_config(config)
 
 
 def test_activation_flow_rejects_unknown_journey_action():

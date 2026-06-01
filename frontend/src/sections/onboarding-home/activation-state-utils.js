@@ -427,6 +427,7 @@ const normalizeAvailableGoal = (raw) => ({
   primaryPath: normalizeProductPath(raw.primary_path ?? raw.primaryPath),
   label: raw.label,
   description: raw.description,
+  outcomePreview: raw.outcome_preview ?? raw.outcomePreview ?? null,
   estimatedMinutes: raw.estimated_minutes ?? raw.estimatedMinutes ?? null,
   disabled: Boolean(raw.disabled),
   disabledReason: raw.disabled_reason ?? raw.disabledReason ?? null,

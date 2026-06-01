@@ -13,7 +13,10 @@ import {
 } from "./observe-panel-utils";
 import { observeFallbackJourneyPlan } from "./observe-fallback-journey-plan";
 import { journeyCurrentStep } from "./journey-guide-utils";
-import { persistObserveSetupIntent } from "src/sections/projects/observeOnboardingRoute";
+import {
+  getObserveSetupInstallCommand,
+  persistObserveSetupIntent,
+} from "src/sections/projects/observeOnboardingRoute";
 
 const OBSERVE_PACKAGE_OPTIONS = [
   { id: "openai", label: "OpenAI", languages: ["python", "typescript"] },
@@ -176,6 +179,71 @@ ObservePackagePicker.propTypes = {
   provider: PropTypes.string,
 };
 
+function ObservePackageCodePreview({ language, provider }) {
+  const selectedSetupLabel = packageSetupLabel({ language, provider });
+  const installCommand = getObserveSetupInstallCommand({
+    setupLanguage: language,
+    setupProvider: provider,
+  });
+
+  if (!selectedSetupLabel || !installCommand) return null;
+
+  return (
+    <Box
+      data-testid="observe-package-code-preview"
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 1,
+        bgcolor: "background.neutral",
+        p: 1.5,
+      }}
+    >
+      <Stack spacing={1}>
+        <Stack spacing={0.25}>
+          <Typography variant="subtitle2">
+            {selectedSetupLabel} setup preview
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Setup starts with this install command. The next page gives the
+            Future AGI keys, provider key setup, package instrumentation, and a
+            request to run.
+          </Typography>
+        </Stack>
+        <Box
+          component="pre"
+          data-testid="observe-package-install-command"
+          sx={{
+            m: 0,
+            p: 1,
+            borderRadius: 1,
+            bgcolor: "grey.900",
+            color: "common.white",
+            fontFamily: "monospace",
+            fontSize: 13,
+            lineHeight: 1.6,
+            overflowX: "auto",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {installCommand}
+        </Box>
+        <Typography variant="caption" color="text.secondary">
+          After you run one request, keep the trace page open. Future AGI waits
+          for the trace, opens review when it arrives, then points you to
+          evaluator setup.
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
+
+ObservePackageCodePreview.propTypes = {
+  language: PropTypes.string.isRequired,
+  provider: PropTypes.string,
+};
+
 export default function ObserveSetupPanel({
   action,
   fallbackAction,
@@ -322,6 +390,12 @@ export default function ObserveSetupPanel({
             language={selectedLanguage}
             onLanguageChange={setSelectedLanguage}
             onProviderChange={setSelectedProvider}
+            provider={selectedProvider}
+          />
+        ) : null}
+        {shouldShowPackagePicker && selectedSetupLabel ? (
+          <ObservePackageCodePreview
+            language={selectedLanguage}
             provider={selectedProvider}
           />
         ) : null}

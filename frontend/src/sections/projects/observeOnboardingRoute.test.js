@@ -5,9 +5,11 @@ import {
   buildObserveRouteFocusPayload,
   buildObserveSetupHref,
   buildObserveTraceReviewHref,
+  getObserveFirstTraceBaselineId,
   getFirstTraceIdFromTraceListResult,
   getObserveFirstTraceReviewTarget,
   getObserveOnboardingCopy,
+  getObserveSetupInstallCommand,
   getObserveOnboardingParams,
   getObserveSetupPackageLabel,
   getObserveSetupOnboardingParams,
@@ -289,6 +291,20 @@ describe("observeOnboardingRoute", () => {
     );
   });
 
+  it("carries an existing trace baseline into the first-trace wait route", () => {
+    const href = buildObserveProjectOnboardingHref({
+      baselineTraceId: "trace-existing",
+      observeId: "project-1",
+      mode: OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
+      setupLanguage: "python",
+      setupProvider: "anthropic",
+    });
+    expect(href).toBe(
+      "/dashboard/observe/project-1/llm-tracing?source=onboarding&onboarding=send-first-trace&selectedTab=trace&baseline_trace_id=trace-existing&provider=anthropic&language=python",
+    );
+    expect(getObserveFirstTraceBaselineId(href)).toBe("trace-existing");
+  });
+
   it("builds observe trace review hrefs", () => {
     expect(
       buildObserveTraceReviewHref({
@@ -446,6 +462,26 @@ describe("observeOnboardingRoute", () => {
         setupProvider: "Anthropic",
       }),
     ).toBe("Anthropic TypeScript");
+    expect(
+      getObserveSetupInstallCommand({
+        setupLanguage: "python",
+        setupProvider: "Anthropic",
+      }),
+    ).toBe("pip install traceAI-anthropic anthropic");
+    expect(
+      getObserveSetupInstallCommand({
+        setupLanguage: "typescript",
+        setupProvider: "Anthropic",
+      }),
+    ).toBe(
+      "npm install @traceai/fi-core @traceai/anthropic @opentelemetry/instrumentation @anthropic-ai/sdk",
+    );
+    expect(
+      getObserveSetupInstallCommand({
+        setupLanguage: "typescript",
+        setupProvider: "bedrock",
+      }),
+    ).toBe("");
 
     expect(
       getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE, {

@@ -221,7 +221,35 @@ describe("ObservePage onboarding first-trace handoff", () => {
     );
   });
 
-  it("auto-opens trace review when the trace table reports a new trace", async () => {
+  it("auto-opens trace review when the first trace event arrives without a baseline", async () => {
+    render(<ObservePage />);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(OBSERVE_FIRST_TRACE_LOADED_EVENT, {
+          detail: {
+            projectId: "observe-1",
+            traceId: "trace-existing",
+          },
+        }),
+      );
+    });
+
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith(
+        buildObserveTraceReviewHref({
+          observeId: "observe-1",
+          traceId: "trace-existing",
+        }),
+        { replace: true },
+      ),
+    );
+  });
+
+  it("waits for a new trace when the route carries an existing baseline", async () => {
+    mocks.search =
+      "?source=onboarding&onboarding=send-first-trace&selectedTab=trace&baseline_trace_id=trace-existing";
+
     render(<ObservePage />);
 
     act(() => {
@@ -308,31 +336,44 @@ describe("ObservePage onboarding first-trace handoff", () => {
       );
     });
 
-    act(() => {
-      window.dispatchEvent(
-        new CustomEvent(OBSERVE_FIRST_TRACE_LOADED_EVENT, {
-          detail: {
-            projectId: "observe-1",
-            traceId: "trace-2",
-          },
-        }),
-      );
-    });
-
     await waitFor(() =>
       expect(mocks.navigate).toHaveBeenCalledWith(
         buildObserveTraceReviewHref({
           observeId: "observe-1",
           setupLanguage: "python",
           setupProvider: "anthropic",
-          traceId: "trace-2",
+          traceId: "trace-existing",
         }),
         { replace: true },
       ),
     );
   });
 
-  it("does not auto-open an existing trace from the initial polling baseline", async () => {
+  it("auto-opens a trace found by polling when no baseline is present", async () => {
+    mocks.axiosGet.mockResolvedValue({
+      data: {
+        result: {
+          table: [{ trace_id: "trace-polled" }],
+        },
+      },
+    });
+
+    render(<ObservePage />);
+
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith(
+        buildObserveTraceReviewHref({
+          observeId: "observe-1",
+          traceId: "trace-polled",
+        }),
+        { replace: true },
+      ),
+    );
+  });
+
+  it("does not auto-open the initial polling baseline when one is present", async () => {
+    mocks.search =
+      "?source=onboarding&onboarding=send-first-trace&selectedTab=trace&baseline_trace_id=trace-polled";
     mocks.axiosGet.mockResolvedValue({
       data: {
         result: {

@@ -188,6 +188,14 @@ const ProjectWrapperView = () => {
       observeSetupFocusState?.sampleProject ||
         observeActivationState?.sampleProject,
     );
+  const observeKnownTraceCount =
+    observeSetupFocusState?.signals?.traces ??
+    observeSetupFocusState?.signals?.trace_count ??
+    observeActivationState?.signals?.traces ??
+    observeActivationState?.signals?.trace_count;
+  const traceCountWasKnownEmpty =
+    observeKnownTraceCount !== undefined &&
+    Number(observeKnownTraceCount) === 0;
 
   useEffect(() => {
     if (!showObserveSetupFocus) return;
@@ -286,6 +294,7 @@ const ProjectWrapperView = () => {
         search: location.search,
         setupLanguage: observeSetupOnboardingParams.setupLanguage,
         setupProvider: observeSetupOnboardingParams.setupProvider,
+        baselineTraceId: observeSetupTraceBaselineRef.current.traceId || null,
       }),
       { replace: true },
     );
@@ -352,10 +361,11 @@ const ProjectWrapperView = () => {
           if (baseline.key !== baselineKey) return;
           if (baseline.traceId === undefined) {
             baseline.traceId = traceId || null;
-            return;
+            if (!traceId || !traceCountWasKnownEmpty) return;
+          } else {
+            if (!traceId) return;
+            if (traceId === baseline.traceId) return;
           }
-          if (!traceId) return;
-          if (traceId === baseline.traceId) return;
           const reviewKey = `${firstObserveProjectId}:${traceId}`;
           if (autoOpenedTraceReviewRef.current === reviewKey) return;
           autoOpenedTraceReviewRef.current = reviewKey;
@@ -389,13 +399,30 @@ const ProjectWrapperView = () => {
     observeSetupOnboardingParams.setupLanguage,
     observeSetupOnboardingParams.setupProvider,
     observeSetupOnboardingParams.source,
+    traceCountWasKnownEmpty,
     showObserveSetupFocus,
   ]);
 
-  const handleObserveSetupPrimaryAction = useCallback(() => {
+  const resolveCurrentTraceBaselineId = useCallback(async () => {
+    if (!firstObserveProjectId) return null;
+    const currentBaseline = observeSetupTraceBaselineRef.current.traceId;
+    if (currentBaseline !== undefined) return currentBaseline || null;
+    try {
+      const traceId = await fetchOnboardingFirstTraceId();
+      observeSetupTraceBaselineRef.current.traceId = traceId || null;
+      return traceId || null;
+    } catch {
+      observeSetupTraceBaselineRef.current.traceId = null;
+      return null;
+    }
+  }, [fetchOnboardingFirstTraceId, firstObserveProjectId]);
+
+  const handleObserveSetupPrimaryAction = useCallback(async () => {
     if (firstObserveProjectId) {
+      const baselineTraceId = await resolveCurrentTraceBaselineId();
       navigate(
         buildObserveProjectOnboardingHref({
+          baselineTraceId,
           observeId: firstObserveProjectId,
           mode: OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
           search: location.search,
@@ -420,6 +447,7 @@ const ProjectWrapperView = () => {
     navigate,
     observeSetupOnboardingParams.setupLanguage,
     observeSetupOnboardingParams.setupProvider,
+    resolveCurrentTraceBaselineId,
   ]);
 
   const handleOpenSampleTrace = useCallback(async () => {

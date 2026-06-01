@@ -33,6 +33,7 @@ export const ONBOARDING_GOAL_OPTIONS = [
     primaryPath: "observe",
     label: "Connect your agent",
     description: "Connect traces from an AI app or agent.",
+    outcomePreview: "A real trace reviewed and an evaluator ready to create.",
     estimatedMinutes: 5,
   },
   {
@@ -41,6 +42,7 @@ export const ONBOARDING_GOAL_OPTIONS = [
     primaryPath: "prompt",
     label: "Test prompts or agent prompts",
     description: "Run prompt tests and compare output changes.",
+    outcomePreview: "A tested prompt version with a comparison baseline.",
     estimatedMinutes: 6,
   },
   {
@@ -49,6 +51,7 @@ export const ONBOARDING_GOAL_OPTIONS = [
     primaryPath: "agent",
     label: "Prototype agent",
     description: "Run a first scenario and inspect the agent trace.",
+    outcomePreview: "A scenario run you can inspect and turn into coverage.",
     estimatedMinutes: 8,
   },
   {
@@ -57,6 +60,7 @@ export const ONBOARDING_GOAL_OPTIONS = [
     primaryPath: "gateway",
     label: "Set up gateway",
     description: "Add a provider, create a key, and send a gateway request.",
+    outcomePreview: "A gateway request log ready for routing or policy review.",
     estimatedMinutes: 7,
   },
   {
@@ -65,6 +69,7 @@ export const ONBOARDING_GOAL_OPTIONS = [
     primaryPath: "evals",
     label: "Test AI with Simulation / Evals",
     description: "Create an eval or simulation and review the first result.",
+    outcomePreview: "An eval run with results and failures ready to review.",
     estimatedMinutes: 7,
   },
   {
@@ -73,6 +78,7 @@ export const ONBOARDING_GOAL_OPTIONS = [
     primaryPath: "voice",
     label: "Connect a voice AI agent",
     description: "Run or review a call with clear success criteria.",
+    outcomePreview: "A test call transcript with success criteria to add.",
     estimatedMinutes: 8,
   },
   {
@@ -81,6 +87,7 @@ export const ONBOARDING_GOAL_OPTIONS = [
     primaryPath: "sample",
     label: "Preview sample trace",
     description: "Inspect a sample trace while real setup is pending.",
+    outcomePreview: "A sample trace reviewed before connecting real data.",
     estimatedMinutes: 2,
   },
 ];
@@ -372,6 +379,7 @@ const optionFromResponse = (goal) => ({
   primaryPath: goal.primary_path || goal.primaryPath,
   label: goal.label,
   description: goal.description,
+  outcomePreview: goal.outcome_preview || goal.outcomePreview || null,
   estimatedMinutes: goal.estimated_minutes || goal.estimatedMinutes || null,
   disabled: Boolean(goal.disabled),
   disabledReason: goal.disabled_reason || goal.disabledReason || null,

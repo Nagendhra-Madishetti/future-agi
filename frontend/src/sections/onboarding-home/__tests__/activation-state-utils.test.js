@@ -319,6 +319,8 @@ describe("activation-state utilities", () => {
     expect(normalized.availableGoals[0]).toEqual(
       expect.objectContaining({
         goal: "monitor_production_ai_app",
+        outcomePreview:
+          "A real trace reviewed and an evaluator ready to create.",
         primaryPath: "observe",
       }),
     );

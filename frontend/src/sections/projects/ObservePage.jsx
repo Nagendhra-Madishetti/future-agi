@@ -56,6 +56,7 @@ import {
   buildObserveRouteFocusPayload,
   buildObserveSetupHref,
   buildObserveTraceReviewHref,
+  getObserveFirstTraceBaselineId,
   getFirstTraceIdFromTraceListResult,
   getObserveFirstTraceReviewTarget,
   getObserveOnboardingCopy,
@@ -138,6 +139,10 @@ const ObservePage = React.memo(() => {
   const [activeTab, setActiveTab] = useUrlState("tab", "traces");
   const observeOnboardingParams = useMemo(
     () => getObserveOnboardingParams(location.search),
+    [location.search],
+  );
+  const firstTraceBaselineId = useMemo(
+    () => getObserveFirstTraceBaselineId(location.search),
     [location.search],
   );
   const activationTraceId =
@@ -531,7 +536,7 @@ const ObservePage = React.memo(() => {
     setLoadedTraceId(null);
     openedFirstTraceReviewRef.current = null;
     firstTraceBaselineRef.current = { key: null, traceId: undefined };
-  }, [observeId, observeOnboardingParams.mode]);
+  }, [firstTraceBaselineId, observeId, observeOnboardingParams.mode]);
 
   const fetchOnboardingFirstTraceId = useCallback(async () => {
     if (!observeId) return null;
@@ -550,62 +555,51 @@ const ObservePage = React.memo(() => {
     return getFirstTraceIdFromTraceListResult(response?.data?.result);
   }, [observeId]);
 
-  const refreshOnboardingFirstTrace = useCallback(() => {
-    void fetchOnboardingFirstTraceId()
-      .then((traceId) => {
-        const baselineKey = [
-          observeId,
-          observeOnboardingParams.setupProvider,
-          observeOnboardingParams.setupLanguage,
-        ].join(":");
-        const baseline = firstTraceBaselineRef.current;
-        if (baseline.key !== baselineKey || baseline.traceId === undefined) {
-          firstTraceBaselineRef.current = {
-            key: baselineKey,
-            traceId: traceId || null,
-          };
-          return;
-        }
-        if (traceId && traceId !== baseline.traceId) {
+  const handleFirstTraceCandidate = useCallback(
+    (traceId) => {
+      const baselineKey = [
+        observeId,
+        observeOnboardingParams.setupProvider,
+        observeOnboardingParams.setupLanguage,
+        firstTraceBaselineId,
+      ].join(":");
+      const baseline = firstTraceBaselineRef.current;
+      if (baseline.key !== baselineKey || baseline.traceId === undefined) {
+        const initialTraceId = firstTraceBaselineId || null;
+        firstTraceBaselineRef.current = {
+          key: baselineKey,
+          traceId: initialTraceId,
+        };
+        if (traceId && traceId !== initialTraceId) {
           setLoadedTraceId(traceId);
         }
-      })
+        return;
+      }
+      if (traceId && traceId !== baseline.traceId) {
+        setLoadedTraceId(traceId);
+      }
+    },
+    [
+      firstTraceBaselineId,
+      observeId,
+      observeOnboardingParams.setupLanguage,
+      observeOnboardingParams.setupProvider,
+    ],
+  );
+
+  const refreshOnboardingFirstTrace = useCallback(() => {
+    void fetchOnboardingFirstTraceId()
+      .then(handleFirstTraceCandidate)
       .catch(() => undefined);
-  }, [
-    fetchOnboardingFirstTraceId,
-    observeId,
-    observeOnboardingParams.setupLanguage,
-    observeOnboardingParams.setupProvider,
-  ]);
+  }, [fetchOnboardingFirstTraceId, handleFirstTraceCandidate]);
 
   useEffect(() => {
     if (!isWaitingForFirstTraceOnboarding || firstTraceReviewTarget) return;
     let mounted = true;
-    const baselineKey = [
-      observeId,
-      observeOnboardingParams.setupProvider,
-      observeOnboardingParams.setupLanguage,
-    ].join(":");
-    if (firstTraceBaselineRef.current.key !== baselineKey) {
-      firstTraceBaselineRef.current = {
-        key: baselineKey,
-        traceId: undefined,
-      };
-    }
-
     const verifyFirstTrace = () => {
       void fetchOnboardingFirstTraceId()
         .then((traceId) => {
-          if (!mounted) return;
-          const baseline = firstTraceBaselineRef.current;
-          if (baseline.key !== baselineKey) return;
-          if (baseline.traceId === undefined) {
-            baseline.traceId = traceId || null;
-            return;
-          }
-          if (traceId && traceId !== baseline.traceId) {
-            setLoadedTraceId(traceId);
-          }
+          if (mounted) handleFirstTraceCandidate(traceId);
         })
         .catch(() => undefined);
     };
@@ -619,10 +613,8 @@ const ObservePage = React.memo(() => {
   }, [
     fetchOnboardingFirstTraceId,
     firstTraceReviewTarget,
+    handleFirstTraceCandidate,
     isWaitingForFirstTraceOnboarding,
-    observeId,
-    observeOnboardingParams.setupLanguage,
-    observeOnboardingParams.setupProvider,
   ]);
 
   useEffect(() => {
@@ -636,22 +628,7 @@ const ObservePage = React.memo(() => {
     const handleFirstTraceLoaded = (event) => {
       const detail = event?.detail || {};
       if (detail.projectId !== observeId || !detail.traceId) return;
-      const baselineKey = [
-        observeId,
-        observeOnboardingParams.setupProvider,
-        observeOnboardingParams.setupLanguage,
-      ].join(":");
-      const baseline = firstTraceBaselineRef.current;
-      if (baseline.key !== baselineKey || baseline.traceId === undefined) {
-        firstTraceBaselineRef.current = {
-          key: baselineKey,
-          traceId: detail.traceId,
-        };
-        return;
-      }
-      if (detail.traceId !== baseline.traceId) {
-        setLoadedTraceId(detail.traceId);
-      }
+      handleFirstTraceCandidate(detail.traceId);
     };
 
     window.addEventListener(
@@ -665,10 +642,9 @@ const ObservePage = React.memo(() => {
       );
     };
   }, [
+    handleFirstTraceCandidate,
     observeId,
     observeOnboardingParams.mode,
-    observeOnboardingParams.setupLanguage,
-    observeOnboardingParams.setupProvider,
     showObserveOnboardingFocus,
   ]);
 

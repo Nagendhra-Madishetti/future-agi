@@ -52,6 +52,28 @@ const observeSetupLanguageLabels = {
   python: "Python",
   typescript: "TypeScript",
 };
+const observeSetupInstallCommands = {
+  python: {
+    anthropic: "pip install traceAI-anthropic anthropic",
+    bedrock: "pip install traceAI-bedrock boto3",
+    langchain: "pip install traceAI-langchain langchain-openai",
+    llamaindex: "pip install traceAI-llamaindex llama-index",
+    mcp: "pip install traceAI-mcp traceAI-openai-agents openai-agents",
+    openai: "pip install traceAI-openai openai",
+    openai_agents: "pip install traceAI-openai-agents openai-agents",
+  },
+  typescript: {
+    anthropic:
+      "npm install @traceai/fi-core @traceai/anthropic @opentelemetry/instrumentation @anthropic-ai/sdk",
+    langchain:
+      "npm install @traceai/fi-core @traceai/langchain @opentelemetry/instrumentation",
+    mcp: "npm install @traceai/fi-core @traceai/mcp @opentelemetry/instrumentation",
+    openai:
+      "npm install @traceai/fi-core @traceai/openai @opentelemetry/instrumentation openai",
+    openai_agents:
+      "npm install @traceai/fi-core @traceai/openai-agents @opentelemetry/instrumentation",
+  },
+};
 const projectModeSet = new Set([
   OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR,
   OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
@@ -137,6 +159,21 @@ export const getObserveSetupPackageLabel = ({
   const languageLabel =
     observeSetupLanguageLabels[safeSetupLanguage(setupLanguage)];
   return [providerLabel, languageLabel].filter(Boolean).join(" ");
+};
+
+export const getObserveSetupInstallCommand = ({
+  setupLanguage,
+  setupProvider,
+} = {}) => {
+  const provider = safeSetupProvider(setupProvider);
+  const language = safeSetupLanguage(setupLanguage);
+  if (!provider || !language) return "";
+  return observeSetupInstallCommands[language]?.[provider] || "";
+};
+
+export const getObserveFirstTraceBaselineId = (search = "") => {
+  const value = toSearchParams(search).get("baseline_trace_id");
+  return value ? value.slice(0, 256) : null;
 };
 
 const getObserveSetupProviderLabel = (setupProvider) =>
@@ -448,6 +485,7 @@ export const buildObserveSetupHref = ({
 };
 
 export const buildObserveProjectOnboardingHref = ({
+  baselineTraceId,
   observeId,
   mode,
   quickStartAttribution,
@@ -461,6 +499,7 @@ export const buildObserveProjectOnboardingHref = ({
   if (projectModeSet.has(mode)) params.set("onboarding", mode);
   if (mode === OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE) {
     params.set("selectedTab", "trace");
+    if (baselineTraceId) params.set("baseline_trace_id", baselineTraceId);
   }
   appendSetupIntentParams(params, { setupLanguage, setupProvider });
   return appendQuickStartAttribution(

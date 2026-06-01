@@ -545,6 +545,11 @@ class AvailableGoalSerializer(serializers.Serializer):
     primary_path = serializers.ChoiceField(choices=choices(PRODUCT_PATHS))
     label = serializers.CharField()
     description = serializers.CharField()
+    outcome_preview = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
     estimated_minutes = serializers.IntegerField(
         min_value=1,
         required=False,

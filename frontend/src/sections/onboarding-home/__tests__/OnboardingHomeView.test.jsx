@@ -411,6 +411,12 @@ describe("OnboardingHomeView", () => {
     await userEvent.click(
       within(panel).getByRole("button", { name: "OpenAI" }),
     );
+    expect(
+      within(panel).getByTestId("observe-package-code-preview"),
+    ).toHaveTextContent("OpenAI Python setup preview");
+    expect(
+      within(panel).getByTestId("observe-package-install-command"),
+    ).toHaveTextContent("pip install traceAI-openai openai");
     const setupUrl = new URL(
       within(panel)
         .getByRole("link", {
@@ -1335,6 +1341,12 @@ describe("OnboardingHomeView", () => {
     expect(
       within(panel).getByTestId("observe-selected-package-handoff"),
     ).toHaveTextContent("Anthropic Python path selected");
+    expect(
+      within(panel).getByTestId("observe-package-code-preview"),
+    ).toHaveTextContent("Anthropic Python setup preview");
+    expect(
+      within(panel).getByTestId("observe-package-install-command"),
+    ).toHaveTextContent("pip install traceAI-anthropic anthropic");
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Open Anthropic Python setup",
     );
@@ -1368,6 +1380,11 @@ describe("OnboardingHomeView", () => {
     expect(
       within(panel).getByTestId("observe-selected-package-handoff"),
     ).toHaveTextContent("Anthropic TypeScript path selected");
+    expect(
+      within(panel).getByTestId("observe-package-install-command"),
+    ).toHaveTextContent(
+      "npm install @traceai/fi-core @traceai/anthropic @opentelemetry/instrumentation @anthropic-ai/sdk",
+    );
     expect(within(panel).getByText("Send first trace")).toBeVisible();
     expect(within(panel).getByText("Review first trace")).toBeVisible();
     const setupLink = screen.getByRole("link", {

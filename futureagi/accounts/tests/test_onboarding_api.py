@@ -187,6 +187,9 @@ def test_activation_state_flag_on_returns_full_shape(auth_client, user):
     assert response.status_code == status.HTTP_200_OK
     payload = response.json()["result"]
     assert payload["stage"] == "connect_observability"
+    assert payload["available_goals"][0]["outcome_preview"] == (
+        "A real trace reviewed and an evaluator ready to create."
+    )
     for key in [
         "schema_version",
         "workspace_id",

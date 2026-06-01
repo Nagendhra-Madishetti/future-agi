@@ -183,6 +183,12 @@ def _validate_goals(config: dict) -> None:
             raise _config_error(f"{path}.primary_path references unknown path.")
         _required_text(goal_config, "label", path)
         _required_text(goal_config, "description", path)
+        outcome_preview = _required_text(goal_config, "outcome_preview", path)
+        _validate_safe_copy(
+            outcome_preview,
+            f"{path}.outcome_preview",
+            max_length=160,
+        )
         minutes = goal_config.get("estimated_minutes")
         if minutes is not None and (not isinstance(minutes, int) or minutes < 1):
             raise _config_error(f"{path}.estimated_minutes must be a positive integer.")
@@ -529,6 +535,7 @@ def configured_goal_options() -> list[dict]:
                 "primary_path": goal_config["primary_path"],
                 "label": goal_config["label"],
                 "description": goal_config["description"],
+                "outcome_preview": goal_config["outcome_preview"],
                 "estimated_minutes": goal_config.get("estimated_minutes"),
                 "disabled": False,
                 "disabled_reason": None,
