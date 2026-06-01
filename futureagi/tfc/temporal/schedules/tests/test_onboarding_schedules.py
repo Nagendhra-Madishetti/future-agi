@@ -1,5 +1,6 @@
 import sys
 
+import pytest
 from django.core.exceptions import ImproperlyConfigured
 
 from tfc.temporal.common.registry import TEMPORAL_ACTIVITY_MODULES
@@ -12,6 +13,8 @@ from tfc.temporal.schedules.onboarding import (
     run_onboarding_lifecycle_dry_run_scheduled_activity,
     run_onboarding_lifecycle_send_scheduled_activity,
 )
+
+pytestmark = pytest.mark.django_db
 
 
 class _Result:

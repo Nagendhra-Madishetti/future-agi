@@ -3,6 +3,7 @@ from typing import Any
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
+from accounts.services.onboarding.cloud_runtime import onboarding_cloud_jobs_enabled
 from tfc.temporal.drop_in import temporal_activity
 from tfc.temporal.schedules.config import ScheduleConfig
 
@@ -10,13 +11,7 @@ LIFECYCLE_SEND_SCHEDULE_MAX_LIMIT_DEFAULT = 100
 
 
 def _cloud_jobs_enabled() -> bool:
-    if not getattr(settings, "ONBOARDING_CLOUD_ACTIVATION_JOBS_ENABLED", False):
-        return False
-    try:
-        from ee.usage.deployment import DeploymentMode
-    except ImportError:
-        return False
-    return bool(DeploymentMode.is_cloud())
+    return onboarding_cloud_jobs_enabled()
 
 
 def _setting_int(name: str, default: int) -> int:

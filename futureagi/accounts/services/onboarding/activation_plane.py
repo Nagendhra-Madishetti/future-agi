@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from django.conf import settings
-
 from accounts.services.onboarding.activation_export_registry import (
     activation_export_paid_plan_values,
+)
+from accounts.services.onboarding.cloud_runtime import (
+    deployment_mode,
+    deployment_region,
+    organization_subscription_facts,
 )
 
 
@@ -19,81 +22,18 @@ class ActivationExportDecision:
     suppression_reason: str | None = None
 
 
-@dataclass(frozen=True)
-class _SubscriptionFacts:
-    plan_tier: str
-    status: str
-    paid: bool
-    suppression_reason: str | None = None
-
-
 def _deployment_mode():
-    try:
-        from ee.usage.deployment import DeploymentMode
-    except ImportError:
-        return "oss"
-    return DeploymentMode.get_mode()
+    return deployment_mode()
 
 
 def _deployment_region():
-    region = getattr(settings, "CLOUD_DEPLOYMENT", "") or ""
-    return str(region).lower()
+    return deployment_region()
 
 
-def _subscription_facts(organization) -> _SubscriptionFacts:
-    if organization is None:
-        return _SubscriptionFacts(
-            plan_tier="",
-            status="",
-            paid=False,
-            suppression_reason="organization_missing",
-        )
-
-    try:
-        from ee.usage.models.usage import (
-            OrganizationStatusChoices,
-            OrganizationSubscription,
-        )
-    except ImportError:
-        return _SubscriptionFacts(
-            plan_tier="",
-            status="",
-            paid=False,
-            suppression_reason="subscription_unavailable",
-        )
-
-    subscription = (
-        OrganizationSubscription.no_workspace_objects.select_related(
-            "subscription_tier"
-        )
-        .filter(organization=organization)
-        .order_by("-updated_at")
-        .first()
-    )
-    if subscription is None:
-        return _SubscriptionFacts(
-            plan_tier="",
-            status="",
-            paid=False,
-            suppression_reason="subscription_missing",
-        )
-
-    status = str(getattr(subscription, "status", "") or "")
-    if status != OrganizationStatusChoices.ACTIVE.value:
-        return _SubscriptionFacts(
-            plan_tier=str(getattr(subscription, "plan", "") or ""),
-            status=status,
-            paid=False,
-            suppression_reason="subscription_not_active",
-        )
-
-    plan = str(getattr(subscription, "plan", "") or "")
-    paid = plan in activation_export_paid_plan_values()
-    return _SubscriptionFacts(
-        plan_tier=plan,
-        status=status,
-        paid=paid,
-        suppression_reason=None if paid else "subscription_not_paid",
+def _subscription_facts(organization):
+    return organization_subscription_facts(
+        organization,
+        paid_plan_values=activation_export_paid_plan_values(),
     )
 
 

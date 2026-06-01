@@ -20,6 +20,9 @@ from accounts.models import (
 )
 from accounts.services.onboarding.activation_events import record_event
 from accounts.services.onboarding.activation_state import resolve_activation_state
+from accounts.services.onboarding.cloud_runtime import (
+    lifecycle_delivery_cloud_enabled,
+)
 from accounts.services.onboarding.context import resolve_onboarding_context
 from accounts.services.onboarding.feature_flags import get_onboarding_flags
 from accounts.services.onboarding.lifecycle_completion import (
@@ -158,11 +161,7 @@ def send_environment():
 
 
 def _cloud_lifecycle_delivery_enabled():
-    try:
-        from ee.usage.deployment import DeploymentMode
-    except ImportError:
-        return False
-    return bool(DeploymentMode.is_cloud())
+    return lifecycle_delivery_cloud_enabled()
 
 
 def _internal_route(route):
