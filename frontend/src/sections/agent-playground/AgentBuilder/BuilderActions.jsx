@@ -128,7 +128,7 @@ export default function BuilderActions({
       return "Workflow running";
     }
     if (isDraft) {
-      return "Save required";
+      return "Save this version first";
     }
     return null;
   })();
@@ -141,6 +141,10 @@ export default function BuilderActions({
     }
     return hasRun ? "Rerun workflow" : "Run workflow";
   })();
+  const runScenarioLabel =
+    showRunScenarioFocus && isDraft
+      ? "Save agent and run scenario"
+      : runWorkflowLabel;
 
   return (
     <>
@@ -155,12 +159,12 @@ export default function BuilderActions({
         }}
       >
         <AgentOnboardingFocusPanel
-          currentStep="Scenario"
-          description="Add prompt instructions if needed, then save and run the agent once so the first output can be reviewed."
+          currentStep="Run"
+          description="The prompt is ready. Save this version, then run one scenario to review the first output."
           hidden={!showRunScenarioFocus}
           blocker={onboardingBlocker}
           primaryAction={{
-            label: runWorkflowLabel,
+            label: runScenarioLabel,
             onClick: handleRunWorkflow,
             disabled: !hasNodes || isLoadingTemplate || isRunning,
           }}
@@ -174,13 +178,13 @@ export default function BuilderActions({
               : null
           }
           steps={[
-            { label: "Agent", complete: true },
-            { label: "Step", complete: true },
-            { label: "Scenario", complete: hasRun },
-            { label: "Review", complete: false },
+            { label: "Create", complete: true },
+            { label: "Prompt", complete: true },
+            { label: "Run", complete: hasRun },
+            { label: "Review output", complete: false },
           ]}
           sx={{ mb: 0 }}
-          title="Run the first agent scenario"
+          title="Run one test scenario"
           tourAnchor={tourAnchor}
         />
       </Box>

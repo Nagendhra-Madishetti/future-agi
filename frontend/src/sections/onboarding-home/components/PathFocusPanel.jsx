@@ -149,7 +149,7 @@ export default function PathFocusPanel({
               const statusCopy = STATUS_COPY[status] || STATUS_COPY.queued;
               const statusLabel =
                 singleActionFocus && status === "current"
-                  ? "Start"
+                  ? "Current"
                   : singleActionFocus && status === "queued"
                     ? `Step ${originalIndex + 1}`
                     : statusCopy.label;

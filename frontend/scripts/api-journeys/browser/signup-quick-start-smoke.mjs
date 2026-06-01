@@ -381,9 +381,11 @@ async function main() {
         exact: true,
         timeout: 45000,
       });
-      await expectVisibleText(page, "Do this first: Create Observe project.", {
-        timeout: 45000,
-      });
+      await expectVisibleText(
+        page,
+        "Follow this setup sequence. Start with Create Observe project.",
+        { timeout: 45000 },
+      );
       await expectVisibleText(page, "Setup sequence", {
         exact: true,
         timeout: 45000,

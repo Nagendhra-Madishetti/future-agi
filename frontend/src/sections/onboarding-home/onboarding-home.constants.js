@@ -148,8 +148,8 @@ export const ONBOARDING_STAGE_COPY = {
   },
   add_agent_node: {
     eyebrow: "Agent step",
-    title: "Add the first agent step",
-    description: "Add one prompt step so the agent has something to run.",
+    title: "Add a starter prompt",
+    description: "Add a runnable prompt with a model and sample input.",
   },
   run_agent_scenario: {
     eyebrow: "Agent scenario",

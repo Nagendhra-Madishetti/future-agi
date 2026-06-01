@@ -97,8 +97,11 @@ async function main() {
       { waitUntil: "domcontentloaded" },
     );
     await waitForVisibleText(page, "Prototype agent", { exact: true });
-    await waitForVisibleText(page, "Do this first: Create agent.");
-    await waitForVisibleText(page, "Do this first", { exact: true });
+    await waitForVisibleText(
+      page,
+      "Follow this setup sequence. Start with Create agent.",
+    );
+    await waitForVisibleText(page, "Current step", { exact: true });
     await waitForVisibleText(page, "Step 1 of 6", { exact: true });
     await waitForVisibleText(page, "Create agent", { exact: true });
     await waitForVisibleText(page, "Setup sequence", { exact: true });
@@ -138,23 +141,40 @@ async function main() {
       "Agent builder route",
     );
     await expectSelector(page, '[data-testid="agent-onboarding-focus"]');
-    await waitForVisibleText(page, "Add the first agent step", {
+    await waitForVisibleText(page, "Add a starter prompt", {
       exact: true,
     });
-    await waitForVisibleText(page, "Add LLM Prompt", { exact: true });
+    await waitForVisibleText(page, "Add starter prompt", { exact: true });
     await waitForVisibleText(page, "LLM Prompt", { exact: true });
     await waitForVisibleText(page, "Agent Builder", { exact: true });
 
-    await clickVisibleButtonText(page, "Add LLM Prompt", { exact: true });
+    await clickVisibleButtonText(page, "Add starter prompt", { exact: true });
     await waitForSearchParam(page, "journey_step", "run_agent_scenario");
-    await waitForSearchParam(page, "tour_anchor", "agent_run_scenario_button");
-    await waitForVisibleText(page, "Run the first agent scenario", {
+    await waitForVisibleText(page, "Run one test scenario", {
       exact: true,
     });
-    await waitForVisibleText(page, "Save and run", { exact: true });
+    await assertNoVisibleText(page, "Step 3 of 6", { exact: true });
+    await waitForVisibleText(page, "outdated pricing");
+    await waitForVisibleText(page, "Save agent and run scenario", {
+      exact: true,
+    });
     evidence.agent_run_ready_route = await currentRelativeUrl(page);
     await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
     evidence.screenshot = SCREENSHOT_PATH;
+
+    assertStarterPromptNodeCreate(nodeCreatePosts[0]);
+    await clickVisibleButtonText(page, "Save agent and run scenario", {
+      exact: true,
+    });
+    await waitForVisibleText(page, "Save and run", { exact: true });
+    await waitForVisibleText(
+      page,
+      "This saves the starter prompt as the first version, then runs one scenario.",
+      { exact: true },
+    );
+    await assertNoVisibleText(page, "Unsaved Changes", { exact: true });
+    await assertNoVisibleText(page, "Node not configured", { exact: true });
+    evidence.save_and_run_modal_opened = true;
 
     await waitForCondition(
       () =>
@@ -440,7 +460,7 @@ async function installRuntime(
               id: NODE_TEMPLATE_ID,
               name: "llm_prompt",
               display_name: "LLM Prompt",
-              description: "Add a prompt step to the agent workflow.",
+              description: "Add a starter prompt to the agent workflow.",
             },
           ],
         },
@@ -660,6 +680,7 @@ function agentVersionDetail() {
 }
 
 function agentNode(payload = {}) {
+  const promptTemplate = payload.prompt_template || {};
   return {
     id: payload.id || "agent-node-1",
     type: payload.type || "atomic",
@@ -670,12 +691,39 @@ function agentNode(payload = {}) {
     promptTemplate: {
       promptTemplateId: "prompt-template-agent-node-1",
       promptVersionId: "prompt-version-agent-node-1",
-      messages: payload.prompt_template?.messages || [],
-      model: "gpt-4o-mini",
-      responseFormat: "text",
-      temperature: 0,
+      messages: promptTemplate.messages || [],
+      model: promptTemplate.model || null,
+      model_detail: promptTemplate.model_detail || null,
+      response_format: promptTemplate.response_format || "text",
+      template_format: promptTemplate.template_format || "mustache",
+      tools: promptTemplate.tools || [],
+      tool_choice: promptTemplate.tool_choice || "auto",
+      temperature: promptTemplate.temperature ?? 0,
     },
   };
+}
+
+function assertStarterPromptNodeCreate(payload) {
+  const promptTemplate = payload?.prompt_template;
+  assert(promptTemplate, "Expected prompt_template payload for starter node.");
+  assert(
+    promptTemplate.model === "gpt-4o-mini",
+    `Expected starter prompt model gpt-4o-mini, got ${promptTemplate.model}.`,
+  );
+  assert(
+    promptTemplate.response_format === "text",
+    `Expected starter prompt response_format text, got ${promptTemplate.response_format}.`,
+  );
+  const userMessage = promptTemplate.messages?.find(
+    (message) => message.role === "user",
+  );
+  const userText = userMessage?.content?.find(
+    (item) => item.type === "text",
+  )?.text;
+  assert(
+    userText?.includes("outdated pricing"),
+    `Expected starter user prompt to include outdated pricing, got ${userText}.`,
+  );
 }
 
 function assertHomeAgentCta(href) {
@@ -869,6 +917,20 @@ async function waitForVisibleText(
     { timeout },
     { text, exact },
   );
+}
+
+async function assertNoVisibleText(page, text, { exact = false } = {}) {
+  const found = await page.evaluate(
+    ({ text: expectedText, exact: exactMatch }) =>
+      window.visibleElements().some((element) => {
+        const textContent = window.normalizeText(element.textContent);
+        return exactMatch
+          ? textContent === expectedText
+          : textContent.includes(expectedText);
+      }),
+    { text, exact },
+  );
+  assert(!found, `Unexpected visible text: ${text}`);
 }
 
 async function currentRelativeUrl(page) {

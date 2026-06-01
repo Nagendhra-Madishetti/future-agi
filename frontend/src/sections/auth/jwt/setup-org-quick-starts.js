@@ -69,8 +69,13 @@ export const SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS = [
     buttonLabel: "Prototype agent",
     shortDescription: "Create an agent and run one scenario.",
     firstActionLabel: "Create agent",
-    pathPreview: "Add step, run scenario, review run, save coverage.",
-    sequencePreview: ["Create agent", "Add step", "Run scenario", "Review run"],
+    pathPreview: "Add starter prompt, run scenario, review run, save coverage.",
+    sequencePreview: [
+      "Create agent",
+      "Add starter prompt",
+      "Run scenario",
+      "Review run",
+    ],
     icon: "mdi:graph-outline",
   }),
   quickStart("route_llm_traffic_safely", {

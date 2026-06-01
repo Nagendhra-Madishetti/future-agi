@@ -74,7 +74,7 @@ describe("NodeSelectionPanel onboarding", () => {
     mockRecordActivationEvent.mockResolvedValue({});
   });
 
-  it("renders add-step guidance and advances to run-scenario after adding a prompt node", async () => {
+  it("renders starter-prompt guidance and advances to run-scenario after adding it", async () => {
     render(
       <NodeSelectionPanel
         width="240px"
@@ -84,15 +84,34 @@ describe("NodeSelectionPanel onboarding", () => {
     );
 
     expect(screen.getByTestId("agent-onboarding-focus")).toBeVisible();
-    expect(screen.getByText("Add the first agent step")).toBeVisible();
+    expect(screen.getByText("Add a starter prompt")).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: /add llm prompt/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /add starter prompt/i }),
+    );
 
     await waitFor(() => {
       expect(mockAddNode).toHaveBeenCalledWith({
         type: "llm_prompt",
         position: undefined,
         node_template_id: "tpl-1",
+        waitForApi: true,
+        config: expect.objectContaining({
+          modelConfig: expect.objectContaining({
+            model: "gpt-4o-mini",
+            responseFormat: "text",
+          }),
+          messages: expect.arrayContaining([
+            expect.objectContaining({
+              role: "user",
+              content: expect.arrayContaining([
+                expect.objectContaining({
+                  text: expect.stringContaining("outdated pricing"),
+                }),
+              ]),
+            }),
+          ]),
+        }),
       });
     });
     expect(mockRecordActivationEvent).toHaveBeenCalledWith(
@@ -116,10 +135,39 @@ describe("NodeSelectionPanel onboarding", () => {
       replace: true,
     });
     const nextParams = mockSetSearchParams.mock.calls[0][0](
-      new URLSearchParams(),
+      new URLSearchParams("tour_anchor=agent_add_node_button"),
     );
     expect(nextParams.get("journey_step")).toBe("run_agent_scenario");
-    expect(nextParams.get("tour_anchor")).toBe("agent_run_scenario_button");
+    expect(nextParams.get("tour_anchor")).toBeNull();
+  });
+
+  it("uses the starter prompt flow when the first LLM Prompt card is clicked", async () => {
+    render(
+      <NodeSelectionPanel
+        width="240px"
+        onboardingMode="run-scenario"
+        tourAnchor="agent_add_node_button"
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("node-card-llm_prompt"));
+
+    await waitFor(() => {
+      expect(mockAddNode).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "llm_prompt",
+          waitForApi: true,
+          config: expect.objectContaining({
+            modelConfig: expect.objectContaining({
+              model: "gpt-4o-mini",
+            }),
+          }),
+        }),
+      );
+    });
+    expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(Function), {
+      replace: true,
+    });
   });
 
   it("renders eval coverage guidance and adds an eval node from the primary action", async () => {

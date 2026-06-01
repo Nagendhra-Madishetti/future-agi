@@ -2029,10 +2029,10 @@ export const activationStateFixtures = {
     recommended_action: agentAction({
       id: "add_agent_node",
       kind: "setup",
-      title: "Add an agent step",
-      description: "Add one prompt step before running the first scenario.",
+      title: "Add a starter prompt",
+      description: "Add a runnable prompt before running the first scenario.",
       href: "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&journey_step=add_agent_node&tour_anchor=agent_add_node_button",
-      cta_label: "Add step",
+      cta_label: "Add starter prompt",
       estimated_minutes: 2,
       completion_event: "agent_node_added",
     }),

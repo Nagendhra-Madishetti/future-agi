@@ -747,7 +747,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                   textTransform: "uppercase",
                 }}
               >
-                First action
+                You will start by
               </Typography>
               <Typography
                 component="span"
@@ -800,7 +800,7 @@ const SetupOrganization = ({ getStarted = false }) => {
               mt: 0.25,
             }}
           >
-            Choose
+            Choose and start
           </Typography>
         </Stack>
       </ButtonComponent>

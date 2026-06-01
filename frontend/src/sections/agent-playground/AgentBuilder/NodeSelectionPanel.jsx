@@ -14,6 +14,7 @@ import AgentOnboardingFocusPanel from "../components/AgentOnboardingFocusPanel";
 import useAddNodeOptimistic from "./hooks/useAddNodeOptimistic";
 import {
   agentSetupQuickStartAttributionFromSearch,
+  buildAgentOnboardingStarterPromptConfig,
   buildAgentNodeAddedPayload,
 } from "../agentOnboardingEvents";
 import { recordActivationEvent } from "src/sections/onboarding-home/api/onboarding-home-api";
@@ -63,12 +64,14 @@ export default function NodeSelectionPanel({
   );
 
   const handleNodeClick = useCallback(
-    async (node) => {
+    async (node, options = {}) => {
       if (disabled) return;
       const result = await addNode({
         type: node.id,
         position: undefined,
         node_template_id: node.node_template_id,
+        ...(options.config && { config: options.config }),
+        ...(options.waitForApi && { waitForApi: options.waitForApi }),
       });
       if (result?.position) {
         setCenter(result.position.x + 300, result.position.y, {
@@ -93,7 +96,10 @@ export default function NodeSelectionPanel({
   );
   const handleAddPromptNode = useCallback(async () => {
     if (!llmPromptNode) return;
-    const result = await handleNodeClick(llmPromptNode);
+    const result = await handleNodeClick(llmPromptNode, {
+      config: buildAgentOnboardingStarterPromptConfig(),
+      waitForApi: true,
+    });
     if (!result) return;
     const eventPayload = buildAgentNodeAddedPayload({
       agentId: currentAgent?.id,
@@ -111,7 +117,7 @@ export default function NodeSelectionPanel({
       (prev) => {
         const next = new URLSearchParams(prev);
         next.set("journey_step", "run_agent_scenario");
-        next.set("tour_anchor", "agent_run_scenario_button");
+        next.delete("tour_anchor");
         return next;
       },
       { replace: true },
@@ -169,8 +175,8 @@ export default function NodeSelectionPanel({
       }}
     >
       <AgentOnboardingFocusPanel
-        currentStep="Agent step"
-        description="Add one prompt step so the agent has something concrete to run."
+        currentStep="Prompt"
+        description="We will add a runnable prompt with a model and sample input. You can edit it after the first run."
         hidden={!isRunScenarioMode || nodes.length > 0}
         blocker={
           disabled
@@ -182,18 +188,18 @@ export default function NodeSelectionPanel({
                 : null
         }
         primaryAction={{
-          label: "Add LLM Prompt",
+          label: "Add starter prompt",
           onClick: handleAddPromptNode,
           disabled: disabled || isLoading || !llmPromptNode,
           tourAnchor,
         }}
         steps={[
-          { label: "Agent", complete: true },
-          { label: "Step", complete: false },
-          { label: "Scenario", complete: false },
+          { label: "Create", complete: true },
+          { label: "Prompt", complete: false },
+          { label: "Run", complete: false },
           { label: "Review", complete: false },
         ]}
-        title="Add the first agent step"
+        title="Add a starter prompt"
         sx={{ mb: 1.5 }}
       />
       <AgentOnboardingFocusPanel
@@ -233,7 +239,17 @@ export default function NodeSelectionPanel({
                   ? "agent_eval_node_card"
                   : undefined
               }
-              onClick={() => handleNodeClick(node)}
+              onClick={() => {
+                if (
+                  isRunScenarioMode &&
+                  nodes.length === 0 &&
+                  node.id === "llm_prompt"
+                ) {
+                  handleAddPromptNode();
+                  return;
+                }
+                handleNodeClick(node);
+              }}
               onDragStart={(e) => handleDragStart(e, node)}
               draggable={!disabled}
               sx={{

@@ -59,8 +59,8 @@ export const PATH_FOCUS_PLANS = {
       },
       {
         stage: "add_agent_node",
-        label: "Add step",
-        description: "Add one prompt step so the agent has something to run.",
+        label: "Add starter prompt",
+        description: "Add a runnable prompt with a model and sample input.",
         tourAnchor: "agent_add_node_button",
       },
       {

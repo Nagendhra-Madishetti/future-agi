@@ -264,9 +264,9 @@ async function main() {
       });
       await expectVisibleText(
         page,
-        `Do this first: ${QUICK_START.expectedActionText}.`,
+        `Follow this setup sequence. Start with ${QUICK_START.expectedActionText}.`,
       );
-      await expectVisibleText(page, "Do this first", { exact: true });
+      await expectVisibleText(page, "Current step", { exact: true });
       await expectVisibleText(page, "Setup sequence", { exact: true });
       await expectVisibleText(page, "Step 1 of");
       await expectVisibleText(page, QUICK_START.expectedActionText, {

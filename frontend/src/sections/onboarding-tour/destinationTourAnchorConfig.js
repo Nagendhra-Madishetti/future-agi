@@ -81,8 +81,8 @@ export const DESTINATION_TOUR_STEP_COPY = {
     description: "Use the highlighted action to start the agent loop.",
   },
   add_agent_node: {
-    label: "Add step",
-    description: "Use the highlighted action to add the first agent step.",
+    label: "Add starter prompt",
+    description: "Use the highlighted action to add a runnable starter prompt.",
   },
   create_eval_dataset: {
     label: "Create dataset",
@@ -160,7 +160,7 @@ export const DESTINATION_TOUR_STEP_COPY = {
   },
   run_agent_scenario: {
     label: "Run scenario",
-    description: "Use the highlighted action to exercise the agent once.",
+    description: "Save the draft if prompted, then run one scenario.",
   },
   run_eval: {
     label: "Run eval",

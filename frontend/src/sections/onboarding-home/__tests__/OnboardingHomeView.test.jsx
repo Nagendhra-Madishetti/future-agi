@@ -1105,7 +1105,7 @@ describe("OnboardingHomeView", () => {
       expect(
         screen.getByText(
           new RegExp(
-            `Do this first: ${primaryLabel}\\. Finish that action, then this page will guide the next step\\.`,
+            `Follow this setup sequence\\. Start with ${primaryLabel}\\.`,
           ),
         ),
       ).toBeVisible();
@@ -2086,15 +2086,17 @@ describe("OnboardingHomeView", () => {
     renderView();
 
     const panel = screen.getByTestId("path-focus-panel-agent");
-    expect(screen.getByText("Add the first agent step")).toBeVisible();
+    expect(screen.getAllByText("Add a starter prompt").length).toBeGreaterThan(
+      0,
+    );
     expect(
       within(panel).getByText("Prototype an agent with a quality check"),
     ).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
-      "Add one prompt step so the agent has something to run.",
+      "Add a runnable prompt with a model and sample input.",
     );
     expect(
-      within(panel).getByRole("link", { name: /add step/i }),
+      within(panel).getByRole("link", { name: /add starter prompt/i }),
     ).toHaveAttribute(
       "href",
       "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&journey_step=add_agent_node&tour_anchor=agent_add_node_button",
@@ -2119,7 +2121,7 @@ describe("OnboardingHomeView", () => {
 
     const panel = screen.getByTestId("path-focus-panel-agent");
     expect(
-      within(panel).getByRole("link", { name: /add step/i }),
+      within(panel).getByRole("link", { name: /add starter prompt/i }),
     ).toHaveAttribute(
       "href",
       "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&journey_step=add_agent_node&tour_anchor=agent_add_node_button&quick_start_goal=build_ai_agent&quick_start_id=agent&quick_start_primary_path=agent",
@@ -2163,7 +2165,7 @@ describe("OnboardingHomeView", () => {
     expect(
       within(
         screen.getByTestId("path-focus-step-run_gateway_request"),
-      ).getByText("Start"),
+      ).getByText("Current"),
     ).toBeVisible();
     expect(screen.queryByText("gateway")).toBeNull();
   });

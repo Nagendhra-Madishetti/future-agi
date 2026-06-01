@@ -146,11 +146,34 @@ describe("BuilderActions", () => {
       );
 
       expect(screen.getByTestId("agent-onboarding-focus")).toBeInTheDocument();
-      expect(screen.getByText("Run the first agent scenario")).toBeVisible();
+      expect(screen.getByText("Run one test scenario")).toBeVisible();
 
       fireEvent.click(screen.getByRole("button", { name: /^run workflow$/i }));
 
       expect(mockRunWorkflow).toHaveBeenCalled();
+    });
+
+    it("uses explicit save-and-run copy for draft agent setup", () => {
+      useAgentPlaygroundStore.setState({
+        currentAgent: { is_draft: true, version_id: "v1" },
+      });
+
+      render(
+        <BuilderActions
+          width="300px"
+          hasNodes={true}
+          onboardingMode="run-scenario"
+        />,
+      );
+
+      expect(screen.getByText("Save this version first")).toBeVisible();
+
+      fireEvent.click(
+        screen.getByRole("button", { name: /save agent and run scenario/i }),
+      );
+
+      expect(useAgentPlaygroundStore.getState().openSaveAgentDialog).toBe(true);
+      expect(useAgentPlaygroundStore.getState().pendingRunAfterSave).toBe(true);
     });
 
     it("leaves missing-node guidance to the node selection panel", () => {

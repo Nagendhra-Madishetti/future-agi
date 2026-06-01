@@ -17,6 +17,50 @@ const compactObject = (value = {}) =>
     ),
   );
 
+export const AGENT_ONBOARDING_STARTER_MODEL = "gpt-4o-mini";
+
+export const buildAgentOnboardingStarterPromptConfig = ({
+  model = AGENT_ONBOARDING_STARTER_MODEL,
+} = {}) => ({
+  outputFormat: "string",
+  templateFormat: "mustache",
+  modelConfig: {
+    model,
+    modelDetail: {
+      modelName: model,
+      logoUrl: "",
+      providers: "openai",
+      isAvailable: true,
+    },
+    responseFormat: "text",
+    responseSchema: null,
+    toolChoice: "auto",
+    tools: [],
+  },
+  messages: [
+    {
+      id: "agent-onboarding-system",
+      role: "system",
+      content: [
+        {
+          type: "text",
+          text: "You triage AI product issues. Return the likely cause, one check to run, and the next action.",
+        },
+      ],
+    },
+    {
+      id: "agent-onboarding-user",
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: "A user says the AI assistant answered with outdated pricing after a release. Help the team decide what to inspect first.",
+        },
+      ],
+    },
+  ],
+});
+
 export const agentSetupQuickStartAttributionFromSearch = (search = "") => {
   const params = toSearchParams(search);
   return {

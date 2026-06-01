@@ -87,8 +87,11 @@ async function main() {
     await waitForVisibleText(page, "Test AI using simulation", {
       exact: true,
     });
-    await waitForVisibleText(page, "Do this first: Create dataset.");
-    await waitForVisibleText(page, "Do this first", { exact: true });
+    await waitForVisibleText(
+      page,
+      "Follow this setup sequence. Start with Create dataset.",
+    );
+    await waitForVisibleText(page, "Current step", { exact: true });
     await waitForVisibleText(page, "Step 1 of 5", { exact: true });
     await waitForVisibleText(page, "Create dataset", { exact: true });
     await waitForVisibleText(page, "Setup sequence", { exact: true });

@@ -792,6 +792,12 @@ export default function OnboardingHomeView() {
     : null;
   const firstRunCurrentStepLabel =
     firstRunCurrentStep?.label || "the highlighted action";
+  const firstRunNextStepLabel =
+    firstRunJourneyPlan && firstRunCurrentStep
+      ? firstRunJourneyPlan.steps[
+          firstRunJourneyPlan.steps.indexOf(firstRunCurrentStep) + 1
+        ]?.label
+      : null;
 
   const copy =
     isFirstRunQuickStartFocus && selectedSetupQuickStart
@@ -805,7 +811,9 @@ export default function OnboardingHomeView() {
         : {
             eyebrow: "First setup",
             title: selectedSetupQuickStart.buttonLabel,
-            description: `Do this first: ${firstRunCurrentStepLabel}. Finish that action, then this page will guide the next step.`,
+            description: firstRunNextStepLabel
+              ? `Follow this setup sequence. Start with ${firstRunCurrentStepLabel}. Next: ${firstRunNextStepLabel}.`
+              : `Follow this setup sequence. Start with ${firstRunCurrentStepLabel}.`,
             surfaceLabel: selectedSetupQuickStart.surfaceLabel,
           }
       : quickStartMismatchAction

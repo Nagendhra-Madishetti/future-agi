@@ -6,6 +6,7 @@ import {
   buildAgentCreatedPayload,
   buildAgentEvalBuilderHref,
   buildAgentNodeAddedPayload,
+  buildAgentOnboardingStarterPromptConfig,
   buildAgentOnboardingReturnHref,
   buildAgentPrototypeRunCompletedPayload,
   buildAgentReviewRunHref,
@@ -150,5 +151,34 @@ describe("agentOnboardingEvents", () => {
     expect(buildAgentOnboardingReturnHref(payload)).toBe(
       "/dashboard/home?mode=daily-quality&source=onboarding&target_event=agent_created&quick_start_goal=build_ai_agent&quick_start_id=agent&quick_start_primary_path=agent",
     );
+  });
+
+  it("builds a runnable starter prompt for first agent setup", () => {
+    const config = buildAgentOnboardingStarterPromptConfig();
+
+    expect(config.modelConfig).toMatchObject({
+      model: "gpt-4o-mini",
+      responseFormat: "text",
+      toolChoice: "auto",
+      tools: [],
+    });
+    expect(config.messages).toEqual([
+      expect.objectContaining({
+        role: "system",
+        content: [
+          expect.objectContaining({
+            text: expect.stringContaining("triage AI product issues"),
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        role: "user",
+        content: [
+          expect.objectContaining({
+            text: expect.stringContaining("outdated pricing"),
+          }),
+        ],
+      }),
+    ]);
   });
 });
