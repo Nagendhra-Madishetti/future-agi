@@ -87,7 +87,7 @@ export default function PathFocusPanel({
         {currentStep ? (
           <CurrentStepGuide
             actionSlot={currentActionSlot}
-            label={singleActionFocus ? "Current step" : "Do this first"}
+            label={singleActionFocus ? "Current step" : "Start here"}
             nextStep={nextStep}
             step={currentStep}
             stage={stage}

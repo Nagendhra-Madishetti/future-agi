@@ -95,6 +95,40 @@ export const ONBOARDING_PATH_LABELS = {
   voice: "Connect a voice AI agent",
 };
 
+export const ONBOARDING_EVENT_LABELS = {
+  agent_created: "Agent created",
+  agent_eval_created: "Agent evaluator created",
+  agent_node_added: "Agent step added",
+  agent_scenario_saved_as_eval: "Agent scenario saved as evaluator",
+  agent_trace_reviewed: "Agent trace reviewed",
+  daily_quality_action_completed: "Daily quality action completed",
+  daily_quality_action_opened: "Daily quality action opened",
+  daily_quality_item_reviewed: "Daily quality item reviewed",
+  dataset_example_added: "Dataset example added",
+  eval_dataset_created: "Evaluator source created",
+  eval_run_completed: "Evaluator run completed",
+  first_quality_loop_completed: "First product workflow completed",
+  gateway_failure_resolved: "Gateway failure resolved",
+  gateway_key_created: "Gateway key created",
+  gateway_log_opened: "Gateway log opened",
+  gateway_policy_created: "Gateway policy created",
+  gateway_provider_added: "Gateway provider added",
+  gateway_request_seen: "Gateway request received",
+  observe_project_created: "Observe project created",
+  onboarding_goal_selected: "Setup task selected",
+  onboarding_recommended_action_clicked: "Setup action opened",
+  prompt_comparable_version_created: "Comparable prompt version created",
+  prompt_created: "Prompt created",
+  prompt_test_run_completed: "Prompt test run completed",
+  prompt_version_created: "Prompt version saved",
+  sample_signal_viewed: "Sample trace previewed",
+  trace_detail_opened: "Trace detail opened",
+  trace_received: "Trace received",
+  trace_reviewed: "Trace reviewed",
+  voice_agent_created: "Voice agent connected",
+  voice_test_call_completed: "Voice test call completed",
+};
+
 const isPreviewOnlyGoal = (goal) =>
   goal?.primaryPath === "sample" || goal?.goal === "explore_sample_data";
 
@@ -328,6 +362,9 @@ export const readableToken = (value) =>
 
 export const readablePath = (value) =>
   ONBOARDING_PATH_LABELS[value] || readableToken(value);
+
+export const readableEvent = (value) =>
+  ONBOARDING_EVENT_LABELS[value] || readableToken(value);
 
 const optionFromResponse = (goal) => ({
   id: goal.id || goal.goal,

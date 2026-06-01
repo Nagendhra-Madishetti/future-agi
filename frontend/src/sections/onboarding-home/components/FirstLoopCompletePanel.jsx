@@ -7,7 +7,7 @@ import Typography from "@mui/material/Typography";
 import Iconify from "src/components/iconify";
 import { RouterLink } from "src/routes/components";
 import { ObservePanelActions, ObservePanelHeader } from "./observe-panel-utils";
-import { readableToken } from "../onboarding-home.constants";
+import { readableEvent, readablePath } from "../onboarding-home.constants";
 
 export default function FirstLoopCompletePanel({
   action,
@@ -21,7 +21,10 @@ export default function FirstLoopCompletePanel({
   isChecking = false,
 }) {
   const productPath = primaryPath || action?.analytics?.targetPath;
-  const pathLabel = productPath ? readableToken(productPath) : null;
+  const pathLabel = productPath ? readablePath(productPath) : null;
+  const proofLabel = lastMeaningfulEvent?.name
+    ? readableEvent(lastMeaningfulEvent.name)
+    : null;
   const dailyQualityHref = dailyQualityRoute?.isAvailable
     ? dailyQualityRoute.href
     : null;
@@ -43,7 +46,7 @@ export default function FirstLoopCompletePanel({
           eyebrow="First setup complete"
           title="Your first workflow is live"
           description="A product signal is connected to a repeatable check. Review it before adding more setup."
-          chips={[pathLabel, "complete"].filter(Boolean)}
+          chips={[pathLabel, "Complete"].filter(Boolean)}
         />
         <Stack spacing={0.5}>
           <Typography variant="subtitle2">Next best step</Typography>
@@ -53,7 +56,7 @@ export default function FirstLoopCompletePanel({
               : "Open the current loop next. Daily quality will take over when a reviewable signal is available."}
           </Typography>
         </Stack>
-        {lastMeaningfulEvent ? (
+        {proofLabel ? (
           <Box
             sx={{
               border: "1px solid",
@@ -64,7 +67,7 @@ export default function FirstLoopCompletePanel({
           >
             <Typography variant="subtitle2">Latest proof</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {lastMeaningfulEvent.name}
+              {proofLabel}
             </Typography>
           </Box>
         ) : null}

@@ -214,6 +214,9 @@ describe("PathFocusPanel", () => {
     const panel = screen.getByTestId("path-focus-panel-gateway");
     expect(panel).toBeVisible();
     expect(within(panel).getByText("Route one request safely")).toBeVisible();
+    expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
+      "Start here",
+    );
     expect(
       within(
         screen.getByTestId("path-focus-step-configure_gateway_provider"),

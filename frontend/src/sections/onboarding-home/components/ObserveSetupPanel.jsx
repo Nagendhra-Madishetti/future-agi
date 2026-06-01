@@ -254,7 +254,7 @@ export default function ObserveSetupPanel({
         {actionStep ? (
           <CurrentStepGuide
             actionSlot={actionSlot}
-            label={singleActionFocus ? "Current step" : "Do this first"}
+            label={singleActionFocus ? "Current step" : "Start here"}
             nextStep={nextStep}
             step={actionStep}
             stage={stage}

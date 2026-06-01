@@ -750,8 +750,12 @@ describe("OnboardingHomeView", () => {
     ).toBeVisible();
     expect(within(panel).getByText("Next best step")).toBeVisible();
     expect(
-      within(panel).getByText("first_quality_loop_completed"),
+      within(panel).getByText("First product workflow completed"),
     ).toBeVisible();
+    expect(within(panel).getByText("Connect your agent")).toBeVisible();
+    expect(
+      within(panel).queryByText("first_quality_loop_completed"),
+    ).not.toBeInTheDocument();
     expect(
       within(panel).getByRole("link", { name: /review daily quality/i }),
     ).toHaveAttribute("href", "/dashboard/home?mode=daily-quality");
@@ -816,7 +820,9 @@ describe("OnboardingHomeView", () => {
     expect(
       within(panel).getByText("Your first workflow is live"),
     ).toBeVisible();
-    expect(within(panel).getByText("prompt")).toBeVisible();
+    expect(
+      within(panel).getByText("Test prompts or agent prompts"),
+    ).toBeVisible();
     expect(
       within(panel).getByRole("link", { name: /review daily quality/i }),
     ).toHaveAttribute(
@@ -2097,6 +2103,9 @@ describe("OnboardingHomeView", () => {
     expect(
       within(panel).getByText("Test prompts and compare versions"),
     ).toBeVisible();
+    expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
+      "Start here",
+    );
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Run one focused example before saving.",
     );
