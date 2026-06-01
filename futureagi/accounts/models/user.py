@@ -115,22 +115,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_membership(self, organization):
         """Get the active OrganizationMembership for a specific org, or None.
 
-        Memoized per User instance (which lives for a single request) so the
-        many redundant (user, org) membership lookups during one auth pass
-        collapse to a single query (CORE-BACKEND-1074 / CORE-BACKEND-106X).
+        Membership changes can happen during invite, removal, and org-switch
+        flows. Always query the current active row so access-control decisions
+        do not reuse stale per-instance state after a membership is changed.
         """
-        org_id = getattr(organization, "id", organization)
-        cache = self.__dict__.setdefault("_membership_cache", {})
-        if org_id in cache:
-            return cache[org_id]
         try:
-            membership = OrganizationMembership.no_workspace_objects.get(
+            return OrganizationMembership.no_workspace_objects.get(
                 user=self, organization=organization, is_active=True
             )
         except OrganizationMembership.DoesNotExist:
-            membership = None
-        cache[org_id] = membership
-        return membership
+            return None
 
     def get_membership_level(self, organization):
         """Get integer RBAC level for a specific org."""

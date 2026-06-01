@@ -35,6 +35,7 @@ from model_hub.serializers.custom_models import (
 from model_hub.utils.azure_endpoints import normalize_azure_custom_model_config
 from model_hub.utils.clickhouse import get_model_volume
 from model_hub.utils.utils import validate_model_working
+from model_hub.utils.workspace_scope import request_workspace, request_workspace_filter
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_errors import build_error_envelope
 from tfc.utils.error_codes import get_error_message
@@ -47,6 +48,27 @@ logger = structlog.get_logger(__name__)
 def _restore_plain_key_config_for_save(ai_model):
     if ai_model.key_config:
         ai_model.key_config = ai_model.actual_json
+
+
+def _custom_ai_model_queryset(request):
+    return CustomAIModel.no_workspace_objects.filter(
+        organization=get_request_organization(request),
+    ).filter(request_workspace_filter(request))
+
+
+def _api_key_queryset(request):
+    return ApiKey.no_workspace_objects.filter(
+        organization=get_request_organization(request),
+    ).filter(request_workspace_filter(request))
+
+
+def _normalize_custom_model_environment(environment):
+    if environment is None:
+        return None
+    canonical_values = {
+        value.lower(): value for value, _label in CustomAIModel.EnvTypes.choices
+    }
+    return canonical_values.get(str(environment).lower(), environment)
 
 
 class CustomAIModelView(APIView):
@@ -69,19 +91,16 @@ class CustomAIModelView(APIView):
             return 0, 0
 
     @swagger_auto_schema(
-        responses={200: ModelHubPaginatedResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: ModelHubPaginatedResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, *args, **kwargs):
-        # Get the organization of the logged-in user
-        user_organization = get_request_organization(self.request)
-
         sort_order = request.query_params.get("sort_order")
         search_query = request.query_params.get("search_query")
 
-        # Return all UserAIModels that belong to the user's organization
-        ai_models = CustomAIModel.objects.filter(
-            organization=user_organization,
-        ).order_by("-created_at")
+        ai_models = _custom_ai_model_queryset(request).order_by("-created_at")
 
         if sort_order:
             if sort_order == "asc":
@@ -97,9 +116,8 @@ class CustomAIModelView(APIView):
         result_page = paginator.paginate_queryset(ai_models, request)
         result_page = CustomAIModelSerializer(result_page, many=True).data
 
-        api_keys_all = ApiKey.objects.filter(
+        api_keys_all = _api_key_queryset(request).filter(
             provider__in=[res.get("provider") for res in result_page],
-            organization=user_organization,
         )
         provider_key_map = {res.provider: res for res in api_keys_all}
         for res in result_page:
@@ -137,7 +155,10 @@ class CustomAIModelCreateView(APIView):
 
     @validated_request(
         request_serializer=CustomAIModelCreateRequestSerializer,
-        responses={200: CustomAIModelCreateResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
+        responses={
+            200: CustomAIModelCreateResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        },
         reject_unknown_fields=True,
     )
     def post(self, request, *args, **kwargs):
@@ -238,11 +259,14 @@ class CustomAIModelCreateView(APIView):
             if isinstance(res, Exception):
                 return self._gm.bad_request(str(res))
 
-            if CustomAIModel.objects.filter(
-                user_model_id=model_name,
-                organization=user_organization,
-                provider=str(model_provider).strip().lower(),
-            ).exists():
+            if (
+                _custom_ai_model_queryset(request)
+                .filter(
+                    user_model_id=model_name,
+                    provider=str(model_provider).strip().lower(),
+                )
+                .exists()
+            ):
                 return self._gm.bad_request(
                     get_error_message("MODEL_NAME_ALREADY_EXISTS")
                 )
@@ -253,6 +277,7 @@ class CustomAIModelCreateView(APIView):
                 input_token_cost=input_token_cost,
                 output_token_cost=output_token_cost,
                 organization=user_organization,
+                workspace=request_workspace(request),
                 key_config=config_copy,
                 user=request.user,
                 deleted=False,
@@ -280,14 +305,10 @@ class CustomAIModelDetailsView(APIView):
     )
     def get(self, request, id, *args, **kwargs):
         """Return details regarding a particular model, given his id"""
-        user_organization = get_request_organization(self.request)
-        ai_model = CustomAIModel.objects.filter(
-            organization=user_organization, id=id
-        ).first()
+        ai_model = _custom_ai_model_queryset(request).filter(id=id).first()
         if not ai_model:
             return self._gm.not_found("Custom AI model not found")
         ai_model_serializer = CustomAIModelSerializer(ai_model)
-        # meta_properties = get_model_details(ai_model, user_organization)
         return Response({**ai_model_serializer.data})
 
     @validated_request(
@@ -297,22 +318,19 @@ class CustomAIModelDetailsView(APIView):
     )
     def post(self, request, id, *args, **kwargs):
         """Update custom model details"""
-        user_organization = get_request_organization(self.request)
         data = request.validated_data
         input_token_cost = data.get("input_token_cost")
         output_token_cost = data.get("output_token_cost")
         try:
-            ai_model = CustomAIModel.objects.filter(
-                organization=user_organization, id=id
-            ).first()
+            ai_model = _custom_ai_model_queryset(request).filter(id=id).first()
             if not ai_model:
                 return self._gm.not_found("Custom AI model not found")
             new_model_name = data.get("model_name")
             if (
                 new_model_name
-                and CustomAIModel.objects.filter(
+                and _custom_ai_model_queryset(request)
+                .filter(
                     user_model_id=new_model_name,
-                    organization=user_organization,
                 )
                 .exclude(id=id)
                 .exists()
@@ -355,10 +373,19 @@ class UpdateMetricCustomAIModelView(APIView):
         new_metrics_id = data.get("metric_id")
 
         try:
-            ai_model = CustomAIModel.objects.get(
-                id=ai_model_id, organization=user_organization
+            ai_model = _custom_ai_model_queryset(request).get(id=ai_model_id)
+            new_metrics = (
+                Metric.objects.select_related("model")
+                .filter(
+                    id=new_metrics_id,
+                    model_id=ai_model_id,
+                    model__organization=user_organization,
+                )
+                .filter(
+                    request_workspace_filter(request, field_name="model__workspace")
+                )
+                .get()
             )
-            new_metrics = Metric.objects.get(id=new_metrics_id, model_id=ai_model_id)
             ai_model.default_metric = new_metrics
             _restore_plain_key_config_for_save(ai_model)
             ai_model.save()
@@ -372,6 +399,8 @@ class UpdateMetricCustomAIModelView(APIView):
 
         except CustomAIModel.DoesNotExist:
             return GeneralMethods().not_found("Custom AI model not found")
+        except Metric.DoesNotExist:
+            return GeneralMethods().not_found("Metric not found")
 
 
 class UpdateBaselineDatasetCustomAIModelView(APIView):
@@ -386,17 +415,13 @@ class UpdateBaselineDatasetCustomAIModelView(APIView):
         reject_unknown_fields=True,
     )
     def post(self, request, id, *args, **kwargs):
-        user_organization = get_request_organization(self.request)
-
         data = request.validated_data
         ai_model_id = id
-        environment = data.get("environment")
+        environment = _normalize_custom_model_environment(data.get("environment"))
         version = data.get("model_version")
 
         try:
-            ai_model = CustomAIModel.objects.get(
-                id=ai_model_id, organization=user_organization
-            )
+            ai_model = _custom_ai_model_queryset(request).get(id=ai_model_id)
             ai_model.baseline_model_environment = environment
             ai_model.baseline_model_version = version
             _restore_plain_key_config_for_save(ai_model)
@@ -417,15 +442,17 @@ class CustomAIModelListView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        responses={200: ModelHubPaginatedResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: ModelHubPaginatedResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, *args, **kwargs):
-        user_organization = get_request_organization(self.request)
         search_query = request.query_params.get("search_query")
         limit = request.query_params.get("limit")
 
         ai_models = (
-            CustomAIModel.objects.filter(organization=user_organization)
+            _custom_ai_model_queryset(request)
             .values("id", "user_model_id")
             .order_by("-created_at")
         )
@@ -456,13 +483,11 @@ class DeleteCustomAIModelView(APIView):
     )
     def delete(self, request, *args, **kwargs):
         ai_model_ids = request.validated_data.get("ids", [])
-        user_organization = get_request_organization(request)
         try:
             for model_id in ai_model_ids:
                 # SECURITY: Only delete models belonging to user's organization
-                CustomAIModel.objects.filter(
+                _custom_ai_model_queryset(request).filter(
                     id=model_id,
-                    organization=user_organization,
                 ).update(deleted=True, user_model_id=self._gm.generate_random_text())
 
             return self._gm.success_response("AI model deleted successfully")
@@ -478,7 +503,10 @@ class EditCustomModel(APIView):
     _gm = GeneralMethods()
 
     @swagger_auto_schema(
-        responses={200: CustomAIModelEditResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+        responses={
+            200: CustomAIModelEditResponseSerializer,
+            **MODEL_HUB_ERROR_RESPONSES,
+        }
     )
     def get(self, request, *args, **kwargs):
         model_id = request.query_params.get("id", None)
@@ -486,9 +514,7 @@ class EditCustomModel(APIView):
         if not model_id:
             return self._gm.bad_request("Model ID is required.")
         try:
-            model = CustomAIModel.objects.get(
-                id=model_id, organization=get_request_organization(request)
-            )
+            model = _custom_ai_model_queryset(request).get(id=model_id)
             data = {
                 "model_name": model.user_model_id,
                 "input_token_cost": model.input_token_cost,
@@ -500,9 +526,9 @@ class EditCustomModel(APIView):
                 ),
             }
             # Try to get API key if it exists (may not exist for all models)
-            api_keys = ApiKey.objects.filter(
-                provider=model.provider, organization=get_request_organization(request)
-            ).first()
+            api_keys = (
+                _api_key_queryset(request).filter(provider=model.provider).first()
+            )
             if api_keys:
                 keys = api_keys.masked_actual_key
                 data.update({"key" if api_keys.actual_key else "config_json": keys})
@@ -536,9 +562,7 @@ class EditCustomModel(APIView):
             config_json = data.get("config_json", {})
             key = data.get("key", None)
 
-            model = CustomAIModel.objects.get(
-                id=model_id, organization=get_request_organization(request)
-            )
+            model = _custom_ai_model_queryset(request).get(id=model_id)
             if not model_name:
                 model_name = model.user_model_id
             if key or config_json:

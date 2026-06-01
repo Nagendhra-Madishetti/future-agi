@@ -4021,7 +4021,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                         "CH voice-call-list failed",
                         error=str(e),
                     )
-                    return self._gm.bad_request("ClickHouse voice call list failed")
 
             # Build optimized base query: only traces whose root span is a conversation
             root_span_qs = ObservationSpan.objects.filter(
@@ -6500,7 +6499,10 @@ class GetUserCodeExampleView(APIView):
         project_name = "New Project"
         project_id = request.GET.get("project_id")
         if project_id:
-            project = get_object_or_404(Project, id=project_id)
+            project = get_object_or_404(
+                _project_queryset_for_request(request),
+                id=project_id,
+            )
             project_name = project.name
             project_type = project.trace_type
             if project_type != "observe":

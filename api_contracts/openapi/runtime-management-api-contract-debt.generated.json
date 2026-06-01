@@ -21,75 +21,19 @@
     "futureagi/saml2_auth/views.py"
   ],
   "summary": {
-    "runtime_backed_validated_request_decorators": 333,
-    "direct_swagger_auto_schema_decorators": 130,
-    "doc_only_input_contract_decorators": 3,
+    "runtime_backed_validated_request_decorators": 354,
+    "direct_swagger_auto_schema_decorators": 132,
+    "doc_only_input_contract_decorators": 0,
     "broad_request_contract_decorators": 0
   },
   "app_wide_summary": {
-    "runtime_backed_validated_request_decorators": 495,
-    "direct_swagger_auto_schema_decorators": 281,
-    "doc_only_input_contract_decorators": 3,
+    "runtime_backed_validated_request_decorators": 520,
+    "direct_swagger_auto_schema_decorators": 279,
+    "doc_only_input_contract_decorators": 0,
     "broad_request_contract_decorators": 0
   },
-  "doc_only_input_contract_decorators": [
-    {
-      "path": "futureagi/model_hub/views/run_prompt.py",
-      "line": 206,
-      "class": "ApiKeyViewSet",
-      "function": "create",
-      "serializers": [
-        "ApiKeyRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/model_hub/views/run_prompt.py",
-      "line": 292,
-      "class": "ApiKeyViewSet",
-      "function": "update",
-      "serializers": [
-        "ApiKeyRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/model_hub/views/run_prompt.py",
-      "line": 299,
-      "class": "ApiKeyViewSet",
-      "function": "partial_update",
-      "serializers": [
-        "ApiKeyRequestSerializer"
-      ]
-    }
-  ],
+  "doc_only_input_contract_decorators": [],
   "broad_request_contract_decorators": [],
-  "app_wide_doc_only_input_contract_decorators": [
-    {
-      "path": "futureagi/model_hub/views/run_prompt.py",
-      "line": 206,
-      "class": "ApiKeyViewSet",
-      "function": "create",
-      "serializers": [
-        "ApiKeyRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/model_hub/views/run_prompt.py",
-      "line": 292,
-      "class": "ApiKeyViewSet",
-      "function": "update",
-      "serializers": [
-        "ApiKeyRequestSerializer"
-      ]
-    },
-    {
-      "path": "futureagi/model_hub/views/run_prompt.py",
-      "line": 299,
-      "class": "ApiKeyViewSet",
-      "function": "partial_update",
-      "serializers": [
-        "ApiKeyRequestSerializer"
-      ]
-    }
-  ],
+  "app_wide_doc_only_input_contract_decorators": [],
   "app_wide_broad_request_contract_decorators": []
 }

@@ -593,6 +593,118 @@ export const annotationQueueJourneys = [
     },
   },
   {
+    id: "AQ-API-035",
+    title: "Organization user member picker scope and read-only mutation guard",
+    tags: ["annotation", "mutating", "member-picker", "organizations", "users"],
+    async run({ client, user, organizationId, evidence }) {
+      requireMutations();
+      const userId = assertCurrentUserResolved(user);
+      const email = currentUserEmail(user);
+      assert(email, "Current user email is required for org member search.");
+
+      const orgUsersPath = apiPath(
+        "/model-hub/organizations/{organization_id}/users/",
+        { organization_id: organizationId },
+      );
+      const orgUserDetailPath = apiPath(
+        "/model-hub/organizations/{organization_id}/users/{id}/",
+        { organization_id: organizationId, id: userId },
+      );
+
+      const rows = asArray(
+        await client.get(orgUsersPath, { query: { limit: 30 } }),
+      );
+      assert(
+        rows.some((row) => row.id === userId && row.email === email),
+        `Organization user list did not include the current user: ${JSON.stringify(
+          rows,
+        )}.`,
+      );
+
+      const activeRows = asArray(
+        await client.get(orgUsersPath, {
+          query: { is_active: true, search: email, limit: 30 },
+        }),
+      );
+      assert(
+        activeRows.length === 1 && activeRows[0]?.id === userId,
+        `Organization user search/is_active=true did not isolate the current user: ${JSON.stringify(
+          activeRows,
+        )}.`,
+      );
+
+      const inactiveRows = asArray(
+        await client.get(orgUsersPath, {
+          query: { is_active: false, search: email, limit: 30 },
+        }),
+      );
+      assert(
+        inactiveRows.length === 0,
+        `Organization user is_active=false returned active current user rows: ${JSON.stringify(
+          inactiveRows,
+        )}.`,
+      );
+
+      const detail = await client.get(orgUserDetailPath);
+      assert(
+        detail?.id === userId && detail?.email === email,
+        `Organization user detail did not return the current user: ${JSON.stringify(
+          detail,
+        )}.`,
+      );
+
+      const wrongOrgId = randomUUID();
+      const wrongOrgPath = apiPath(
+        "/model-hub/organizations/{organization_id}/users/",
+        { organization_id: wrongOrgId },
+      );
+      const wrongOrgStatus = await expectHttpStatus(
+        () => client.get(wrongOrgPath),
+        404,
+      );
+
+      const mutationStatuses = {
+        post: await expectHttpStatus(
+          () =>
+            client.post(orgUsersPath, {
+              email: `aq-api-035-${Date.now()}@futureagi.local`,
+              name: "AQ API 035 should not create",
+            }),
+          405,
+        ),
+        put: await expectHttpStatus(
+          () =>
+            client.put(orgUserDetailPath, {
+              email,
+              name: "AQ API 035 should not replace",
+            }),
+          405,
+        ),
+        patch: await expectHttpStatus(
+          () =>
+            client.patch(orgUserDetailPath, {
+              name: "AQ API 035 should not patch",
+            }),
+          405,
+        ),
+        delete: await expectHttpStatus(
+          () => client.delete(orgUserDetailPath),
+          405,
+        ),
+      };
+
+      evidence.push({
+        organization_id: organizationId,
+        current_user_id: userId,
+        list_count: rows.length,
+        active_search_count: activeRows.length,
+        inactive_search_count: inactiveRows.length,
+        wrong_org_status: wrongOrgStatus,
+        mutation_statuses: mutationStatuses,
+      });
+    },
+  },
+  {
     id: "AQ-API-002",
     title:
       "Queue item read paths, annotate detail, annotations, discussion, next item",
@@ -3162,6 +3274,316 @@ export const annotationQueueJourneys = [
         manager_search_matches: asArray(managerSearch.review_comments).length,
         db_comment_count: activeDbAudit.comments.length,
         cleanup_deleted_thread: cleanupDbAudit.thread.deleted,
+      });
+    },
+  },
+  {
+    id: "AQ-API-036",
+    title: "Bulk review request-changes and discussion comment edit/delete",
+    tags: ["annotation", "mutating", "review", "comments", "db-audit"],
+    async run({
+      apiBase,
+      client,
+      cleanup,
+      evidence,
+      organizationId,
+      runId,
+      user,
+      workspaceId,
+    }) {
+      requireMutations();
+      const reviewerId = assertCurrentUserResolved(user);
+      const altToken = process.env.API_JOURNEY_ALT_ACCESS_TOKEN || "";
+      if (!altToken) {
+        skip(
+          "Set API_JOURNEY_ALT_ACCESS_TOKEN for a second active annotator to run bulk-review coverage.",
+        );
+      }
+
+      const altClient = createApiClient({
+        apiBase,
+        accessToken: altToken,
+        organizationId,
+        workspaceId,
+      });
+      const altUser = await altClient.get(apiPath("/accounts/user-info/"));
+      const altUserId = currentUserId(altUser);
+      const altEmail = currentUserEmail(altUser);
+      assert(altUserId, "Alternate annotator user id could not be resolved.");
+      if (String(altUserId) === String(reviewerId)) {
+        skip("Alternate token resolved to the reviewer user.");
+      }
+
+      const sample = await resolveTraceAndSpanSample(client);
+      const queue = await resolveReviewQueueWithAnnotator(
+        client,
+        altUserId,
+        evidence,
+      );
+      if (Number(queue.annotations_required || 1) !== 1) {
+        skip(
+          `Bulk-review journey requires a single-submission review queue, saw annotations_required=${queue.annotations_required}.`,
+        );
+      }
+      const queueId = queue.id;
+      const createdItems = [];
+      cleanup.defer("delete bulk-review queue items", async () => {
+        for (const item of createdItems) {
+          await deleteQueueItemIfPresent(client, queueId, item.id);
+        }
+      });
+
+      for (const index of [0, 1]) {
+        const item = await client.post(
+          queuePath("/model-hub/annotation-queues/{queue_id}/items/", queueId),
+          {
+            source_type: "observation_span",
+            source_id: sample.spanId,
+            status: "pending",
+            priority: 4,
+            order: 8800 + index,
+            metadata: {
+              api_journey: runId,
+              stage: "bulk-review-discussion",
+              index,
+            },
+          },
+        );
+        assert(item?.id, "Bulk-review item create returned no id.");
+        createdItems.push(item);
+      }
+
+      await client.post(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/assign/",
+          queueId,
+        ),
+        {
+          item_ids: createdItems.map((item) => item.id),
+          user_ids: [altUserId],
+          action: "set",
+        },
+      );
+      cleanup.defer("unassign bulk-review queue items", () =>
+        client.post(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/items/assign/",
+            queueId,
+          ),
+          {
+            item_ids: createdItems.map((item) => item.id),
+            user_ids: [],
+            action: "set",
+          },
+        ),
+      );
+
+      for (const [index, item] of createdItems.entries()) {
+        const annotatePath = queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/annotate-detail/",
+          queueId,
+          { id: item.id },
+        );
+        const detail = await altClient.get(annotatePath, {
+          query: { include_completed: true, include_all_annotations: true },
+        });
+        const labels = asArray(detail.labels).filter((label) => labelId(label));
+        const requiredLabels = labels.filter((label) => label.required);
+        const labelsToSubmit = requiredLabels.length ? requiredLabels : labels;
+        assert(
+          labelsToSubmit.length > 0,
+          "Bulk-review item did not expose labels for submission.",
+        );
+        await altClient.post(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/items/{id}/annotations/submit/",
+            queueId,
+            { id: item.id },
+          ),
+          {
+            annotations: labelsToSubmit.map((label, labelIndex) => ({
+              label_id: labelId(label),
+              value: reviewAnnotationValue(
+                label,
+                runId,
+                `bulk-${index}-${labelIndex}`,
+              ),
+              notes: label.allow_notes
+                ? `bulk-review label note ${runId} ${index}-${labelIndex}`
+                : "",
+            })),
+          },
+        );
+        await altClient.post(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/items/{id}/complete/",
+            queueId,
+            { id: item.id },
+          ),
+          { exclude: createdItems.map((created) => created.id) },
+        );
+        const pendingDetail = await client.get(annotatePath, {
+          query: { include_completed: true, include_all_annotations: true },
+        });
+        assert(
+          pendingDetail.item?.review_status === "pending_review",
+          `Bulk-review setup item did not enter pending_review: ${JSON.stringify(
+            pendingDetail.item,
+          )}.`,
+        );
+      }
+
+      const bulkNotes = `bulk review request changes ${runId}`;
+      let bulkReviewMode = "reviewed";
+      let bulkResponse = null;
+      try {
+        bulkResponse = await client.post(
+          queuePath(
+            "/model-hub/annotation-queues/{queue_id}/items/bulk-review/",
+            queueId,
+          ),
+          {
+            item_ids: createdItems.map((item) => item.id),
+            action: "request_changes",
+            notes: bulkNotes,
+          },
+        );
+        assert(
+          Number(bulkResponse.reviewed || 0) === createdItems.length &&
+            sameJsonValue(
+              asArray(bulkResponse.reviewed_item_ids).sort(),
+              createdItems.map((item) => String(item.id)).sort(),
+            ) &&
+            asArray(bulkResponse.errors).length === 0,
+          `Bulk review response mismatch: ${JSON.stringify(bulkResponse)}.`,
+        );
+      } catch (error) {
+        if (![402, 403].includes(error.status)) throw error;
+        const bodyText = JSON.stringify(error.body || {});
+        assert(
+          /review|entitlement|workflow/i.test(bodyText),
+          `Bulk review entitlement denial did not mention review/workflow: ${bodyText}.`,
+        );
+        bulkReviewMode = `entitlement_blocked_${error.status}`;
+      }
+
+      const itemAudits = [];
+      for (const item of createdItems) {
+        const audit = await loadQueueItemDbAudit(item.id);
+        itemAudits.push(audit);
+        if (bulkReviewMode === "reviewed") {
+          assert(
+            audit.status === "in_progress" &&
+              audit.review_status === "rejected" &&
+              audit.review_notes === bulkNotes &&
+              Number(audit.active_review_threads) >= 1 &&
+              Number(audit.active_review_comments) >= 1,
+            `Bulk-reviewed item DB audit mismatch: ${JSON.stringify(audit)}.`,
+          );
+        } else {
+          assert(
+            audit.review_status === "pending_review" &&
+              Number(audit.active_review_comments) === 0,
+            `Entitlement-blocked bulk review still mutated item: ${JSON.stringify(
+              audit,
+            )}.`,
+          );
+        }
+      }
+
+      const discussionItem = createdItems[0];
+      const discussionPath = queuePath(
+        "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/",
+        queueId,
+        { id: discussionItem.id },
+      );
+      const marker = `bulk review discussion ${runId}`;
+      const createdDiscussion = await client.post(discussionPath, {
+        comment: `${marker} original`,
+      });
+      const commentId = createdDiscussion?.comment?.id;
+      const threadId =
+        createdDiscussion?.thread?.id ||
+        createdDiscussion?.comment?.thread_id ||
+        createdDiscussion?.comment?.thread;
+      assert(commentId, "Discussion create did not return comment.id.");
+      assert(threadId, "Discussion create did not return thread.id.");
+
+      const editedDiscussion = await client.patch(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/comments/{comment_id}/",
+          queueId,
+          { id: discussionItem.id, comment_id: commentId },
+        ),
+        {
+          comment: `${marker} edited for @${altEmail || "alt-user"}`,
+          mentioned_user_ids: [
+            String(altUserId),
+            ...(altEmail ? [`@${String(altEmail).toUpperCase()}`] : []),
+          ],
+        },
+      );
+      assert(
+        editedDiscussion.comment?.comment ===
+          `${marker} edited for @${altEmail || "alt-user"}` &&
+          asArray(editedDiscussion.comment?.mentioned_users).some(
+            (mentioned) => String(mentioned.id) === String(altUserId),
+          ),
+        `Discussion edit did not persist text and mention: ${JSON.stringify(
+          editedDiscussion.comment,
+        )}.`,
+      );
+
+      const deletedDiscussion = await client.delete(
+        queuePath(
+          "/model-hub/annotation-queues/{queue_id}/items/{id}/discussion/comments/{comment_id}/",
+          queueId,
+          { id: discussionItem.id, comment_id: commentId },
+        ),
+      );
+      assert(
+        !asArray(deletedDiscussion.review_comments).some(
+          (comment) => String(comment.id) === String(commentId),
+        ),
+        "Deleted discussion comment still appeared in the live response.",
+      );
+      const discussionAudit = await loadDiscussionDbAudit(threadId);
+      const deletedComment = asArray(discussionAudit.comments).find(
+        (comment) => String(comment.id) === String(commentId),
+      );
+      assert(
+        discussionAudit.thread.deleted === true &&
+          deletedComment?.deleted === true &&
+          String(discussionAudit.thread.queue_item_id) ===
+            String(discussionItem.id) &&
+          String(discussionAudit.thread.organization_id) ===
+            String(organizationId) &&
+          String(discussionAudit.thread.workspace_id) === String(workspaceId),
+        `Discussion delete DB audit mismatch: ${JSON.stringify(
+          discussionAudit,
+        )}.`,
+      );
+
+      evidence.push({
+        queue_id: queueId,
+        queue_name: queue.name,
+        source_span_id: sample.spanId,
+        reviewer_id: reviewerId,
+        annotator_id: altUserId,
+        item_ids: createdItems.map((item) => item.id),
+        bulk_review_mode: bulkReviewMode,
+        bulk_reviewed_count: bulkResponse?.reviewed || 0,
+        bulk_review_item_statuses: itemAudits.map((audit) => ({
+          item_id: audit.id,
+          status: audit.status,
+          review_status: audit.review_status,
+          active_review_threads: audit.active_review_threads,
+          active_review_comments: audit.active_review_comments,
+        })),
+        discussion_thread_id: threadId,
+        discussion_comment_id: commentId,
+        discussion_deleted_thread: discussionAudit.thread.deleted,
+        discussion_deleted_comment: deletedComment?.deleted,
       });
     },
   },
@@ -10143,6 +10565,8 @@ with item as (
     qi.queue_id::text as queue_id,
     qi.source_type,
     qi.status,
+    qi.review_status,
+    qi.review_notes,
     qi.priority,
     qi."order",
     qi.metadata,
@@ -10200,6 +10624,8 @@ select coalesce(
       'queue_id', item.queue_id,
       'source_type', item.source_type,
       'status', item.status,
+      'review_status', item.review_status,
+      'review_notes', item.review_notes,
       'priority', item.priority,
       'order', item."order",
       'metadata', item.metadata,

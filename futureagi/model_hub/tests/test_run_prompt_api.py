@@ -23,6 +23,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import Organization, User
 from accounts.models.workspace import Workspace
+from model_hub.models.api_key import ApiKey
 from model_hub.models.choices import (
     CellStatus,
     DatasetSourceChoices,
@@ -905,6 +906,154 @@ class TestProviderApiKeys:
             if str(row["id"]) == created["id"]
         )
         assert_provider_key_response_is_masked(listed, *raw_config.values())
+
+    def test_text_provider_put_patch_scopes_workspace_and_preserves_encryption(
+        self, auth_client, organization, workspace, user
+    ):
+        raw_hidden_key = "hidden-default-workspace-provider-key"
+        hidden_key = ApiKey.no_workspace_objects.create(
+            provider="openai",
+            organization=organization,
+            workspace=workspace,
+            key=raw_hidden_key,
+            user=user,
+        )
+        other_workspace = Workspace.objects.create(
+            name="Provider Key Other Workspace",
+            organization=organization,
+            created_by=user,
+        )
+        set_workspace_context(workspace=other_workspace, organization=organization)
+
+        raw_key = "active-workspace-provider-key"
+        create_response = auth_client.post(
+            API_KEYS_URL,
+            {"provider": "openai", "key": raw_key},
+            format="json",
+        )
+
+        assert create_response.status_code == status.HTTP_200_OK
+        created = create_response.data["result"]
+        assert_provider_key_response_is_masked(created, raw_key, raw_hidden_key)
+        provider_key_id = created["id"]
+        provider_key = ApiKey.no_workspace_objects.get(id=provider_key_id)
+        assert provider_key.workspace == other_workspace
+        assert provider_key.actual_key == raw_key
+        original_encrypted_key = provider_key.key
+
+        hidden_detail_response = auth_client.get(api_key_detail_url(hidden_key.id))
+        assert hidden_detail_response.status_code == status.HTTP_404_NOT_FOUND
+
+        updated_raw_key = "active-workspace-provider-key-updated"
+        put_response = auth_client.put(
+            api_key_detail_url(provider_key_id),
+            {"provider": "openai", "key": updated_raw_key},
+            format="json",
+        )
+        assert put_response.status_code == status.HTTP_200_OK
+        assert_provider_key_response_is_masked(
+            put_response.data,
+            raw_key,
+            updated_raw_key,
+            raw_hidden_key,
+        )
+        provider_key.refresh_from_db()
+        assert provider_key.workspace == other_workspace
+        assert provider_key.key != original_encrypted_key
+        assert provider_key.key != updated_raw_key
+        assert provider_key.actual_key == updated_raw_key
+        updated_encrypted_key = provider_key.key
+
+        patch_response = auth_client.patch(
+            api_key_detail_url(provider_key_id),
+            {"provider": "openai"},
+            format="json",
+        )
+        assert patch_response.status_code == status.HTTP_200_OK
+        assert_provider_key_response_is_masked(
+            patch_response.data,
+            raw_key,
+            updated_raw_key,
+            raw_hidden_key,
+        )
+        provider_key.refresh_from_db()
+        assert provider_key.key == updated_encrypted_key
+        assert provider_key.actual_key == updated_raw_key
+
+        list_response = auth_client.get(API_KEYS_URL)
+        assert list_response.status_code == status.HTTP_200_OK
+        list_ids = {str(row["id"]) for row in list_response.data["results"]}
+        assert provider_key_id in list_ids
+        assert str(hidden_key.id) not in list_ids
+
+        delete_response = auth_client.delete(api_key_detail_url(provider_key_id))
+        assert delete_response.status_code == status.HTTP_200_OK
+        provider_key.refresh_from_db()
+        assert provider_key.deleted is True
+        assert provider_key.deleted_at is not None
+        hidden_key.refresh_from_db()
+        assert hidden_key.deleted is False
+        assert hidden_key.actual_key == raw_hidden_key
+
+    def test_json_provider_put_uses_config_json_and_patch_preserves_encryption(
+        self, auth_client
+    ):
+        raw_config = {
+            "api_key": "secret-json-provider-key",
+            "api_base": "https://azure.example.test",
+            "api_version": "2024-05-01",
+        }
+        create_response = auth_client.post(
+            API_KEYS_URL,
+            {"provider": "azure", "key": json.dumps(raw_config)},
+            format="json",
+        )
+        assert create_response.status_code == status.HTTP_200_OK
+        created = create_response.data["result"]
+        assert_provider_key_response_is_masked(created, *raw_config.values())
+        provider_key_id = created["id"]
+
+        provider_key = ApiKey.no_workspace_objects.get(id=provider_key_id)
+        assert provider_key.key is None
+        assert provider_key.actual_json == raw_config
+        assert provider_key.config_json["api_key"] != raw_config["api_key"]
+
+        updated_config = {
+            "api_key": "secret-json-provider-key-updated",
+            "api_base": "https://azure-updated.example.test",
+            "api_version": "2024-10-01",
+        }
+        put_response = auth_client.put(
+            api_key_detail_url(provider_key_id),
+            {"provider": "azure", "key": json.dumps(updated_config)},
+            format="json",
+        )
+        assert put_response.status_code == status.HTTP_200_OK
+        assert_provider_key_response_is_masked(
+            put_response.data,
+            *raw_config.values(),
+            *updated_config.values(),
+        )
+        provider_key.refresh_from_db()
+        assert provider_key.key is None
+        assert provider_key.actual_json == updated_config
+        assert provider_key.config_json["api_key"] != updated_config["api_key"]
+        encrypted_config = json.loads(json.dumps(provider_key.config_json))
+
+        patch_response = auth_client.patch(
+            api_key_detail_url(provider_key_id),
+            {"provider": "azure"},
+            format="json",
+        )
+        assert patch_response.status_code == status.HTTP_200_OK
+        assert_provider_key_response_is_masked(
+            patch_response.data,
+            *raw_config.values(),
+            *updated_config.values(),
+        )
+        provider_key.refresh_from_db()
+        assert provider_key.config_json == encrypted_config
+        assert provider_key.actual_json == updated_config
 
 
 # ==================== LitellmAPIView Tests ====================

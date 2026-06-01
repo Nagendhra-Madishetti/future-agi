@@ -52,7 +52,6 @@ export default function WidgetChart({ widget, globalDateRange }) {
     if (!globalDateRange) return rawQueryConfig;
     // Convert globalDateRange {start, end} to the format the backend expects
     const timeOverride = {
-      preset: "custom",
       custom_start: globalDateRange.start,
       custom_end: globalDateRange.end,
     };

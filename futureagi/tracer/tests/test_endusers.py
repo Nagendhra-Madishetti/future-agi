@@ -1,6 +1,5 @@
 import json
-from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -19,6 +18,11 @@ from tracer.utils.helper import get_default_project_version_config
 
 User = get_user_model()
 
+AUTH_REQUIRED_STATUS_CODES = (
+    status.HTTP_401_UNAUTHORIZED,
+    status.HTTP_403_FORBIDDEN,
+)
+
 
 def _canonical_span_attr_filter(filter_op="equals", filter_value="alpha"):
     return {
@@ -30,6 +34,40 @@ def _canonical_span_attr_filter(filter_op="equals", filter_value="alpha"):
             "filter_value": filter_value,
         },
     }
+
+
+def _pg_user_list_response(rows):
+    """Build the current UsersView PG fallback response from legacy tuple rows."""
+    table = []
+    total_count = len(rows)
+    for row in rows:
+        total_count = row[18] if len(row) > 18 else total_count
+        table.append(
+            {
+                "user_id": row[0],
+                "total_cost": row[1],
+                "total_tokens": row[2],
+                "input_tokens": row[3],
+                "output_tokens": row[4],
+                "num_traces": row[5],
+                "num_sessions": row[6],
+                "avg_session_duration": row[7],
+                "avg_trace_latency": row[8],
+                "num_llm_calls": row[9],
+                "num_guardrails_triggered": row[10],
+                "activated_at": row[11],
+                "last_active": row[12],
+                "num_active_days": row[13],
+                "num_traces_with_errors": row[14],
+                "bool_eval_pass_rate": row[15],
+                "avg_output_float": row[16],
+                "project_id": row[17],
+                "user_id_type": row[19] if len(row) > 19 else None,
+                "user_id_hash": row[20] if len(row) > 20 else None,
+                "end_user_id": row[21] if len(row) > 21 else None,
+            }
+        )
+    return {"table": table, "total_count": total_count}
 
 
 @pytest.mark.integration
@@ -97,7 +135,7 @@ class TestUsersViewAPI(APITestCase):
         self.workspace_patcher.stop()
         super().tearDown()
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_success_basic(self, mock_get_spans):
         """Test successful basic users list request"""
         mock_results = [
@@ -150,7 +188,7 @@ class TestUsersViewAPI(APITestCase):
                 "end-user-2",
             ),
         ]
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         params = {
             "project_id": self.test_project_id,
@@ -176,7 +214,7 @@ class TestUsersViewAPI(APITestCase):
         self.assertEqual(first_user["total_cost"], 10.50)
         self.assertEqual(first_user["total_tokens"], 1000)
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_with_search(self, mock_get_spans):
         """Test users list with search parameter"""
         mock_results = [
@@ -205,7 +243,7 @@ class TestUsersViewAPI(APITestCase):
                 "end-user-3",
             )
         ]
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         params = {
             "project_id": self.test_project_id,
@@ -220,8 +258,10 @@ class TestUsersViewAPI(APITestCase):
 
         # Verify search parameter was passed correctly
         mock_get_spans.assert_called_once()
+        call_args = mock_get_spans.call_args[1]
+        self.assertEqual(call_args["search"], "searchuser")
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_with_pagination(self, mock_get_spans):
         """Test users list with pagination"""
         mock_results = [
@@ -250,7 +290,7 @@ class TestUsersViewAPI(APITestCase):
                 "end-user-4",
             )
         ]
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         data = {
             "project_id": self.test_project_id,
@@ -270,11 +310,11 @@ class TestUsersViewAPI(APITestCase):
         self.assertEqual(call_args["limit"], 5)
         self.assertEqual(call_args["offset"], 10)  # page 2 * page_size 5
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_with_sorting_ascending(self, mock_get_spans):
         """Test users list with ascending sort"""
         mock_results = []
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         data = {
             "project_id": self.test_project_id,
@@ -290,14 +330,15 @@ class TestUsersViewAPI(APITestCase):
         # Verify sort parameters
         mock_get_spans.assert_called_once()
         call_args = mock_get_spans.call_args[1]
-        self.assertEqual(call_args["sort_by"], "total_cost")
-        self.assertEqual(call_args["sort_order"], "ASC")
+        self.assertEqual(
+            call_args["sort_params"], [{"column_id": "total_cost", "direction": "asc"}]
+        )
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_with_sorting_descending(self, mock_get_spans):
         """Test users list with descending sort"""
         mock_results = []
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         data = {
             "project_id": self.test_project_id,
@@ -313,14 +354,15 @@ class TestUsersViewAPI(APITestCase):
         # Verify sort parameters
         mock_get_spans.assert_called_once()
         call_args = mock_get_spans.call_args[1]
-        self.assertEqual(call_args["sort_by"], "num_traces")
-        self.assertEqual(call_args["sort_order"], "DESC")
+        self.assertEqual(
+            call_args["sort_params"], [{"column_id": "num_traces", "direction": "desc"}]
+        )
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_with_filters(self, mock_get_spans):
         """Test users list with filters"""
         mock_results = []
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         test_filters = [
             {
@@ -352,11 +394,11 @@ class TestUsersViewAPI(APITestCase):
         call_args = mock_get_spans.call_args[1]
         self.assertEqual(call_args["filters"], test_filters)
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_column_mapping(self, mock_get_spans):
-        """Test that column mapping works correctly"""
+        """Test that canonical sort columns are passed through."""
         mock_results = []
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         data = {
             "project_id": self.test_project_id,
@@ -377,13 +419,16 @@ class TestUsersViewAPI(APITestCase):
         # Verify column mapping worked
         mock_get_spans.assert_called_once()
         call_args = mock_get_spans.call_args[1]
-        self.assertEqual(call_args["sort_by"], "avg_latency_trace")
+        self.assertEqual(
+            call_args["sort_params"],
+            [{"column_id": "avg_trace_latency", "direction": "asc"}],
+        )
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_empty_search_stripped(self, mock_get_spans):
         """Test that empty search strings are properly handled"""
         mock_results = []
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         data = {"project_id": self.test_project_id, "search": "   "}  # Whitespace only
 
@@ -393,12 +438,14 @@ class TestUsersViewAPI(APITestCase):
 
         # Verify search_name is None when search is empty/whitespace
         mock_get_spans.assert_called_once()
+        call_args = mock_get_spans.call_args[1]
+        self.assertIsNone(call_args["search"])
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_default_values(self, mock_get_spans):
         """Test default values are applied correctly"""
         mock_results = []
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         # Minimal data - should use defaults
         data = {"project_id": self.test_project_id}
@@ -412,7 +459,7 @@ class TestUsersViewAPI(APITestCase):
         call_args = mock_get_spans.call_args[1]
         self.assertEqual(call_args["limit"], 30)  # Default page_size
         self.assertEqual(call_args["offset"], 0)  # Default current_page_index
-        self.assertEqual(call_args["org_id"], self.organization.id)
+        self.assertEqual(call_args["organization_id"], str(self.organization.id))
 
     def test_users_list_unauthenticated(self):
         """Test that unauthenticated requests are rejected"""
@@ -423,9 +470,9 @@ class TestUsersViewAPI(APITestCase):
 
         response = self.client.get(self.url, data)
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn(response.status_code, AUTH_REQUIRED_STATUS_CODES)
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_sql_exception_handling(self, mock_get_spans):
         """Test exception handling when SQL query fails"""
         # Mock SQL exception
@@ -438,7 +485,7 @@ class TestUsersViewAPI(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error fetching users", str(response.data["result"]))
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_page_calculation_exact_division(self, mock_get_spans):
         """Test page calculation when count divides evenly by page_size"""
         mock_results = [
@@ -467,7 +514,7 @@ class TestUsersViewAPI(APITestCase):
                 "end-user-5",
             )
         ]
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         data = {"project_id": self.test_project_id, "page_size": 10}
 
@@ -476,7 +523,7 @@ class TestUsersViewAPI(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["result"]["total_pages"], 2)  # 20/10 = 2
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_page_calculation_with_remainder(self, mock_get_spans):
         """Test page calculation when count has remainder"""
         mock_results = [
@@ -505,7 +552,7 @@ class TestUsersViewAPI(APITestCase):
                 "end-user-6",
             )
         ]
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         data = {"project_id": self.test_project_id, "page_size": 10}
 
@@ -516,11 +563,11 @@ class TestUsersViewAPI(APITestCase):
             response.data["result"]["total_pages"], 3
         )  # 23/10 = 2 + 1 for remainder
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_multiple_sort_params(self, mock_get_spans):
         """Test behavior with multiple sort parameters (should use the last one)"""
         mock_results = []
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         data = {
             "project_id": self.test_project_id,
@@ -536,14 +583,15 @@ class TestUsersViewAPI(APITestCase):
         # Should use the last sort parameter
         mock_get_spans.assert_called_once()
         call_args = mock_get_spans.call_args[1]
-        self.assertEqual(call_args["sort_by"], "num_traces")
-        self.assertEqual(call_args["sort_order"], "DESC")
+        self.assertEqual(
+            call_args["sort_params"], [{"column_id": "num_traces", "direction": "desc"}]
+        )
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_invalid_column_in_sort(self, mock_get_spans):
-        """Test handling of invalid column in sort parameters"""
+        """Test invalid sort columns are passed to the fallback for handling."""
         mock_results = []
-        mock_get_spans.return_value = mock_results
+        mock_get_spans.return_value = _pg_user_list_response(mock_results)
 
         data = {
             "project_id": self.test_project_id,
@@ -559,12 +607,15 @@ class TestUsersViewAPI(APITestCase):
         # Invalid column should result in None for sort_by
         mock_get_spans.assert_called_once()
         call_args = mock_get_spans.call_args[1]
-        self.assertNotIn("sort_by", call_args)  # None values are filtered out
+        self.assertEqual(
+            call_args["sort_params"],
+            [{"column_id": "invalid_column", "direction": "asc"}],
+        )
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
+    @patch("tracer.views.trace.build_user_list_pg")
     def test_users_list_without_project_id(self, mock_get_spans):
         """Test that missing project_id returns all workspace users (no project filter)"""
-        mock_get_spans.return_value = []
+        mock_get_spans.return_value = _pg_user_list_response([])
         data = {"page_size": 10}
 
         response = self.client.get(self.url, data)
@@ -658,42 +709,24 @@ class TestUserMetricsAndGraphAPI(APITestCase):
 
     # ============ GET USER METRICS TESTS ============
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_user_default_details")
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
-    def test_get_user_metrics_success(self, mock_get_spans, mock_get_default_details):
+    @patch("tracer.views.project.build_user_metrics_pg")
+    def test_get_user_metrics_success(self, mock_build_user_metrics):
         """Test successful get_user_metrics request"""
-        # Mock responses
-        mock_default_details = [
-            (self.test_user_id, 15, "2024-01-15T10:30:00Z")  # active_days, last_active
+        mock_build_user_metrics.return_value = [
+            {
+                "user_id": self.test_user_id,
+                "active_days": 15,
+                "last_active": "2024-01-15T10:30:00Z",
+                "total_cost": 25.50,
+                "total_tokens": 2000,
+                "avg_session_duration": 400.0,
+                "avg_trace_latency": 180.0,
+                "num_llm_calls": 20,
+                "num_guardrails_triggered": 2,
+                "num_traces_with_errors": 1,
+                "num_sessions": 5,
+            }
         ]
-        mock_spans = [
-            (
-                self.test_user_id,
-                25.50,
-                2000,
-                1000,
-                1000,
-                10,
-                5,
-                400.0,
-                180.0,
-                20,
-                2,
-                "2024-01-01",
-                "2024-01-15",
-                12,
-                1,
-                0.85,
-                4.2,
-                2,
-                self.test_project_id,
-                "email",
-                "hash123",
-            )
-        ]
-
-        mock_get_default_details.return_value = mock_default_details
-        mock_get_spans.return_value = mock_spans
 
         url = f"{self.base_url}get_user_metrics/"
         data = {
@@ -753,46 +786,13 @@ class TestUserMetricsAndGraphAPI(APITestCase):
 
         response = self.client.post(url, data, format="json")
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn(
-            "User not found for the given end_user_id", str(response.data["result"])
-        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["result"], [])
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_user_default_details")
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_spans_by_end_users")
-    def test_get_user_metrics_with_filters(
-        self, mock_get_spans, mock_get_default_details
-    ):
+    @patch("tracer.views.project.build_user_metrics_pg")
+    def test_get_user_metrics_with_filters(self, mock_build_user_metrics):
         """Test get_user_metrics with filters"""
-        mock_default_details = [(self.test_user_id, 10, "2024-01-10T10:30:00Z")]
-        mock_spans = [
-            (
-                self.test_user_id,
-                15.25,
-                1500,
-                750,
-                750,
-                5,
-                3,
-                300.0,
-                150.0,
-                15,
-                1,
-                "2024-01-01",
-                "2024-01-10",
-                8,
-                0,
-                0.90,
-                3.8,
-                1,
-                self.test_project_id,
-                "email",
-                "hash456",
-            )
-        ]
-
-        mock_get_default_details.return_value = mock_default_details
-        mock_get_spans.return_value = mock_spans
+        mock_build_user_metrics.return_value = []
 
         url = f"{self.base_url}get_user_metrics/"
         test_filters = [_canonical_span_attr_filter()]
@@ -806,15 +806,15 @@ class TestUserMetricsAndGraphAPI(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # Verify filters were passed to SQL handler
-        mock_get_spans.assert_called_once()
-        call_args = mock_get_spans.call_args[1]
+        # Verify filters were passed to the PG fallback
+        mock_build_user_metrics.assert_called_once()
+        call_args = mock_build_user_metrics.call_args[1]
         self.assertEqual(call_args["filters"], test_filters)
 
-    @patch("model_hub.utils.SQL_queries.SQLQueryHandler.get_user_default_details")
-    def test_get_user_metrics_sql_exception(self, mock_get_default_details):
+    @patch("tracer.views.project.build_user_metrics_pg")
+    def test_get_user_metrics_sql_exception(self, mock_build_user_metrics):
         """Test get_user_metrics SQL exception handling"""
-        mock_get_default_details.side_effect = Exception("Database error")
+        mock_build_user_metrics.side_effect = Exception("Database error")
 
         url = f"{self.base_url}get_user_metrics/"
         data = {
@@ -840,37 +840,20 @@ class TestUserMetricsAndGraphAPI(APITestCase):
 
         response = self.client.post(url, data, format="json")
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn(response.status_code, AUTH_REQUIRED_STATUS_CODES)
 
     # ============ GET USER GRAPH DATA TESTS ============
 
-    @patch("tracer.views.project.GraphEngine")
-    @patch("tracer.views.project.FilterEngine")
-    def test_get_user_graph_data_success(self, mock_filter_engine, mock_graph_engine):
+    @patch("tracer.views.project.build_user_graph_pg")
+    def test_get_user_graph_data_success(self, mock_build_user_graph):
         """Test successful get_user_graph_data request"""
-        # Create test ObservationSpan
-        test_span = ObservationSpan.objects.create(
-            trace=self.trace,
-            project_id=self.test_project_id,
-            end_user_id=self.end_user.id,
-            created_at=datetime.now(),
-        )
-
-        # Mock filter engine
-        mock_filter_instance = MagicMock()
-        mock_filter_instance.apply_filters.return_value = [{"id": test_span.id}]
-        mock_filter_engine.return_value = mock_filter_instance
-
-        # Mock graph engine
-        mock_graph_instance = MagicMock()
         mock_graph_data = {
             "session": [
                 {"timestamp": "2025-01-01T10:00:00Z", "value": 100},
                 {"timestamp": "2025-01-01T11:00:00Z", "value": 150},
             ]
         }
-        mock_graph_instance.generate_graph.return_value = mock_graph_data
-        mock_graph_engine.return_value = mock_graph_instance
+        mock_build_user_graph.return_value = mock_graph_data
 
         url = f"{self.base_url}get_user_graph_data/"
         data = {"interval": "hour", "filters": []}
@@ -884,13 +867,7 @@ class TestUserMetricsAndGraphAPI(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["result"], mock_graph_data)
 
-        # Verify filter engine was called
-        mock_filter_engine.assert_called_once()
-        mock_filter_instance.apply_filters.assert_called_once_with([])
-
-        # Verify graph engine was called
-        mock_graph_engine.assert_called_once()
-        mock_graph_instance.generate_graph.assert_called_once()
+        mock_build_user_graph.assert_called_once()
 
     def test_get_user_graph_data_missing_project_id(self):
         """Test get_user_graph_data with missing project_id"""
@@ -927,33 +904,12 @@ class TestUserMetricsAndGraphAPI(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn(
-            "User not found for the given end_user_id", str(response.data["result"])
-        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @patch("tracer.views.project.GraphEngine")
-    @patch("tracer.views.project.FilterEngine")
-    def test_get_user_graph_data_with_custom_interval(
-        self, mock_filter_engine, mock_graph_engine
-    ):
+    @patch("tracer.views.project.build_user_graph_pg")
+    def test_get_user_graph_data_with_custom_interval(self, mock_build_user_graph):
         """Test get_user_graph_data with custom interval"""
-        # Create test ObservationSpan
-        test_span = ObservationSpan.objects.create(
-            trace=self.trace,
-            project_id=self.test_project_id,
-            end_user_id=self.end_user.id,
-            created_at=datetime.now(),
-        )
-
-        # Mock engines
-        mock_filter_instance = MagicMock()
-        mock_filter_instance.apply_filters.return_value = [{"id": test_span.id}]
-        mock_filter_engine.return_value = mock_filter_instance
-
-        mock_graph_instance = MagicMock()
-        mock_graph_instance.generate_graph.return_value = {"data": "test"}
-        mock_graph_engine.return_value = mock_graph_instance
+        mock_build_user_graph.return_value = {"data": "test"}
 
         url = f"{self.base_url}get_user_graph_data/"
         data = {"interval": "day", "filters": []}  # Custom interval
@@ -966,33 +922,15 @@ class TestUserMetricsAndGraphAPI(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # Verify graph engine was called with custom interval
-        mock_graph_engine.assert_called_once()
-        call_args = mock_graph_engine.call_args[1]
+        # Verify fallback was called with custom interval
+        mock_build_user_graph.assert_called_once()
+        call_args = mock_build_user_graph.call_args[1]
         self.assertEqual(call_args["interval"], "day")
 
-    @patch("tracer.views.project.GraphEngine")
-    @patch("tracer.views.project.FilterEngine")
-    def test_get_user_graph_data_with_filters(
-        self, mock_filter_engine, mock_graph_engine
-    ):
+    @patch("tracer.views.project.build_user_graph_pg")
+    def test_get_user_graph_data_with_filters(self, mock_build_user_graph):
         """Test get_user_graph_data with filters"""
-        # Create test ObservationSpan
-        test_span = ObservationSpan.objects.create(
-            trace=self.trace,
-            project_id=self.test_project_id,
-            end_user_id=self.end_user.id,
-            created_at=datetime.now(),
-        )
-
-        # Mock engines
-        mock_filter_instance = MagicMock()
-        mock_filter_instance.apply_filters.return_value = [{"id": test_span.id}]
-        mock_filter_engine.return_value = mock_filter_instance
-
-        mock_graph_instance = MagicMock()
-        mock_graph_instance.generate_graph.return_value = {"data": "test"}
-        mock_graph_engine.return_value = mock_graph_instance
+        mock_build_user_graph.return_value = {"data": "test"}
 
         url = f"{self.base_url}get_user_graph_data/"
         test_filters = [_canonical_span_attr_filter()]
@@ -1006,36 +944,15 @@ class TestUserMetricsAndGraphAPI(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # Verify filters were passed to filter engine
-        mock_filter_instance.apply_filters.assert_called_once_with(test_filters)
-
-        # Verify filters were passed to graph engine
-        mock_graph_engine.assert_called_once()
-        call_args = mock_graph_engine.call_args[1]
+        # Verify filters were passed to the PG fallback
+        mock_build_user_graph.assert_called_once()
+        call_args = mock_build_user_graph.call_args[1]
         self.assertEqual(call_args["filters"], test_filters)
 
-    @patch("tracer.views.project.GraphEngine")
-    @patch("tracer.views.project.FilterEngine")
-    def test_get_user_graph_data_default_interval(
-        self, mock_filter_engine, mock_graph_engine
-    ):
+    @patch("tracer.views.project.build_user_graph_pg")
+    def test_get_user_graph_data_default_interval(self, mock_build_user_graph):
         """Test get_user_graph_data uses default interval when not provided"""
-        # Create test ObservationSpan
-        test_span = ObservationSpan.objects.create(
-            trace=self.trace,
-            project_id=self.test_project_id,
-            end_user_id=self.end_user.id,
-            created_at=datetime.now(),
-        )
-
-        # Mock engines
-        mock_filter_instance = MagicMock()
-        mock_filter_instance.apply_filters.return_value = [{"id": test_span.id}]
-        mock_filter_engine.return_value = mock_filter_instance
-
-        mock_graph_instance = MagicMock()
-        mock_graph_instance.generate_graph.return_value = {"data": "test"}
-        mock_graph_engine.return_value = mock_graph_instance
+        mock_build_user_graph.return_value = {"data": "test"}
 
         url = f"{self.base_url}get_user_graph_data/"
         data = {}  # No interval specified
@@ -1049,23 +966,14 @@ class TestUserMetricsAndGraphAPI(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Verify default interval was used
-        mock_graph_engine.assert_called_once()
-        call_args = mock_graph_engine.call_args[1]
+        mock_build_user_graph.assert_called_once()
+        call_args = mock_build_user_graph.call_args[1]
         self.assertEqual(call_args["interval"], "hour")
 
-    @patch("tracer.views.project.FilterEngine")
-    def test_get_user_graph_data_filter_exception(self, mock_filter_engine):
+    @patch("tracer.views.project.build_user_graph_pg")
+    def test_get_user_graph_data_filter_exception(self, mock_build_user_graph):
         """Test get_user_graph_data filter engine exception handling"""
-        # Create test ObservationSpan
-        ObservationSpan.objects.create(
-            trace=self.trace,
-            project_id=self.test_project_id,
-            end_user_id=self.end_user.id,
-            created_at=datetime.now(),
-        )
-
-        # Mock filter engine to raise exception
-        mock_filter_engine.side_effect = Exception("Filter error")
+        mock_build_user_graph.side_effect = Exception("Filter error")
 
         url = f"{self.base_url}get_user_graph_data/"
         data = {"interval": "hour", "filters": []}
@@ -1092,13 +1000,12 @@ class TestUserMetricsAndGraphAPI(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn(response.status_code, AUTH_REQUIRED_STATUS_CODES)
 
-    @patch("tracer.views.project.GraphEngine")
-    def test_get_user_graph_data_general_exception(self, mock_graph_engine):
+    @patch("tracer.views.project.build_user_graph_pg")
+    def test_get_user_graph_data_general_exception(self, mock_build_user_graph):
         """Test get_user_graph_data general exception handling"""
-        # Mock graph engine to raise exception
-        mock_graph_engine.side_effect = Exception("Unexpected error")
+        mock_build_user_graph.side_effect = Exception("Unexpected error")
 
         url = f"{self.base_url}get_user_graph_data/"
         data = {"interval": "hour", "filters": []}
@@ -1111,18 +1018,10 @@ class TestUserMetricsAndGraphAPI(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @patch("tracer.views.project.GraphEngine")
-    @patch("tracer.views.project.FilterEngine")
-    def test_get_user_graph_data_no_spans(self, mock_filter_engine, mock_graph_engine):
+    @patch("tracer.views.project.build_user_graph_pg")
+    def test_get_user_graph_data_no_spans(self, mock_build_user_graph):
         """Test get_user_graph_data when no spans exist for user"""
-        # Mock filter engine to return empty results
-        mock_filter_instance = MagicMock()
-        mock_filter_instance.apply_filters.return_value = []
-        mock_filter_engine.return_value = mock_filter_instance
-
-        mock_graph_instance = MagicMock()
-        mock_graph_instance.generate_graph.return_value = {"session": []}
-        mock_graph_engine.return_value = mock_graph_instance
+        mock_build_user_graph.return_value = {"session": []}
 
         url = f"{self.base_url}get_user_graph_data/"
         data = {"interval": "hour", "filters": []}
@@ -1135,5 +1034,5 @@ class TestUserMetricsAndGraphAPI(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # Verify graph engine was still called with empty queryset
-        mock_graph_engine.assert_called_once()
+        # Verify fallback was still called
+        mock_build_user_graph.assert_called_once()

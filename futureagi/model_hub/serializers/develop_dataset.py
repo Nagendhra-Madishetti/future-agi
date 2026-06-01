@@ -242,19 +242,25 @@ class SecretSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # Add organization from request context
-        validated_data["organization"] = self.context["request"].user.organization
+        request = self.context["request"]
+        validated_data["organization"] = (
+            getattr(request, "organization", None) or request.user.organization
+        )
+        validated_data["workspace"] = getattr(request, "workspace", None)
         return super().create(validated_data)
 
     def to_representation(self, instance):
         """Customize the output representation"""
         data = super().to_representation(instance)
         # Add a masked version of the key for display purposes
-        if instance.key:
-            data["masked_key"] = (
-                instance.actual_key[:4]
-                + "•" * (len(instance.actual_key) - 8)
-                + instance.actual_key[-4:]
-            )
+        actual_key = instance.actual_key
+        if actual_key:
+            if len(actual_key) <= 8:
+                data["masked_key"] = actual_key[:2] + "•" * max(len(actual_key) - 2, 4)
+            else:
+                data["masked_key"] = (
+                    actual_key[:4] + "•" * (len(actual_key) - 8) + actual_key[-4:]
+                )
         return data
 
 

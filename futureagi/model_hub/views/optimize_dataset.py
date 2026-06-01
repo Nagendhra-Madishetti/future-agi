@@ -4,6 +4,8 @@ import time
 
 import structlog
 from django.db.models import Case, Prefetch, When
+from django.http import Http404
+from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.exceptions import NotFound
@@ -52,6 +54,13 @@ from model_hub.utils.constant import optimize_table_columns
 from model_hub.utils.optimize import (
     get_prompt_template_columns,
     get_right_answer_columns,
+)
+from model_hub.utils.workspace_scope import (
+    request_organization,
+    request_workspace,
+    scoped_ai_model_queryset,
+    scoped_column_config_for_identifier,
+    scoped_optimize_dataset_queryset,
 )
 from model_hub.utils.utils import check_valid_metrics
 from tfc.temporal import temporal_activity
@@ -125,7 +134,10 @@ class OptimizedDatasetView(APIView):
         try:
             filters = request.validated_query_data["filters"]
 
-            model = AIModel.objects.only("id").get(id=model_id)
+            model = get_object_or_404(
+                scoped_ai_model_queryset(request).only("id"),
+                id=model_id,
+            )
 
             filter_dict = {"model": model}
             for filter_item in filters:
@@ -137,7 +149,9 @@ class OptimizedDatasetView(APIView):
                 else:
                     filter_dict[filter_key] = filter_value[0]
 
-            optimized_dataset_queryset = OptimizeDataset.objects.filter(**filter_dict)
+            optimized_dataset_queryset = scoped_optimize_dataset_queryset(
+                request
+            ).filter(**filter_dict)
 
             paginator = ExtendedPageNumberPagination()
             paginator.page_size = 15
@@ -148,7 +162,7 @@ class OptimizedDatasetView(APIView):
             serializer = OptimizeDatasetSerializer(result_page, many=True)
             return paginator.get_paginated_response(serializer.data)
 
-        except AIModel.DoesNotExist:
+        except (AIModel.DoesNotExist, Http404):
             raise NotFound("AI model not found.") from None
         except NotFound:
             raise
@@ -164,13 +178,13 @@ class OptimizedDatasetView(APIView):
         },
         reject_unknown_fields=True,
     )
-    def post(self, request, *args, **kwargs):
+    def post(self, request, model_id, *args, **kwargs):
         try:
             data = request.validated_data
             name = data.get("name")
             start_date = data.get("start_date").split("T")[0]
             end_date = data.get("end_date").split("T")[0]
-            model_id = data.get("model")
+            payload_model_id = data.get("model")
             optimize_type = data.get("optimize_type")
             environment = data.get("environment")
             version = data.get("version")
@@ -178,7 +192,13 @@ class OptimizedDatasetView(APIView):
             prompt = data.get("prompt")
             variables = data.get("variables")
 
-            model = AIModel.objects.only("id").get(id=model_id)
+            if str(payload_model_id) != str(model_id):
+                return self._gm.bad_request("Payload model must match the URL model.")
+
+            model = get_object_or_404(
+                scoped_ai_model_queryset(request).only("id"),
+                id=model_id,
+            )
 
             if optimize_type == OptimizeDataset.OptimizeType.TEMPLATE:
                 pass
@@ -193,13 +213,15 @@ class OptimizedDatasetView(APIView):
                     if optimize_type == OptimizeDataset.OptimizeType.TEMPLATE
                     else "EVALUATE_ANSWER"
                 ),
-                model_id,
+                str(model.id),
             )
 
             if not valid:
                 return self._gm.bad_request(get_error_message("IN_VALID_METRICS"))
 
-            metrics_list = Metric.objects.filter(id__in=metrics)
+            metrics_list = Metric.objects.filter(model=model, id__in=metrics)
+            if metrics_list.count() != len(set(metrics)):
+                return self._gm.bad_request("Metrics are not accessible for this model.")
 
             optim_dict = {
                 "name": name,
@@ -212,6 +234,8 @@ class OptimizedDatasetView(APIView):
                 "prompt": prompt,
                 "variables": variables,
                 "status": OptimizeDataset.StatusType.RUNNING.value,
+                "organization": request_organization(request),
+                "workspace": request_workspace(request),
             }
 
             optim_obj = OptimizeDataset(**optim_dict)
@@ -276,6 +300,8 @@ class OptimizedDatasetView(APIView):
                 },
                 status=200,
             )
+        except Http404:
+            raise NotFound("AI model not found.") from None
         except Exception as e:
             logger.error(e)
             return GeneralMethods().internal_server_error_response(str(e))
@@ -291,11 +317,11 @@ class OptimizeDetailView(APIView):
         }
     )
     def get(self, request, model_id, optimization_id):
-        AIModel.objects.filter(id=model_id)
-
-        optimized_dataset = OptimizeDataset.objects.filter(
+        model = get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+        optimized_dataset = get_object_or_404(
+            scoped_optimize_dataset_queryset(request).filter(model=model),
             id=optimization_id,
-        ).first()
+        )
 
         serializer = OptimizeDatasetSerializer(optimized_dataset)
 
@@ -513,8 +539,10 @@ class RightAnswerResultsView(APIView):
     def post(self, request, model_id, optimization_id):
         payload = request.validated_data
 
-        optimization = OptimizeDataset.objects.prefetch_related("metrics").get(
-            id=optimization_id
+        model = get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+        optimization = get_object_or_404(
+            scoped_optimize_dataset_queryset(request).filter(model=model),
+            id=optimization_id,
         )
 
         page = payload["page"]
@@ -548,7 +576,7 @@ class RightAnswerResultsView(APIView):
             )
         )
 
-        total_count = int(data_points_count[0][0])
+        total_count = int(data_points_count[0][0]) if data_points_count else 0
 
         total_pages = (total_count + limit - 1) // limit
 
@@ -777,8 +805,10 @@ class TemplateResultsView(APIView):
     )
     def post(self, request, model_id, optimization_id, *args, **kwarg):
         try:
-            optimization = OptimizeDataset.objects.prefetch_related("metrics").get(
-                id=optimization_id
+            model = get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+            optimization = get_object_or_404(
+                scoped_optimize_dataset_queryset(request).filter(model=model),
+                id=optimization_id,
             )
 
             num_templates = len(optimization.optimized_k_prompts)
@@ -796,7 +826,10 @@ class TemplateResultsView(APIView):
                     num_templates,
                 )
 
-                res = clickhouse_client.execute(dynamic_query)[0]
+                query_results = clickhouse_client.execute(dynamic_query)
+                if not query_results:
+                    continue
+                res = query_results[0]
 
                 scores = res[0:-1]
                 og_score = res[-1]
@@ -816,6 +849,8 @@ class TemplateResultsView(APIView):
                 },
                 status=200,
             )
+        except Http404:
+            raise NotFound("Optimization not found.") from None
         except Exception as e:
             return GeneralMethods().internal_server_error_response(str(e))
 
@@ -1002,8 +1037,10 @@ class TemplateExploreView(APIView):
     def post(self, request, model_id, optimization_id):
         payload = request.validated_data
 
-        optimization = OptimizeDataset.objects.prefetch_related("metrics").get(
-            id=optimization_id
+        model = get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+        optimization = get_object_or_404(
+            scoped_optimize_dataset_queryset(request).filter(model=model),
+            id=optimization_id,
         )
 
         page = payload["page"]
@@ -1038,7 +1075,7 @@ class TemplateExploreView(APIView):
             )
         )
 
-        total_count = int(data_points_count[0][0])
+        total_count = int(data_points_count[0][0]) if data_points_count else 0
 
         total_pages = (total_count + limit - 1) // limit
 
@@ -1158,19 +1195,23 @@ class OptimizeDatasetColumnConfig(APIView):
         }
     )
     def get(self, request, model_id):
-        user_organization = (
-            getattr(self.request, "organization", None)
-            or self.request.user.organization
-        )
+        get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+        user_organization = request_organization(request)
+        user_workspace = request_workspace(request)
 
-        column_config, created = ColumnConfig.objects.get_or_create(
-            table_name=ColumnConfig.TableName.OPTIMIZE_DATASET,
-            organization=user_organization,
-            identifier=f"{model_id}",
+        column_config = scoped_column_config_for_identifier(
+            request,
+            ColumnConfig.TableName.OPTIMIZE_DATASET,
+            f"{model_id}",
         )
-        if created:
-            column_config.columns = optimize_table_columns
-            column_config.save()
+        if column_config is None:
+            column_config = ColumnConfig.objects.create(
+                table_name=ColumnConfig.TableName.OPTIMIZE_DATASET,
+                organization=user_organization,
+                workspace=user_workspace,
+                identifier=f"{model_id}",
+                columns=optimize_table_columns,
+            )
 
         column_serializer = ColumnConfigSerializer(column_config)
 
@@ -1189,16 +1230,23 @@ class OptimizeDatasetColumnConfig(APIView):
     def post(self, request, model_id):
         payload = request.validated_data
 
-        user_organization = (
-            getattr(self.request, "organization", None)
-            or self.request.user.organization
-        )
+        get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+        user_organization = request_organization(request)
+        user_workspace = request_workspace(request)
 
-        column_config, created = ColumnConfig.objects.get_or_create(
-            table_name=ColumnConfig.TableName.OPTIMIZE_DATASET,
-            organization=user_organization,
-            identifier=f"{model_id}",
+        column_config = scoped_column_config_for_identifier(
+            request,
+            ColumnConfig.TableName.OPTIMIZE_DATASET,
+            f"{model_id}",
         )
+        if column_config is None:
+            column_config = ColumnConfig.objects.create(
+                table_name=ColumnConfig.TableName.OPTIMIZE_DATASET,
+                organization=user_organization,
+                workspace=user_workspace,
+                identifier=f"{model_id}",
+                columns=[],
+            )
 
         column_config.columns = payload["columns"]
 
@@ -1249,26 +1297,32 @@ class OptimizeDatasetRightColumnConfig(APIView):
         model_id,
         optimization_id,
     ):
-        user_organization = (
-            getattr(self.request, "organization", None)
-            or self.request.user.organization
-        )
+        model = get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+        user_organization = request_organization(request)
+        user_workspace = request_workspace(request)
 
-        optimization = optimization = OptimizeDataset.objects.prefetch_related(
-            "metrics"
-        ).get(id=optimization_id)
+        optimization = get_object_or_404(
+            scoped_optimize_dataset_queryset(request).filter(model=model),
+            id=optimization_id,
+        )
 
         metrics = optimization.metrics.all()
 
-        column_config, created = ColumnConfig.objects.get_or_create(
-            table_name=ColumnConfig.TableName.OPTIMIZE_DATASET_RIGHT_ANSWER,
-            organization=user_organization,
-            identifier=f"{model_id}-{optimization_id}-right-answers-explore",
+        identifier = f"{model_id}-{optimization_id}-right-answers-explore"
+        column_config = scoped_column_config_for_identifier(
+            request,
+            ColumnConfig.TableName.OPTIMIZE_DATASET_RIGHT_ANSWER,
+            identifier,
         )
-        if created:
+        if column_config is None:
             columns = get_right_answer_columns(metrics)
-            column_config.columns = columns
-            column_config.save()
+            column_config = ColumnConfig.objects.create(
+                table_name=ColumnConfig.TableName.OPTIMIZE_DATASET_RIGHT_ANSWER,
+                organization=user_organization,
+                workspace=user_workspace,
+                identifier=identifier,
+                columns=columns,
+            )
         else:
             column_config.columns = self.merge_metric_cols(
                 column_config.columns, metrics
@@ -1296,16 +1350,28 @@ class OptimizeDatasetRightColumnConfig(APIView):
     ):
         payload = request.validated_data
 
-        user_organization = (
-            getattr(self.request, "organization", None)
-            or self.request.user.organization
+        model = get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+        get_object_or_404(
+            scoped_optimize_dataset_queryset(request).filter(model=model),
+            id=optimization_id,
         )
+        user_organization = request_organization(request)
+        user_workspace = request_workspace(request)
 
-        column_config, created = ColumnConfig.objects.get_or_create(
-            table_name=ColumnConfig.TableName.OPTIMIZE_DATASET_RIGHT_ANSWER,
-            organization=user_organization,
-            identifier=f"{model_id}-{optimization_id}-right-answers-explore",
+        identifier = f"{model_id}-{optimization_id}-right-answers-explore"
+        column_config = scoped_column_config_for_identifier(
+            request,
+            ColumnConfig.TableName.OPTIMIZE_DATASET_RIGHT_ANSWER,
+            identifier,
         )
+        if column_config is None:
+            column_config = ColumnConfig.objects.create(
+                table_name=ColumnConfig.TableName.OPTIMIZE_DATASET_RIGHT_ANSWER,
+                organization=user_organization,
+                workspace=user_workspace,
+                identifier=identifier,
+                columns=[],
+            )
 
         column_config.columns = payload["columns"]
 
@@ -1357,28 +1423,34 @@ class OptimizeDatasetPromptExploreColumnConfig(APIView):
         model_id,
         optimization_id,
     ):
-        user_organization = (
-            getattr(self.request, "organization", None)
-            or self.request.user.organization
-        )
+        model = get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+        user_organization = request_organization(request)
+        user_workspace = request_workspace(request)
 
-        optimization = optimization = OptimizeDataset.objects.prefetch_related(
-            "metrics"
-        ).get(id=optimization_id)
+        optimization = get_object_or_404(
+            scoped_optimize_dataset_queryset(request).filter(model=model),
+            id=optimization_id,
+        )
 
         metrics = optimization.metrics.all()
 
         k_prompts = optimization.optimized_k_prompts or []
 
-        column_config, created = ColumnConfig.objects.get_or_create(
-            table_name=ColumnConfig.TableName.OPTIMIZE_DATASET_PROMPT_TEMPLATE_EXPLORE,
-            organization=user_organization,
-            identifier=f"{model_id}-{optimization_id}-prompt-template-explore",
+        identifier = f"{model_id}-{optimization_id}-prompt-template-explore"
+        column_config = scoped_column_config_for_identifier(
+            request,
+            ColumnConfig.TableName.OPTIMIZE_DATASET_PROMPT_TEMPLATE_EXPLORE,
+            identifier,
         )
-        if created:
+        if column_config is None:
             columns = get_prompt_template_columns(metrics, k_prompts)
-            column_config.columns = columns
-            column_config.save()
+            column_config = ColumnConfig.objects.create(
+                table_name=ColumnConfig.TableName.OPTIMIZE_DATASET_PROMPT_TEMPLATE_EXPLORE,
+                organization=user_organization,
+                workspace=user_workspace,
+                identifier=identifier,
+                columns=columns,
+            )
         else:
             column_config.columns = self.merge_metric_cols(
                 column_config.columns, metrics, k_prompts
@@ -1406,16 +1478,28 @@ class OptimizeDatasetPromptExploreColumnConfig(APIView):
     ):
         payload = request.validated_data
 
-        user_organization = (
-            getattr(self.request, "organization", None)
-            or self.request.user.organization
+        model = get_object_or_404(scoped_ai_model_queryset(request), id=model_id)
+        get_object_or_404(
+            scoped_optimize_dataset_queryset(request).filter(model=model),
+            id=optimization_id,
         )
+        user_organization = request_organization(request)
+        user_workspace = request_workspace(request)
 
-        column_config, created = ColumnConfig.objects.get_or_create(
-            table_name=ColumnConfig.TableName.OPTIMIZE_DATASET_PROMPT_TEMPLATE_EXPLORE,
-            organization=user_organization,
-            identifier=f"{model_id}-{optimization_id}-prompt-template-explore",
+        identifier = f"{model_id}-{optimization_id}-prompt-template-explore"
+        column_config = scoped_column_config_for_identifier(
+            request,
+            ColumnConfig.TableName.OPTIMIZE_DATASET_PROMPT_TEMPLATE_EXPLORE,
+            identifier,
         )
+        if column_config is None:
+            column_config = ColumnConfig.objects.create(
+                table_name=ColumnConfig.TableName.OPTIMIZE_DATASET_PROMPT_TEMPLATE_EXPLORE,
+                organization=user_organization,
+                workspace=user_workspace,
+                identifier=identifier,
+                columns=[],
+            )
 
         column_config.columns = payload["columns"]
 
@@ -1456,6 +1540,10 @@ class OptimizedDatasetKbView(CreateAPIView):
                 "knowledge_base_metrics": knowledge_base_metrics,
                 "variables": variables,
                 "status": OptimizeDataset.StatusType.RUNNING.value,
+                "organization": request_organization(request),
+                "workspace": request_workspace(request),
+                "environment": OptimizeDataset.EnvTypes.CORPUS,
+                "version": "",
             }
 
             optim_obj = OptimizeDataset(**optim_dict)
@@ -1524,7 +1612,9 @@ class OptimizeDatasetList(ListAPIView):
     def list(self, request, *args, **kwargs):
         try:
             # Fetch all OptimizeDataset instances
-            queryset = self.get_queryset()
+            queryset = scoped_optimize_dataset_queryset(request).filter(
+                optimize_type=OptimizeDataset.OptimizeType.RAG_TEMPLATE
+            )
             serializer = self.get_serializer(queryset, many=True)
 
             return self._gm.success_response(serializer.data)
@@ -1547,8 +1637,12 @@ class OptimizeDatasetGet(APIView):
     )
     def get(self, request, optim_id, *args, **kwargs):
         try:
-            logger.exception(optim_id)
-            optimize_dataset = OptimizeDataset.objects.filter(id=optim_id).get()
+            optimize_dataset = get_object_or_404(
+                scoped_optimize_dataset_queryset(request).filter(
+                    optimize_type=OptimizeDataset.OptimizeType.RAG_TEMPLATE
+                ),
+                id=optim_id,
+            )
             data = {
                 "name": optimize_dataset.name,
                 "prompt": optimize_dataset.prompt,
@@ -1560,6 +1654,8 @@ class OptimizeDatasetGet(APIView):
             }
 
             return self._gm.success_response(data)
+        except Http404:
+            raise NotFound("Optimization not found.") from None
         except Exception as e:
             logger.exception(f"Error in starting knowledge base optimizer: {str(e)}")
             return self._gm.internal_server_error_response(

@@ -7,7 +7,30 @@ from model_hub.models.choices import SourceChoices
 from model_hub.models.develop_dataset import Column, Dataset
 from model_hub.models.develop_optimisation import OptimizationDataset
 from model_hub.models.evals_metric import EvalTemplate, UserEvalMetric
+from model_hub.utils.workspace_scope import (
+    scoped_column_queryset,
+    scoped_dataset_queryset,
+    scoped_user_eval_metric_queryset,
+)
 from tfc.utils.functions import calculate_column_average
+
+
+def get_optimization_link_errors(dataset, column=None, user_eval_template_ids=None):
+    errors = {}
+    if dataset is not None and column is not None and column.dataset_id != dataset.id:
+        errors["column_id"] = ["Column must belong to the selected dataset."]
+
+    mismatched_metric_ids = [
+        str(metric.id)
+        for metric in user_eval_template_ids or []
+        if dataset is not None and metric.dataset_id != dataset.id
+    ]
+    if mismatched_metric_ids:
+        errors["user_eval_template_ids"] = [
+            "Evaluation metrics must belong to the selected dataset."
+        ]
+
+    return errors
 
 
 class OptimizationDatasetSerializer(serializers.ModelSerializer):
@@ -39,6 +62,15 @@ class OptimizationDatasetSerializer(serializers.ModelSerializer):
             "status",
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request") if self.context else None
+        self.fields["dataset_id"].queryset = scoped_dataset_queryset(request)
+        self.fields["column_id"].queryset = scoped_column_queryset(request)
+        self.fields[
+            "user_eval_template_ids"
+        ].queryset = scoped_user_eval_metric_queryset(request)
+
     def validate_messages(self, value):
         for message in value:
             if "role" not in message or "content" not in message:
@@ -46,6 +78,17 @@ class OptimizationDatasetSerializer(serializers.ModelSerializer):
                     "Each message must contain 'role' and 'content' keys."
                 )
         return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        errors = get_optimization_link_errors(
+            attrs.get("dataset"),
+            attrs.get("column"),
+            attrs.get("user_eval_template_ids"),
+        )
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
 
     # def validate_model_config(self, value):
     #     required_fields = ['model_name', 'temperature', 'frequency_penalty', 'presence_penalty', 'max_tokens', 'top_p', 'response_format', 'tool_choice', 'tools']

@@ -173,6 +173,38 @@ def test_mcp_oauth_token_unknown_client_uses_protocol_error(api_client):
     assert response.json() == {"error": "invalid_client"}
 
 
+def test_mcp_oauth_refresh_token_missing_token_uses_protocol_error(api_client):
+    response = api_client.post(
+        "/mcp/oauth/token/",
+        {
+            "grant_type": "refresh_token",
+            "client_id": "client",
+            "client_secret": "secret",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"error": "invalid_request"}
+
+
+@pytest.mark.django_db
+def test_mcp_oauth_refresh_token_unknown_client_uses_protocol_error(api_client):
+    response = api_client.post(
+        "/mcp/oauth/token/",
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": "missing-refresh-token",
+            "client_id": "missing-client",
+            "client_secret": "secret",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"error": "invalid_client"}
+
+
 def test_mcp_oauth_consent_requires_authentication(api_client):
     response = api_client.post(
         "/mcp/oauth/consent/",

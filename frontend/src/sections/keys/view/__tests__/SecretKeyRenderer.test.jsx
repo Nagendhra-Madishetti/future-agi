@@ -13,6 +13,8 @@ describe("SecretKeyRenderer", () => {
     render(<SecretKeyRenderer value="1234567890abcdef1234567890abcdef" />);
 
     expect(screen.getByText("1234**********cdef")).toBeInTheDocument();
-    expect(screen.queryByText("1234567890abcdef1234567890abcdef")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("1234567890abcdef1234567890abcdef"),
+    ).not.toBeInTheDocument();
   });
 });

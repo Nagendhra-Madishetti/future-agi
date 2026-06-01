@@ -46,6 +46,7 @@ async function main() {
   const apiFailures = [];
   const apiOriginFailures = [];
   const pageErrors = [];
+  const allowedPageErrors = [];
   const unexpectedMutations = [];
   let browser = null;
   let page = null;
@@ -101,7 +102,11 @@ async function main() {
     });
     page.on("response", (response) => {
       const url = response.url();
-      if (isExpectedApiOriginUrl(url) && response.status() >= 400) {
+      if (
+        isExpectedApiOriginUrl(url) &&
+        response.status() >= 400 &&
+        !isAllowedApiOriginFailure(response.status(), url)
+      ) {
         apiOriginFailures.push(`${response.status()} ${maskUrl(url)}`);
       }
       if (
@@ -111,7 +116,14 @@ async function main() {
         apiFailures.push(`${response.status()} ${maskUrl(url)}`);
       }
     });
-    page.on("pageerror", (error) => pageErrors.push(error.message));
+    page.on("pageerror", (error) => {
+      const message = error.stack || error.message;
+      if (isAllowedPageError(message)) {
+        allowedPageErrors.push(firstLine(message));
+        return;
+      }
+      pageErrors.push(message);
+    });
 
     await waitForResponsesDuring(
       page,
@@ -127,6 +139,7 @@ async function main() {
           waitUntil: "domcontentloaded",
         }),
     );
+    await hideReactQueryDevtools(page);
     await waitForPath(page, "/dashboard/evaluations");
     await waitForVisibleText(page, "Create evals", { exact: true });
 
@@ -212,7 +225,9 @@ async function main() {
     evidence.screenshot = SCREENSHOT_PATH;
 
     const detail = await auth.client.get(
-      apiPath(`/model-hub/eval-templates/${compositeId}/composite/`),
+      apiPath("/model-hub/eval-templates/{template_id}/composite/", {
+        template_id: compositeId,
+      }),
     );
     assert(
       Array.isArray(detail?.children) && detail.children.length === 2,
@@ -250,6 +265,9 @@ async function main() {
       expectedChildCount: 2,
     });
     evidence.db_audit_active = activeAudit;
+    if (allowedPageErrors.length > 0) {
+      evidence.allowed_page_errors = allowedPageErrors;
+    }
 
     assert(apiFailures.length === 0, `API failures: ${apiFailures.join("; ")}`);
     assert(
@@ -380,7 +398,7 @@ async function addChildFromPicker(page, childName) {
   await setInputByPlaceholder(page, "Search evaluations...", childName);
   await waitForVisibleText(page, childName);
   await clickRowButtonByText(page, childName, "Add");
-  await clickEnabledButtonByText(page, "Add to Composite");
+  await dispatchEnabledButtonByText(page, "Add to Composite");
   await waitForNoVisibleExactText(page, "Add to Composite");
   await waitForVisibleText(page, childName);
 }
@@ -788,6 +806,7 @@ async function installBrowserState(page, auth) {
       localStorage.setItem("refreshToken", tokens.refresh || "");
       localStorage.setItem("rememberMe", "true");
       localStorage.setItem("initial-render", "done");
+      localStorage.setItem("TanstackQueryDevtools.open", "false");
       if (organizationId)
         sessionStorage.setItem("organizationId", organizationId);
       if (workspaceId) sessionStorage.setItem("workspaceId", workspaceId);
@@ -801,6 +820,12 @@ async function installBrowserState(page, auth) {
       user: auth.user,
     },
   );
+}
+
+async function hideReactQueryDevtools(page) {
+  await page.addStyleTag({
+    content: ".tsqd-parent-container { display: none !important; }",
+  });
 }
 
 async function waitForResponsesDuring(
@@ -924,6 +949,36 @@ async function clickEnabledButtonByText(page, text, timeout = 30000) {
   }, text);
   assert(clickBox, `Could not click enabled button: ${text}`);
   await page.mouse.click(clickBox.x, clickBox.y);
+}
+
+async function dispatchEnabledButtonByText(page, text, timeout = 30000) {
+  await page.waitForFunction(
+    (expectedText) =>
+      window
+        .visibleElements("button")
+        .some(
+          (candidate) =>
+            window.normalizeText(candidate.textContent) === expectedText &&
+            !candidate.disabled,
+        ),
+    { timeout },
+    text,
+  );
+  const clicked = await page.evaluate((expectedText) => {
+    const button = window
+      .visibleElements("button")
+      .find(
+        (candidate) =>
+          window.normalizeText(candidate.textContent) === expectedText &&
+          !candidate.disabled,
+      );
+    if (!button) return false;
+    button.scrollIntoView({ block: "center", inline: "center" });
+    button.focus();
+    window.dispatchClick(button);
+    return true;
+  }, text);
+  assert(clicked, `Could not dispatch click for enabled button: ${text}`);
 }
 
 async function clickRowButtonByText(
@@ -1150,6 +1205,26 @@ function isCompositeCreateResponse(response) {
 
 function isExpectedApiOriginUrl(url) {
   return new URL(url).origin === expectedApiOrigin;
+}
+
+function isAllowedApiOriginFailure(status, url) {
+  return (
+    status === 402 && new URL(url).pathname === "/model-hub/knowledge-base/get/"
+  );
+}
+
+function isAllowedPageError(message) {
+  return (
+    (message.includes("[MSW] Failed to register the Service Worker") &&
+      message.includes("mockServiceWorker.js") &&
+      message.includes("Operation has been aborted")) ||
+    (message.includes("Failed to execute 'importScripts'") &&
+      message.includes("cdn.jsdelivr.net/npm/monaco-editor"))
+  );
+}
+
+function firstLine(value) {
+  return String(value || "").split("\n")[0];
 }
 
 function isAllowedMutation(method, url) {

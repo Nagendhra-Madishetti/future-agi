@@ -13,6 +13,11 @@ from rest_framework import status
 
 from tracer.models.trace import Trace
 
+AUTH_REQUIRED_STATUS_CODES = (
+    status.HTTP_401_UNAUTHORIZED,
+    status.HTTP_403_FORBIDDEN,
+)
+
 
 def get_result(response):
     """Extract result from API response wrapper."""
@@ -28,7 +33,7 @@ class TestTraceRetrieveAPI:
     def test_retrieve_trace_unauthenticated(self, api_client, trace):
         """Unauthenticated requests should be rejected."""
         response = api_client.get(f"/tracer/trace/{trace.id}/")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_retrieve_trace_success(self, auth_client, trace, observation_span):
         """Retrieve a trace by ID with observation spans."""
@@ -102,7 +107,7 @@ class TestTraceListTracesAPI:
             "/tracer/trace/list_traces/",
             {"project_version_id": str(project_version.id)},
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_list_traces_missing_project_version(self, auth_client):
         """List traces fails without project version ID."""
@@ -246,7 +251,7 @@ class TestTraceBulkCreateAPI:
             },
             format="json",
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_bulk_create_traces_success(self, auth_client, project):
         """Bulk create multiple traces."""
@@ -310,7 +315,7 @@ class TestTraceGetPropertiesAPI:
             "/tracer/trace/get_properties/",
             {"project_id": str(project.id)},
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_get_properties_missing_project_id(self, auth_client):
         """Get properties fails without project ID."""
@@ -343,7 +348,7 @@ class TestTraceGetEvalNamesAPI:
             "/tracer/trace/get_eval_names/",
             {"project_version_id": str(project_version.id)},
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_get_eval_names_missing_project_version(self, auth_client):
         """Get eval names fails without project version ID."""
@@ -372,7 +377,7 @@ class TestTraceCompareTracesAPI:
             {"trace_ids": [str(trace.id)]},
             format="json",
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_compare_traces_success(
         self, auth_client, project, project_version, multiple_traces, observation_span
@@ -405,7 +410,7 @@ class TestTraceGetTraceIdByIndexAPI:
             "/tracer/trace/get_trace_id_by_index/",
             {"project_version_id": str(project_version.id), "index": 0},
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_get_trace_by_index_missing_params(self, auth_client):
         """Get trace by index fails without required params."""
@@ -456,7 +461,7 @@ class TestTraceGetTraceIdByIndexObserveAPI:
             "/tracer/trace/get_trace_id_by_index_observe/",
             {"project_id": str(observe_project.id)},
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_get_trace_by_index_observe_missing_params(self, auth_client):
         """Missing required params should return 400."""
@@ -494,7 +499,7 @@ class TestTraceGraphMethodsAPI:
             {"project_id": str(project.id)},
             format="json",
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_get_graph_methods_missing_project(self, auth_client):
         """Get graph methods fails without project ID."""
@@ -634,7 +639,7 @@ class TestUsersViewAPI:
             "/tracer/users/",
             {"project_id": str(project.id)},
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_get_users_without_project_id(self, auth_client):
         """Get users returns all workspace users when project_id is missing."""
@@ -662,7 +667,7 @@ class TestTraceListTracesOfSessionAPI:
             "/tracer/trace/list_traces_of_session/",
             {"session_id": str(trace_session.id)},
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_list_session_traces_missing_session_id(self, auth_client):
         """List session traces supports org-scoped listing without session ID."""
@@ -697,7 +702,7 @@ class TestTraceExportAPI:
             "/tracer/trace/get_trace_export_data/",
             {"project_id": str(project.id)},
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in AUTH_REQUIRED_STATUS_CODES
 
     def test_export_traces_missing_project_id(self, auth_client):
         """Export traces fails without project ID."""

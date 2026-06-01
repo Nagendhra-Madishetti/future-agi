@@ -1,5 +1,5 @@
 from functools import wraps
-from inspect import Parameter, signature
+from inspect import Parameter, iscoroutinefunction, signature
 
 import structlog
 from django.conf import settings
@@ -307,9 +307,7 @@ def validated_request(
             # strict_response_validation=True.
             swagger_options["runtime_response_validation"] = True
 
-        @swagger_auto_schema(**swagger_options)
-        @wraps(view_func)
-        def wrapper(*args, **kwargs):
+        def prepare_request(*args, **kwargs):
             request = _request_from_call(args)
             request.validated_data = {}
             request.validated_query_data = {}
@@ -368,8 +366,9 @@ def validated_request(
                 request.validated_data = serializer.validated_data
                 request.validated_serializer = serializer
 
-            response = view_func(*args, **kwargs)
+            return None
 
+        def finalize_response(response):
             if not responses or not isinstance(response, Response):
                 return response
 
@@ -398,6 +397,30 @@ def validated_request(
                 )
 
             return response
+
+        if iscoroutinefunction(view_func):
+
+            @swagger_auto_schema(**swagger_options)
+            @wraps(view_func)
+            async def wrapper(*args, **kwargs):
+                early_response = prepare_request(*args, **kwargs)
+                if early_response is not None:
+                    return early_response
+
+                response = await view_func(*args, **kwargs)
+                return finalize_response(response)
+
+            return wrapper
+
+        @swagger_auto_schema(**swagger_options)
+        @wraps(view_func)
+        def wrapper(*args, **kwargs):
+            early_response = prepare_request(*args, **kwargs)
+            if early_response is not None:
+                return early_response
+
+            response = view_func(*args, **kwargs)
+            return finalize_response(response)
 
         return wrapper
 

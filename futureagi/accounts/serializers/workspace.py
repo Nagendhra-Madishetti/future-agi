@@ -204,6 +204,7 @@ class DeleteUserSerializer(serializers.Serializer):
 class SwitchWorkspaceSerializer(serializers.Serializer):
     """Serializer for switching workspaces"""
 
+    old_workspace_id = serializers.UUIDField(required=False)
     new_workspace_id = serializers.UUIDField()
 
 

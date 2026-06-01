@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from tfc.utils.serializer_fields import JsonValueField
+
 from tfc.utils.api_serializers import (
     ApiErrorResponseSerializer,
     EmptyRequestSerializer,
@@ -314,7 +316,7 @@ class GatewayConfigPatchRequestSerializer(serializers.Serializer):
 
 class GatewayProviderUpdateRequestSerializer(serializers.Serializer):
     name = serializers.CharField()
-    config = serializers.DictField(child=serializers.JSONField())
+    config = serializers.DictField(child=JsonValueField())
 
 
 class GatewayNameRequestSerializer(serializers.Serializer):
@@ -328,7 +330,7 @@ class GatewayToggleGuardrailRequestSerializer(serializers.Serializer):
 
 class GatewayNamedConfigRequestSerializer(serializers.Serializer):
     name = serializers.CharField()
-    config = serializers.DictField(child=serializers.JSONField())
+    config = serializers.DictField(child=JsonValueField())
 
 
 class GatewayPlaygroundTestRequestSerializer(serializers.Serializer):

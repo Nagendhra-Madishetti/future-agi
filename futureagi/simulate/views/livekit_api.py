@@ -195,6 +195,9 @@ class InternalAPIView(AsyncAPIView):
     authentication_classes = []
     permission_classes = []
 
+    def get_authenticate_header(self, request: Request) -> str:
+        return "Bearer"
+
     def initial(self, request: Request, *args, **kwargs) -> None:
         super().initial(request, *args, **kwargs)
         secret = settings.INTERNAL_API_SECRET

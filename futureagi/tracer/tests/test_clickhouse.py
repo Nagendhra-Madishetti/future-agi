@@ -2101,7 +2101,7 @@ class TestTraceListQueryBuilder:
         )
         query, params = builder.build()
         assert params["offset"] == 75  # 3 * 25
-        assert params["limit"] == 26  # 25 + 1 for has_more detection
+        assert params["limit"] == 25
 
 
 @pytest.mark.unit
@@ -3879,7 +3879,7 @@ class TestTraceListQueryBuilderComprehensive:
         )
         _, params = builder.build()
         assert params["offset"] == 0
-        assert params["limit"] == 51  # +1 for has_more
+        assert params["limit"] == 50
 
     def test_pagination_large_page(self):
         """Large page number should calculate correct offset."""
@@ -3892,7 +3892,7 @@ class TestTraceListQueryBuilderComprehensive:
         )
         _, params = builder.build()
         assert params["offset"] == 1000
-        assert params["limit"] == 101
+        assert params["limit"] == 100
 
     def test_pagination_small_page_size(self):
         """Small page size should work correctly."""
@@ -3905,7 +3905,7 @@ class TestTraceListQueryBuilderComprehensive:
         )
         _, params = builder.build()
         assert params["offset"] == 50
-        assert params["limit"] == 11
+        assert params["limit"] == 10
 
     # ------------------------------------------------------------------
     # Count query
@@ -4427,7 +4427,7 @@ class TestSpanListQueryBuilderComprehensive:
         )
         _, params = builder.build()
         assert params["offset"] == 60
-        assert params["limit"] == 21  # +1 for has_more detection
+        assert params["limit"] == 20
 
     def test_sort_default(self):
         """Default sort should be ORDER BY start_time DESC."""

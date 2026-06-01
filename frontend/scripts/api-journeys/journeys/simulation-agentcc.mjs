@@ -1,11 +1,12 @@
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import process from "node:process";
 import { promisify } from "node:util";
 import {
   apiPath,
   asArray,
   assert,
+  createApiClient,
   currentUserId,
   envFlag,
   isUuid,
@@ -4227,6 +4228,536 @@ export const simulationAgentccJourneys = [
     },
   },
   {
+    id: "SIM-API-012",
+    title:
+      "Agent prompt optimiser generated read routes enforce workspace scope",
+    tags: [
+      "simulation",
+      "agent-prompt-optimiser",
+      "generated-api",
+      "workspace-scope",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+      user,
+    }) {
+      requireMutations();
+      const userId = currentUserId(user);
+      assert(
+        userId,
+        "Agent prompt optimiser journey requires current user id.",
+      );
+
+      const name = `api journey agent prompt optimiser ${runId}`;
+      let hardCleaned = false;
+      cleanup.defer(
+        "hard-delete API journey agent prompt optimiser rows",
+        () =>
+          hardCleaned
+            ? null
+            : hardDeleteAgentPromptOptimiserFixturesDb({
+                namePrefix: name,
+                organizationId,
+              }),
+      );
+
+      await hardDeleteAgentPromptOptimiserFixturesDb({
+        namePrefix: name,
+        organizationId,
+      });
+
+      const fixture = await seedAgentPromptOptimiserFixtureDb({
+        namePrefix: name,
+        organizationId,
+        workspaceId,
+        userId,
+      });
+      assert(
+        isUuid(fixture.active_run_id) &&
+          isUuid(fixture.hidden_run_id) &&
+          isUuid(fixture.active_test_execution_id) &&
+          isUuid(fixture.hidden_test_execution_id) &&
+          isUuid(fixture.active_trial_id),
+        `Agent prompt optimiser seed did not return expected ids: ${JSON.stringify(
+          fixture,
+        )}`,
+      );
+
+      const visibleList = await client.get(
+        apiPath("/simulate/api/agent-prompt-optimiser/"),
+        { query: { test_execution_id: fixture.active_test_execution_id } },
+      );
+      assert(
+        Number(visibleList.metadata?.total_rows) === 1 &&
+          asArray(visibleList.table).map((row) => row.id)[0] ===
+            fixture.active_run_id,
+        "Agent prompt optimiser list did not return the active workspace run.",
+      );
+
+      const hiddenList = await client.get(
+        apiPath("/simulate/api/agent-prompt-optimiser/"),
+        { query: { test_execution_id: fixture.hidden_test_execution_id } },
+      );
+      assert(
+        Number(hiddenList.metadata?.total_rows) === 0 &&
+          asArray(hiddenList.table).length === 0,
+        "Agent prompt optimiser list leaked the other-workspace run.",
+      );
+
+      const detail = await client.get(
+        apiPath("/simulate/api/agent-prompt-optimiser/{id}/", {
+          id: fixture.active_run_id,
+        }),
+      );
+      assert(
+        detail.optimiser_name === `${name} active prompt run` &&
+          detail.model === "gpt-4o-mini" &&
+          asArray(detail.table).some(
+            (row) => row.id === fixture.active_trial_id,
+          ),
+        "Agent prompt optimiser detail did not return active run trial data.",
+      );
+
+      const steps = await client.get(
+        apiPath("/simulate/api/agent-prompt-optimiser/{id}/steps/", {
+          id: fixture.active_run_id,
+        }),
+      );
+      assert(
+        asArray(steps)
+          .map((row) => row.step_number)
+          .join(",") === "1,2",
+        "Agent prompt optimiser steps did not return ordered seeded steps.",
+      );
+
+      const graph = await client.get(
+        apiPath("/simulate/api/agent-prompt-optimiser/{id}/graph/", {
+          id: fixture.active_run_id,
+        }),
+      );
+      const graphEval = graph[fixture.active_eval_config_id];
+      assert(
+        asArray(graphEval?.evaluations)
+          .map((row) => row.trial_number)
+          .join(",") === "0,1",
+        "Agent prompt optimiser graph did not return baseline and trial scores.",
+      );
+
+      const prompt = await client.get(
+        apiPath(
+          "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/prompt/",
+          { id: fixture.active_run_id, trial_id: fixture.active_trial_id },
+        ),
+      );
+      assert(
+        prompt.trial_prompt === "Improved support prompt" &&
+          prompt.base_prompt === "Base support prompt",
+        "Agent prompt optimiser trial prompt did not return baseline and trial prompts.",
+      );
+
+      const evaluations = await client.get(
+        apiPath(
+          "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/evaluations/",
+          { id: fixture.active_run_id, trial_id: fixture.active_trial_id },
+        ),
+      );
+      const evalRow = asArray(evaluations.table)[0];
+      assert(
+        evalRow?.id === fixture.active_eval_config_id &&
+          Number(evalRow.score) === 0.8,
+        "Agent prompt optimiser trial evaluations did not return seeded eval score.",
+      );
+
+      const scenarios = await client.get(
+        apiPath(
+          "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/scenarios/",
+          { id: fixture.active_run_id, trial_id: fixture.active_trial_id },
+        ),
+      );
+      const scenarioRow = asArray(scenarios.table)[0];
+      assert(
+        scenarioRow?.id === fixture.active_trial_item_id &&
+          scenarioRow.output_text === "I can help start the refund.",
+        "Agent prompt optimiser trial scenarios did not return seeded item output.",
+      );
+
+      const hiddenPaths = [
+        apiPath("/simulate/api/agent-prompt-optimiser/{id}/", {
+          id: fixture.hidden_run_id,
+        }),
+        apiPath("/simulate/api/agent-prompt-optimiser/{id}/steps/", {
+          id: fixture.hidden_run_id,
+        }),
+        apiPath("/simulate/api/agent-prompt-optimiser/{id}/graph/", {
+          id: fixture.hidden_run_id,
+        }),
+        apiPath(
+          "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/prompt/",
+          { id: fixture.hidden_run_id, trial_id: fixture.hidden_trial_id },
+        ),
+        apiPath(
+          "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/evaluations/",
+          { id: fixture.hidden_run_id, trial_id: fixture.hidden_trial_id },
+        ),
+        apiPath(
+          "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/scenarios/",
+          { id: fixture.hidden_run_id, trial_id: fixture.hidden_trial_id },
+        ),
+      ];
+      for (const path of hiddenPaths) {
+        await expectApiError(
+          () => client.get(path),
+          [404],
+          `Agent prompt optimiser route leaked hidden run at ${path}.`,
+        );
+      }
+      const hiddenDetailPath = apiPath(
+        "/simulate/api/agent-prompt-optimiser/{id}/",
+        { id: fixture.hidden_run_id },
+      );
+      await expectApiError(
+        () => client.put(hiddenDetailPath, {}),
+        [404],
+        "Agent prompt optimiser PUT accepted hidden run id.",
+      );
+      await expectApiError(
+        () => client.patch(hiddenDetailPath, { status: "failed" }),
+        [404],
+        "Agent prompt optimiser PATCH accepted hidden run id.",
+      );
+      await expectApiError(
+        () => client.delete(hiddenDetailPath),
+        [404],
+        "Agent prompt optimiser DELETE accepted hidden run id.",
+      );
+
+      const beforeCreateAudit = await loadAgentPromptOptimiserDbAudit({
+        namePrefix: name,
+        organizationId,
+        activeRunId: fixture.active_run_id,
+        hiddenRunId: fixture.hidden_run_id,
+      });
+      await expectApiError(
+        () =>
+          client.post(apiPath("/simulate/api/agent-prompt-optimiser/"), {
+            name: `${name} hidden create should fail`,
+            test_execution_id: fixture.hidden_test_execution_id,
+            optimiser_type: "protegi",
+            model: "gpt-4o-mini",
+            configuration: {
+              beam_size: 2,
+              num_gradients: 1,
+              errors_per_gradient: 1,
+              prompts_per_gradient: 1,
+              num_rounds: 1,
+            },
+          }),
+        [400],
+        "Agent prompt optimiser create accepted hidden test_execution_id.",
+      );
+      const afterCreateAudit = await loadAgentPromptOptimiserDbAudit({
+        namePrefix: name,
+        organizationId,
+        activeRunId: fixture.active_run_id,
+        hiddenRunId: fixture.hidden_run_id,
+      });
+      assert(
+        Number(afterCreateAudit.prompt_run_count) ===
+          Number(beforeCreateAudit.prompt_run_count) &&
+          Number(afterCreateAudit.hidden_prompt_run_count) ===
+            Number(beforeCreateAudit.hidden_prompt_run_count),
+        `Hidden create changed prompt optimiser rows: ${JSON.stringify({
+          beforeCreateAudit,
+          afterCreateAudit,
+        })}`,
+      );
+
+      const hardCleanup = await hardDeleteAgentPromptOptimiserFixturesDb({
+        namePrefix: name,
+        organizationId,
+      });
+      hardCleaned = true;
+      assert(
+        Number(hardCleanup.remaining_run_test_count) === 0 &&
+          Number(hardCleanup.remaining_test_execution_count) === 0 &&
+          Number(hardCleanup.remaining_prompt_run_count) === 0 &&
+          Number(hardCleanup.remaining_hidden_workspace_count) === 0,
+        `Agent prompt optimiser cleanup left disposable artifacts: ${JSON.stringify(
+          hardCleanup,
+        )}`,
+      );
+
+      evidence.push({
+        active_run_id: fixture.active_run_id,
+        hidden_run_id: fixture.hidden_run_id,
+        active_test_execution_id: fixture.active_test_execution_id,
+        hidden_test_execution_id: fixture.hidden_test_execution_id,
+        active_eval_config_id: fixture.active_eval_config_id,
+        visible_list_rows: Number(visibleList.metadata?.total_rows),
+        hidden_list_rows: Number(hiddenList.metadata?.total_rows),
+        prompt_run_count: Number(afterCreateAudit.prompt_run_count),
+        db_audit: afterCreateAudit,
+        hard_cleanup: hardCleanup,
+      });
+    },
+  },
+  {
+    id: "SIM-API-013",
+    title:
+      "Simulator agent lifecycle enforces workspace scope and soft-delete audit",
+    tags: [
+      "simulation",
+      "simulator-agents",
+      "mutating",
+      "data-roundtrip",
+      "workspace-scope",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+      user,
+    }) {
+      requireMutations();
+      const userId = currentUserId(user);
+      assert(userId, "Simulator agent journey requires current user id.");
+
+      const name = `api journey simulator agent ${runId}`;
+      let hardCleaned = false;
+      cleanup.defer("hard-delete API journey simulator agent rows", () =>
+        hardCleaned
+          ? null
+          : deleteSimulatorAgentFixturesDb({
+              namePrefix: name,
+              organizationId,
+            }),
+      );
+
+      await deleteSimulatorAgentFixturesDb({
+        namePrefix: name,
+        organizationId,
+      });
+
+      const hidden = await seedOtherWorkspaceSimulatorAgentFixtureDb({
+        namePrefix: name,
+        organizationId,
+        userId,
+      });
+      assert(
+        isUuid(hidden.workspace_id) && isUuid(hidden.simulator_agent_id),
+        `Simulator agent hidden seed did not return ids: ${JSON.stringify(
+          hidden,
+        )}`,
+      );
+
+      const unknownField = await expectApiError(
+        () =>
+          client.post(apiPath("/simulate/simulator-agents/create/"), {
+            name: `${name} invalid`,
+            prompt: "This request should be rejected.",
+            voice_provider: "elevenlabs",
+            voice_name: "marissa",
+            model: "gpt-4o-mini",
+            legacy_extra: true,
+          }),
+        [400],
+        "Simulator agent create accepted an unknown field.",
+      );
+      assert(
+        errorText(unknownField).includes("legacy_extra"),
+        "Simulator agent unknown-field error did not mention legacy_extra.",
+      );
+
+      const created = await client.post(
+        apiPath("/simulate/simulator-agents/create/"),
+        {
+          name,
+          prompt: "You are a temporary simulator persona for API coverage.",
+          voice_provider: "elevenlabs",
+          voice_name: "marissa",
+          model: "gpt-4o-mini",
+          interrupt_sensitivity: 0.4,
+          conversation_speed: 1.1,
+          finished_speaking_sensitivity: 0.6,
+          llm_temperature: 0.3,
+          max_call_duration_in_minutes: 12,
+          initial_message_delay: 2,
+          initial_message: "Hello from the API journey.",
+        },
+      );
+      assert(
+        isUuid(created.id) &&
+          created.name === name &&
+          created.initial_message === "Hello from the API journey.",
+        `Simulator agent create returned unexpected payload: ${JSON.stringify(
+          created,
+        )}`,
+      );
+
+      const list = await client.get(apiPath("/simulate/simulator-agents/"), {
+        query: { search: "api journey simulator agent", limit: 50 },
+      });
+      const listIds = collectionRows(list).map((row) => row.id);
+      assert(
+        listIds.includes(created.id) &&
+          !listIds.includes(hidden.simulator_agent_id),
+        `Simulator agent list did not isolate workspace rows: ${JSON.stringify(
+          list,
+        )}`,
+      );
+
+      const detail = await client.get(
+        apiPath("/simulate/simulator-agents/{agent_id}/", {
+          agent_id: created.id,
+        }),
+      );
+      assert(
+        detail.id === created.id &&
+          detail.name === name &&
+          Number(detail.llm_temperature) === 0.3,
+        "Simulator agent detail did not return created values.",
+      );
+
+      const updated = await client.put(
+        apiPath("/simulate/simulator-agents/{agent_id}/edit/", {
+          agent_id: created.id,
+        }),
+        {
+          name: `${name} updated`,
+          prompt: "Updated simulator prompt.",
+          llm_temperature: 0.8,
+          initial_message: "Updated hello.",
+        },
+      );
+      assert(
+        updated.id === created.id &&
+          updated.name === `${name} updated` &&
+          updated.prompt === "Updated simulator prompt." &&
+          Number(updated.llm_temperature) === 0.8,
+        "Simulator agent edit did not persist partial values.",
+      );
+
+      await expectApiError(
+        () =>
+          client.get(
+            apiPath("/simulate/simulator-agents/{agent_id}/", {
+              agent_id: hidden.simulator_agent_id,
+            }),
+          ),
+        [404],
+        "Simulator agent detail leaked a same-org other-workspace row.",
+      );
+      await expectApiError(
+        () =>
+          client.put(
+            apiPath("/simulate/simulator-agents/{agent_id}/edit/", {
+              agent_id: hidden.simulator_agent_id,
+            }),
+            { name: `${name} hidden edit leaked` },
+          ),
+        [404],
+        "Simulator agent edit accepted a same-org other-workspace id.",
+      );
+      await expectApiError(
+        () =>
+          client.delete(
+            apiPath("/simulate/simulator-agents/{agent_id}/delete/", {
+              agent_id: hidden.simulator_agent_id,
+            }),
+          ),
+        [404],
+        "Simulator agent delete accepted a same-org other-workspace id.",
+      );
+
+      const beforeDeleteAudit = await loadSimulatorAgentDbAudit({
+        agentIds: [created.id, hidden.simulator_agent_id],
+        organizationId,
+      });
+      const createdAudit = asArray(beforeDeleteAudit.agents).find(
+        (row) => row.id === created.id,
+      );
+      const hiddenAudit = asArray(beforeDeleteAudit.agents).find(
+        (row) => row.id === hidden.simulator_agent_id,
+      );
+      assert(
+        createdAudit?.workspace_id === workspaceId &&
+          createdAudit?.deleted === false &&
+          createdAudit?.name === `${name} updated` &&
+          hiddenAudit?.workspace_id === hidden.workspace_id &&
+          hiddenAudit?.deleted === false &&
+          hiddenAudit?.name === hidden.simulator_agent_name,
+        `Simulator agent DB audit before delete failed: ${JSON.stringify(
+          beforeDeleteAudit,
+        )}`,
+      );
+
+      const deleted = await client.delete(
+        apiPath("/simulate/simulator-agents/{agent_id}/delete/", {
+          agent_id: created.id,
+        }),
+      );
+      assert(
+        deleted.message === "Simulator agent deleted successfully",
+        "Simulator agent delete returned unexpected response.",
+      );
+
+      const afterDeleteAudit = await loadSimulatorAgentDbAudit({
+        agentIds: [created.id, hidden.simulator_agent_id],
+        organizationId,
+      });
+      const deletedAudit = asArray(afterDeleteAudit.agents).find(
+        (row) => row.id === created.id,
+      );
+      const hiddenAfterDelete = asArray(afterDeleteAudit.agents).find(
+        (row) => row.id === hidden.simulator_agent_id,
+      );
+      assert(
+        deletedAudit?.deleted === true &&
+          deletedAudit?.deleted_at_set === true &&
+          hiddenAfterDelete?.deleted === false &&
+          hiddenAfterDelete?.deleted_at_set === false,
+        `Simulator agent delete audit failed: ${JSON.stringify(
+          afterDeleteAudit,
+        )}`,
+      );
+
+      const hardCleanup = await deleteSimulatorAgentFixturesDb({
+        namePrefix: name,
+        organizationId,
+      });
+      hardCleaned = true;
+      assert(
+        Number(hardCleanup.remaining_simulator_agent_count) === 0 &&
+          Number(hardCleanup.remaining_workspace_count) === 0,
+        `Simulator agent cleanup left disposable artifacts: ${JSON.stringify(
+          hardCleanup,
+        )}`,
+      );
+
+      evidence.push({
+        simulator_agent_id: created.id,
+        hidden_simulator_agent_id: hidden.simulator_agent_id,
+        hidden_workspace_id: hidden.workspace_id,
+        list_count: collectionRows(list).length,
+        before_delete_audit: beforeDeleteAudit,
+        after_delete_audit: afterDeleteAudit,
+        hard_cleanup: hardCleanup,
+      });
+    },
+  },
+  {
     id: "AGENTCC-API-001",
     title:
       "Gateway blocklist create, add words, remove words, update, and delete lifecycle",
@@ -4669,10 +5200,54 @@ export const simulationAgentccJourneys = [
   {
     id: "AGENTCC-API-003",
     title: "Gateway API key create, update, revoke, and delete lifecycle",
-    tags: ["gateway", "agentcc", "api-keys", "mutating", "data-roundtrip"],
-    async run({ client, cleanup, runId, evidence }) {
+    tags: [
+      "gateway",
+      "agentcc",
+      "api-keys",
+      "mutating",
+      "data-roundtrip",
+      "db-audit",
+      "authz",
+    ],
+    async run({ client, cleanup, runId, evidence, organizationId, user }) {
       requireMutations();
       const name = `api_journey_key_${runId.replace(/[^a-z0-9]/gi, "_")}`;
+      const userId = currentUserId(user);
+      assert(
+        organizationId,
+        "Gateway API key journey requires organization id.",
+      );
+      let hardCleaned = false;
+      cleanup.defer("hard-delete API journey gateway API key rows", () =>
+        hardCleaned
+          ? null
+          : deleteAgentccApiKeyFixtureDb({ namePrefix: name, organizationId }),
+      );
+      cleanup.defer("hard-delete hidden API key project fixture", () =>
+        deleteAgentccApiKeyProjectFixtureDb({
+          namePrefix: name,
+          organizationId,
+        }),
+      );
+
+      const hiddenProject = await seedOtherWorkspaceAgentccProjectFixtureDb({
+        namePrefix: name,
+        organizationId,
+        userId,
+      });
+      const hiddenProjectCreate = await expectApiError(
+        () =>
+          client.post(apiPath("/agentcc/api-keys/"), {
+            name: `${name}_hidden_project`,
+            project_id: hiddenProject.project_id,
+          }),
+        [404],
+        "Gateway API key create accepted a same-org other-workspace project_id.",
+      );
+      assert(
+        errorText(hiddenProjectCreate).toLowerCase().includes("project"),
+        "Hidden project guard did not mention project lookup.",
+      );
 
       const created = await createGatewayApiKeyOrSkip(client, {
         name,
@@ -4707,6 +5282,21 @@ export const simulationAgentccJourneys = [
         "Gateway API key update did not persist name/allowed_models.",
       );
 
+      const putUpdated = await client.put(
+        apiPath("/agentcc/api-keys/{id}/", { id: created.id }),
+        {
+          name: `${name}_updated_put`,
+          owner: "api-journey-put",
+          allowed_providers: ["openai", "anthropic"],
+          metadata: { source: "api-journey", putUpdated: true },
+        },
+      );
+      assert(
+        putUpdated.name === `${name}_updated_put` &&
+          asArray(putUpdated.allowed_providers).includes("anthropic"),
+        "Gateway API key PUT did not route through the validated update path.",
+      );
+
       const detail = await client.get(
         apiPath("/agentcc/api-keys/{id}/", { id: created.id }),
       );
@@ -4737,7 +5327,173 @@ export const simulationAgentccJourneys = [
         "Deleted gateway API key was still visible in list.",
       );
 
-      evidence.push({ api_key_id: created.id, key_name: name });
+      const expectedKeyHash = createHash("sha256")
+        .update(created.key)
+        .digest("hex");
+      const dbAudit = await loadAgentccApiKeyDbAudit({
+        keyId: created.id,
+        organizationId,
+        expectedKeyHash,
+        expectedName: `${name}_updated_put`,
+      });
+      assert(dbAudit.row_count === 1, "Gateway API key DB audit found no row.");
+      assert(
+        dbAudit.key_hash_matches_expected === true,
+        "Gateway API key DB audit did not match the raw key hash.",
+      );
+      assert(
+        dbAudit.deleted === true && dbAudit.deleted_at_set === true,
+        "Gateway API key delete did not stamp deleted/deleted_at.",
+      );
+      assert(
+        dbAudit.status === "revoked",
+        "Gateway API key DB audit did not preserve revoked status before delete.",
+      );
+
+      const hardCleanup = await deleteAgentccApiKeyFixtureDb({
+        namePrefix: name,
+        organizationId,
+      });
+      hardCleaned = true;
+      assert(
+        Number(hardCleanup.remaining_count) === 0,
+        "Gateway API key hard cleanup left disposable rows behind.",
+      );
+
+      evidence.push({
+        api_key_id: created.id,
+        key_name: name,
+        hidden_project_create_status: hiddenProjectCreate.status,
+        deleted_at_set: dbAudit.deleted_at_set,
+        key_hash_matches_expected: dbAudit.key_hash_matches_expected,
+        hard_cleanup_deleted_count: Number(hardCleanup.deleted_count),
+        hard_cleanup_remaining_count: Number(hardCleanup.remaining_count),
+      });
+    },
+  },
+  {
+    id: "AGENTCC-API-014",
+    title: "Gateway startup API key bulk sync admin-token contract",
+    tags: [
+      "gateway",
+      "agentcc",
+      "api-keys",
+      "admin-token",
+      "startup-sync",
+      "mutating",
+      "db-audit",
+    ],
+    async run({
+      cleanup,
+      runId,
+      evidence,
+      apiBase,
+      organizationId,
+      workspaceId,
+    }) {
+      requireMutations();
+      const adminToken = process.env.AGENTCC_ADMIN_TOKEN;
+      if (!adminToken) {
+        skip(
+          "Set AGENTCC_ADMIN_TOKEN to run the gateway API-key bulk sync journey.",
+        );
+      }
+      assert(
+        organizationId && workspaceId,
+        "Gateway API-key bulk journey requires organization and workspace ids.",
+      );
+
+      const marker = `api_journey_key_bulk_${runId.replace(/[^a-z0-9]/gi, "_")}`;
+      let hardCleaned = false;
+      cleanup.defer("hard-delete API-key bulk sync fixtures", () =>
+        hardCleaned
+          ? null
+          : deleteAgentccApiKeyBulkFixtureDb({ marker, organizationId }),
+      );
+
+      const fixture = await seedAgentccApiKeyBulkFixtureDb({
+        marker,
+        organizationId,
+        workspaceId,
+      });
+      const adminClient = createApiClient({
+        apiBase,
+        accessToken: adminToken,
+      });
+      const wrongAdminClient = createApiClient({
+        apiBase,
+        accessToken: `${adminToken}-wrong`,
+      });
+
+      const wrongToken = await expectApiError(
+        () => wrongAdminClient.get(apiPath("/agentcc/api-keys/bulk/")),
+        [403],
+        "Gateway API-key bulk endpoint accepted a wrong admin token.",
+      );
+
+      const rows = asArray(
+        await adminClient.get(apiPath("/agentcc/api-keys/bulk/")),
+      );
+      const activeRow = rows.find(
+        (row) => row.id === fixture.active_gateway_key_id,
+      );
+      assert(
+        activeRow,
+        "Gateway API-key bulk response did not include the active hashed key fixture.",
+      );
+      assert(
+        activeRow.key_hash === fixture.active_key_hash,
+        "Gateway API-key bulk response did not preserve key_hash.",
+      );
+      assert(
+        asArray(activeRow.models).includes("gpt-4o") &&
+          asArray(activeRow.providers).includes("openai"),
+        "Gateway API-key bulk response did not preserve model/provider ACLs.",
+      );
+      assert(
+        activeRow.metadata?.org_id === organizationId &&
+          activeRow.metadata?.enabled === "true" &&
+          activeRow.metadata?.limits === '{"rpm":10}' &&
+          activeRow.metadata?.tags === '["startup","sync"]' &&
+          !Object.prototype.hasOwnProperty.call(activeRow.metadata, "none"),
+        "Gateway API-key bulk metadata was not normalized to map[string]string with org_id.",
+      );
+      assert(
+        !Object.prototype.hasOwnProperty.call(activeRow, "key") &&
+          !JSON.stringify(activeRow).includes(fixture.active_raw_key),
+        "Gateway API-key bulk response leaked raw key material.",
+      );
+
+      const returnedIds = new Set(rows.map((row) => row.id));
+      assert(
+        !returnedIds.has(fixture.no_hash_gateway_key_id) &&
+          !returnedIds.has(fixture.revoked_gateway_key_id) &&
+          !returnedIds.has(fixture.deleted_gateway_key_id),
+        "Gateway API-key bulk response included no-hash, revoked, or deleted key fixtures.",
+      );
+
+      const hardCleanup = await deleteAgentccApiKeyBulkFixtureDb({
+        marker,
+        organizationId,
+      });
+      hardCleaned = true;
+      assert(
+        Number(hardCleanup.remaining_count) === 0,
+        "Gateway API-key bulk fixture cleanup left rows behind.",
+      );
+
+      evidence.push({
+        wrong_token_status: wrongToken.status,
+        active_gateway_key_id: fixture.active_gateway_key_id,
+        metadata_org_id: activeRow.metadata.org_id,
+        metadata_enabled: activeRow.metadata.enabled,
+        key_hash_matches: activeRow.key_hash === fixture.active_key_hash,
+        no_hash_omitted: !returnedIds.has(fixture.no_hash_gateway_key_id),
+        revoked_omitted: !returnedIds.has(fixture.revoked_gateway_key_id),
+        deleted_omitted: !returnedIds.has(fixture.deleted_gateway_key_id),
+        hard_cleanup_deleted_count: Number(hardCleanup.deleted_count),
+        hard_cleanup_remaining_count: Number(hardCleanup.remaining_count),
+      });
     },
   },
   {
@@ -6493,12 +7249,29 @@ export const simulationAgentccJourneys = [
       "db-audit",
       "security",
     ],
-    async run({ client, cleanup, runId, evidence, organizationId }) {
+    async run({
+      client,
+      cleanup,
+      runId,
+      evidence,
+      organizationId,
+      workspaceId,
+    }) {
       requireMutations();
       const suffix = runId.replace(/[^a-z0-9]/gi, "_");
       const name = `api_journey_guardrail_${suffix}`;
       const checkName = `api_journey_check_${suffix}`;
       const checkSecret = `gr-api-journey-${suffix}-secret-value`;
+      assert(
+        organizationId && workspaceId,
+        "Guardrail policy journey requires organization and workspace ids.",
+      );
+      let applyKeyHardCleaned = false;
+      cleanup.defer("hard-delete API journey guardrail apply key", () =>
+        applyKeyHardCleaned
+          ? null
+          : deleteAgentccApiKeyFixtureDb({ namePrefix: name, organizationId }),
+      );
 
       const topics = await client.get(
         apiPath("/agentcc/guardrail-configs/topics/"),
@@ -6600,6 +7373,58 @@ export const simulationAgentccJourneys = [
       );
       assertGuardrailSecretSanitized(updated, checkName, checkSecret);
 
+      const putUpdated = await client.put(
+        apiPath("/agentcc/guardrail-policies/{id}/", { id: created.id }),
+        {
+          name,
+          description:
+            "Full PUT guardrail policy update for API journey regression.",
+          scope: "global",
+          mode: "enforce",
+          is_active: true,
+          priority: 995,
+          applied_keys: [],
+          applied_projects: [],
+          checks: [
+            {
+              name: checkName,
+              type: "regex",
+              enabled: true,
+              config: {
+                pattern: "api-journey-put",
+                action: "flag",
+                api_key: "__encrypted__",
+              },
+            },
+          ],
+        },
+      );
+      assert(
+        putUpdated.priority === 995 &&
+          putUpdated.mode === "enforce" &&
+          putUpdated.is_active === true,
+        "Guardrail policy PUT did not persist full update payload.",
+      );
+      assertGuardrailSecretSanitized(putUpdated, checkName, checkSecret);
+
+      const applyKey = await seedAgentccGuardrailApplyKeyFixtureDb({
+        name,
+        organizationId,
+        workspaceId,
+      });
+      const applied = await client.post(
+        apiPath("/agentcc/guardrail-policies/{id}/apply/", {
+          id: created.id,
+        }),
+        { key_ids: [applyKey.id] },
+      );
+      assert(
+        applied.scope === "key" &&
+          asArray(applied.applied_keys).includes(applyKey.id),
+        "Guardrail policy apply did not persist the seeded API key target.",
+      );
+      assertGuardrailSecretSanitized(applied, checkName, checkSecret);
+
       const syncResult = await client.post(
         apiPath("/agentcc/guardrail-policies/sync/"),
         {},
@@ -6617,9 +7442,11 @@ export const simulationAgentccJourneys = [
       });
       assert(
         dbAudit.deleted === false &&
-          dbAudit.check_pattern === "api-journey-updated" &&
+          dbAudit.scope === "key" &&
+          asArray(dbAudit.applied_keys).includes(applyKey.id) &&
+          dbAudit.check_pattern === "api-journey-put" &&
           dbAudit.encrypted_check_configs_present === true,
-        "Guardrail policy DB audit did not preserve sanitized secret after patch.",
+        "Guardrail policy DB audit did not preserve sanitized secret after PUT/apply.",
       );
 
       await client.delete(
@@ -6643,12 +7470,26 @@ export const simulationAgentccJourneys = [
         "Guardrail policy DB audit did not show soft-delete state.",
       );
 
+      const applyKeyCleanup = await deleteAgentccApiKeyFixtureDb({
+        namePrefix: name,
+        organizationId,
+      });
+      applyKeyHardCleaned = true;
+      assert(
+        Number(applyKeyCleanup.remaining_count) === 0,
+        "Guardrail policy apply API-key fixture cleanup left rows behind.",
+      );
+
       evidence.push({
         guardrail_policy_id: created.id,
         guardrail_policy_name: name,
+        applied_key_id: applyKey.id,
+        put_gateway_synced: putUpdated.gateway_synced,
+        apply_gateway_synced: applied.gateway_synced,
         sync_gateway_synced: syncResult.gateway_synced,
         encrypted_check_configs_present:
           dbAudit.encrypted_check_configs_present,
+        apply_key_cleanup_deleted_count: Number(applyKeyCleanup.deleted_count),
       });
     },
   },
@@ -6995,6 +7836,271 @@ export const simulationAgentccJourneys = [
     },
   },
   {
+    id: "AGENTCC-API-013",
+    title:
+      "Gateway generated provider, guardrail, batch, reload, and MCP action guards",
+    tags: [
+      "gateway",
+      "agentcc",
+      "provider-actions",
+      "guardrails",
+      "batch",
+      "mcp",
+      "mutating",
+      "db-audit",
+    ],
+    async run({ client, cleanup, runId, evidence, organizationId }) {
+      requireMutations();
+      const suffix = runId.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      const gatewayId = "default";
+      const providerName = `api_journey_gateway_action_provider_${suffix}`;
+      const guardrailName = `api_journey_gateway_action_guardrail_${suffix}`;
+      const rawProviderKey = `sk-gateway-action-${suffix}-secret-value`;
+
+      cleanup.defer("hard delete gateway action provider rows", () =>
+        hardDeleteAgentccProviderCredentialByName({
+          organizationId,
+          providerName,
+        }),
+      );
+
+      const originalActiveConfig = await client.get(
+        apiPath("/agentcc/org-configs/active/"),
+      );
+      assert(
+        originalActiveConfig?.id && originalActiveConfig?.is_active === true,
+        "AgentCC org config active endpoint did not return an active baseline config.",
+      );
+      const beforeConfigIds = new Set(
+        collectionRows(await client.get(apiPath("/agentcc/org-configs/")))
+          .map((config) => config?.id)
+          .filter(Boolean),
+      );
+      const restoreOrgConfig = createAgentccOrgConfigRestorer({
+        client,
+        beforeConfigIds,
+        originalActiveConfigId: originalActiveConfig.id,
+      });
+      cleanup.defer(
+        "restore AgentCC gateway action org config versions",
+        restoreOrgConfig,
+      );
+
+      const providerUpdate = await client.post(
+        apiPath("/agentcc/gateways/{id}/update-provider/", { id: gatewayId }),
+        {
+          name: providerName,
+          config: {
+            api_key: rawProviderKey,
+            display_name: "API journey gateway action provider",
+            api_format: "openai",
+            models: ["gpt-4o-mini"],
+            base_url: "https://api.example.com/v1",
+            default_timeout: 19,
+            max_concurrent: 3,
+            conn_pool_size: 5,
+          },
+        },
+      );
+      assert(
+        providerUpdate?.provider === providerName &&
+          providerUpdate.action === "updated",
+        "Gateway update-provider did not echo provider/action.",
+      );
+
+      let gatewayConfig = await client.get(
+        apiPath("/agentcc/gateways/{id}/config/", { id: gatewayId }),
+      );
+      const providerConfig = gatewayConfig.providers?.[providerName];
+      assert(
+        providerConfig?.display_name ===
+          "API journey gateway action provider" &&
+          asArray(providerConfig.models).includes("gpt-4o-mini"),
+        "Gateway config did not expose the provider created through update-provider.",
+      );
+
+      const providerAudit = await loadAgentccProviderCredentialDbAudit({
+        credentialId: providerConfig.id,
+        organizationId,
+        rawKey: rawProviderKey,
+      });
+      assert(
+        providerAudit.provider_name === providerName &&
+          providerAudit.deleted === false &&
+          providerAudit.raw_key_present_in_ciphertext === false,
+        "Gateway update-provider DB audit did not find encrypted active provider row.",
+      );
+
+      const providerRemove = await client.post(
+        apiPath("/agentcc/gateways/{id}/remove-provider/", { id: gatewayId }),
+        { name: providerName },
+      );
+      assert(
+        providerRemove?.provider === providerName &&
+          providerRemove.action === "removed",
+        "Gateway remove-provider did not echo provider/action.",
+      );
+
+      const guardrailUpdate = await client.post(
+        apiPath("/agentcc/gateways/{id}/update-guardrail/", { id: gatewayId }),
+        {
+          name: guardrailName,
+          config: {
+            enabled: true,
+            action: "flag",
+            threshold: 0.42,
+            stage: "pre",
+            mode: "sync",
+            config: { source: "api-journey" },
+          },
+        },
+      );
+      assert(
+        guardrailUpdate?.guardrail === guardrailName &&
+          guardrailUpdate.action === "updated",
+        "Gateway update-guardrail did not echo guardrail/action.",
+      );
+
+      const guardrailToggle = await client.post(
+        apiPath("/agentcc/gateways/{id}/toggle-guardrail/", { id: gatewayId }),
+        {
+          name: guardrailName,
+          enabled: false,
+        },
+      );
+      assert(
+        guardrailToggle?.guardrail === guardrailName &&
+          guardrailToggle.enabled === false,
+        "Gateway toggle-guardrail did not echo guardrail/enabled state.",
+      );
+
+      gatewayConfig = await client.get(
+        apiPath("/agentcc/gateways/{id}/config/", { id: gatewayId }),
+      );
+      const guardrailRule = asArray(gatewayConfig.guardrails?.rules).find(
+        (rule) => rule?.name === guardrailName,
+      );
+      assert(
+        guardrailRule?.enabled === false && guardrailRule.threshold === 0.42,
+        "Gateway config did not expose the updated and toggled guardrail rule.",
+      );
+
+      const reload = await client.post(
+        apiPath("/agentcc/gateways/{id}/reload/", { id: gatewayId }),
+        {},
+      );
+      assert(
+        reload?.status === "ok" &&
+          Object.prototype.hasOwnProperty.call(reload, "gateway_synced"),
+        "Gateway reload did not return status/gateway_synced.",
+      );
+
+      const resetMcp = await client.post(
+        apiPath("/agentcc/gateways/{id}/update-config/", { id: gatewayId }),
+        {
+          mcp: {
+            servers: {},
+            guardrails: {},
+          },
+        },
+      );
+      assert(
+        Number(resetMcp?.version) > Number(guardrailToggle.version),
+        "Gateway update-config did not create a newer MCP reset version.",
+      );
+
+      const emptyBatchSubmit = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/agentcc/gateways/{id}/submit-batch/", {
+              id: gatewayId,
+            }),
+            { requests: [] },
+          ),
+        [400],
+        "Gateway submit-batch unexpectedly accepted an empty request list.",
+      );
+      const missingBatchId = await expectApiError(
+        () =>
+          client.get(
+            apiPath("/agentcc/gateways/{id}/get-batch/", { id: gatewayId }),
+          ),
+        [400],
+        "Gateway get-batch unexpectedly accepted a missing batch_id.",
+      );
+      const unknownBatchId = `unknown-${suffix}`;
+      const unknownBatchRead = await expectApiError(
+        () =>
+          client.get(
+            apiPath("/agentcc/gateways/{id}/get-batch/", { id: gatewayId }),
+            { query: { batch_id: unknownBatchId } },
+          ),
+        [404],
+        "Gateway get-batch unexpectedly accepted an unowned batch id.",
+      );
+      const unknownBatchCancel = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/agentcc/gateways/{id}/cancel-batch/", {
+              id: gatewayId,
+            }),
+            { batch_id: unknownBatchId },
+          ),
+        [404],
+        "Gateway cancel-batch unexpectedly accepted an unowned batch id.",
+      );
+      const mcpToolNoServers = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/agentcc/gateways/{id}/test-mcp-tool/", {
+              id: gatewayId,
+            }),
+            {
+              name: "echo",
+              arguments: { message: "hello" },
+            },
+          ),
+        [400],
+        "Gateway test-mcp-tool unexpectedly dispatched without configured MCP servers.",
+      );
+
+      const restoreEvidence = await restoreOrgConfig();
+      const dbAudit = await loadAgentccGatewayActionDbAudit({
+        organizationId,
+        originalConfigId: originalActiveConfig.id,
+        createdConfigIds: restoreEvidence.deleted_config_ids,
+        providerName,
+        guardrailName,
+      });
+      assert(
+        dbAudit.active_config_is_original === true &&
+          dbAudit.active_guardrail_present === false &&
+          dbAudit.provider_deleted === true &&
+          Number(dbAudit.created_config_deleted_count) ===
+            restoreEvidence.deleted_config_ids.length,
+        "Gateway generated-action DB audit did not show provider removal and config restore.",
+      );
+
+      evidence.push({
+        gateway_id: gatewayId,
+        provider_name: providerName,
+        provider_id: providerConfig.id,
+        guardrail_name: guardrailName,
+        update_provider_synced: providerUpdate.gateway_synced,
+        remove_provider_synced: providerRemove.gateway_synced,
+        guardrail_update_synced: guardrailUpdate.gateway_synced,
+        guardrail_toggle_synced: guardrailToggle.gateway_synced,
+        reload_synced: reload.gateway_synced,
+        empty_batch_status: emptyBatchSubmit.status,
+        missing_batch_id_status: missingBatchId.status,
+        unknown_batch_read_status: unknownBatchRead.status,
+        unknown_batch_cancel_status: unknownBatchCancel.status,
+        mcp_tool_no_servers_status: mcpToolNoServers.status,
+        restored_config_count: restoreEvidence.deleted_config_ids.length,
+      });
+    },
+  },
+  {
     id: "AGENTCC-API-011",
     title:
       "Gateway email alert create, mask, patch, validation-only test, and delete lifecycle",
@@ -7236,6 +8342,447 @@ async function createGatewayApiKeyOrSkip(client, payload) {
     }
     throw error;
   }
+}
+
+async function seedOtherWorkspaceAgentccProjectFixtureDb({
+  namePrefix,
+  organizationId,
+  userId,
+}) {
+  const workspaceId = randomUUID();
+  const projectId = randomUUID();
+  const workspaceName = `${namePrefix} hidden api-key workspace`;
+  const projectName = `${namePrefix} hidden api-key project`;
+  const sql = `
+WITH inserted_workspace AS (
+  INSERT INTO accounts_workspace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    display_name,
+    description,
+    is_active,
+    is_default,
+    created_by_id,
+    organization_id
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(workspaceId)},
+    ${sqlString(workspaceName)},
+    ${sqlString(workspaceName)},
+    ${sqlString("Temporary workspace for AgentCC API key project guard journey.")},
+    true,
+    false,
+    ${sqlUuid(userId)},
+    ${sqlUuid(organizationId)}
+  )
+  RETURNING id, name
+),
+inserted_project AS (
+  INSERT INTO agentcc_project (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    organization_id,
+    workspace_id,
+    tracer_project_id,
+    name,
+    description,
+    config
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(projectId)},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)},
+    NULL,
+    ${sqlString(projectName)},
+    ${sqlString("Hidden project for AgentCC API key project guard journey.")},
+    ${sqlJson({ source: "api-journey-hidden-project" })}
+  )
+  RETURNING id, name, workspace_id
+)
+SELECT json_build_object(
+  'workspace_id', (SELECT id::text FROM inserted_workspace),
+  'workspace_name', (SELECT name FROM inserted_workspace),
+  'project_id', (SELECT id::text FROM inserted_project),
+  'project_name', (SELECT name FROM inserted_project)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadAgentccApiKeyDbAudit({
+  keyId,
+  organizationId,
+  expectedKeyHash,
+  expectedName,
+}) {
+  const sql = `
+WITH selected_keys AS (
+  SELECT *
+  FROM agentcc_api_key
+  WHERE id = ${sqlUuid(keyId)}
+    AND organization_id = ${sqlUuid(organizationId)}
+)
+SELECT json_build_object(
+  'row_count', (SELECT count(*) FROM selected_keys),
+  'name', (SELECT name FROM selected_keys LIMIT 1),
+  'status', (SELECT status FROM selected_keys LIMIT 1),
+  'deleted', (SELECT deleted FROM selected_keys LIMIT 1),
+  'deleted_at_set', (SELECT deleted_at IS NOT NULL FROM selected_keys LIMIT 1),
+  'key_hash_matches_expected', (
+    SELECT key_hash = ${sqlString(expectedKeyHash)} FROM selected_keys LIMIT 1
+  ),
+  'name_matches_expected', (
+    SELECT name = ${sqlString(expectedName)} FROM selected_keys LIMIT 1
+  ),
+  'workspace_id', (SELECT workspace_id::text FROM selected_keys LIMIT 1),
+  'project_id', (SELECT project_id::text FROM selected_keys LIMIT 1),
+  'metadata', (SELECT metadata FROM selected_keys LIMIT 1)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function deleteAgentccApiKeyFixtureDb({ namePrefix, organizationId }) {
+  const sql = `
+WITH target_keys AS (
+  SELECT id
+  FROM agentcc_api_key
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+),
+deleted_keys AS (
+  DELETE FROM agentcc_api_key k
+  USING target_keys target
+  WHERE k.id = target.id
+  RETURNING k.id
+)
+SELECT json_build_object(
+  'deleted_count', (SELECT count(*) FROM deleted_keys),
+  'remaining_count', (
+    SELECT count(*)
+    FROM target_keys
+    WHERE id NOT IN (SELECT id FROM deleted_keys)
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedAgentccGuardrailApplyKeyFixtureDb({
+  name,
+  organizationId,
+  workspaceId,
+}) {
+  const keyId = randomUUID();
+  const gatewayKeyId = `${name}_apply_key`;
+  const rawKey = `${gatewayKeyId}_raw_secret`;
+  const keyHash = createHash("sha256").update(rawKey).digest("hex");
+  const sql = `
+WITH inserted_key AS (
+  INSERT INTO agentcc_api_key (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    organization_id,
+    workspace_id,
+    project_id,
+    user_id,
+    gateway_key_id,
+    key_prefix,
+    key_hash,
+    name,
+    owner,
+    status,
+    allowed_models,
+    allowed_providers,
+    metadata,
+    last_used_at,
+    expires_at
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(keyId)},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)},
+    NULL,
+    NULL,
+    ${sqlString(gatewayKeyId)},
+    'pk-gr',
+    ${sqlString(keyHash)},
+    ${sqlString(`${name}_apply_key`)},
+    'api-journey',
+    'active',
+    ${sqlJson(["gpt-4o-mini"])},
+    ${sqlJson(["openai"])},
+    ${sqlJson({ source: "api-journey", purpose: "guardrail-policy-apply" })},
+    NULL,
+    NULL
+  )
+  RETURNING id, gateway_key_id
+)
+SELECT json_build_object(
+  'id', (SELECT id::text FROM inserted_key),
+  'gateway_key_id', (SELECT gateway_key_id FROM inserted_key)
+);
+`;
+  const fixture = await runPostgresJson(sql);
+  assert(
+    fixture.id === keyId,
+    `Failed to seed guardrail apply API-key fixture: ${JSON.stringify(fixture)}`,
+  );
+  return fixture;
+}
+
+async function deleteAgentccApiKeyProjectFixtureDb({
+  namePrefix,
+  organizationId,
+}) {
+  const sql = `
+WITH target_projects AS (
+  SELECT id, workspace_id
+  FROM agentcc_project
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix} hidden api-key project%`)}
+),
+deleted_projects AS (
+  DELETE FROM agentcc_project p
+  USING target_projects target
+  WHERE p.id = target.id
+  RETURNING p.id
+),
+target_workspaces AS (
+  SELECT id
+  FROM accounts_workspace
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix} hidden api-key workspace%`)}
+),
+deleted_workspaces AS (
+  DELETE FROM accounts_workspace w
+  USING target_workspaces target
+  WHERE w.id = target.id
+  RETURNING w.id
+)
+SELECT json_build_object(
+  'deleted_project_count', (SELECT count(*) FROM deleted_projects),
+  'remaining_project_count', (
+    SELECT count(*)
+    FROM target_projects
+    WHERE id NOT IN (SELECT id FROM deleted_projects)
+  ),
+  'deleted_workspace_count', (SELECT count(*) FROM deleted_workspaces),
+  'remaining_workspace_count', (
+    SELECT count(*)
+    FROM target_workspaces
+    WHERE id NOT IN (SELECT id FROM deleted_workspaces)
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedAgentccApiKeyBulkFixtureDb({
+  marker,
+  organizationId,
+  workspaceId,
+}) {
+  const activeId = randomUUID();
+  const noHashId = randomUUID();
+  const revokedId = randomUUID();
+  const deletedId = randomUUID();
+  const activeGatewayKeyId = `${marker}_active`;
+  const noHashGatewayKeyId = `${marker}_no_hash`;
+  const revokedGatewayKeyId = `${marker}_revoked`;
+  const deletedGatewayKeyId = `${marker}_deleted`;
+  const activeRawKey = `${marker}_raw_secret_value`;
+  const activeKeyHash = createHash("sha256").update(activeRawKey).digest("hex");
+  const sql = `
+WITH inserted_rows AS (
+  INSERT INTO agentcc_api_key (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    organization_id,
+    workspace_id,
+    project_id,
+    user_id,
+    gateway_key_id,
+    key_prefix,
+    key_hash,
+    name,
+    owner,
+    status,
+    allowed_models,
+    allowed_providers,
+    metadata,
+    last_used_at,
+    expires_at
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(activeId)},
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(workspaceId)},
+      NULL,
+      NULL,
+      ${sqlString(activeGatewayKeyId)},
+      'pk-bulk',
+      ${sqlString(activeKeyHash)},
+      ${sqlString(`${marker} active`)},
+      'api-journey',
+      'active',
+      ${sqlJson(["gpt-4o"])},
+      ${sqlJson(["openai"])},
+      ${sqlJson({
+        source: "api-journey",
+        marker,
+        enabled: true,
+        limits: { rpm: 10 },
+        tags: ["startup", "sync"],
+        none: null,
+      })},
+      NULL,
+      NULL
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(noHashId)},
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(workspaceId)},
+      NULL,
+      NULL,
+      ${sqlString(noHashGatewayKeyId)},
+      'pk-nohash',
+      '',
+      ${sqlString(`${marker} no hash`)},
+      'api-journey',
+      'active',
+      ${sqlJson([])},
+      ${sqlJson([])},
+      ${sqlJson({ source: "api-journey", marker, org_id: organizationId })},
+      NULL,
+      NULL
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(revokedId)},
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(workspaceId)},
+      NULL,
+      NULL,
+      ${sqlString(revokedGatewayKeyId)},
+      'pk-revoked',
+      ${sqlString(createHash("sha256").update(`${marker}_revoked`).digest("hex"))},
+      ${sqlString(`${marker} revoked`)},
+      'api-journey',
+      'revoked',
+      ${sqlJson([])},
+      ${sqlJson([])},
+      ${sqlJson({ source: "api-journey", marker, org_id: organizationId })},
+      NULL,
+      NULL
+    ),
+    (
+      now(),
+      now(),
+      true,
+      now(),
+      ${sqlUuid(deletedId)},
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(workspaceId)},
+      NULL,
+      NULL,
+      ${sqlString(deletedGatewayKeyId)},
+      'pk-deleted',
+      ${sqlString(createHash("sha256").update(`${marker}_deleted`).digest("hex"))},
+      ${sqlString(`${marker} deleted`)},
+      'api-journey',
+      'active',
+      ${sqlJson([])},
+      ${sqlJson([])},
+      ${sqlJson({ source: "api-journey", marker, org_id: organizationId })},
+      NULL,
+      NULL
+    )
+  RETURNING id
+)
+SELECT json_build_object(
+  'inserted_count', (SELECT count(*) FROM inserted_rows)
+);
+`;
+  const result = await runPostgresJson(sql);
+  assert(
+    Number(result.inserted_count) === 4,
+    `Failed to seed API-key bulk fixtures: ${JSON.stringify(result)}`,
+  );
+  return {
+    ...result,
+    active_id: activeId,
+    active_gateway_key_id: activeGatewayKeyId,
+    active_raw_key: activeRawKey,
+    active_key_hash: activeKeyHash,
+    no_hash_gateway_key_id: noHashGatewayKeyId,
+    revoked_gateway_key_id: revokedGatewayKeyId,
+    deleted_gateway_key_id: deletedGatewayKeyId,
+  };
+}
+
+async function deleteAgentccApiKeyBulkFixtureDb({ marker, organizationId }) {
+  const sql = `
+WITH target AS (
+  SELECT id
+  FROM agentcc_api_key
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND gateway_key_id LIKE ${sqlString(`${marker}%`)}
+),
+deleted_rows AS (
+  DELETE FROM agentcc_api_key k
+  USING target
+  WHERE k.id = target.id
+  RETURNING k.id
+)
+SELECT json_build_object(
+  'deleted_count', (SELECT count(*) FROM deleted_rows),
+  'remaining_count', (
+    SELECT count(*)
+    FROM agentcc_api_key
+    WHERE organization_id = ${sqlUuid(organizationId)}
+      AND gateway_key_id LIKE ${sqlString(`${marker}%`)}
+  )
+);
+`;
+  return runPostgresJson(sql);
 }
 
 async function expectApiError(fn, expectedStatuses, successMessage) {
@@ -8685,6 +10232,1188 @@ SELECT json_build_object(
   return result;
 }
 
+async function seedAgentPromptOptimiserFixtureDb({
+  namePrefix,
+  organizationId,
+  workspaceId,
+  userId,
+}) {
+  const hiddenWorkspaceId = randomUUID();
+  const active = {
+    agentOptimiserId: randomUUID(),
+    agentOptimiserRunId: randomUUID(),
+    runTestId: randomUUID(),
+    testExecutionId: randomUUID(),
+    promptRunId: randomUUID(),
+    stepIds: [randomUUID(), randomUUID()],
+    scenarioId: randomUUID(),
+    callExecutionId: randomUUID(),
+    evalTemplateId: randomUUID(),
+    evalConfigId: randomUUID(),
+    baselineTrialId: randomUUID(),
+    trialId: randomUUID(),
+    baselineItemId: randomUUID(),
+    trialItemId: randomUUID(),
+    componentEvalIds: [randomUUID(), randomUUID()],
+  };
+  const hidden = {
+    agentOptimiserId: randomUUID(),
+    agentOptimiserRunId: randomUUID(),
+    runTestId: randomUUID(),
+    testExecutionId: randomUUID(),
+    promptRunId: randomUUID(),
+    stepIds: [randomUUID(), randomUUID()],
+    scenarioId: randomUUID(),
+    callExecutionId: randomUUID(),
+    evalTemplateId: randomUUID(),
+    evalConfigId: randomUUID(),
+    baselineTrialId: randomUUID(),
+    trialId: randomUUID(),
+    baselineItemId: randomUUID(),
+    trialItemId: randomUUID(),
+    componentEvalIds: [randomUUID(), randomUUID()],
+  };
+
+  const sql = `
+WITH inserted_hidden_workspace AS (
+  INSERT INTO accounts_workspace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    display_name,
+    description,
+    is_active,
+    is_default,
+    created_by_id,
+    organization_id
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(hiddenWorkspaceId)},
+    ${sqlString(`${namePrefix} hidden workspace`)},
+    ${sqlString(`${namePrefix} hidden workspace`)},
+    ${sqlString("Temporary hidden workspace for API journey coverage.")},
+    true,
+    false,
+    ${sqlUuid(userId)},
+    ${sqlUuid(organizationId)}
+  )
+  RETURNING id
+),
+inserted_agent_optimisers AS (
+  INSERT INTO agent_optimiser (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    description,
+    configuration
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.agentOptimiserId)},
+      ${sqlString(`${namePrefix} active optimiser`)},
+      ${sqlString("Temporary active optimizer for API journey coverage.")},
+      ${sqlJson({ source: "api-journey", workspace: "active" })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.agentOptimiserId)},
+      ${sqlString(`${namePrefix} hidden optimiser`)},
+      ${sqlString("Temporary hidden optimizer for API journey coverage.")},
+      ${sqlJson({ source: "api-journey", workspace: "hidden" })}
+    )
+  RETURNING id
+),
+inserted_agent_optimiser_runs AS (
+  INSERT INTO agent_optimiser_run (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    agent_optimiser_id,
+    status,
+    input_data,
+    result,
+    metadata
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.agentOptimiserRunId)},
+      ${sqlUuid(active.agentOptimiserId)},
+      'completed',
+      ${sqlJson({ prompt: "old" })},
+      ${sqlJson({ prompt: "new" })},
+      ${sqlJson({ source: "api-journey", workspace: "active" })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.agentOptimiserRunId)},
+      ${sqlUuid(hidden.agentOptimiserId)},
+      'completed',
+      ${sqlJson({ prompt: "old" })},
+      ${sqlJson({ prompt: "new" })},
+      ${sqlJson({ source: "api-journey", workspace: "hidden" })}
+    )
+  RETURNING id
+),
+inserted_run_tests AS (
+  INSERT INTO simulate_run_test (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    description,
+    source_type,
+    dataset_row_ids,
+    organization_id,
+    workspace_id,
+    enable_tool_evaluation
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.runTestId)},
+      ${sqlString(`${namePrefix} active run test`)},
+      ${sqlString("Temporary active run test for prompt optimiser journey.")},
+      'agent_definition',
+      ARRAY[]::varchar[],
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(workspaceId)},
+      false
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.runTestId)},
+      ${sqlString(`${namePrefix} hidden run test`)},
+      ${sqlString("Temporary hidden run test for prompt optimiser journey.")},
+      'agent_definition',
+      ARRAY[]::varchar[],
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(hiddenWorkspaceId)},
+      false
+    )
+  RETURNING id
+),
+inserted_test_executions AS (
+  INSERT INTO simulate_test_execution (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    run_test_id,
+    status,
+    started_at,
+    completed_at,
+    total_scenarios,
+    scenario_ids,
+    total_calls,
+    completed_calls,
+    failed_calls,
+    execution_metadata,
+    picked_up_by_executor,
+    eval_explanation_summary,
+    eval_explanation_summary_last_updated,
+    eval_explanation_summary_status,
+    agent_optimiser_id,
+    error_reason
+  )
+  VALUES
+    (
+      now() - interval '2 minutes',
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.testExecutionId)},
+      ${sqlUuid(active.runTestId)},
+      'completed',
+      now() - interval '2 minutes',
+      now() - interval '1 minute',
+      1,
+      ${sqlJson([active.scenarioId])},
+      1,
+      1,
+      0,
+      ${sqlJson({ source: "api-journey", workspace: "active" })},
+      true,
+      '{}'::jsonb,
+      now(),
+      'completed',
+      ${sqlUuid(active.agentOptimiserId)},
+      NULL
+    ),
+    (
+      now() - interval '2 minutes',
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.testExecutionId)},
+      ${sqlUuid(hidden.runTestId)},
+      'completed',
+      now() - interval '2 minutes',
+      now() - interval '1 minute',
+      1,
+      ${sqlJson([hidden.scenarioId])},
+      1,
+      1,
+      0,
+      ${sqlJson({ source: "api-journey", workspace: "hidden" })},
+      true,
+      '{}'::jsonb,
+      now(),
+      'completed',
+      ${sqlUuid(hidden.agentOptimiserId)},
+      NULL
+    )
+  RETURNING id
+),
+inserted_prompt_runs AS (
+  INSERT INTO agent_prompt_optimiser_run (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    agent_optimiser_id,
+    agent_optimiser_run_id,
+    test_execution_id,
+    optimiser_type,
+    model,
+    status,
+    result,
+    error_message,
+    configuration
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.promptRunId)},
+      ${sqlString(`${namePrefix} active prompt run`)},
+      ${sqlUuid(active.agentOptimiserId)},
+      ${sqlUuid(active.agentOptimiserRunId)},
+      ${sqlUuid(active.testExecutionId)},
+      'protegi',
+      'gpt-4o-mini',
+      'completed',
+      ${sqlJson({ history: [{ trial: 1 }] })},
+      NULL,
+      ${sqlJson({
+        beam_size: 2,
+        num_gradients: 1,
+        errors_per_gradient: 1,
+        prompts_per_gradient: 1,
+        num_rounds: 1,
+      })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.promptRunId)},
+      ${sqlString(`${namePrefix} hidden prompt run`)},
+      ${sqlUuid(hidden.agentOptimiserId)},
+      ${sqlUuid(hidden.agentOptimiserRunId)},
+      ${sqlUuid(hidden.testExecutionId)},
+      'protegi',
+      'gpt-4o-mini',
+      'completed',
+      ${sqlJson({ history: [{ trial: 1 }] })},
+      NULL,
+      ${sqlJson({
+        beam_size: 2,
+        num_gradients: 1,
+        errors_per_gradient: 1,
+        prompts_per_gradient: 1,
+        num_rounds: 1,
+      })}
+    )
+  RETURNING id
+),
+inserted_steps AS (
+  INSERT INTO agent_prompt_optimiser_run_step (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    agent_prompt_optimiser_run_id,
+    step_number,
+    name,
+    description,
+    status,
+    metadata
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.stepIds[0])},
+      ${sqlUuid(active.promptRunId)},
+      1,
+      'Collect calls',
+      'Collect call outputs',
+      'completed',
+      ${sqlJson({ source: "api-journey" })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.stepIds[1])},
+      ${sqlUuid(active.promptRunId)},
+      2,
+      'Generate prompt',
+      'Generate candidate prompt',
+      'completed',
+      ${sqlJson({ source: "api-journey" })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.stepIds[0])},
+      ${sqlUuid(hidden.promptRunId)},
+      1,
+      'Collect calls',
+      'Collect call outputs',
+      'completed',
+      ${sqlJson({ source: "api-journey" })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.stepIds[1])},
+      ${sqlUuid(hidden.promptRunId)},
+      2,
+      'Generate prompt',
+      'Generate candidate prompt',
+      'completed',
+      ${sqlJson({ source: "api-journey" })}
+    )
+  RETURNING id
+),
+inserted_scenarios AS (
+  INSERT INTO simulate_scenarios (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    description,
+    source,
+    scenario_type,
+    organization_id,
+    workspace_id,
+    metadata,
+    status,
+    source_type
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.scenarioId)},
+      ${sqlString(`${namePrefix} active scenario`)},
+      'Handle a refund request',
+      'Customer asks for a refund.',
+      'dataset',
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(workspaceId)},
+      ${sqlJson({ source: "api-journey", workspace: "active" })},
+      'Completed',
+      'agent_definition'
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.scenarioId)},
+      ${sqlString(`${namePrefix} hidden scenario`)},
+      'Handle a hidden refund request',
+      'Customer asks for a refund in another workspace.',
+      'dataset',
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(hiddenWorkspaceId)},
+      ${sqlJson({ source: "api-journey", workspace: "hidden" })},
+      'Completed',
+      'agent_definition'
+    )
+  RETURNING id
+),
+inserted_run_scenarios AS (
+  INSERT INTO simulate_run_test_scenarios (
+    runtest_id,
+    scenarios_id
+  )
+  VALUES
+    (${sqlUuid(active.runTestId)}, ${sqlUuid(active.scenarioId)}),
+    (${sqlUuid(hidden.runTestId)}, ${sqlUuid(hidden.scenarioId)})
+  RETURNING runtest_id
+),
+inserted_calls AS (
+  INSERT INTO simulate_call_execution (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    test_execution_id,
+    simulation_call_type,
+    scenario_id,
+    phone_number,
+    status,
+    started_at,
+    completed_at,
+    duration_seconds,
+    call_metadata,
+    eval_outputs,
+    tool_outputs,
+    transcript_available,
+    recording_available,
+    overall_score
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.callExecutionId)},
+      ${sqlUuid(active.testExecutionId)},
+      'text',
+      ${sqlUuid(active.scenarioId)},
+      '+15555550000',
+      'completed',
+      now() - interval '90 seconds',
+      now() - interval '60 seconds',
+      30,
+      ${sqlJson({ source: "api-journey", workspace: "active" })},
+      '{}'::jsonb,
+      '{}'::jsonb,
+      false,
+      false,
+      8.0
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.callExecutionId)},
+      ${sqlUuid(hidden.testExecutionId)},
+      'text',
+      ${sqlUuid(hidden.scenarioId)},
+      '+15555550001',
+      'completed',
+      now() - interval '90 seconds',
+      now() - interval '60 seconds',
+      30,
+      ${sqlJson({ source: "api-journey", workspace: "hidden" })},
+      '{}'::jsonb,
+      '{}'::jsonb,
+      false,
+      false,
+      8.0
+    )
+  RETURNING id
+),
+inserted_eval_templates AS (
+  INSERT INTO model_hub_evaltemplate (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    description,
+    organization_id,
+    workspace_id,
+    owner,
+    eval_tags,
+    config,
+    eval_id,
+    criteria,
+    choices,
+    multi_choice,
+    visible_ui,
+    proxy_agi,
+    template_type,
+    eval_type,
+    allow_edit,
+    allow_copy,
+    output_type_normalized,
+    pass_threshold,
+    choice_scores,
+    error_localizer_enabled,
+    aggregation_enabled,
+    aggregation_function,
+    composite_child_axis
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.evalTemplateId)},
+      ${sqlString(`${namePrefix.replaceAll(" ", "_")}_active_eval`)},
+      'Scores whether the answer is helpful.',
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(workspaceId)},
+      'user',
+      ARRAY['api-journey']::varchar[],
+      ${sqlJson({ required_keys: ["answer"] })},
+      0,
+      '',
+      '[]'::jsonb,
+      false,
+      true,
+      true,
+      'single',
+      'code',
+      true,
+      true,
+      'percentage',
+      0.5,
+      NULL,
+      false,
+      true,
+      'weighted_avg',
+      ''
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.evalTemplateId)},
+      ${sqlString(`${namePrefix.replaceAll(" ", "_")}_hidden_eval`)},
+      'Scores whether the answer is helpful.',
+      ${sqlUuid(organizationId)},
+      ${sqlUuid(hiddenWorkspaceId)},
+      'user',
+      ARRAY['api-journey']::varchar[],
+      ${sqlJson({ required_keys: ["answer"] })},
+      0,
+      '',
+      '[]'::jsonb,
+      false,
+      true,
+      true,
+      'single',
+      'code',
+      true,
+      true,
+      'percentage',
+      0.5,
+      NULL,
+      false,
+      true,
+      'weighted_avg',
+      ''
+    )
+  RETURNING id
+),
+inserted_eval_configs AS (
+  INSERT INTO simulate_eval_config (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    eval_template_id,
+    name,
+    config,
+    mapping,
+    run_test_id,
+    filters,
+    error_localizer,
+    status
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.evalConfigId)},
+      ${sqlUuid(active.evalTemplateId)},
+      ${sqlString(`${namePrefix} active quality`)},
+      '{}'::jsonb,
+      ${sqlJson({ answer: "output" })},
+      ${sqlUuid(active.runTestId)},
+      '{}'::jsonb,
+      false,
+      'Completed'
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.evalConfigId)},
+      ${sqlUuid(hidden.evalTemplateId)},
+      ${sqlString(`${namePrefix} hidden quality`)},
+      '{}'::jsonb,
+      ${sqlJson({ answer: "output" })},
+      ${sqlUuid(hidden.runTestId)},
+      '{}'::jsonb,
+      false,
+      'Completed'
+    )
+  RETURNING id
+),
+inserted_trials AS (
+  INSERT INTO prompt_trial (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    agent_prompt_optimiser_run_id,
+    trial_number,
+    is_baseline,
+    prompt,
+    average_score,
+    metadata
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.baselineTrialId)},
+      ${sqlUuid(active.promptRunId)},
+      0,
+      true,
+      'Base support prompt',
+      0.4,
+      ${sqlJson({ kind: "baseline" })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.trialId)},
+      ${sqlUuid(active.promptRunId)},
+      1,
+      false,
+      'Improved support prompt',
+      0.8,
+      ${sqlJson({ kind: "candidate" })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.baselineTrialId)},
+      ${sqlUuid(hidden.promptRunId)},
+      0,
+      true,
+      'Hidden base support prompt',
+      0.4,
+      ${sqlJson({ kind: "baseline" })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.trialId)},
+      ${sqlUuid(hidden.promptRunId)},
+      1,
+      false,
+      'Hidden improved support prompt',
+      0.8,
+      ${sqlJson({ kind: "candidate" })}
+    )
+  RETURNING id
+),
+inserted_trial_items AS (
+  INSERT INTO trial_item_result (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    prompt_trial_id,
+    call_execution_id,
+    score,
+    reason,
+    input_text,
+    output_text,
+    metadata
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.baselineItemId)},
+      ${sqlUuid(active.baselineTrialId)},
+      ${sqlUuid(active.callExecutionId)},
+      0.4,
+      'Baseline answer was incomplete.',
+      'Can I get a refund?',
+      'Maybe.',
+      ${sqlJson({ trial: 0 })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.trialItemId)},
+      ${sqlUuid(active.trialId)},
+      ${sqlUuid(active.callExecutionId)},
+      0.8,
+      'Candidate answer included next steps.',
+      'Can I get a refund?',
+      'I can help start the refund.',
+      ${sqlJson({ trial: 1 })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.baselineItemId)},
+      ${sqlUuid(hidden.baselineTrialId)},
+      ${sqlUuid(hidden.callExecutionId)},
+      0.4,
+      'Hidden baseline answer was incomplete.',
+      'Can I get a refund?',
+      'Maybe.',
+      ${sqlJson({ trial: 0 })}
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.trialItemId)},
+      ${sqlUuid(hidden.trialId)},
+      ${sqlUuid(hidden.callExecutionId)},
+      0.8,
+      'Hidden candidate answer included next steps.',
+      'Can I get a refund?',
+      'I can help start the refund.',
+      ${sqlJson({ trial: 1 })}
+    )
+  RETURNING id
+),
+inserted_component_evaluations AS (
+  INSERT INTO component_evaluation (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    trial_item_result_id,
+    eval_config_id,
+    score,
+    reason
+  )
+  VALUES
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.componentEvalIds[0])},
+      ${sqlUuid(active.baselineItemId)},
+      ${sqlUuid(active.evalConfigId)},
+      0.4,
+      'Sparse answer.'
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(active.componentEvalIds[1])},
+      ${sqlUuid(active.trialItemId)},
+      ${sqlUuid(active.evalConfigId)},
+      0.8,
+      'Helpful answer.'
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.componentEvalIds[0])},
+      ${sqlUuid(hidden.baselineItemId)},
+      ${sqlUuid(hidden.evalConfigId)},
+      0.4,
+      'Hidden sparse answer.'
+    ),
+    (
+      now(),
+      now(),
+      false,
+      NULL,
+      ${sqlUuid(hidden.componentEvalIds[1])},
+      ${sqlUuid(hidden.trialItemId)},
+      ${sqlUuid(hidden.evalConfigId)},
+      0.8,
+      'Hidden helpful answer.'
+    )
+  RETURNING id
+)
+SELECT json_build_object(
+  'active_run_id', ${sqlString(active.promptRunId)},
+  'hidden_run_id', ${sqlString(hidden.promptRunId)},
+  'active_test_execution_id', ${sqlString(active.testExecutionId)},
+  'hidden_test_execution_id', ${sqlString(hidden.testExecutionId)},
+  'active_trial_id', ${sqlString(active.trialId)},
+  'hidden_trial_id', ${sqlString(hidden.trialId)},
+  'active_eval_config_id', ${sqlString(active.evalConfigId)},
+  'hidden_eval_config_id', ${sqlString(hidden.evalConfigId)},
+  'active_trial_item_id', ${sqlString(active.trialItemId)},
+  'hidden_workspace_id', ${sqlString(hiddenWorkspaceId)},
+  'inserted_hidden_workspace_count', (SELECT count(*) FROM inserted_hidden_workspace),
+  'inserted_run_test_count', (SELECT count(*) FROM inserted_run_tests),
+  'inserted_test_execution_count', (SELECT count(*) FROM inserted_test_executions),
+  'inserted_prompt_run_count', (SELECT count(*) FROM inserted_prompt_runs),
+  'inserted_trial_count', (SELECT count(*) FROM inserted_trials),
+  'inserted_trial_item_count', (SELECT count(*) FROM inserted_trial_items),
+  'inserted_component_evaluation_count', (SELECT count(*) FROM inserted_component_evaluations)
+);
+`;
+  const result = await runPostgresJson(sql);
+  assert(
+    Number(result.inserted_hidden_workspace_count) === 1 &&
+      Number(result.inserted_run_test_count) === 2 &&
+      Number(result.inserted_test_execution_count) === 2 &&
+      Number(result.inserted_prompt_run_count) === 2 &&
+      Number(result.inserted_trial_count) === 4 &&
+      Number(result.inserted_trial_item_count) === 4 &&
+      Number(result.inserted_component_evaluation_count) === 4,
+    `Failed to seed agent prompt optimiser fixture: ${JSON.stringify(result)}`,
+  );
+  return result;
+}
+
+async function loadAgentPromptOptimiserDbAudit({
+  namePrefix,
+  organizationId,
+  activeRunId,
+  hiddenRunId,
+}) {
+  const sql = `
+WITH target_runs AS (
+  SELECT id
+  FROM simulate_run_test
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+),
+target_executions AS (
+  SELECT id
+  FROM simulate_test_execution
+  WHERE run_test_id IN (SELECT id FROM target_runs)
+),
+target_prompt_runs AS (
+  SELECT apr.*
+  FROM agent_prompt_optimiser_run apr
+  WHERE apr.test_execution_id IN (SELECT id FROM target_executions)
+     OR apr.id IN (${sqlUuid(activeRunId)}, ${sqlUuid(hiddenRunId)})
+),
+hidden_prompt_runs AS (
+  SELECT apr.*
+  FROM target_prompt_runs apr
+  JOIN simulate_test_execution te ON te.id = apr.test_execution_id
+  JOIN simulate_run_test rt ON rt.id = te.run_test_id
+  JOIN accounts_workspace workspace ON workspace.id = rt.workspace_id
+  WHERE workspace.name = ${sqlString(`${namePrefix} hidden workspace`)}
+)
+SELECT json_build_object(
+  'run_test_count', (SELECT count(*) FROM target_runs),
+  'test_execution_count', (SELECT count(*) FROM target_executions),
+  'prompt_run_count', (SELECT count(*) FROM target_prompt_runs),
+  'hidden_prompt_run_count', (SELECT count(*) FROM hidden_prompt_runs),
+  'active_run_workspace_id', (
+    SELECT rt.workspace_id::text
+    FROM target_prompt_runs apr
+    JOIN simulate_test_execution te ON te.id = apr.test_execution_id
+    JOIN simulate_run_test rt ON rt.id = te.run_test_id
+    WHERE apr.id = ${sqlUuid(activeRunId)}
+  ),
+  'hidden_run_workspace_name', (
+    SELECT workspace.name
+    FROM target_prompt_runs apr
+    JOIN simulate_test_execution te ON te.id = apr.test_execution_id
+    JOIN simulate_run_test rt ON rt.id = te.run_test_id
+    JOIN accounts_workspace workspace ON workspace.id = rt.workspace_id
+    WHERE apr.id = ${sqlUuid(hiddenRunId)}
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteAgentPromptOptimiserFixturesDb({
+  namePrefix,
+  organizationId,
+}) {
+  const sql = `
+WITH target_runs AS (
+  SELECT id
+  FROM simulate_run_test
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+),
+target_executions AS (
+  SELECT id, agent_optimiser_id
+  FROM simulate_test_execution
+  WHERE run_test_id IN (SELECT id FROM target_runs)
+),
+target_prompt_runs AS (
+  SELECT id, agent_optimiser_id, agent_optimiser_run_id
+  FROM agent_prompt_optimiser_run
+  WHERE test_execution_id IN (SELECT id FROM target_executions)
+     OR name LIKE ${sqlString(`${namePrefix}%`)}
+),
+target_trials AS (
+  SELECT id
+  FROM prompt_trial
+  WHERE agent_prompt_optimiser_run_id IN (SELECT id FROM target_prompt_runs)
+),
+target_trial_items AS (
+  SELECT id
+  FROM trial_item_result
+  WHERE prompt_trial_id IN (SELECT id FROM target_trials)
+),
+target_calls AS (
+  SELECT id
+  FROM simulate_call_execution
+  WHERE test_execution_id IN (SELECT id FROM target_executions)
+),
+target_eval_configs AS (
+  SELECT id, eval_template_id
+  FROM simulate_eval_config
+  WHERE run_test_id IN (SELECT id FROM target_runs)
+),
+target_eval_templates AS (
+  SELECT id
+  FROM model_hub_evaltemplate
+  WHERE id IN (SELECT eval_template_id FROM target_eval_configs)
+     OR name LIKE ${sqlString(`${namePrefix.replaceAll(" ", "_")}%`)}
+),
+target_optimisers AS (
+  SELECT DISTINCT id
+  FROM (
+    SELECT agent_optimiser_id AS id
+    FROM target_executions
+    WHERE agent_optimiser_id IS NOT NULL
+    UNION
+    SELECT agent_optimiser_id AS id
+    FROM target_prompt_runs
+    WHERE agent_optimiser_id IS NOT NULL
+  ) optimiser_ids
+),
+target_optimiser_runs AS (
+  SELECT id
+  FROM agent_optimiser_run
+  WHERE agent_optimiser_id IN (SELECT id FROM target_optimisers)
+     OR id IN (SELECT agent_optimiser_run_id FROM target_prompt_runs)
+),
+target_scenarios AS (
+  SELECT id
+  FROM simulate_scenarios
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+),
+target_hidden_workspaces AS (
+  SELECT id
+  FROM accounts_workspace
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name = ${sqlString(`${namePrefix} hidden workspace`)}
+),
+deleted_component_evaluations AS (
+  DELETE FROM component_evaluation
+  WHERE trial_item_result_id IN (SELECT id FROM target_trial_items)
+     OR eval_config_id IN (SELECT id FROM target_eval_configs)
+  RETURNING id
+),
+deleted_trial_items AS (
+  DELETE FROM trial_item_result
+  WHERE id IN (SELECT id FROM target_trial_items)
+     OR call_execution_id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_trials AS (
+  DELETE FROM prompt_trial
+  WHERE id IN (SELECT id FROM target_trials)
+  RETURNING id
+),
+deleted_steps AS (
+  DELETE FROM agent_prompt_optimiser_run_step
+  WHERE agent_prompt_optimiser_run_id IN (SELECT id FROM target_prompt_runs)
+  RETURNING id
+),
+deleted_prompt_runs AS (
+  DELETE FROM agent_prompt_optimiser_run
+  WHERE id IN (SELECT id FROM target_prompt_runs)
+  RETURNING id
+),
+deleted_calls AS (
+  DELETE FROM simulate_call_execution
+  WHERE id IN (SELECT id FROM target_calls)
+  RETURNING id
+),
+deleted_eval_configs AS (
+  DELETE FROM simulate_eval_config
+  WHERE id IN (SELECT id FROM target_eval_configs)
+  RETURNING id
+),
+deleted_test_executions AS (
+  DELETE FROM simulate_test_execution
+  WHERE id IN (SELECT id FROM target_executions)
+  RETURNING id
+),
+deleted_run_scenarios AS (
+  DELETE FROM simulate_run_test_scenarios
+  WHERE runtest_id IN (SELECT id FROM target_runs)
+     OR scenarios_id IN (SELECT id FROM target_scenarios)
+  RETURNING runtest_id
+),
+deleted_run_tests AS (
+  DELETE FROM simulate_run_test
+  WHERE id IN (SELECT id FROM target_runs)
+  RETURNING id
+),
+deleted_scenarios AS (
+  DELETE FROM simulate_scenarios
+  WHERE id IN (SELECT id FROM target_scenarios)
+  RETURNING id
+),
+deleted_eval_templates AS (
+  DELETE FROM model_hub_evaltemplate
+  WHERE id IN (SELECT id FROM target_eval_templates)
+  RETURNING id
+),
+deleted_optimiser_runs AS (
+  DELETE FROM agent_optimiser_run
+  WHERE id IN (SELECT id FROM target_optimiser_runs)
+  RETURNING id
+),
+deleted_optimisers AS (
+  DELETE FROM agent_optimiser
+  WHERE id IN (SELECT id FROM target_optimisers)
+  RETURNING id
+),
+deleted_hidden_workspaces AS (
+  DELETE FROM accounts_workspace
+  WHERE id IN (SELECT id FROM target_hidden_workspaces)
+  RETURNING id
+)
+SELECT json_build_object(
+  'deleted_component_evaluation_count', (SELECT count(*) FROM deleted_component_evaluations),
+  'deleted_trial_item_count', (SELECT count(*) FROM deleted_trial_items),
+  'deleted_trial_count', (SELECT count(*) FROM deleted_trials),
+  'deleted_step_count', (SELECT count(*) FROM deleted_steps),
+  'deleted_prompt_run_count', (SELECT count(*) FROM deleted_prompt_runs),
+  'deleted_call_execution_count', (SELECT count(*) FROM deleted_calls),
+  'deleted_eval_config_count', (SELECT count(*) FROM deleted_eval_configs),
+  'deleted_test_execution_count', (SELECT count(*) FROM deleted_test_executions),
+  'deleted_run_test_count', (SELECT count(*) FROM deleted_run_tests),
+  'deleted_scenario_count', (SELECT count(*) FROM deleted_scenarios),
+  'deleted_eval_template_count', (SELECT count(*) FROM deleted_eval_templates),
+  'deleted_optimiser_run_count', (SELECT count(*) FROM deleted_optimiser_runs),
+  'deleted_optimiser_count', (SELECT count(*) FROM deleted_optimisers),
+  'deleted_hidden_workspace_count', (SELECT count(*) FROM deleted_hidden_workspaces)
+);
+`;
+  const cleanup = await runPostgresJson(sql);
+  const remainingSql = `
+WITH target_runs AS (
+  SELECT id
+  FROM simulate_run_test
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+),
+target_executions AS (
+  SELECT id
+  FROM simulate_test_execution
+  WHERE run_test_id IN (SELECT id FROM target_runs)
+),
+target_prompt_runs AS (
+  SELECT id
+  FROM agent_prompt_optimiser_run
+  WHERE test_execution_id IN (SELECT id FROM target_executions)
+     OR name LIKE ${sqlString(`${namePrefix}%`)}
+),
+target_hidden_workspaces AS (
+  SELECT id
+  FROM accounts_workspace
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name = ${sqlString(`${namePrefix} hidden workspace`)}
+)
+SELECT json_build_object(
+  'remaining_run_test_count', (SELECT count(*) FROM target_runs),
+  'remaining_test_execution_count', (SELECT count(*) FROM target_executions),
+  'remaining_prompt_run_count', (SELECT count(*) FROM target_prompt_runs),
+  'remaining_hidden_workspace_count', (SELECT count(*) FROM target_hidden_workspaces)
+);
+`;
+  return {
+    ...cleanup,
+    ...(await runPostgresJson(remainingSql)),
+  };
+}
+
 async function loadSimulationScenarioDbAudit({
   scenarioIds,
   datasetId,
@@ -9093,6 +11822,187 @@ SELECT json_build_object(
     SELECT count(*)
     FROM target_personas
     WHERE id NOT IN (SELECT id FROM deleted_personas)
+  ),
+  'deleted_workspace_count', (SELECT count(*) FROM deleted_workspaces),
+  'remaining_workspace_count', (
+    SELECT count(*)
+    FROM target_workspaces
+    WHERE id NOT IN (SELECT id FROM deleted_workspaces)
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function seedOtherWorkspaceSimulatorAgentFixtureDb({
+  namePrefix,
+  organizationId,
+  userId,
+}) {
+  const workspaceId = randomUUID();
+  const simulatorAgentId = randomUUID();
+  const workspaceName = `${namePrefix} other workspace`;
+  const simulatorAgentName = `${namePrefix} other workspace source`;
+  const sql = `
+WITH inserted_workspace AS (
+  INSERT INTO accounts_workspace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    display_name,
+    description,
+    is_active,
+    is_default,
+    created_by_id,
+    organization_id
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(workspaceId)},
+    ${sqlString(workspaceName)},
+    ${sqlString(workspaceName)},
+    ${sqlString("Temporary workspace for simulator-agent API journey scoping.")},
+    true,
+    false,
+    ${sqlUuid(userId)},
+    ${sqlUuid(organizationId)}
+  )
+  RETURNING id, name
+),
+inserted_simulator_agent AS (
+  INSERT INTO simulator_agents (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    prompt,
+    voice_provider,
+    voice_name,
+    interrupt_sensitivity,
+    conversation_speed,
+    finished_speaking_sensitivity,
+    model,
+    llm_temperature,
+    max_call_duration_in_minutes,
+    initial_message_delay,
+    initial_message,
+    organization_id,
+    workspace_id
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(simulatorAgentId)},
+    ${sqlString(simulatorAgentName)},
+    ${sqlString("Hidden simulator prompt for workspace-scope API journey.")},
+    'elevenlabs',
+    'marissa',
+    0.4,
+    1.0,
+    0.6,
+    'gpt-4o-mini',
+    0.2,
+    10,
+    0,
+    ${sqlString("Hidden hello.")},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)}
+  )
+  RETURNING id, name, workspace_id
+)
+SELECT json_build_object(
+  'workspace_id', (SELECT id::text FROM inserted_workspace),
+  'workspace_name', (SELECT name FROM inserted_workspace),
+  'simulator_agent_id', (SELECT id::text FROM inserted_simulator_agent),
+  'simulator_agent_name', (SELECT name FROM inserted_simulator_agent)
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadSimulatorAgentDbAudit({ agentIds, organizationId }) {
+  const sql = `
+WITH selected_ids AS (
+  SELECT unnest(${sqlUuidArray(agentIds)}) AS id
+),
+selected_agents AS (
+  SELECT a.*
+  FROM simulator_agents a
+  JOIN selected_ids ids ON ids.id = a.id
+  WHERE a.organization_id = ${sqlUuid(organizationId)}
+)
+SELECT json_build_object(
+  'agents', (
+    SELECT COALESCE(json_agg(json_build_object(
+      'id', id::text,
+      'name', name,
+      'prompt', prompt,
+      'voice_provider', voice_provider,
+      'voice_name', voice_name,
+      'model', model,
+      'organization_id', organization_id::text,
+      'workspace_id', workspace_id::text,
+      'deleted', deleted,
+      'deleted_at_set', deleted_at IS NOT NULL,
+      'llm_temperature', llm_temperature,
+      'initial_message', initial_message
+    ) ORDER BY created_at), '[]'::json)
+    FROM selected_agents
+  ),
+  'selected_count', (SELECT count(*) FROM selected_agents),
+  'active_count', (
+    SELECT count(*) FROM selected_agents WHERE deleted = false
+  ),
+  'deleted_at_count', (
+    SELECT count(*) FROM selected_agents WHERE deleted = true AND deleted_at IS NOT NULL
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function deleteSimulatorAgentFixturesDb({ namePrefix, organizationId }) {
+  const sql = `
+WITH target_agents AS (
+  SELECT id
+  FROM simulator_agents
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix}%`)}
+),
+deleted_agents AS (
+  DELETE FROM simulator_agents a
+  USING target_agents target
+  WHERE a.id = target.id
+  RETURNING a.id
+),
+target_workspaces AS (
+  SELECT id
+  FROM accounts_workspace
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND name LIKE ${sqlString(`${namePrefix} other workspace%`)}
+),
+deleted_workspaces AS (
+  DELETE FROM accounts_workspace w
+  USING target_workspaces target
+  WHERE w.id = target.id
+  RETURNING w.id
+)
+SELECT json_build_object(
+  'deleted_simulator_agent_count', (SELECT count(*) FROM deleted_agents),
+  'remaining_simulator_agent_count', (
+    SELECT count(*)
+    FROM target_agents
+    WHERE id NOT IN (SELECT id FROM deleted_agents)
   ),
   'deleted_workspace_count', (SELECT count(*) FROM deleted_workspaces),
   'remaining_workspace_count', (
@@ -10979,6 +13889,8 @@ SELECT COALESCE((
     'scope', scope,
     'is_active', is_active,
     'priority', priority,
+    'applied_keys', applied_keys,
+    'applied_projects', applied_projects,
     'check_secret_value', checks #>> '{0,config,api_key}',
     'check_pattern', checks #>> '{0,config,pattern}',
     'encrypted_check_configs_present', encrypted_check_configs IS NOT NULL,
@@ -11052,6 +13964,102 @@ SELECT json_build_object(
       '[]'::json
     )
     FROM created_configs
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function loadAgentccGatewayActionDbAudit({
+  organizationId,
+  originalConfigId,
+  createdConfigIds,
+  providerName,
+  guardrailName,
+}) {
+  const sql = `
+WITH created_ids AS (
+  SELECT unnest(${sqlUuidArray(createdConfigIds)}::uuid[]) AS id
+),
+active_config AS (
+  SELECT id, version, guardrails
+  FROM agentcc_org_config
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND deleted = false
+    AND is_active = true
+  LIMIT 1
+),
+created_configs AS (
+  SELECT c.id, c.version, c.deleted, c.is_active, c.change_description
+  FROM agentcc_org_config c
+  JOIN created_ids ci ON ci.id = c.id
+  WHERE c.organization_id = ${sqlUuid(organizationId)}
+),
+provider_rows AS (
+  SELECT id, deleted, deleted_at IS NOT NULL AS deleted_at_set
+  FROM agentcc_provider_credential
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND provider_name = ${sqlString(providerName)}
+)
+SELECT json_build_object(
+  'active_config_id', (SELECT id::text FROM active_config),
+  'active_config_is_original',
+    COALESCE((SELECT id = ${sqlUuid(originalConfigId)} FROM active_config), false),
+  'active_guardrail_present',
+    COALESCE((
+      SELECT EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(COALESCE(guardrails->'rules', '[]'::jsonb)) AS rule
+        WHERE rule->>'name' = ${sqlString(guardrailName)}
+      )
+      FROM active_config
+    ), false),
+  'provider_row_count', (SELECT count(*) FROM provider_rows),
+  'provider_deleted',
+    COALESCE((SELECT bool_and(deleted) FROM provider_rows), false),
+  'provider_deleted_at_set',
+    COALESCE((SELECT bool_and(deleted_at_set) FROM provider_rows), false),
+  'created_config_count', (SELECT count(*) FROM created_configs),
+  'created_config_deleted_count', (
+    SELECT count(*)
+    FROM created_configs
+    WHERE deleted = true
+  ),
+  'created_config_active_count', (
+    SELECT count(*)
+    FROM created_configs
+    WHERE is_active = true
+  ),
+  'created_change_descriptions', (
+    SELECT COALESCE(
+      json_agg(change_description ORDER BY version),
+      '[]'::json
+    )
+    FROM created_configs
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteAgentccProviderCredentialByName({
+  organizationId,
+  providerName,
+}) {
+  const sql = `
+WITH deleted_rows AS (
+  DELETE FROM agentcc_provider_credential
+  WHERE organization_id = ${sqlUuid(organizationId)}
+    AND provider_name = ${sqlString(providerName)}
+  RETURNING id
+)
+SELECT json_build_object(
+  'deleted_provider_count', (SELECT count(*) FROM deleted_rows),
+  'remaining_provider_count', (
+    SELECT count(*)
+    FROM agentcc_provider_credential
+    WHERE organization_id = ${sqlUuid(organizationId)}
+      AND provider_name = ${sqlString(providerName)}
   )
 );
 `;

@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
+import os from "node:os";
 import process from "node:process";
 import { promisify } from "node:util";
 import { readCachedTokens, writeCachedTokens } from "./lib/token-cache.mjs";
@@ -24,65 +25,75 @@ const checks = [];
 
 try {
   checks.push(await checkApiReachability(apiBase));
-  checks.push(await checkAuthentication(apiBase));
-  checks.push(
-    ...(await checkDockerContainers({
-      envName: "API_JOURNEY_BACKEND_CONTAINER",
-      fallbackNames: DEFAULT_BACKEND_CONTAINERS,
-      service: "backend",
-    })),
-  );
-  checks.push(
-    ...(await checkContainerDiskAvailability({
-      envName: "API_JOURNEY_BACKEND_CONTAINER",
-      fallbackNames: DEFAULT_BACKEND_CONTAINERS,
-      service: "backend",
-      paths: ["/", "/app", "/tmp"],
-    })),
-  );
-  checks.push(
-    ...(await checkDockerContainers({
-      envName: "API_JOURNEY_DB_CONTAINER",
-      fallbackNames: DEFAULT_DB_CONTAINERS,
-      service: "postgres",
-    })),
-  );
-  checks.push(
-    ...(await checkPostgresVolumeIntegrity({
-      envName: "API_JOURNEY_DB_CONTAINER",
-      fallbackNames: DEFAULT_DB_CONTAINERS,
-    })),
-  );
-  checks.push(
-    ...(await checkContainerDiskAvailability({
-      envName: "API_JOURNEY_DB_CONTAINER",
-      fallbackNames: DEFAULT_DB_CONTAINERS,
-      service: "postgres",
-      paths: ["/", "/var/lib/postgresql/data"],
-    })),
-  );
-  checks.push(
-    ...(await checkDockerContainers({
-      envName: "API_JOURNEY_REDIS_CONTAINER",
-      fallbackNames: DEFAULT_REDIS_CONTAINERS,
-      service: "redis",
-    })),
-  );
-  checks.push(
-    ...(await checkContainerDiskAvailability({
-      envName: "API_JOURNEY_REDIS_CONTAINER",
-      fallbackNames: DEFAULT_REDIS_CONTAINERS,
-      service: "redis",
-      paths: ["/", "/data"],
-    })),
-  );
-  checks.push(
-    ...(await checkRedisWriteHealth({
-      envName: "API_JOURNEY_REDIS_CONTAINER",
-      fallbackNames: DEFAULT_REDIS_CONTAINERS,
-    })),
-  );
-  checks.push(await checkDockerDiskUsage());
+  checks.push(await checkApiHealth(apiBase));
+  if (!args.publicOnly) {
+    checks.push(await checkAuthentication(apiBase));
+    checks.push(await checkHostDiskAvailability());
+    checks.push(
+      ...(await checkDockerContainers({
+        envName: "API_JOURNEY_BACKEND_CONTAINER",
+        fallbackNames: DEFAULT_BACKEND_CONTAINERS,
+        service: "backend",
+      })),
+    );
+    checks.push(
+      ...(await checkContainerDiskAvailability({
+        envName: "API_JOURNEY_BACKEND_CONTAINER",
+        fallbackNames: DEFAULT_BACKEND_CONTAINERS,
+        service: "backend",
+        paths: ["/", "/app", "/tmp"],
+      })),
+    );
+    checks.push(
+      ...(await checkDockerContainers({
+        envName: "API_JOURNEY_DB_CONTAINER",
+        fallbackNames: DEFAULT_DB_CONTAINERS,
+        service: "postgres",
+      })),
+    );
+    checks.push(
+      ...(await checkPostgresVolumeIntegrity({
+        envName: "API_JOURNEY_DB_CONTAINER",
+        fallbackNames: DEFAULT_DB_CONTAINERS,
+      })),
+    );
+    checks.push(
+      ...(await checkPostgresQueryHealth({
+        envName: "API_JOURNEY_DB_CONTAINER",
+        fallbackNames: DEFAULT_DB_CONTAINERS,
+      })),
+    );
+    checks.push(
+      ...(await checkContainerDiskAvailability({
+        envName: "API_JOURNEY_DB_CONTAINER",
+        fallbackNames: DEFAULT_DB_CONTAINERS,
+        service: "postgres",
+        paths: ["/", "/var/lib/postgresql/data"],
+      })),
+    );
+    checks.push(
+      ...(await checkDockerContainers({
+        envName: "API_JOURNEY_REDIS_CONTAINER",
+        fallbackNames: DEFAULT_REDIS_CONTAINERS,
+        service: "redis",
+      })),
+    );
+    checks.push(
+      ...(await checkContainerDiskAvailability({
+        envName: "API_JOURNEY_REDIS_CONTAINER",
+        fallbackNames: DEFAULT_REDIS_CONTAINERS,
+        service: "redis",
+        paths: ["/", "/data"],
+      })),
+    );
+    checks.push(
+      ...(await checkRedisWriteHealth({
+        envName: "API_JOURNEY_REDIS_CONTAINER",
+        fallbackNames: DEFAULT_REDIS_CONTAINERS,
+      })),
+    );
+    checks.push(await checkDockerDiskUsage());
+  }
 } catch (error) {
   checks.push({
     name: "preflight_unhandled_error",
@@ -95,6 +106,7 @@ const failed = checks.filter((check) => check.status === "failed");
 const warnings = checks.filter((check) => check.status === "warning");
 const summary = {
   status: failed.length ? "failed" : "passed",
+  mode: args.publicOnly ? "public" : "full",
   api_base: apiBase,
   elapsed_ms: Date.now() - startedAt,
   checks,
@@ -114,7 +126,18 @@ async function checkApiReachability(base) {
     const response = await fetchWithTimeout(`${base}/accounts/user-info/`, {
       method: "GET",
     });
-    await parseResponseBody(response);
+    const body = await parseResponseBody(response);
+    if (response.status >= 500) {
+      return {
+        name: "api_reachable",
+        status: "failed",
+        http_status: response.status,
+        detail:
+          "API returned a 5xx response before authentication; route-level journey failures are likely local runtime failures until this is fixed.",
+        body: summarizeBody(body),
+      };
+    }
+
     return {
       name: "api_reachable",
       status: response.status === 401 ? "passed" : "warning",
@@ -123,10 +146,45 @@ async function checkApiReachability(base) {
         response.status === 401
           ? "API is reachable and authentication is enforced."
           : "API responded with a non-401 status before authentication.",
+      body: response.status === 401 ? undefined : summarizeBody(body),
     };
   } catch (error) {
     return {
       name: "api_reachable",
+      status: "failed",
+      error: error.message,
+    };
+  }
+}
+
+async function checkApiHealth(base) {
+  try {
+    const response = await fetchWithTimeout(`${base}/tracer/v1/health`, {
+      method: "GET",
+    });
+    const body = await parseResponseBody(response);
+    const healthy =
+      response.ok &&
+      (body?.status === "healthy" || body?.result?.status === "healthy");
+
+    return {
+      name: "api_health",
+      status: healthy
+        ? "passed"
+        : response.status >= 500
+          ? "failed"
+          : "warning",
+      http_status: response.status,
+      detail: healthy
+        ? "Public tracer health endpoint reports healthy."
+        : response.status >= 500
+          ? "Public tracer health endpoint returned 5xx; do not trust route-level API journey failures until the local API runtime is healthy."
+          : "Public tracer health endpoint did not return the expected healthy payload.",
+      body: healthy ? undefined : summarizeBody(body),
+    };
+  } catch (error) {
+    return {
+      name: "api_health",
       status: "failed",
       error: error.message,
     };
@@ -141,16 +199,24 @@ async function checkAuthentication(base) {
   }
 
   const cachedTokens = await readCachedTokens({ apiBase: base });
+  let cachedTokenCheck = null;
   if (cachedTokens?.access) {
-    const tokenCheck = await checkAccessToken(base, cachedTokens.access, {
+    cachedTokenCheck = await checkAccessToken(base, cachedTokens.access, {
       source: "token_file",
     });
-    if (tokenCheck.status === "passed") return tokenCheck;
+    if (cachedTokenCheck.status === "passed") return cachedTokenCheck;
   }
 
   const email = process.env.FUTURE_AGI_EMAIL;
   const password = process.env.FUTURE_AGI_PASSWORD;
   if (!email || !password) {
+    if (cachedTokenCheck) {
+      return {
+        ...cachedTokenCheck,
+        detail: `${cachedTokenCheck.detail} No FUTURE_AGI_EMAIL/FUTURE_AGI_PASSWORD fallback is set to refresh the token file.`,
+      };
+    }
+
     return {
       name: "auth_context",
       status: "failed",
@@ -339,6 +405,90 @@ async function checkPostgresVolumeIntegrity({ envName, fallbackNames }) {
   }
 
   return results;
+}
+
+async function checkPostgresQueryHealth({ envName, fallbackNames }) {
+  const explicit = splitEnvList(process.env[envName]);
+  const names = [
+    ...new Set((explicit.length ? explicit : fallbackNames).filter(Boolean)),
+  ];
+  const results = [];
+
+  for (const name of names) {
+    const container = await loadDockerContainerInspect(name);
+    if (!container?.exists || container.status !== "running") continue;
+
+    results.push(await checkPostgresContainerQueryHealth(name, container));
+  }
+
+  return results;
+}
+
+async function checkPostgresContainerQueryHealth(name, container) {
+  const database =
+    process.env.API_JOURNEY_DB_NAME ||
+    container.env
+      .find((value) => value.startsWith("POSTGRES_DB="))
+      ?.slice("POSTGRES_DB=".length) ||
+    "postgres";
+  const user =
+    process.env.API_JOURNEY_DB_USER ||
+    container.env
+      .find((value) => value.startsWith("POSTGRES_USER="))
+      ?.slice("POSTGRES_USER=".length) ||
+    "postgres";
+  const password =
+    process.env.API_JOURNEY_DB_PASSWORD ||
+    container.env
+      .find((value) => value.startsWith("POSTGRES_PASSWORD="))
+      ?.slice("POSTGRES_PASSWORD=".length) ||
+    "";
+
+  const args = ["exec"];
+  if (password) args.push("-e", `PGPASSWORD=${password}`);
+  args.push(
+    name,
+    "psql",
+    "-U",
+    user,
+    "-d",
+    database,
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-Atc",
+    "select 1",
+  );
+
+  try {
+    const { stdout } = await execFileAsync("docker", args, { timeout: 8000 });
+    const output = stdout.trim();
+    const passed = output === "1";
+
+    return {
+      name: `postgres_query:${name}`,
+      status: passed ? "passed" : "failed",
+      database,
+      user,
+      detail: passed
+        ? "PostgreSQL accepted a simple query."
+        : "PostgreSQL did not return the expected result for a simple query; DB-backed API journeys are not trustworthy.",
+      output: passed ? undefined : output.slice(0, 1000),
+      recent_log_summary: passed ? undefined : await summarizeDockerLogs(name),
+    };
+  } catch (error) {
+    return {
+      name: `postgres_query:${name}`,
+      status: "failed",
+      database,
+      user,
+      error: error.message,
+      stdout: error.stdout ? String(error.stdout).slice(0, 1000) : undefined,
+      stderr: error.stderr ? String(error.stderr).slice(0, 1000) : undefined,
+      detail:
+        "PostgreSQL could not serve a simple query; fix the local DB before classifying authenticated API journey failures as product regressions.",
+      recent_log_summary: await summarizeDockerLogs(name),
+    };
+  }
 }
 
 async function checkPostgresContainerVolumeIntegrity(name, container) {
@@ -721,6 +871,16 @@ async function summarizeDockerLogs(name) {
     if (/initdb: error: directory .* exists but is not empty/i.test(text)) {
       flags.push("postgres_initdb_non_empty_data_dir");
     }
+    if (
+      /xlog flush request|request to flush past end of generated WAL/i.test(
+        text,
+      )
+    ) {
+      flags.push("postgres_wal_flush_error");
+    }
+    if (/could not write block/i.test(text)) {
+      flags.push("postgres_write_block_error");
+    }
     if (/FATAL/i.test(text)) flags.push("fatal");
     if (/Name or service not known/i.test(text))
       flags.push("dns_or_service_lookup");
@@ -735,6 +895,66 @@ async function summarizeDockerLogs(name) {
     };
   } catch (error) {
     return { error: error.message };
+  }
+}
+
+async function checkHostDiskAvailability() {
+  const paths = [
+    ...new Set(
+      (splitEnvList(process.env.API_JOURNEY_HOST_DISK_PATHS).length
+        ? splitEnvList(process.env.API_JOURNEY_HOST_DISK_PATHS)
+        : [process.cwd(), os.tmpdir()]
+      ).filter(Boolean),
+    ),
+  ];
+
+  try {
+    const { stdout } = await execFileAsync("df", ["-Pk", ...paths]);
+    const filesystems = parseDfRows(stdout);
+    if (!filesystems.length) {
+      return {
+        name: "host_disk",
+        status: "warning",
+        paths,
+        detail:
+          "Could not parse host filesystem free-space output; verify disk availability before DB-backed API journeys.",
+      };
+    }
+
+    const worstCapacity = filesystems.reduce(
+      (max, row) => Math.max(max, row.capacity_percent),
+      0,
+    );
+    const lowestAvailable = filesystems.reduce(
+      (min, row) => Math.min(min, row.available_kib),
+      Number.POSITIVE_INFINITY,
+    );
+    const status =
+      lowestAvailable < 1024 * 1024 || worstCapacity >= 100
+        ? "failed"
+        : lowestAvailable < 5 * 1024 * 1024 || worstCapacity >= 95
+          ? "warning"
+          : "passed";
+
+    return {
+      name: "host_disk",
+      status,
+      paths,
+      filesystems,
+      detail:
+        status === "passed"
+          ? "Host filesystem has enough free space for local API journey probes."
+          : "Host filesystem free space is low; local services can return false route failures, database fsync errors, or container I/O errors.",
+    };
+  } catch (error) {
+    return {
+      name: "host_disk",
+      status: "warning",
+      paths,
+      error: error.message,
+      detail:
+        "Could not inspect host filesystem free space; verify disk availability before DB-backed API journeys.",
+    };
   }
 }
 
@@ -885,11 +1105,13 @@ function normalizeBaseUrl(value) {
 }
 
 function parseArgs(argv) {
-  const parsed = { jsonPath: "" };
+  const parsed = { jsonPath: "", publicOnly: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--json") {
       parsed.jsonPath = argv[++index] || "";
+    } else if (arg === "--public") {
+      parsed.publicOnly = true;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }

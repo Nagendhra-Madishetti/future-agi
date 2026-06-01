@@ -9,6 +9,7 @@ from model_hub.serializers.optimize_dataset import (
     OptimizeDatasetSerializer,
 )
 from model_hub.serializers.performance_report import PerformanceReportSerializer
+from tfc.utils.api_errors import API_ERROR_TYPE_CHOICES
 from tracer.serializers.filters import (
     SortParamField,
     StrictInputSerializer,
@@ -17,7 +18,6 @@ from tracer.serializers.filters import (
     json_object_query_param_field,
     parse_filter_list_payload,
 )
-from tfc.utils.api_errors import API_ERROR_TYPE_CHOICES
 
 
 class ModelHubEmptyRequestSerializer(StrictInputSerializer):
@@ -1063,6 +1063,7 @@ class PerformanceDetailsRequestSerializer(StrictInputSerializer):
 class PerformanceExportRequestSerializer(StrictInputSerializer):
     dataset = PerformanceDatasetSerializer()
     filters = PerformanceFilterSerializer(many=True, required=False, default=list)
+    page = serializers.IntegerField(required=False, min_value=1)
     start_date = serializers.CharField()
     end_date = serializers.CharField()
 

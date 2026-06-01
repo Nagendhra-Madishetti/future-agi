@@ -363,6 +363,7 @@ class TestCreateScenarioAPIWithMockedWorkflow:
             "name": "Failing Workflow Scenario",
             "kind": "dataset",
             "dataset_id": str(source_dataset.id),
+            "agent_definition_id": str(agent_definition.id),
         }
 
         response = auth_client.post(

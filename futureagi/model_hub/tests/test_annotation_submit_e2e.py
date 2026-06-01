@@ -113,10 +113,10 @@ def _create_trace_queue(
         status=AnnotationQueueStatusChoices.ACTIVE.value,
         reservation_timeout_minutes=5,
     )
-    AnnotationQueueAnnotator.objects.create(
+    AnnotationQueueAnnotator.objects.get_or_create(
         queue=queue,
         user=manager,
-        role=AnnotatorRole.MANAGER.value,
+        defaults={"role": AnnotatorRole.MANAGER.value},
     )
     AnnotationQueueLabel.objects.create(queue=queue, label=label, required=True)
     item = QueueItem.objects.create(

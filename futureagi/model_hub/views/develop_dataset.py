@@ -57,6 +57,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import CreateAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
 from weaviate import AuthApiKey
 
@@ -94,6 +95,7 @@ from model_hub.models.choices import (
     DataTypeChoices,
     DateTimeFormatChoices,
     EvalExplanationSummaryStatus,
+    FeedbackSourceChoices,
     LiteLlmModelProvider,
     ModelChoices,
     ModelTypes,
@@ -324,6 +326,35 @@ def _request_workspace_filter(request, field_name="workspace"):
 
 def _request_dataset_queryset(request):
     return Dataset.objects.filter(
+        _request_workspace_filter(request),
+        organization=_request_organization(request),
+        deleted=False,
+    )
+
+
+def _request_column_queryset(request):
+    return Column.no_workspace_objects.filter(
+        _request_workspace_filter(request, field_name="dataset__workspace"),
+        dataset__organization=_request_organization(request),
+        dataset__deleted=False,
+        deleted=False,
+    )
+
+
+def _request_row_queryset(request, dataset=None):
+    queryset = Row.no_workspace_objects.filter(
+        _request_workspace_filter(request, field_name="dataset__workspace"),
+        dataset__organization=_request_organization(request),
+        dataset__deleted=False,
+        deleted=False,
+    )
+    if dataset is not None:
+        queryset = queryset.filter(dataset=dataset)
+    return queryset
+
+
+def _request_feedback_queryset(request):
+    return Feedback.no_workspace_objects.filter(
         _request_workspace_filter(request),
         organization=_request_organization(request),
         deleted=False,
@@ -7008,13 +7039,12 @@ class GetEvalsListView(APIView):
         )
 
     def _custom_build_evals(self, validated_data, organization, search_text):
+        from model_hub.models.evals_metric import EvalTemplateVersion, Evaluator
         from model_hub.utils.eval_list import (
             derive_eval_type,
             derive_output_type,
             get_created_by_name,
         )
-
-        from model_hub.models.evals_metric import EvalTemplateVersion, Evaluator
 
         eval_templates = (
             EvalTemplate.objects.filter(
@@ -10890,8 +10920,9 @@ class GetEmbeddingsListView(APIView):
                 },
             }
 
-            # Get embedding type from query params if specified
-            embedding_type = request.query_params.get("type")
+            # Prefer the generated route's path parameter and keep the legacy
+            # query parameter form working for direct callers.
+            embedding_type = kwargs.get("type") or request.query_params.get("type")
             if embedding_type:
                 if embedding_type not in embeddings_list:
                     return self._gm.bad_request(
@@ -10916,34 +10947,157 @@ class FeedbackViewSet(viewsets.ModelViewSet):
     _gm = GeneralMethods()
 
     def get_queryset(self):
-        organization = getattr(self.request, "organization", None) or getattr(
-            self.request.user, "organization", None
+        return _request_feedback_queryset(self.request).select_related(
+            "user", "user_eval_metric", "eval_template"
         )
-        queryset = Feedback.objects.all()
-        if organization:
-            queryset = queryset.filter(organization=organization)
-        return queryset.select_related("user", "user_eval_metric", "eval_template")
+
+    def _resolve_feedback_relations(self, request, validated_data, instance=None):
+        metric_provided = "user_eval_metric" in validated_data
+        metric = (
+            validated_data.get("user_eval_metric")
+            if metric_provided
+            else getattr(instance, "user_eval_metric", None)
+        )
+        source = validated_data.get("source", getattr(instance, "source", None))
+        source_id = validated_data.get(
+            "source_id", getattr(instance, "source_id", None)
+        )
+        row_id = validated_data.get("row_id", getattr(instance, "row_id", None))
+
+        scoped_metric = None
+        if metric is not None:
+            try:
+                scoped_metric = (
+                    _request_user_eval_metric_queryset(request)
+                    .select_related("template", "dataset")
+                    .filter(pk=metric.pk)
+                    .first()
+                )
+            except (ValidationError, ValueError):
+                return None, self._gm.not_found("Eval not found")
+            if scoped_metric is None:
+                return None, self._gm.not_found("Eval not found")
+
+        source_column = None
+        column_feedback_sources = {
+            FeedbackSourceChoices.DATASET.value,
+            FeedbackSourceChoices.EXPERIMENT.value,
+        }
+        if source in column_feedback_sources:
+            if not source_id:
+                return None, self._gm.bad_request("Feedback source_id is required")
+            try:
+                source_column = (
+                    _request_column_queryset(request)
+                    .select_related("dataset")
+                    .filter(pk=source_id)
+                    .first()
+                )
+            except (ValidationError, ValueError):
+                return None, self._gm.not_found("Feedback source column not found")
+            if source_column is None:
+                return None, self._gm.not_found("Feedback source column not found")
+
+            if (
+                source == FeedbackSourceChoices.DATASET.value
+                and scoped_metric is not None
+                and source_column.dataset_id != scoped_metric.dataset_id
+            ):
+                return None, self._gm.bad_request(
+                    "Feedback source column must belong to the eval metric dataset"
+                )
+
+            if row_id:
+                try:
+                    row_exists = (
+                        _request_row_queryset(request, dataset=source_column.dataset)
+                        .filter(pk=row_id)
+                        .exists()
+                    )
+                except (ValidationError, ValueError):
+                    return None, self._gm.not_found("Feedback row not found")
+                if not row_exists:
+                    return None, self._gm.not_found("Feedback row not found")
+
+        return (
+            {
+                "metric_provided": metric_provided,
+                "scoped_metric": scoped_metric,
+                "source_column": source_column,
+            },
+            None,
+        )
 
     def create(self, request, *args, **kwargs):
         try:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
+            relations, error_response = self._resolve_feedback_relations(
+                request, serializer.validated_data
+            )
+            if error_response is not None:
+                return error_response
+
+            save_kwargs = {
+                "user": request.user,
+                "organization": _request_organization(request),
+                "workspace": getattr(request, "workspace", None),
+            }
+            if relations["scoped_metric"] is not None:
+                save_kwargs["user_eval_metric"] = relations["scoped_metric"]
+                save_kwargs["eval_template"] = relations["scoped_metric"].template
+
             feedback = serializer.save(
-                user=request.user,
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-                workspace=getattr(request, "workspace", None),
+                **save_kwargs,
             )
 
             return self._gm.success_response({"id": feedback.id})
 
-        except ValidationError:
+        except (serializers.ValidationError, ValidationError):
             return self._gm.bad_request(get_error_message("FAILED_TO_CREATE_FEEDBACK"))
         except Exception as e:
             logger.exception(f"Error in lsubmitting the feedback: {str(e)}")
             return self._gm.internal_server_error_response(
                 get_error_message("FAILED_TO_CREATE_FEEDBACK")
             )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(
+                instance, data=request.data, partial=partial
+            )
+            serializer.is_valid(raise_exception=True)
+            relations, error_response = self._resolve_feedback_relations(
+                request, serializer.validated_data, instance=instance
+            )
+            if error_response is not None:
+                return error_response
+
+            save_kwargs = {}
+            if relations["metric_provided"]:
+                save_kwargs["user_eval_metric"] = relations["scoped_metric"]
+                save_kwargs["eval_template"] = (
+                    relations["scoped_metric"].template
+                    if relations["scoped_metric"] is not None
+                    else None
+                )
+            feedback = serializer.save(**save_kwargs)
+            return Response(self.get_serializer(feedback).data)
+        except Http404:
+            raise
+        except (serializers.ValidationError, ValidationError):
+            return self._gm.bad_request(get_error_message("FAILED_TO_CREATE_FEEDBACK"))
+        except Exception as e:
+            logger.exception(f"Error in updating the feedback: {str(e)}")
+            return self._gm.internal_server_error_response(
+                get_error_message("FAILED_TO_CREATE_FEEDBACK")
+            )
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
 
     @action(detail=False, methods=["GET"])
     def get_template(self, request):
@@ -10958,8 +11112,16 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            user_eval_metric = UserEvalMetric.objects.get(id=user_eval_metric_id)
-        except (UserEvalMetric.DoesNotExist, ValidationError):
+            user_eval_metric = (
+                _request_user_eval_metric_queryset(request)
+                .select_related("template")
+                .filter(id=user_eval_metric_id)
+                .first()
+            )
+        except (ValidationError, ValueError):
+            user_eval_metric = None
+
+        if user_eval_metric is None:
             return self._gm.bad_request(
                 get_error_message("MISSING_USER_EVAL_METRIC_ID")
             )
@@ -11048,25 +11210,68 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                     f"Invalid action_type. Must be one of: {', '.join(valid_actions)}"
                 )
 
-            feedback = Feedback.objects.get(
-                id=feedback_id,
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-            )
+            try:
+                feedback = (
+                    self.get_queryset()
+                    .select_related("user_eval_metric", "user_eval_metric__dataset")
+                    .filter(id=feedback_id)
+                    .first()
+                )
+            except (ValidationError, ValueError):
+                feedback = None
+            if feedback is None:
+                return self._gm.not_found("Feedback not found")
+
             feedback.action_type = action_type
 
-            row_id = str(feedback.row_id)
+            row_id = str(feedback.row_id) if feedback.row_id else None
 
-            # Get the user eval metric
-            eval_column = Column.objects.get(id=feedback.source_id)
-            dataset = Dataset.objects.get(id=eval_column.dataset_id)
             try:
-                user_eval_metric = UserEvalMetric.objects.get(id=user_eval_metric_id)
-            except UserEvalMetric.DoesNotExist:
+                eval_column = (
+                    _request_column_queryset(request)
+                    .select_related("dataset")
+                    .filter(id=feedback.source_id)
+                    .first()
+                )
+            except (ValidationError, ValueError):
+                eval_column = None
+            if eval_column is None:
+                return self._gm.not_found("Feedback source column not found")
+
+            dataset = eval_column.dataset
+            try:
+                user_eval_metric = (
+                    _request_user_eval_metric_queryset(request)
+                    .select_related("template", "dataset")
+                    .filter(id=user_eval_metric_id)
+                    .first()
+                )
+            except (ValidationError, ValueError):
+                user_eval_metric = None
+            if user_eval_metric is None:
                 return self._gm.bad_request(
                     get_error_message("MISSING_USER_EVAL_METRIC_ID")
                 )
+            if (
+                feedback.user_eval_metric_id is not None
+                and feedback.user_eval_metric_id != user_eval_metric.id
+            ):
+                return self._gm.bad_request(
+                    "Feedback does not belong to the requested eval metric"
+                )
+            if row_id:
+                try:
+                    row_exists = (
+                        _request_row_queryset(request, dataset=dataset)
+                        .filter(id=row_id)
+                        .exists()
+                    )
+                except (ValidationError, ValueError):
+                    row_exists = False
+                if not row_exists:
+                    return self._gm.not_found("Feedback row not found")
 
+            feedback.user_eval_metric = user_eval_metric
             feedback.eval_template = user_eval_metric.template
             feedback.value = value if value else feedback.value
             feedback.explanation = explanation if explanation else feedback.explanation
@@ -11103,7 +11308,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             )
             source_config = {
                 "reference_id": str(user_eval_metric.id),
-                "dataset_id": str(feedback.user_eval_metric.dataset.id),
+                "dataset_id": str(user_eval_metric.dataset.id),
                 "row_id": str(feedback.row_id),
                 "feedback_id": str(feedback.id),
                 "value": feedback.value,
@@ -11151,20 +11356,30 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
             else:  # recalculate_dataset
                 if eval_column.source == SourceChoices.OPTIMISATION_EVALUATION.value:
-                    UserEvalMetric.objects.filter(
+                    _request_user_eval_metric_queryset(request).filter(
                         id=user_eval_metric_id,
                     ).update(status=StatusType.OPTIMIZATION_EVALUATION.value)
-                    column = Column.objects.get(id=feedback.source_id)
                     Cell.objects.filter(
-                        column__source_id=eval_column.source_id, deleted=False
+                        dataset=dataset,
+                        column__dataset=dataset,
+                        column__source_id=eval_column.source_id,
+                        deleted=False,
                     ).update(status=CellStatus.RUNNING.value)
 
                 else:
-                    UserEvalMetric.objects.filter(
+                    _request_user_eval_metric_queryset(request).filter(
                         id=user_eval_metric_id,
                     ).update(status=StatusType.NOT_STARTED.value)
-                    column = Column.objects.get(source_id=user_eval_metric_id)
+                    column = (
+                        _request_column_queryset(request)
+                        .filter(source_id=user_eval_metric_id)
+                        .first()
+                    )
+                    if column is None:
+                        return self._gm.not_found("Evaluation column not found")
                     Cell.objects.filter(
+                        dataset=column.dataset,
+                        column__dataset=column.dataset,
                         column__source_id__in=[
                             user_eval_metric_id,
                             f"{column.id}-sourceid-{user_eval_metric_id}",
@@ -11199,7 +11414,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             row_id = request.query_params.get("row_id")
 
             # Build base queryset
-            queryset = Feedback.objects.select_related("user").filter(deleted=False)
+            queryset = _request_feedback_queryset(request).select_related("user")
 
             # Apply filters if provided
             if user_eval_metric_id:
@@ -11250,12 +11465,22 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                     get_error_message("USER_EVAL_METRIC_ID_REQUIRED")
                 )
 
+            try:
+                metric_exists = (
+                    _request_user_eval_metric_queryset(request)
+                    .filter(id=user_eval_metric_id)
+                    .exists()
+                )
+            except (ValidationError, ValueError):
+                metric_exists = False
+            if not metric_exists:
+                return self._gm.bad_request(
+                    get_error_message("MISSING_USER_EVAL_METRIC_ID")
+                )
+
             # Get all feedback for this metric
-            feedback_qs = Feedback.objects.filter(
+            feedback_qs = _request_feedback_queryset(request).filter(
                 user_eval_metric_id=user_eval_metric_id,
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
-                deleted=False,
             )
 
             # Calculate summary statistics
@@ -11271,17 +11496,7 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                         action_type="recalculate_dataset"
                     ).count(),
                 },
-                "status_breakdown": {
-                    "pending": feedback_qs.filter(
-                        status=StatusType.PENDING.value
-                    ).count(),
-                    "completed": feedback_qs.filter(
-                        status=StatusType.COMPLETED.value
-                    ).count(),
-                    "failed": feedback_qs.filter(
-                        status=StatusType.FAILED.value
-                    ).count(),
-                },
+                "status_breakdown": {"pending": 0, "completed": 0, "failed": 0},
                 "recent_feedback": [],
             }
 
@@ -11290,13 +11505,18 @@ class FeedbackViewSet(viewsets.ModelViewSet):
                 "-created_at"
             )[:5]
             for feedback in recent_feedback:
+                feedback_user = feedback.user
+                user_name = (
+                    getattr(feedback_user, "name", "")
+                    or getattr(feedback_user, "email", "")
+                )
                 summary["recent_feedback"].append(
                     {
                         "id": str(feedback.id),
-                        "user": f"{feedback.user.first_name} {feedback.user.last_name}".strip(),
+                        "user": user_name,
                         "action_type": feedback.action_type,
                         "created_at": feedback.created_at.isoformat(),
-                        "status": feedback.status,
+                        "status": None,
                     }
                 )
 
@@ -15027,10 +15247,12 @@ class CreateKnowledgeBaseView(APIView):
             ).exists():
                 return self._gm.bad_request(get_error_message("FILE_ALREADY_EXISTS"))
 
-            if request_data.get("name") and not (
-                request_data.get("name").strip() == kb_instance.name.strip()
-            ):
-                kb_name = request_data.get("name").strip()
+            requested_name = request_data.get("name")
+            if isinstance(requested_name, str):
+                requested_name = requested_name.strip()
+
+            if requested_name and requested_name != kb_instance.name.strip():
+                kb_name = requested_name
 
                 if KnowledgeBaseFile.objects.filter(
                     name=kb_name, organization=org, deleted=False
@@ -15038,9 +15260,6 @@ class CreateKnowledgeBaseView(APIView):
                     return self._gm.bad_request(
                         get_error_message("KNOWLEDGE_BASE_ALREADY_EXISTS")
                     )
-
-            if not request_data.get("name"):
-                kb_name = self._generate_unique_name(org)
 
             # Validate ALL files FIRST (same as POST)
             if files:

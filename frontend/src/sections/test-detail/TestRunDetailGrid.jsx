@@ -54,7 +54,9 @@ const SelectionHeader = (props) => {
   const onCheckboxClick = (e) => {
     e.stopPropagation(); // Stop event from reaching the header
     const api = props.api;
-    const { selectAll } = api.getServerSideSelectionState() || { selectAll: false };
+    const { selectAll } = api.getServerSideSelectionState() || {
+      selectAll: false,
+    };
     if (selectAll) {
       api.setServerSideSelectionState({ selectAll: false, toggledNodes: [] });
     } else {
@@ -367,7 +369,10 @@ const TestRunDetailGrid = () => {
 
   const onRowSelectionChanged = useCallback(({ api, context }) => {
     const totalRowCount = context?.totalRowCount;
-    const { selectAll, toggledNodes } = api.getServerSideSelectionState() || { selectAll: false, toggledNodes: [] };
+    const { selectAll, toggledNodes } = api.getServerSideSelectionState() || {
+      selectAll: false,
+      toggledNodes: [],
+    };
 
     if (selectAll && totalRowCount - toggledNodes.length === 0) {
       api.deselectAll();

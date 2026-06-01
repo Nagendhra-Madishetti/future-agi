@@ -27,6 +27,7 @@ from tfc.utils.api_contracts import (
 from tfc.utils.api_serializers import ApiErrorResponseSerializer
 from tfc.utils.general_methods import GeneralMethods
 from tracer.models.observation_span import ObservationSpan
+from tracer.models.project import Project
 from tracer.models.span_notes import SpanNotes
 from tracer.serializers.annotation import (
     BulkAnnotationRequestSerializer,
@@ -1327,20 +1328,30 @@ class GetAnnotationLabelsView(APIView):
 
     @validated_request(
         query_serializer=GetAnnotationLabelsQuerySerializer,
-        responses={200: GetAnnotationLabelsResponseSerializer, **ERROR_RESPONSES},
+        responses={
+            200: GetAnnotationLabelsResponseSerializer,
+            404: ApiErrorResponseSerializer,
+            **ERROR_RESPONSES,
+        },
     )
     def get(self, request):
         try:
             query_params = request.validated_query_data
 
-            queryset = AnnotationsLabels.objects.filter(
-                organization=getattr(request, "organization", None)
-                or request.user.organization,
+            queryset = AnnotationsLabels.no_workspace_objects.filter(
+                _annotation_label_workspace_scope_q(request),
                 deleted=False,
             )
 
             project_id = query_params.get("project_id")
             if project_id:
+                project_exists = Project.no_workspace_objects.filter(
+                    _project_workspace_scope_q(request, project_prefix=""),
+                    id=project_id,
+                    deleted=False,
+                ).exists()
+                if not project_exists:
+                    return self._gm.not_found("Project not found")
                 queryset = queryset.filter(project_id=project_id)
 
             labels_list = list(

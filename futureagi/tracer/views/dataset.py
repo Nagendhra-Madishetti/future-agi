@@ -1,26 +1,28 @@
 import uuid
 
 import structlog
+from django.db.models import Q
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
-logger = structlog.get_logger(__name__)
 from model_hub.models.choices import DatasetSourceChoices, ModelTypes, SourceChoices
-from model_hub.models.develop_dataset import Cell, Column, Dataset, Row
-from model_hub.serializers.develop_dataset import DatasetSerializer
+from model_hub.models.develop_dataset import Column, Dataset
 from tfc.utils.base_viewset import BaseModelViewSetMixinWithUserOrg
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
-from tfc.utils.parse_errors import parse_serialized_errors
 from tracer.models.observation_span import ObservationSpan
 from tracer.models.trace import Trace
 from tracer.serializers.dataset import (
     AddToExistingDatasetObserveSerializer,
     AddToNewDatasetObserveSerializer,
+    ObserveDatasetSerializer,
 )
 from tracer.tasks import CHUNK_SIZE, process_spans_chunk_task
+
+logger = structlog.get_logger(__name__)
+
 try:
     from ee.usage.utils.usage_entries import check_if_dataset_creation_is_allowed
 except ImportError:
@@ -30,7 +32,7 @@ except ImportError:
 class DatasetView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
-    serializer_class = DatasetSerializer
+    serializer_class = ObserveDatasetSerializer
 
     def get_queryset(self):
         dataset_id = self.kwargs.get("pk")
@@ -61,26 +63,29 @@ class DatasetView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             project = serializer.validated_data.get("project")
 
             # Derive project from the target trace(s)/span(s) when the client
-            # didn't pass one — avoids forcing the frontend to thread a
+            # didn't pass one; avoids forcing the frontend to thread a
             # project id through every call site. Org scoping on the lookup
-            # prevents cross-org leakage. `select_all` still requires project
-            # explicitly since there's no bound otherwise.
-            org = (
-                getattr(request, "organization", None) or request.user.organization
-            )
+            # prevents cross-org leakage, and workspace scoping prevents
+            # same-org workspace bleed. `select_all` still requires project.
+            org = _request_organization(request)
+            workspace = _request_workspace(request)
             if not project and not select_all:
                 if trace_ids:
                     project = (
-                        Trace.objects.filter(
-                            id__in=trace_ids, project__organization=org
+                        Trace.no_workspace_objects.filter(
+                            Q(project__organization=org),
+                            _workspace_scope_q("project__workspace", workspace, org),
+                            id__in=trace_ids,
                         )
                         .values_list("project_id", flat=True)
                         .first()
                     )
                 elif span_ids:
                     project = (
-                        ObservationSpan.objects.filter(
-                            id__in=span_ids, project__organization=org
+                        ObservationSpan.no_workspace_objects.filter(
+                            Q(project__organization=org),
+                            _workspace_scope_q("project__workspace", workspace, org),
+                            id__in=span_ids,
                         )
                         .values_list("project_id", flat=True)
                         .first()
@@ -89,47 +94,50 @@ class DatasetView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             if not project:
                 raise ValueError("Project id cannot be null")
 
+            project_scope = _project_scope_q(request)
             if select_all:
                 if trace_ids is not None:
-                    observation_spans = ObservationSpan.objects.filter(
-                        project__organization=getattr(request, "organization", None)
-                        or request.user.organization,
+                    observation_spans = ObservationSpan.no_workspace_objects.filter(
+                        project_scope,
                         parent_span_id__isnull=True,
                         project_id=project,
                     ).exclude(
                         trace_id__in=trace_ids,
                     )
                 elif span_ids is not None:
-                    observation_spans = ObservationSpan.objects.filter(
-                        project__organization=getattr(request, "organization", None)
-                        or request.user.organization,
+                    observation_spans = ObservationSpan.no_workspace_objects.filter(
+                        project_scope,
                         project_id=project,
                     ).exclude(
                         id__in=span_ids,
                     )
+                else:
+                    raise ValueError("No trace or span ids provided")
 
             elif trace_ids and len(trace_ids) > 0:
-                observation_spans = ObservationSpan.objects.filter(
+                observation_spans = ObservationSpan.no_workspace_objects.filter(
+                    project_scope,
                     project_id=project,
-                    project__organization=getattr(request, "organization", None)
-                    or request.user.organization,
                     trace_id__in=trace_ids,
                     parent_span_id__isnull=True,
                 )
             elif span_ids and len(span_ids) > 0:
-                observation_spans = ObservationSpan.objects.filter(
+                observation_spans = ObservationSpan.no_workspace_objects.filter(
+                    project_scope,
                     project_id=project,
-                    project__organization=getattr(request, "organization", None)
-                    or request.user.organization,
                     id__in=span_ids,
                 )
             else:
                 raise ValueError("No trace or span ids provided")
 
+            if not observation_spans.exists():
+                raise ValueError("No observation spans provided")
+
             # Creating Dataset
             dataset = create_new_dataset(
                 new_dataset_name,
-                getattr(request, "organization", None) or request.user.organization,
+                org,
+                workspace,
                 str(request.user.id),
             )
             column_span_mapping = create_new_columns(dataset, mapping_config)
@@ -164,56 +172,68 @@ class DatasetView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
 
             span_ids = serializer.validated_data.get("span_ids")
             trace_ids = serializer.validated_data.get("trace_ids")
-            mapping_config = serializer.validated_data.get("mapping_config")
-            new_mapping_config = serializer.validated_data.get("new_mapping_config")
+            mapping_config = serializer.validated_data.get("mapping_config") or []
+            new_mapping_config = (
+                serializer.validated_data.get("new_mapping_config") or []
+            )
             dataset_id = serializer.validated_data.get("dataset_id")
             select_all = serializer.validated_data.get("select_all", False)
             project = serializer.validated_data.get("project")
+            org = _request_organization(request)
+            workspace = _request_workspace(request)
 
             try:
-                dataset = Dataset.objects.get(
+                dataset = Dataset.no_workspace_objects.get(
+                    _workspace_scope_q("workspace", workspace, org),
                     id=dataset_id,
-                    organization=getattr(request, "organization", None)
-                    or request.user.organization,
+                    organization=org,
                     deleted=False,
                 )
             except Dataset.DoesNotExist:
                 logger.exception(f"Dataset with id {dataset_id} does not exist.")
                 return self._gm.bad_request(get_error_message("DATASET_NOT_FOUND"))
 
+            project_scope = _project_scope_q(request)
             if select_all:
+                if not project:
+                    raise ValueError("Project id cannot be null")
                 if trace_ids is not None:
-                    observation_spans = ObservationSpan.objects.filter(
-                        project__organization=getattr(request, "organization", None)
-                        or request.user.organization,
+                    observation_spans = ObservationSpan.no_workspace_objects.filter(
+                        project_scope,
                         parent_span_id__isnull=True,
                         project_id=project,
                     ).exclude(
                         trace_id__in=trace_ids,
                     )
                 elif span_ids is not None:
-                    observation_spans = ObservationSpan.objects.filter(
-                        project__organization=getattr(request, "organization", None)
-                        or request.user.organization,
+                    observation_spans = ObservationSpan.no_workspace_objects.filter(
+                        project_scope,
                         project_id=project,
                     ).exclude(
                         id__in=span_ids,
                     )
+                else:
+                    raise ValueError("No trace or span ids provided")
             elif trace_ids and len(trace_ids) > 0:
-                observation_spans = ObservationSpan.objects.filter(
+                observation_spans = ObservationSpan.no_workspace_objects.filter(
+                    project_scope,
                     trace_id__in=trace_ids,
-                    project__organization=getattr(request, "organization", None)
-                    or request.user.organization,
                     parent_span_id__isnull=True,
                 )
+                if project:
+                    observation_spans = observation_spans.filter(project_id=project)
             elif span_ids and len(span_ids) > 0:
-                observation_spans = ObservationSpan.objects.filter(
+                observation_spans = ObservationSpan.no_workspace_objects.filter(
+                    project_scope,
                     id__in=span_ids,
-                    project__organization=getattr(request, "organization", None)
-                    or request.user.organization,
                 )
+                if project:
+                    observation_spans = observation_spans.filter(project_id=project)
             else:
                 raise ValueError("No trace or span ids provided")
+
+            if not observation_spans.exists():
+                raise ValueError("No observation spans provided")
 
             columns_to_span_fields = []
             column_to_span_dict = {}
@@ -244,7 +264,7 @@ class DatasetView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                             "span_field"
                         )
 
-            columns = Column.objects.filter(dataset=dataset, deleted=False)
+            columns = Column.no_workspace_objects.filter(dataset=dataset, deleted=False)
 
             for column in columns:
                 if column.name not in column_to_span_dict:
@@ -274,32 +294,65 @@ class DatasetView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
             )
 
 
-def create_new_dataset(new_dataset_name, organization, user_id):
-    if Dataset.objects.filter(
-        name=new_dataset_name, organization=organization, deleted=False
+def _request_organization(request):
+    return getattr(request, "organization", None) or request.user.organization
+
+
+def _request_workspace(request):
+    return getattr(request, "workspace", None)
+
+
+def _workspace_scope_q(field_name, workspace, organization):
+    if not workspace:
+        return Q()
+
+    if getattr(workspace, "is_default", False):
+        return (
+            Q(**{field_name: workspace})
+            | Q(
+                **{
+                    f"{field_name}__is_default": True,
+                    f"{field_name}__organization": organization,
+                }
+            )
+            | Q(**{f"{field_name}__isnull": True})
+        )
+
+    return Q(**{field_name: workspace})
+
+
+def _project_scope_q(request):
+    org = _request_organization(request)
+    workspace = _request_workspace(request)
+    return Q(project__organization=org) & _workspace_scope_q(
+        "project__workspace", workspace, org
+    )
+
+
+def create_new_dataset(new_dataset_name, organization, workspace, user_id):
+    if Dataset.no_workspace_objects.filter(
+        _workspace_scope_q("workspace", workspace, organization),
+        name=new_dataset_name,
+        organization=organization,
+        deleted=False,
     ).exists():
         raise ValueError(get_error_message("DATASET_EXIST_IN_ORG"))
 
-    if check_if_dataset_creation_is_allowed is not None and not check_if_dataset_creation_is_allowed(organization):
+    if (
+        check_if_dataset_creation_is_allowed is not None
+        and not check_if_dataset_creation_is_allowed(organization)
+    ):
         raise ValueError(get_error_message("DATASET_CREATE_LIMIT_REACHED"))
 
-    dataset_id = uuid.uuid4()
-    dataset_serializer = DatasetSerializer(
-        data={
-            "id": dataset_id,
-            "name": new_dataset_name,
-            "organization": organization.id,
-            "model_type": ModelTypes.GENERATIVE_LLM.value,
-            "source": DatasetSourceChoices.OBSERVE.value,
-            "user": user_id,
-        }
+    return Dataset.no_workspace_objects.create(
+        id=uuid.uuid4(),
+        name=new_dataset_name,
+        organization=organization,
+        workspace=workspace,
+        model_type=ModelTypes.GENERATIVE_LLM.value,
+        source=DatasetSourceChoices.OBSERVE.value,
+        user_id=user_id,
     )
-
-    if dataset_serializer.is_valid():
-        dataset = dataset_serializer.save()
-        return dataset
-    else:
-        raise ValueError(parse_serialized_errors(dataset_serializer))
 
 
 def create_new_columns(dataset, mapping_config):

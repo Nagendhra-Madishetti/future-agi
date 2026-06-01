@@ -195,20 +195,23 @@ if (CURRENT_ENVIRONMENT !== "local" && "serviceWorker" in navigator) {
           registration.scope,
         );
         // Check for updates every 5 minutes
-        setInterval(() => {
-          // Transient CDN/network failures fetching service-worker.js are
-          // non-fatal; swallow so they don't surface as unhandled rejections.
-          // Guard against a missing registration and a synchronous throw:
-          // some browsers (Safari) throw InvalidStateError synchronously from
-          // update() when the worker is redundant, which .catch() can't cover.
-          try {
-            registration?.update().catch((err) => {
-              logger.debug("ServiceWorker update check failed:", err);
-            });
-          } catch (err) {
-            logger.debug("ServiceWorker update check threw:", err);
-          }
-        }, 5 * 60 * 1000);
+        setInterval(
+          () => {
+            // Transient CDN/network failures fetching service-worker.js are
+            // non-fatal; swallow so they don't surface as unhandled rejections.
+            // Guard against a missing registration and a synchronous throw:
+            // some browsers (Safari) throw InvalidStateError synchronously from
+            // update() when the worker is redundant, which .catch() can't cover.
+            try {
+              registration?.update().catch((err) => {
+                logger.debug("ServiceWorker update check failed:", err);
+              });
+            } catch (err) {
+              logger.debug("ServiceWorker update check threw:", err);
+            }
+          },
+          5 * 60 * 1000,
+        );
         // When a new SW is found, activate it immediately
         registration.addEventListener("updatefound", () => {
           const newWorker = registration.installing;

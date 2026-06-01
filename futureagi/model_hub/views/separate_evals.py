@@ -3215,6 +3215,19 @@ def _get_accessible_eval_template_for_request(template_id, request, template_typ
     ).get()
 
 
+def _get_request_user_eval_template(template_id, request):
+    return (
+        EvalTemplate.no_workspace_objects.filter(
+            id=template_id,
+            organization=_request_organization(request),
+            owner=OwnerChoices.USER.value,
+            deleted=False,
+        )
+        .filter(_request_workspace_filter(request))
+        .get()
+    )
+
+
 def _get_accessible_ground_truth(ground_truth_id, request):
     from model_hub.models.evals_metric import EvalGroundTruth
 
@@ -6436,8 +6449,6 @@ class UpdateEvalTemplateView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            org = getattr(request, "organization", None) or request.user.organization
-
             validated_data = request.validated_data
 
             name = validated_data.get("name", None)
@@ -6455,34 +6466,34 @@ class UpdateEvalTemplateView(APIView):
             error_localizer_enabled = validated_data.get("error_localizer_enabled")
 
             try:
-                eval_template = EvalTemplate.objects.get(
-                    id=eval_template_id,
-                    organization=org,
-                    owner=OwnerChoices.USER.value,
-                    deleted=False,
+                eval_template = _get_request_user_eval_template(
+                    eval_template_id, request
                 )
             except EvalTemplate.DoesNotExist:
                 return self._gm.bad_request(get_error_message("MISSING_EVAL_TEMPLATE"))
 
-            config = eval_template.config
+            config = (eval_template.config or {}).copy()
             eval_template.description = (
                 description if description else eval_template.description
             )
             eval_template.criteria = criteria if criteria else eval_template.criteria
-            eval_template.eval_tags = (
-                eval_tags if eval_tags else eval_template.eval_tags
-            )
-            eval_template.multi_choice = (
-                multi_choice if multi_choice else eval_template.multi_choice
-            )
+            if "eval_tags" in request.data:
+                eval_template.eval_tags = eval_tags
+            if "multi_choice" in request.data:
+                eval_template.multi_choice = multi_choice
 
             if name is not None:
-                if EvalTemplate.objects.filter(
-                    name=name,
-                    organization=org,
-                    owner=OwnerChoices.USER.value,
-                    deleted=False,
-                ).exists():
+                if (
+                    EvalTemplate.no_workspace_objects.filter(
+                        name=name,
+                        organization=_request_organization(request),
+                        owner=OwnerChoices.USER.value,
+                        deleted=False,
+                    )
+                    .filter(_request_workspace_filter(request))
+                    .exclude(id=eval_template.id)
+                    .exists()
+                ):
                     raise Exception(get_error_message("EVAL_TEMPLATE_ALREADY_EXISTS"))
                 else:
                     eval_template.name = name
@@ -6491,14 +6502,14 @@ class UpdateEvalTemplateView(APIView):
                 config["model"] = model
                 eval_template.model = model
 
-            if choices_map is not None and len(list(choices_map.keys())) > 0:
+            if "choices_map" in request.data and choices_map is not None:
                 config["choices_map"] = choices_map
                 eval_template.choices = list(choices_map.keys())
 
-            if check_internet is not None:
+            if "check_internet" in request.data and check_internet is not None:
                 config["check_internet"] = check_internet
 
-            if required_keys is not None and len(required_keys) > 0:
+            if "required_keys" in request.data and required_keys is not None:
                 config["required_keys"] = required_keys
 
             if function_eval:
@@ -6551,17 +6562,12 @@ class DeleteEvalTemplateView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            org = getattr(request, "organization", None) or request.user.organization
-
             validated_data = request.validated_data
             eval_template_id = validated_data.get("eval_template_id", None)
 
             try:
-                eval_template = EvalTemplate.objects.get(
-                    id=eval_template_id,
-                    organization=org,
-                    owner=OwnerChoices.USER.value,
-                    deleted=False,
+                eval_template = _get_request_user_eval_template(
+                    eval_template_id, request
                 )
             except EvalTemplate.DoesNotExist as e:
                 raise Exception(get_error_message("MISSING_EVAL_TEMPLATE")) from e
@@ -6618,28 +6624,29 @@ class DuplicateEvalTemplateView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            org = getattr(request, "organization", None) or request.user.organization
+            org = _request_organization(request)
 
             validated_data = request.validated_data
             eval_template_id = validated_data.get("eval_template_id", None)
             name = validated_data.get("name", None)
 
             try:
-                eval_template = EvalTemplate.objects.get(
-                    id=eval_template_id,
-                    organization=org,
-                    owner=OwnerChoices.USER.value,
-                    deleted=False,
+                eval_template = _get_request_user_eval_template(
+                    eval_template_id, request
                 )
             except EvalTemplate.DoesNotExist as e:
                 raise Exception(get_error_message("MISSING_EVAL_TEMPLATE")) from e
 
-            if EvalTemplate.objects.filter(
-                name=name,
-                organization=org,
-                owner=OwnerChoices.USER.value,
-                deleted=False,
-            ).exists():
+            if (
+                EvalTemplate.no_workspace_objects.filter(
+                    name=name,
+                    organization=org,
+                    owner=OwnerChoices.USER.value,
+                    deleted=False,
+                )
+                .filter(_request_workspace_filter(request))
+                .exists()
+            ):
                 raise Exception(get_error_message("EVAL_TEMPLATE_ALREADY_EXISTS"))
 
             fields_to_copy = {

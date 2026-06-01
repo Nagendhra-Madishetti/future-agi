@@ -69,7 +69,9 @@ describe("retryImport — resolved-to-undefined / missing-default recovery", () 
     const importFn = vi.fn(() => {
       calls += 1;
       if (calls === 1)
-        return Promise.reject(new Error("Failed to fetch dynamically imported module"));
+        return Promise.reject(
+          new Error("Failed to fetch dynamically imported module"),
+        );
       return Promise.resolve(mod);
     });
     // retriesLeft high enough; backoff uses setTimeout — use fake timers.
@@ -91,7 +93,9 @@ describe("isChunkError", () => {
     expect(isChunkError({ name: "ChunkLoadError" })).toBe(true);
   });
   it("does not match unrelated errors or nullish input", () => {
-    expect(isChunkError(new Error("Cannot read properties of null"))).toBe(false);
+    expect(isChunkError(new Error("Cannot read properties of null"))).toBe(
+      false,
+    );
     expect(isChunkError(null)).toBe(false);
     expect(isChunkError(undefined)).toBe(false);
   });

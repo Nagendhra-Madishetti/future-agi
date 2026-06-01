@@ -508,12 +508,12 @@ class EvalTaskFiltersField(serializers.JSONField):
             filter_value = value.get(key)
             if filter_value is None:
                 continue
-            values = filter_value if isinstance(filter_value, list) else [filter_value]
-            if not all(isinstance(item, str) and item for item in values):
+            if not isinstance(filter_value, list) or not all(
+                isinstance(item, str) and item for item in filter_value
+            ):
                 raise serializers.ValidationError(
-                    f"{key} must be a string or list of non-empty strings."
+                    f"{key} must be a list of non-empty strings."
                 )
-            value[key] = values
 
         if "span_attributes_filters" in value:
             value["span_attributes_filters"] = FilterListField().run_validation(

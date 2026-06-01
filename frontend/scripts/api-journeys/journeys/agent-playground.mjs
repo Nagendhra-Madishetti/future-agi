@@ -6,6 +6,7 @@ import {
   apiPath,
   asArray,
   assert,
+  currentUserId,
   isUuid,
   requireMutations,
 } from "../lib/api-client.mjs";
@@ -246,7 +247,8 @@ export const agentPlaygroundJourneys = [
                   },
                 ],
                 response_format: "text",
-                prompt_template_id: sourceNode.prompt_template.prompt_template_id,
+                prompt_template_id:
+                  sourceNode.prompt_template.prompt_template_id,
                 prompt_version_id: targetNode.prompt_template.prompt_version_id,
               },
             },
@@ -1100,6 +1102,36 @@ export const agentPlaygroundJourneys = [
         "Graph version activation did not return active status.",
       );
 
+      const emptyRowsExecute = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/agent-playground/graphs/{graph_id}/dataset/execute/", {
+              graph_id: graphId,
+            }),
+            { row_ids: [], task_queue: "tasks_l" },
+          ),
+        [400],
+        "Active graph dataset execute accepted an explicit empty row_ids list.",
+      );
+      const missingRowsExecute = await expectApiError(
+        () =>
+          client.post(
+            apiPath("/agent-playground/graphs/{graph_id}/dataset/execute/", {
+              graph_id: graphId,
+            }),
+            { row_ids: [randomUUID()], task_queue: "tasks_l" },
+          ),
+        [404],
+        "Active graph dataset execute accepted a missing dataset row id.",
+      );
+      const preDispatchAudit = await loadAgentActiveExecutionAudit({
+        graphId,
+      });
+      assert(
+        preDispatchAudit.execution_count === 0,
+        "Invalid active dataset execute row_ids created a graph execution row.",
+      );
+
       let workflowDispatch = "started";
       let executionId = null;
       let terminalDetail = null;
@@ -1202,6 +1234,8 @@ export const agentPlaygroundJourneys = [
         input_port_id: inputPort.id,
         output_port_id: outputPort.id,
         input_row_id: inputRow.id,
+        empty_row_ids_status: emptyRowsExecute.status,
+        missing_row_ids_status: missingRowsExecute.status,
         execution_id: executionId,
         workflow_dispatch: workflowDispatch,
         execute_error_status: executeErrorStatus,
@@ -1212,6 +1246,498 @@ export const agentPlaygroundJourneys = [
         terminal_status: terminalDetail?.terminal
           ? terminalDetail.status
           : null,
+        post_delete_audit: postDeleteAudit,
+      });
+    },
+  },
+  {
+    id: "AGT-API-004",
+    title:
+      "Agent playground direct graph, version, node, and connection mutation routes",
+    tags: [
+      "agents",
+      "agent-playground",
+      "mutating",
+      "compatibility",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
+
+      const marker = runId.replace(/[^a-z0-9]/gi, "").slice(0, 18);
+      const graphName = `api journey agent direct ${marker}`;
+      const updatedGraphName = `${graphName} updated`;
+      const sourceNodeName = `api_direct_source_${marker}`.slice(0, 80);
+      const targetNodeName = `api_direct_target_${marker}`.slice(0, 80);
+
+      const templateListPayload = await client.get(
+        apiPath("/agent-playground/node-templates/"),
+      );
+      const nodeTemplates = Array.isArray(templateListPayload?.node_templates)
+        ? templateListPayload.node_templates
+        : asArray(templateListPayload);
+      const llmTemplate = nodeTemplates.find(
+        (item) => item.name === "llm_prompt",
+      );
+      assert(
+        llmTemplate?.id,
+        "Agent node templates did not include the seeded llm_prompt template.",
+      );
+
+      const createdGraph = await client.post(
+        apiPath("/agent-playground/graphs/"),
+        {
+          name: graphName,
+          description: `Disposable direct-route graph ${runId}`,
+        },
+      );
+      const graphId = createdGraph.id;
+      const draftVersionId = createdGraph.active_version?.id;
+      assert(isUuid(graphId), "Agent graph create did not return a graph id.");
+      assert(
+        isUuid(draftVersionId),
+        "Agent graph create did not return an initial draft version id.",
+      );
+
+      cleanup.defer("hard delete disposable direct-route graph", () =>
+        hardDeleteAgentGraph({
+          graphId,
+          graphNames: [graphName, updatedGraphName],
+          promptNames: [sourceNodeName, targetNodeName],
+          organizationId,
+          workspaceId,
+        }),
+      );
+
+      const sourceNode = await client.post(
+        apiPath("/agent-playground/graphs/{id}/versions/{version_id}/nodes/", {
+          id: graphId,
+          version_id: draftVersionId,
+        }),
+        {
+          id: randomUUID(),
+          type: "atomic",
+          name: sourceNodeName,
+          node_template_id: llmTemplate.id,
+          position: { x: 80, y: 100 },
+          prompt_template: {
+            messages: [
+              {
+                id: "msg-direct-source",
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: "Return exactly this topic value: {{topic}}.",
+                  },
+                ],
+              },
+            ],
+            response_format: "text",
+            model: "gpt-4o-mini",
+            temperature: 0,
+            metadata: { api_journey: "AGT-API-004", run_id: runId },
+          },
+        },
+      );
+      const targetNode = await client.post(
+        apiPath("/agent-playground/graphs/{id}/versions/{version_id}/nodes/", {
+          id: graphId,
+          version_id: draftVersionId,
+        }),
+        {
+          id: randomUUID(),
+          type: "atomic",
+          name: targetNodeName,
+          node_template_id: llmTemplate.id,
+          position: { x: 360, y: 100 },
+          prompt_template: {
+            messages: [
+              {
+                id: "msg-direct-target",
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `Blend {{topic}} with {{${sourceNodeName}.response}}.`,
+                  },
+                ],
+              },
+            ],
+            response_format: "text",
+            model: "gpt-4o-mini",
+            temperature: 0,
+            metadata: { api_journey: "AGT-API-004", run_id: runId },
+          },
+        },
+      );
+      assert(
+        isUuid(sourceNode.id) && isUuid(targetNode.id),
+        "Direct-route node setup did not return node ids.",
+      );
+
+      const targetInputPort = findPort(targetNode, {
+        direction: "input",
+        displayName: `${sourceNodeName}.response`,
+      });
+      assert(
+        targetInputPort?.id,
+        "Target node did not expose the source response input port.",
+      );
+
+      const nodeConnectionId = randomUUID();
+      const nodeConnection = await client.post(
+        apiPath(
+          "/agent-playground/graphs/{id}/versions/{version_id}/node-connections/",
+          { id: graphId, version_id: draftVersionId },
+        ),
+        {
+          id: nodeConnectionId,
+          source_node_id: sourceNode.id,
+          target_node_id: targetNode.id,
+        },
+      );
+      assert(
+        nodeConnection.id === nodeConnectionId,
+        "Direct node connection create returned the wrong id.",
+      );
+
+      const afterConnectionAudit = await loadAgentGraphDbAudit({ graphId });
+      assert(
+        afterConnectionAudit.node_visible === 2,
+        "Direct-route graph should have two visible nodes after setup.",
+      );
+      assert(
+        afterConnectionAudit.node_connection_visible === 1,
+        "Direct node connection create did not persist a visible connection.",
+      );
+
+      const possibleMappings = asArray(
+        await client.get(
+          apiPath(
+            "/agent-playground/graphs/{id}/versions/{version_id}/nodes/{node_id}/possible-edge-mappings/",
+            {
+              id: graphId,
+              version_id: draftVersionId,
+              node_id: targetNode.id,
+            },
+          ),
+        ),
+      );
+      assert(
+        possibleMappings.some(
+          (mapping) =>
+            mapping.node_connection_id === nodeConnectionId &&
+            mapping.source_node_id === sourceNode.id,
+        ),
+        "Possible edge mappings did not reflect the direct node connection.",
+      );
+
+      await client.delete(
+        apiPath(
+          "/agent-playground/graphs/{id}/versions/{version_id}/node-connections/{nc_id}/",
+          {
+            id: graphId,
+            version_id: draftVersionId,
+            nc_id: nodeConnectionId,
+          },
+        ),
+      );
+      const afterConnectionDeleteAudit = await loadAgentGraphDbAudit({
+        graphId,
+      });
+      assert(
+        afterConnectionDeleteAudit.node_connection_visible === 0,
+        "Direct node connection delete left a visible connection.",
+      );
+
+      const possibleMappingsAfterDelete = asArray(
+        await client.get(
+          apiPath(
+            "/agent-playground/graphs/{id}/versions/{version_id}/nodes/{node_id}/possible-edge-mappings/",
+            {
+              id: graphId,
+              version_id: draftVersionId,
+              node_id: targetNode.id,
+            },
+          ),
+        ),
+      );
+      assert(
+        !possibleMappingsAfterDelete.some(
+          (mapping) => mapping.node_connection_id === nodeConnectionId,
+        ),
+        "Possible edge mappings still exposed the deleted node connection.",
+      );
+
+      await client.delete(
+        apiPath(
+          "/agent-playground/graphs/{id}/versions/{version_id}/nodes/{node_id}/",
+          {
+            id: graphId,
+            version_id: draftVersionId,
+            node_id: targetNode.id,
+          },
+        ),
+      );
+      const deletedNodeDetail = await expectApiError(
+        () =>
+          client.get(
+            apiPath(
+              "/agent-playground/graphs/{id}/versions/{version_id}/nodes/{node_id}/",
+              {
+                id: graphId,
+                version_id: draftVersionId,
+                node_id: targetNode.id,
+              },
+            ),
+          ),
+        [404],
+        "Deleted agent node detail unexpectedly succeeded.",
+      );
+      const afterNodeDeleteAudit = await loadAgentGraphDbAudit({ graphId });
+      assert(
+        afterNodeDeleteAudit.node_visible === 1,
+        "Direct node delete did not leave exactly one visible node.",
+      );
+
+      const putGraph = await client.put(
+        apiPath("/agent-playground/graphs/{id}/", { id: graphId }),
+        {
+          name: updatedGraphName,
+          description: "Updated by AGT-API-004 direct PUT",
+        },
+      );
+      assert(
+        putGraph.name === updatedGraphName,
+        "Direct graph PUT did not persist the updated name.",
+      );
+
+      const versionMetadata = await client.put(
+        apiPath("/agent-playground/graphs/{id}/versions/{version_id}/", {
+          id: graphId,
+          version_id: draftVersionId,
+        }),
+        { commit_message: "metadata PUT before activation" },
+      );
+      assert(
+        versionMetadata.commit_message === "metadata PUT before activation",
+        "Direct graph version PUT did not persist commit metadata.",
+      );
+
+      const activatedVersion = await client.put(
+        apiPath("/agent-playground/graphs/{id}/versions/{version_id}/", {
+          id: graphId,
+          version_id: draftVersionId,
+        }),
+        { status: "active", commit_message: "activate AGT-API-004 graph" },
+      );
+      assert(
+        activatedVersion.status === "active",
+        "Direct graph version PUT did not activate the draft version.",
+      );
+
+      const preDeleteAudit = await loadAgentGraphDbAudit({ graphId });
+      assert(
+        preDeleteAudit.graph_visible === 1 &&
+          preDeleteAudit.version_visible === 1 &&
+          preDeleteAudit.node_visible === 1,
+        "Direct-route graph was not visible before direct graph DELETE.",
+      );
+
+      await client.delete(
+        apiPath("/agent-playground/graphs/{id}/", { id: graphId }),
+      );
+      const deletedGraphDetail = await expectApiError(
+        () =>
+          client.get(
+            apiPath("/agent-playground/graphs/{id}/", { id: graphId }),
+          ),
+        [404],
+        "Deleted agent graph detail unexpectedly succeeded.",
+      );
+      const postDeleteAudit = await loadAgentGraphDbAudit({ graphId });
+      assertAgentGraphPostDeleteAudit(postDeleteAudit);
+
+      evidence.push({
+        graph_id: graphId,
+        version_id: draftVersionId,
+        source_node_id: sourceNode.id,
+        target_node_id: targetNode.id,
+        node_connection_id: nodeConnectionId,
+        target_input_port_id: targetInputPort.id,
+        deleted_node_status: deletedNodeDetail.status,
+        deleted_graph_status: deletedGraphDetail.status,
+        after_connection_audit: afterConnectionAudit,
+        after_connection_delete_audit: afterConnectionDeleteAudit,
+        after_node_delete_audit: afterNodeDeleteAudit,
+        post_delete_audit: postDeleteAudit,
+      });
+    },
+  },
+  {
+    id: "AGT-API-005",
+    title: "Agent playground trace import lifecycle and workspace guard",
+    tags: [
+      "agents",
+      "agent-playground",
+      "trace-import",
+      "mutating",
+      "db-audit",
+    ],
+    async run({
+      client,
+      cleanup,
+      runId,
+      user,
+      organizationId,
+      workspaceId,
+      evidence,
+    }) {
+      requireMutations();
+      assert(
+        isUuid(organizationId),
+        "Authenticated context did not resolve an organization id.",
+      );
+      assert(
+        isUuid(workspaceId),
+        "Authenticated context did not resolve a workspace id.",
+      );
+      const userId = currentUserId(user);
+      assert(
+        isUuid(userId),
+        "Authenticated context did not resolve a user id.",
+      );
+
+      const marker = runId.replace(/[^a-z0-9]/gi, "").slice(0, 18);
+      const fixture = await seedAgentTraceImportFixture({
+        marker,
+        organizationId,
+        workspaceId,
+        userId,
+      });
+      cleanup.defer("hard delete trace-import fixture rows", () =>
+        hardDeleteAgentTraceImportFixture({
+          projectIds: [fixture.activeProjectId, fixture.hiddenProjectId],
+          traceIds: [fixture.activeTraceId, fixture.hiddenTraceId],
+          hiddenWorkspaceId: fixture.hiddenWorkspaceId,
+        }),
+      );
+
+      const hiddenTraceImport = await expectApiError(
+        () =>
+          client.post(apiPath("/agent-playground/graphs/from-trace/"), {
+            trace_id: fixture.hiddenTraceId,
+          }),
+        [404],
+        "Trace import unexpectedly accepted a same-org other-workspace trace.",
+      );
+      const hiddenImportAudit = await loadAgentTraceImportGuardAudit({
+        hiddenTraceId: fixture.hiddenTraceId,
+      });
+      assert(
+        hiddenImportAudit.hidden_import_graph_visible === 0,
+        "Hidden trace import created a visible graph.",
+      );
+
+      const imported = await client.post(
+        apiPath("/agent-playground/graphs/from-trace/"),
+        {
+          trace_id: fixture.activeTraceId,
+        },
+      );
+      const graphId = imported.graph_id;
+      const versionId = imported.version_id;
+      assert(isUuid(graphId), "Trace import did not return a graph id.");
+      assert(isUuid(versionId), "Trace import did not return a version id.");
+
+      cleanup.defer("hard delete trace-import graph", () =>
+        hardDeleteAgentGraph({
+          graphId,
+          graphNames: [`Iterate: ${fixture.activeTraceName}`],
+          promptNames: [fixture.rootSpanName, fixture.childSpanName],
+          organizationId,
+          workspaceId,
+        }),
+      );
+
+      const graphDetail = await client.get(
+        apiPath("/agent-playground/graphs/{id}/", { id: graphId }),
+      );
+      assert(
+        graphDetail.id === graphId,
+        "Trace import graph detail id mismatch.",
+      );
+      assert(
+        graphDetail.active_version?.id === versionId,
+        "Trace import graph detail did not expose the imported version.",
+      );
+      const importedNodes = graphDetail.active_version?.nodes || [];
+      assert(
+        importedNodes.some((node) => node.name === fixture.rootSpanName) &&
+          importedNodes.some((node) => node.name === fixture.childSpanName),
+        "Trace import graph did not expose the seeded LLM span nodes.",
+      );
+
+      const graphAudit = await loadAgentGraphDbAudit({ graphId });
+      assert(
+        graphAudit.organization_id === organizationId &&
+          graphAudit.workspace_id === workspaceId,
+        "Trace import graph ownership did not match the active context.",
+      );
+      assert(
+        graphAudit.node_visible === 2,
+        "Trace import graph should have two visible nodes.",
+      );
+      assert(
+        graphAudit.node_connection_visible === 1,
+        "Trace import graph should have one visible node connection.",
+      );
+      assert(
+        graphAudit.graph_dataset_visible === 1 &&
+          graphAudit.dataset_visible === 1,
+        "Trace import graph dataset was not visible.",
+      );
+
+      await client.post(apiPath("/agent-playground/graphs/delete/"), {
+        ids: [graphId],
+      });
+      const deletedGraphDetail = await expectApiError(
+        () =>
+          client.get(
+            apiPath("/agent-playground/graphs/{id}/", { id: graphId }),
+          ),
+        [404],
+        "Trace-imported graph detail unexpectedly succeeded after delete.",
+      );
+      const postDeleteAudit = await loadAgentGraphDbAudit({ graphId });
+      assertAgentGraphPostDeleteAudit(postDeleteAudit);
+
+      evidence.push({
+        active_trace_id: fixture.activeTraceId,
+        hidden_trace_id: fixture.hiddenTraceId,
+        hidden_import_status: hiddenTraceImport.status,
+        graph_id: graphId,
+        version_id: versionId,
+        imported_node_count: importedNodes.length,
+        deleted_graph_status: deletedGraphDetail.status,
+        hidden_import_audit: hiddenImportAudit,
+        graph_audit: graphAudit,
         post_delete_audit: postDeleteAudit,
       });
     },
@@ -1417,6 +1943,479 @@ function assertAgentGraphPostDeleteAudit(audit) {
     audit.cell_visible === 0,
     "Deleted agent graph cells remained visible.",
   );
+}
+
+async function seedAgentTraceImportFixture({
+  marker,
+  organizationId,
+  workspaceId,
+  userId,
+}) {
+  const hiddenWorkspaceId = randomUUID();
+  const activeProjectId = randomUUID();
+  const hiddenProjectId = randomUUID();
+  const activeTraceId = randomUUID();
+  const hiddenTraceId = randomUUID();
+  const rootSpanName = `agt_trace_root_${marker}`.slice(0, 80);
+  const childSpanName = `agt_trace_child_${marker}`.slice(0, 80);
+  const activeTraceName = `api journey trace import ${marker}`;
+  const hiddenTraceName = `api journey hidden trace import ${marker}`;
+  const rootSpanId = `agt_${marker}_root`;
+  const childSpanId = `agt_${marker}_child`;
+  const hiddenSpanId = `agt_${marker}_hidden`;
+
+  const sql = `
+WITH hidden_workspace AS (
+  INSERT INTO accounts_workspace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    name,
+    display_name,
+    description,
+    organization_id,
+    is_active,
+    is_default,
+    created_by_id
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(hiddenWorkspaceId)},
+    ${sqlTextLiteral(`agt_trace_import_hidden_${marker}`)},
+    ${sqlTextLiteral(`AGT trace import hidden ${marker}`)},
+    'Temporary hidden workspace for AGT-API-005.',
+    ${sqlUuid(organizationId)},
+    true,
+    false,
+    ${sqlUuid(userId)}
+  )
+  RETURNING id
+),
+active_project AS (
+  INSERT INTO tracer_project (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    organization_id,
+    workspace_id,
+    model_type,
+    name,
+    trace_type,
+    metadata,
+    config,
+    session_config,
+    user_id,
+    source,
+    tags
+  )
+  VALUES (
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(activeProjectId)},
+    ${sqlUuid(organizationId)},
+    ${sqlUuid(workspaceId)},
+    'GenerativeLLM',
+    ${sqlTextLiteral(`agt trace import active ${marker}`)},
+    'observe',
+    ${sqlJson({ api_journey: "AGT-API-005", marker, scope: "active" })},
+    '[]'::jsonb,
+    '[]'::jsonb,
+    ${sqlUuid(userId)},
+    'prototype',
+    '[]'::jsonb
+  )
+  RETURNING id
+),
+hidden_project AS (
+  INSERT INTO tracer_project (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    organization_id,
+    workspace_id,
+    model_type,
+    name,
+    trace_type,
+    metadata,
+    config,
+    session_config,
+    user_id,
+    source,
+    tags
+  )
+  SELECT
+    now(),
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(hiddenProjectId)},
+    ${sqlUuid(organizationId)},
+    hw.id,
+    'GenerativeLLM',
+    ${sqlTextLiteral(`agt trace import hidden ${marker}`)},
+    'observe',
+    ${sqlJson({ api_journey: "AGT-API-005", marker, scope: "hidden" })},
+    '[]'::jsonb,
+    '[]'::jsonb,
+    ${sqlUuid(userId)},
+    'prototype',
+    '[]'::jsonb
+  FROM hidden_workspace hw
+  RETURNING id
+),
+active_trace AS (
+  INSERT INTO tracer_trace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    project_id,
+    project_version_id,
+    name,
+    metadata,
+    input,
+    output,
+    error,
+    session_id,
+    external_id,
+    tags,
+    error_analysis_status
+  )
+  SELECT
+    now() - interval '2 minutes',
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(activeTraceId)},
+    ap.id,
+    NULL,
+    ${sqlTextLiteral(activeTraceName)},
+    ${sqlJson({ api_journey: "AGT-API-005", marker })},
+    ${sqlJson({ prompt: "Plan a safe trace import." })},
+    ${sqlJson({ response: "Trace import response." })},
+    NULL,
+    NULL,
+    ${sqlTextLiteral(`agt-trace-import-${marker}`)},
+    '[]'::jsonb,
+    'completed'
+  FROM active_project ap
+  RETURNING id, project_id
+),
+hidden_trace AS (
+  INSERT INTO tracer_trace (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    project_id,
+    project_version_id,
+    name,
+    metadata,
+    input,
+    output,
+    error,
+    session_id,
+    external_id,
+    tags,
+    error_analysis_status
+  )
+  SELECT
+    now() - interval '2 minutes',
+    now(),
+    false,
+    NULL,
+    ${sqlUuid(hiddenTraceId)},
+    hp.id,
+    NULL,
+    ${sqlTextLiteral(hiddenTraceName)},
+    ${sqlJson({ api_journey: "AGT-API-005", marker })},
+    ${sqlJson({ prompt: "Hidden trace input." })},
+    ${sqlJson({ response: "Hidden trace output." })},
+    NULL,
+    NULL,
+    ${sqlTextLiteral(`agt-hidden-trace-import-${marker}`)},
+    '[]'::jsonb,
+    'completed'
+  FROM hidden_project hp
+  RETURNING id, project_id
+),
+inserted_spans AS (
+  INSERT INTO tracer_observation_span (
+    created_at,
+    updated_at,
+    deleted,
+    deleted_at,
+    id,
+    project_id,
+    project_version_id,
+    trace_id,
+    parent_span_id,
+    name,
+    observation_type,
+    operation_name,
+    start_time,
+    end_time,
+    input,
+    output,
+    model,
+    model_parameters,
+    latency_ms,
+    org_id,
+    org_user_id,
+    prompt_tokens,
+    completion_tokens,
+    total_tokens,
+    response_time,
+    eval_id,
+    cost,
+    status,
+    status_message,
+    tags,
+    metadata,
+    span_events,
+    provider,
+    input_images,
+    eval_input,
+    eval_attributes,
+    custom_eval_config_id,
+    eval_status,
+    end_user_id,
+    prompt_version_id,
+    prompt_label_id,
+    span_attributes,
+    resource_attributes,
+    semconv_source
+  )
+  SELECT
+	    now() - interval '2 minutes',
+	    now() - interval '110 seconds',
+	    false,
+	    NULL::timestamptz,
+	    ${sqlTextLiteral(rootSpanId)},
+	    t.project_id,
+	    NULL::uuid,
+	    t.id,
+	    NULL,
+    ${sqlTextLiteral(rootSpanName)},
+    'llm',
+    'chat',
+    now() - interval '2 minutes',
+    now() - interval '110 seconds',
+    ${sqlJson({
+      messages: [{ role: "user", content: "Summarize {{topic}}." }],
+    })},
+    ${sqlJson({ choices: [{ message: { role: "assistant", content: "Summary." } }] })},
+    'gpt-4o-mini',
+    ${sqlJson({ temperature: 0 })},
+	    1000,
+	    ${sqlUuid(organizationId)},
+	    NULL::uuid,
+	    8,
+	    12,
+	    20,
+	    1.0,
+	    NULL::text,
+	    0,
+	    'OK',
+	    NULL::text,
+	    '[]'::jsonb,
+    ${sqlJson({ api_journey: "AGT-API-005", marker })},
+    '[]'::jsonb,
+    'futureagi',
+    '[]'::jsonb,
+	    ${sqlJson({ topic: "trace import" })},
+	    '{}'::jsonb,
+	    NULL::uuid,
+	    'inactive',
+	    NULL::uuid,
+	    NULL::uuid,
+	    NULL::uuid,
+	    ${sqlJson({ template_variables: { topic: "trace import" } })},
+	    '{}'::jsonb,
+	    'traceai'
+  FROM active_trace t
+  UNION ALL
+  SELECT
+	    now() - interval '105 seconds',
+	    now() - interval '100 seconds',
+	    false,
+	    NULL::timestamptz,
+	    ${sqlTextLiteral(childSpanId)},
+	    t.project_id,
+	    NULL::uuid,
+	    t.id,
+    ${sqlTextLiteral(rootSpanId)},
+    ${sqlTextLiteral(childSpanName)},
+    'llm',
+    'chat',
+    now() - interval '105 seconds',
+    now() - interval '100 seconds',
+    ${sqlJson({
+      messages: [{ role: "user", content: "Rewrite {{topic}} clearly." }],
+    })},
+    ${sqlJson({ choices: [{ message: { role: "assistant", content: "Clear rewrite." } }] })},
+    'gpt-4o-mini',
+    ${sqlJson({ temperature: 0.1 })},
+	    900,
+	    ${sqlUuid(organizationId)},
+	    NULL::uuid,
+	    7,
+	    10,
+	    17,
+	    0.9,
+	    NULL::text,
+	    0,
+	    'OK',
+	    NULL::text,
+	    '[]'::jsonb,
+    ${sqlJson({ api_journey: "AGT-API-005", marker })},
+    '[]'::jsonb,
+    'futureagi',
+    '[]'::jsonb,
+	    ${sqlJson({ topic: "trace import" })},
+	    '{}'::jsonb,
+	    NULL::uuid,
+	    'inactive',
+	    NULL::uuid,
+	    NULL::uuid,
+	    NULL::uuid,
+	    ${sqlJson({ template_variables: { topic: "trace import" } })},
+	    '{}'::jsonb,
+	    'traceai'
+  FROM active_trace t
+  UNION ALL
+  SELECT
+	    now() - interval '2 minutes',
+	    now() - interval '110 seconds',
+	    false,
+	    NULL::timestamptz,
+	    ${sqlTextLiteral(hiddenSpanId)},
+	    t.project_id,
+	    NULL::uuid,
+	    t.id,
+    NULL,
+    ${sqlTextLiteral(`agt_trace_hidden_${marker}`)},
+    'llm',
+    'chat',
+    now() - interval '2 minutes',
+    now() - interval '110 seconds',
+    ${sqlJson({ messages: [{ role: "user", content: "Hidden." }] })},
+    ${sqlJson({ choices: [{ message: { role: "assistant", content: "Hidden." } }] })},
+    'gpt-4o-mini',
+    '{}'::jsonb,
+	    1000,
+	    ${sqlUuid(organizationId)},
+	    NULL::uuid,
+	    1,
+	    1,
+	    2,
+	    1.0,
+	    NULL::text,
+	    0,
+	    'OK',
+	    NULL::text,
+	    '[]'::jsonb,
+    ${sqlJson({ api_journey: "AGT-API-005", marker })},
+    '[]'::jsonb,
+    'futureagi',
+    '[]'::jsonb,
+	    '{}'::jsonb,
+	    '{}'::jsonb,
+	    NULL::uuid,
+	    'inactive',
+	    NULL::uuid,
+	    NULL::uuid,
+	    NULL::uuid,
+	    '{}'::jsonb,
+    '{}'::jsonb,
+    'traceai'
+  FROM hidden_trace t
+  RETURNING id
+)
+SELECT json_build_object(
+  'active_project_id', ${sqlTextLiteral(activeProjectId)},
+  'hidden_project_id', ${sqlTextLiteral(hiddenProjectId)},
+  'active_trace_id', ${sqlTextLiteral(activeTraceId)},
+  'hidden_trace_id', ${sqlTextLiteral(hiddenTraceId)},
+  'hidden_workspace_id', ${sqlTextLiteral(hiddenWorkspaceId)},
+  'span_count', (SELECT count(*) FROM inserted_spans)
+);
+`;
+  const audit = await runPostgresJson(sql);
+  assert(audit.span_count === 3, "Trace import fixture did not seed spans.");
+
+  return {
+    activeProjectId,
+    hiddenProjectId,
+    activeTraceId,
+    hiddenTraceId,
+    hiddenWorkspaceId,
+    rootSpanName,
+    childSpanName,
+    activeTraceName,
+    hiddenTraceName,
+    audit,
+  };
+}
+
+async function loadAgentTraceImportGuardAudit({ hiddenTraceId }) {
+  const sql = `
+SELECT json_build_object(
+  'hidden_import_graph_visible', (
+    SELECT count(*) FROM agent_playground_graph
+    WHERE description = ${sqlTextLiteral(`Created from trace ${hiddenTraceId}`)}
+      AND deleted = false
+  )
+);
+`;
+  return runPostgresJson(sql);
+}
+
+async function hardDeleteAgentTraceImportFixture({
+  projectIds,
+  traceIds,
+  hiddenWorkspaceId,
+}) {
+  const sql = `
+BEGIN;
+DELETE FROM tracer_observation_span
+WHERE trace_id = ANY(${sqlUuidArray(traceIds)});
+DELETE FROM tracer_trace
+WHERE id = ANY(${sqlUuidArray(traceIds)});
+DELETE FROM tracer_project
+WHERE id = ANY(${sqlUuidArray(projectIds)});
+DELETE FROM accounts_workspace
+WHERE id = ${sqlUuid(hiddenWorkspaceId)};
+SELECT json_build_object(
+  'remaining_projects', (
+    SELECT count(*) FROM tracer_project
+    WHERE id = ANY(${sqlUuidArray(projectIds)})
+  ),
+  'remaining_traces', (
+    SELECT count(*) FROM tracer_trace
+    WHERE id = ANY(${sqlUuidArray(traceIds)})
+  ),
+  'remaining_workspaces', (
+    SELECT count(*) FROM accounts_workspace
+    WHERE id = ${sqlUuid(hiddenWorkspaceId)}
+  )
+);
+COMMIT;
+`;
+  return runPostgresJson(sql);
 }
 
 async function hardDeleteAgentGraph({
@@ -1739,8 +2738,18 @@ function sqlUuid(value) {
   return `'${value}'::uuid`;
 }
 
+function sqlUuidArray(values) {
+  const rows = values || [];
+  assert(rows.length > 0, "SQL UUID array cannot be empty.");
+  return `ARRAY[${rows.map((value) => sqlUuid(value)).join(", ")}]::uuid[]`;
+}
+
 function sqlTextLiteral(value) {
   return `'${String(value ?? "").replaceAll("'", "''")}'`;
+}
+
+function sqlJson(value) {
+  return `${sqlTextLiteral(JSON.stringify(value ?? null))}::jsonb`;
 }
 
 function sqlTextArray(values) {

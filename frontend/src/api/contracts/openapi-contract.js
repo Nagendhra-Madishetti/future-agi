@@ -170,6 +170,14 @@ function enumSchema(values) {
 function schemaToZod(schema, options = {}) {
   if (!schema || typeof schema !== "object") return z.any();
 
+  if (schema["x-string-or-object"]) {
+    const { "x-string-or-object": _extension, ...objectSchema } = schema;
+    return nullableIfNeeded(
+      z.union([z.string(), objectSchemaToZod(objectSchema, options)]),
+      schema,
+    );
+  }
+
   if (schema["x-json-value"]) {
     return nullableIfNeeded(z.any(), schema);
   }
