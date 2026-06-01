@@ -54,17 +54,17 @@ const QUICK_START_ROLE = "AI Builder";
 
 const SETUP_SIDE_PANEL_STEPS = [
   {
-    label: "Pick a product area",
-    description: "Choose Tracing, Prompts, Agents, Gateway, or Evals.",
+    label: "Pick a workflow",
+    description: "Choose the setup that matches what you want to do today.",
   },
   {
-    label: "Open the first task",
-    description: "We open the exact screen for the first action.",
+    label: "Do one highlighted action",
+    description: "We open the right screen and point at the first button.",
   },
   {
-    label: "Move through the path",
+    label: "Continue the checklist",
     description:
-      "When progress is detected, the checklist advances to the next task.",
+      "Each completed action moves the checklist to the next setup step.",
   },
 ];
 
@@ -263,10 +263,10 @@ const SetupOrgSidePanel = () => (
         <Typography variant="overline" color="text.secondary">
           First setup
         </Typography>
-        <Typography variant="h4">Choose the product path first</Typography>
+        <Typography variant="h4">Start with one workflow</Typography>
         <Typography variant="body1" color="text.secondary">
-          Pick the area that matches what you want to do in the app. The next
-          page shows one highlighted task to finish first.
+          Choose what you want to set up first. The next screen gives one
+          highlighted action, then keeps the rest of the checklist visible.
         </Typography>
       </Stack>
 
@@ -592,6 +592,7 @@ const SetupOrganization = ({ getStarted = false }) => {
       <ButtonComponent
         key={option.id}
         fullWidth
+        data-testid={`setup-org-quick-start-${option.id}`}
         sx={{
           borderRadius: 0.5,
           minHeight: { xs: 156, sm: 142 },
@@ -603,6 +604,13 @@ const SetupOrganization = ({ getStarted = false }) => {
           textAlign: "left",
           whiteSpace: "normal",
           textTransform: "none",
+          color: "text.primary",
+          bgcolor: option.featured ? "action.hover" : "background.paper",
+          borderColor: option.featured ? "primary.main" : "divider",
+          "&:hover": {
+            bgcolor: "action.selected",
+            borderColor: option.featured ? "primary.main" : "text.primary",
+          },
           "& .MuiButton-startIcon": {
             mt: 0.2,
           },
@@ -610,7 +618,7 @@ const SetupOrganization = ({ getStarted = false }) => {
             alignSelf: "flex-start",
           },
         }}
-        variant={option.featured ? "contained" : "outlined"}
+        variant="outlined"
         loading={option.featured ? isSavingUserData : undefined}
         disabled={isSavingUserData}
         aria-label={option.buttonLabel}
@@ -655,13 +663,9 @@ const SetupOrganization = ({ getStarted = false }) => {
                   sx={{
                     alignSelf: "flex-start",
                     border: "1px solid",
-                    borderColor: option.featured
-                      ? "primary.contrastText"
-                      : "divider",
+                    borderColor: option.featured ? "primary.main" : "divider",
                     borderRadius: 0.75,
-                    color: option.featured
-                      ? "primary.contrastText"
-                      : "text.secondary",
+                    color: option.featured ? "primary.main" : "text.secondary",
                     fontSize: 11,
                     fontWeight: "fontWeightMedium",
                     lineHeight: 1.4,
@@ -682,9 +686,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                   component="span"
                   variant="caption"
                   sx={{
-                    color: option.featured
-                      ? "primary.contrastText"
-                      : "text.secondary",
+                    color: "text.secondary",
                     lineHeight: 1.25,
                   }}
                 >
@@ -695,11 +697,10 @@ const SetupOrganization = ({ getStarted = false }) => {
                 <Typography
                   component="span"
                   sx={{
-                    color: "primary.contrastText",
+                    color: "primary.main",
                     fontSize: 12,
                     fontWeight: "fontWeightMedium",
                     lineHeight: 1.4,
-                    opacity: 0.82,
                   }}
                 >
                   Recommended
@@ -710,13 +711,11 @@ const SetupOrganization = ({ getStarted = false }) => {
               component="span"
               variant="body2"
               sx={{
-                color: option.featured
-                  ? "primary.contrastText"
-                  : "text.primary",
+                color: "text.primary",
                 fontWeight: "fontWeightMedium",
               }}
             >
-              First task: {option.firstActionLabel}
+              Starts with: {option.firstActionLabel}
             </Typography>
             {option.sequencePreview?.length ? (
               <Stack
@@ -733,18 +732,15 @@ const SetupOrganization = ({ getStarted = false }) => {
                     key={step}
                     sx={{
                       border: "1px solid",
-                      borderColor: option.featured
-                        ? "primary.contrastText"
-                        : "divider",
+                      borderColor: option.featured ? "primary.main" : "divider",
                       borderRadius: 0.75,
                       color: option.featured
-                        ? "primary.contrastText"
+                        ? "text.primary"
                         : "text.secondary",
                       fontSize: 11,
                       lineHeight: 1.4,
                       px: 0.65,
                       py: 0.15,
-                      opacity: option.featured ? 0.92 : 1,
                     }}
                   >
                     {index + 1}. {step}
@@ -757,13 +753,11 @@ const SetupOrganization = ({ getStarted = false }) => {
               variant="button"
               sx={{
                 alignSelf: "flex-start",
-                color: option.featured
-                  ? "primary.contrastText"
-                  : "primary.main",
+                color: "primary.main",
                 mt: 0.25,
               }}
             >
-              Open {option.surfaceLabel} setup
+              Start {option.surfaceLabel} setup
             </Typography>
           </Stack>
         </Stack>
@@ -802,8 +796,8 @@ const SetupOrganization = ({ getStarted = false }) => {
           <Stack direction="row" spacing={1} alignItems="flex-start">
             <Iconify icon="mdi:database-eye-outline" width={20} />
             <Typography variant="body2" color="text.secondary">
-              Sample screens stay available after you start. They are preview
-              only and do not count as this workspace setup.
+              Sample screens are still available after setup starts. They are
+              preview-only, so they do not finish workspace setup.
             </Typography>
           </Stack>
         </Box>
@@ -1163,7 +1157,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                   lineHeight: "36px",
                 }}
               >
-                What do you want to set up first?
+                What are you setting up today?
               </Typography>
               <Typography
                 variant="body1"
@@ -1173,8 +1167,9 @@ const SetupOrganization = ({ getStarted = false }) => {
                   maxWidth: 520,
                 }}
               >
-                Choose the product area you want to use now. We will open the
-                first task for that path and keep sample data as preview only.
+                Pick one workflow. We will save this choice, open the right
+                screen, and highlight the first action. Sample screens stay
+                preview-only.
               </Typography>
             </Box>
 

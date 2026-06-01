@@ -29,7 +29,7 @@ const SAMPLE_QUICK_START_METADATA = {
 const QUICK_STARTS = {
   observe: {
     buttonText: "Connect your agent",
-    expectedTitleText: "Tracing: Connect your agent",
+    expectedTitleText: "Connect your agent",
     expectedActionText: "Create Observe project",
     expectedAttribution: {
       quick_start_goal: "monitor_production_ai_app",
@@ -51,7 +51,7 @@ const QUICK_STARTS = {
   },
   prompt: {
     buttonText: "Test prompts or agent prompts",
-    expectedTitleText: "Prompts: Test prompts or agent prompts",
+    expectedTitleText: "Test prompts or agent prompts",
     expectedActionText: "Create prompt",
     expectedAttribution: {
       quick_start_goal: "improve_prompts",
@@ -63,7 +63,7 @@ const QUICK_STARTS = {
   },
   agent: {
     buttonText: "Prototype agent",
-    expectedTitleText: "Agents: Prototype agent",
+    expectedTitleText: "Prototype agent",
     expectedActionText: "Create agent",
     expectedAttribution: {
       quick_start_goal: "build_ai_agent",
@@ -75,7 +75,7 @@ const QUICK_STARTS = {
   },
   gateway: {
     buttonText: "Set up gateway",
-    expectedTitleText: "Gateway: Set up gateway",
+    expectedTitleText: "Set up gateway",
     expectedActionText: "Add provider",
     expectedAttribution: {
       quick_start_goal: "control_model_traffic",
@@ -87,7 +87,7 @@ const QUICK_STARTS = {
   },
   evals: {
     buttonText: "Test AI using simulation",
-    expectedTitleText: "Evals / simulation: Test AI using simulation",
+    expectedTitleText: "Test AI using simulation",
     expectedActionText: "Create dataset",
     expectedAttribution: {
       quick_start_goal: "evaluate_quality",
@@ -200,10 +200,10 @@ async function main() {
     await page.goto(`${APP_BASE}/auth/jwt/setup-org?step=0`, {
       waitUntil: "domcontentloaded",
     });
-    await expectVisibleText(page, "What do you want to set up first?");
+    await expectVisibleText(page, "What are you setting up today?");
     await expectVisibleText(
       page,
-      "Choose the product area you want to use now. We will open the first task for that path and keep sample data as preview only.",
+      "Pick one workflow. We will save this choice, open the right screen, and highlight the first action. Sample screens stay preview-only.",
     );
     if (SAMPLE_PREVIEW_GUARD) {
       const samplePreviewVisible = await isVisibleButtonText(
@@ -216,7 +216,7 @@ async function main() {
       );
       await expectVisibleText(
         page,
-        "Sample screens stay available after you start.",
+        "Sample screens are still available after setup starts.",
       );
     }
     const quickStartInitiallyVisible = await isVisibleButtonText(
@@ -269,7 +269,7 @@ async function main() {
       });
       await expectVisibleText(
         page,
-        `Start with ${QUICK_START.expectedActionText}`,
+        `Do first: ${QUICK_START.expectedActionText}`,
       );
       await expectVisibleText(page, "Start here", { exact: true });
       await expectVisibleText(page, "What happens next", { exact: true });

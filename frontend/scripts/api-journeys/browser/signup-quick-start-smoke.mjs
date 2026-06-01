@@ -325,12 +325,12 @@ async function main() {
     );
     await clickVisibleButtonText(page, "Create account and continue");
 
-    await expectVisibleText(page, "What do you want to set up first?", {
+    await expectVisibleText(page, "What are you setting up today?", {
       timeout: 90000,
     });
     await expectVisibleText(
       page,
-      "Choose the product area you want to use now. We will open the first task for that path and keep sample data as preview only.",
+      "Pick one workflow. We will save this choice, open the right screen, and highlight the first action. Sample screens stay preview-only.",
       { timeout: 90000 },
     );
     if (SAMPLE_GATE_ONLY) {
@@ -339,7 +339,7 @@ async function main() {
       });
       await expectVisibleText(
         page,
-        "Sample screens stay available after you start.",
+        "Sample screens are still available after setup starts.",
         { timeout: 90000 },
       );
     }
@@ -377,13 +377,13 @@ async function main() {
         hasObserveQuickStartParams(setupOrgHomeUrl),
         `Expected setup-org Home URL quick-start attribution, got ${setupOrgHomeUrl}`,
       );
-      await expectVisibleText(page, "Tracing: Connect your agent", {
+      await expectVisibleText(page, "Connect your agent", {
         exact: true,
         timeout: 45000,
       });
       await expectVisibleText(
         page,
-        "Start with Create Observe project. After that, this checklist shows Send first trace.",
+        "Do first: Create Observe project. Next: Send first trace.",
         { timeout: 45000 },
       );
       await expectVisibleText(page, "What happens next", {

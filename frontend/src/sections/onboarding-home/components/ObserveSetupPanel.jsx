@@ -73,10 +73,10 @@ export default function ObserveSetupPanel({
           />
         ) : (
           <Stack spacing={0.25}>
-            <Typography variant="subtitle2">Setup checklist</Typography>
+            <Typography variant="subtitle2">Your setup checklist</Typography>
             <Typography variant="body2" color="text.secondary">
-              Complete the highlighted task first. The list below shows what
-              comes next.
+              Finish the highlighted action first. The remaining steps stay
+              visible so you know what comes next.
             </Typography>
           </Stack>
         )}

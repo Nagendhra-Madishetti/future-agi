@@ -819,10 +819,10 @@ export default function OnboardingHomeView() {
           }
         : {
             eyebrow: "First setup",
-            title: `${selectedSetupQuickStart.surfaceLabel}: ${selectedSetupQuickStart.buttonLabel}`,
+            title: selectedSetupQuickStart.buttonLabel,
             description: firstRunNextStepLabel
-              ? `${selectedSetupQuickStart.shortDescription} Start with ${firstRunCurrentStepLabel}. After that, this checklist shows ${firstRunNextStepLabel}.`
-              : `${selectedSetupQuickStart.shortDescription} Start with ${firstRunCurrentStepLabel}.`,
+              ? `${selectedSetupQuickStart.shortDescription} Do first: ${firstRunCurrentStepLabel}. Next: ${firstRunNextStepLabel}.`
+              : `${selectedSetupQuickStart.shortDescription} Do first: ${firstRunCurrentStepLabel}.`,
             surfaceLabel: selectedSetupQuickStart.surfaceLabel,
           }
       : quickStartMismatchAction
@@ -1269,12 +1269,12 @@ export default function OnboardingHomeView() {
               sx={{ borderRadius: 1, mt: 1, maxWidth: 760 }}
             >
               <Typography variant="subtitle2" component="div">
-                Do this task first
+                Start with the highlighted action
               </Typography>
               <Typography variant="body2" sx={{ mt: 0.25 }}>
-                Click the highlighted button. When FutureAGI detects progress,
-                this page moves to the next task. Sample data stays as preview
-                only.
+                Use the button in the setup card below. When the action is
+                complete, this checklist moves to the next step. Sample screens
+                stay preview-only.
               </Typography>
             </Alert>
           ) : null}

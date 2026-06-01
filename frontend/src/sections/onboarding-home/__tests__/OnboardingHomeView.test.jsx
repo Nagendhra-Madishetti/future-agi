@@ -1101,11 +1101,11 @@ describe("OnboardingHomeView", () => {
       expect(
         screen.getByRole("heading", {
           level: 3,
-          name: `${quickStartOption.surfaceLabel}: ${quickStartOption.buttonLabel}`,
+          name: quickStartOption.buttonLabel,
         }),
       ).toBeVisible();
       expect(
-        screen.getByText(new RegExp(`Start with ${primaryLabel}`)),
+        screen.getByText(new RegExp(`Do first: ${primaryLabel}`)),
       ).toBeVisible();
       expect(
         screen.getByText(quickStartOption.shortDescription, {
@@ -1193,7 +1193,7 @@ describe("OnboardingHomeView", () => {
     expect(
       screen.getByRole("heading", {
         level: 3,
-        name: "Tracing: Connect your agent",
+        name: "Connect your agent",
       }),
     ).toBeVisible();
     const panel = screen.getByTestId("observe-setup-panel");
@@ -1255,7 +1255,7 @@ describe("OnboardingHomeView", () => {
     expect(
       screen.getByRole("heading", {
         level: 3,
-        name: "Prompts: Test prompts or agent prompts",
+        name: "Test prompts or agent prompts",
       }),
     ).toBeVisible();
     const panel = screen.getByTestId("path-focus-panel-prompt");
@@ -2133,7 +2133,7 @@ describe("OnboardingHomeView", () => {
     expect(
       screen.getByRole("heading", {
         level: 3,
-        name: "Gateway: Set up gateway",
+        name: "Set up gateway",
       }),
     ).toBeVisible();
     expect(within(panel).getByText("What happens next")).toBeVisible();

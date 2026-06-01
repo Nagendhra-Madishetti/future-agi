@@ -135,6 +135,21 @@ describe("CreateNewPrompt onboarding routes", () => {
     });
   });
 
+  it("marks the manual prompt option as the onboarding destination action", () => {
+    renderPromptDialog(
+      "/dashboard/workbench/all?source=onboarding&action=create-prompt&tour_anchor=prompt_create_button&journey_step=start_prompt",
+    );
+
+    expect(
+      screen
+        .getByText("Start from scratch")
+        .closest('[data-tour-anchor="prompt_create_button"]'),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Generate with AI").closest("[data-tour-anchor]"),
+    ).toBeNull();
+  });
+
   it("keeps non-onboarding prompt creation routes clean", async () => {
     renderPromptDialog("/dashboard/workbench/all");
 

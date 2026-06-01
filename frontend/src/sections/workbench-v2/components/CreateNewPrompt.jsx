@@ -27,11 +27,12 @@ import {
   getPromptOnboardingRouteParams,
 } from "src/sections/workbench/createPrompt/promptActions/promptOnboardingRoute";
 
-function PromptItem({ name, desc, icon, onClick }) {
+function PromptItem({ name, desc, icon, onClick, tourAnchor }) {
   const theme = useTheme();
   return (
     <Stack
       component={"div"}
+      data-tour-anchor={tourAnchor || undefined}
       onClick={onClick}
       sx={{
         padding: theme.spacing(2, 1.5),
@@ -81,6 +82,7 @@ PromptItem.propTypes = {
   desc: PropTypes.string,
   icon: PropTypes.string,
   onClick: PropTypes.func,
+  tourAnchor: PropTypes.string,
 };
 export default function CreateNewPrompt({ open, onClose, isLoading }) {
   const theme = useTheme();
@@ -213,6 +215,12 @@ export default function CreateNewPrompt({ open, onClose, isLoading }) {
                 if (isLoadingCreate) return;
                 handleAction(option.id);
               }}
+              tourAnchor={
+                promptOnboardingParams.isOnboarding &&
+                option.id === "start_from_scratch"
+                  ? promptOnboardingParams.tourAnchor
+                  : null
+              }
             />
           ))}
         </Stack>
