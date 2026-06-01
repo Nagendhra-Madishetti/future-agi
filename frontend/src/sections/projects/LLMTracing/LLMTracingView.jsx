@@ -956,6 +956,14 @@ const LLMTracingView = ({ mode = "project", userIdForUserMode = null }) => {
   const projectSource = isUserMode
     ? PROJECT_SOURCE.OBSERVE
     : projectDetail?.source;
+
+  // Simulator (voice) projects only support the "graph" view.
+  useEffect(() => {
+    if (projectSource === PROJECT_SOURCE.SIMULATOR && viewMode !== "graph") {
+      setViewMode("graph");
+    }
+  }, [projectSource, viewMode, setViewMode]);
+
   const defaultDateFilter = useMemo(() => getDefaultDateRange(), []);
 
   const [isPrimaryFilterOpen, setIsPrimaryFilterOpen] = useUrlState(
