@@ -32,6 +32,30 @@ CENTROIDS_TABLE = "cluster_centroids"
 COSINE_THRESHOLD = 0.45  # cosine distance: 0 = identical, 2 = opposite
 
 
+def _severity_to_impact(severity: str | None) -> str:
+    """Map the scanner's 4-level severity to the cluster's 3-level impact."""
+    return {
+        "critical": "HIGH", "high": "HIGH", "medium": "MEDIUM", "low": "LOW"
+    }.get(severity or "medium", "MEDIUM")
+
+
+def _seed_severity(category: str, brief: str) -> str | None:
+    """Cheap-LLM user-impact severity for a new cluster's seed (centroid) issue,
+    mirroring the eval-cluster path. Single datapoint, one call per new cluster.
+    EE-absent (OSS) or any LLM failure → None so the caller defaults to medium."""
+    try:
+        from ee.agenthub.trace_scanner.eval_cluster_title import (
+            generate_scan_cluster_severity,
+        )
+    except ImportError:
+        return None
+    try:
+        return generate_scan_cluster_severity(category, brief)
+    except Exception:
+        logger.warning("scan_cluster_severity_llm_failed", exc_info=True)
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Fetch unclustered issues
 # ---------------------------------------------------------------------------
@@ -187,6 +211,14 @@ def create_cluster(
         ).hexdigest()[:8]
         cluster_id = f"S-{h2.upper()}"
 
+    # Centroid severity: classify the seed (representative) issue once via the
+    # cheap LLM and keep it as the cluster's severity — no scanner change, no
+    # per-issue column. Lazy import avoids a query-module cycle;
+    # severity_to_priority falls back to "medium" when severity is None.
+    from tracer.queries.feed import severity_to_priority
+
+    seed_sev = _seed_severity(issue.category, issue.brief)
+
     cluster = TraceErrorGroup.objects.create(
         project_id=project_id,
         cluster_id=cluster_id,
@@ -197,6 +229,8 @@ def create_cluster(
         title=issue.brief,
         status=FeedIssueStatus.ESCALATING,
         error_type=issue.group,
+        combined_impact=_severity_to_impact(seed_sev),
+        priority=severity_to_priority(seed_sev),
         total_events=1,
         unique_traces=1,
         error_count=1,
