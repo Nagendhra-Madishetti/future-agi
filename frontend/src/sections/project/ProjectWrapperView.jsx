@@ -77,6 +77,10 @@ const ProjectWrapperView = () => {
   const autoOpenedObserveSetupDrawerRef = useRef(false);
   const autoEnteredTraceWaitRef = useRef(null);
   const autoOpenedTraceReviewRef = useRef(null);
+  const observeSetupTraceBaselineRef = useRef({
+    key: null,
+    traceId: undefined,
+  });
   const sawEmptyObserveSetupRef = useRef(false);
   const currentTab = location.pathname.split("/").pop();
   const { enqueueSnackbar } = useSnackbar();
@@ -251,6 +255,7 @@ const ProjectWrapperView = () => {
     location.search,
     observeSetupOnboardingParams.setupLanguage,
     observeSetupOnboardingParams.setupProvider,
+    observeSetupOnboardingParams.source,
     showObserveSetupFocus,
   ]);
 
@@ -294,6 +299,7 @@ const ProjectWrapperView = () => {
     observeSetupOnboardingParams.credentialsCopied,
     observeSetupOnboardingParams.setupLanguage,
     observeSetupOnboardingParams.setupProvider,
+    observeSetupOnboardingParams.source,
     showObserveSetupFocus,
   ]);
 
@@ -325,10 +331,31 @@ const ProjectWrapperView = () => {
     }
 
     let mounted = true;
+    const baselineKey = [
+      firstObserveProjectId,
+      observeSetupOnboardingParams.setupProvider,
+      observeSetupOnboardingParams.setupLanguage,
+      observeSetupOnboardingParams.source,
+    ].join(":");
+    if (observeSetupTraceBaselineRef.current.key !== baselineKey) {
+      observeSetupTraceBaselineRef.current = {
+        key: baselineKey,
+        traceId: undefined,
+      };
+    }
+
     const verifyFirstTrace = () => {
       void fetchOnboardingFirstTraceId()
         .then((traceId) => {
-          if (!mounted || !traceId) return;
+          if (!mounted) return;
+          const baseline = observeSetupTraceBaselineRef.current;
+          if (baseline.key !== baselineKey) return;
+          if (baseline.traceId === undefined) {
+            baseline.traceId = traceId || null;
+            return;
+          }
+          if (!traceId) return;
+          if (traceId === baseline.traceId) return;
           const reviewKey = `${firstObserveProjectId}:${traceId}`;
           if (autoOpenedTraceReviewRef.current === reviewKey) return;
           autoOpenedTraceReviewRef.current = reviewKey;
@@ -361,6 +388,7 @@ const ProjectWrapperView = () => {
     navigate,
     observeSetupOnboardingParams.setupLanguage,
     observeSetupOnboardingParams.setupProvider,
+    observeSetupOnboardingParams.source,
     showObserveSetupFocus,
   ]);
 

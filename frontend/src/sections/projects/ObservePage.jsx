@@ -114,6 +114,7 @@ const ObservePage = React.memo(() => {
   const recordedObserveFocusRef = useRef(null);
   const recordedSourceFixFocusRef = useRef(false);
   const openedFirstTraceReviewRef = useRef(null);
+  const firstTraceBaselineRef = useRef({ key: null, traceId: undefined });
   const [loadedTraceId, setLoadedTraceId] = useState(null);
 
   // Tab store state for modals and context menu
@@ -529,6 +530,7 @@ const ObservePage = React.memo(() => {
   useEffect(() => {
     setLoadedTraceId(null);
     openedFirstTraceReviewRef.current = null;
+    firstTraceBaselineRef.current = { key: null, traceId: undefined };
   }, [observeId, observeOnboardingParams.mode]);
 
   const fetchOnboardingFirstTraceId = useCallback(async () => {
@@ -551,19 +553,59 @@ const ObservePage = React.memo(() => {
   const refreshOnboardingFirstTrace = useCallback(() => {
     void fetchOnboardingFirstTraceId()
       .then((traceId) => {
-        if (traceId) setLoadedTraceId(traceId);
+        const baselineKey = [
+          observeId,
+          observeOnboardingParams.setupProvider,
+          observeOnboardingParams.setupLanguage,
+        ].join(":");
+        const baseline = firstTraceBaselineRef.current;
+        if (baseline.key !== baselineKey || baseline.traceId === undefined) {
+          firstTraceBaselineRef.current = {
+            key: baselineKey,
+            traceId: traceId || null,
+          };
+          return;
+        }
+        if (traceId && traceId !== baseline.traceId) {
+          setLoadedTraceId(traceId);
+        }
       })
       .catch(() => undefined);
-  }, [fetchOnboardingFirstTraceId]);
+  }, [
+    fetchOnboardingFirstTraceId,
+    observeId,
+    observeOnboardingParams.setupLanguage,
+    observeOnboardingParams.setupProvider,
+  ]);
 
   useEffect(() => {
     if (!isWaitingForFirstTraceOnboarding || firstTraceReviewTarget) return;
     let mounted = true;
+    const baselineKey = [
+      observeId,
+      observeOnboardingParams.setupProvider,
+      observeOnboardingParams.setupLanguage,
+    ].join(":");
+    if (firstTraceBaselineRef.current.key !== baselineKey) {
+      firstTraceBaselineRef.current = {
+        key: baselineKey,
+        traceId: undefined,
+      };
+    }
 
     const verifyFirstTrace = () => {
       void fetchOnboardingFirstTraceId()
         .then((traceId) => {
-          if (mounted && traceId) setLoadedTraceId(traceId);
+          if (!mounted) return;
+          const baseline = firstTraceBaselineRef.current;
+          if (baseline.key !== baselineKey) return;
+          if (baseline.traceId === undefined) {
+            baseline.traceId = traceId || null;
+            return;
+          }
+          if (traceId && traceId !== baseline.traceId) {
+            setLoadedTraceId(traceId);
+          }
         })
         .catch(() => undefined);
     };
@@ -578,6 +620,9 @@ const ObservePage = React.memo(() => {
     fetchOnboardingFirstTraceId,
     firstTraceReviewTarget,
     isWaitingForFirstTraceOnboarding,
+    observeId,
+    observeOnboardingParams.setupLanguage,
+    observeOnboardingParams.setupProvider,
   ]);
 
   useEffect(() => {
@@ -591,7 +636,22 @@ const ObservePage = React.memo(() => {
     const handleFirstTraceLoaded = (event) => {
       const detail = event?.detail || {};
       if (detail.projectId !== observeId || !detail.traceId) return;
-      setLoadedTraceId(detail.traceId);
+      const baselineKey = [
+        observeId,
+        observeOnboardingParams.setupProvider,
+        observeOnboardingParams.setupLanguage,
+      ].join(":");
+      const baseline = firstTraceBaselineRef.current;
+      if (baseline.key !== baselineKey || baseline.traceId === undefined) {
+        firstTraceBaselineRef.current = {
+          key: baselineKey,
+          traceId: detail.traceId,
+        };
+        return;
+      }
+      if (detail.traceId !== baseline.traceId) {
+        setLoadedTraceId(detail.traceId);
+      }
     };
 
     window.addEventListener(
@@ -604,7 +664,13 @@ const ObservePage = React.memo(() => {
         handleFirstTraceLoaded,
       );
     };
-  }, [observeId, observeOnboardingParams.mode, showObserveOnboardingFocus]);
+  }, [
+    observeId,
+    observeOnboardingParams.mode,
+    observeOnboardingParams.setupLanguage,
+    observeOnboardingParams.setupProvider,
+    showObserveOnboardingFocus,
+  ]);
 
   useEffect(() => {
     if (

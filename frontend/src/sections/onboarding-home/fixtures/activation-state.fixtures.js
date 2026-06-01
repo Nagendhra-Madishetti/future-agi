@@ -26,6 +26,11 @@ const routeAvailability = (overrides = {}) => ({
     is_available: true,
     reason: null,
   },
+  observe_evaluator_create: {
+    href: "/dashboard/evaluations/create?source=onboarding&step=data&source_type=trace_project&source_id=observe-1&trace_id=trace-1",
+    is_available: true,
+    reason: null,
+  },
   observe_dashboard: {
     href: "/dashboard/observe/observe-1",
     is_available: true,
@@ -1292,7 +1297,7 @@ export const activationStateFixtures = {
       kind: "improve",
       title: "Create an evaluator",
       description: "Turn the reviewed trace into a repeatable evaluator.",
-      href: "/dashboard/observe/observe-1",
+      href: "/dashboard/evaluations/create?source=onboarding&step=data&source_type=trace_project&source_id=observe-1&trace_id=trace-1",
       cta_label: "Create evaluator",
       completion_event: "first_quality_loop_completed",
     }),

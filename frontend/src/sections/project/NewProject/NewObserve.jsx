@@ -579,6 +579,7 @@ const FirstTraceSetupGuide = ({
   tabWrapperStyles,
   theme,
 }) => {
+  const hasSelectedInstrument = Boolean(selectedInstrument);
   const statusLabel =
     setupVerification?.status === "ready"
       ? "Trace detected"
@@ -614,59 +615,64 @@ const FirstTraceSetupGuide = ({
               <Chip size="small" variant="outlined" label={statusLabel} />
             </Stack>
             <Typography variant="h6">
-              Connect {selectedInstrumentLabel}, then send one trace
+              {hasSelectedInstrument
+                ? `Connect ${selectedInstrumentLabel}, then send one trace`
+                : "Choose package, then send one trace"}
             </Typography>
             <Typography variant="body2" color="text.secondary" maxWidth={720}>
-              These snippets match {selectedInstrumentLabel} in{" "}
-              {selectedLanguageLabel}. Run one request and keep this page open;
-              we move you to trace review when it arrives, then guide you to
-              create the first evaluator.
+              {hasSelectedInstrument
+                ? `These snippets match ${selectedInstrumentLabel} in ${selectedLanguageLabel}. Run one request and keep this page open; we move you to trace review when it arrives, then guide you to create the first evaluator.`
+                : "Pick the SDK package that makes the model call. We will then show the matching install command, setup code, request example, and trace checks."}
             </Typography>
           </Stack>
 
-          <TabWrapper sx={tabWrapperStyles}>
-            <CustomTabs
-              textColor="primary"
-              value={languageTab}
-              onChange={(e, value) => onLanguageChange(value)}
-              TabIndicatorProps={{
-                style: {
-                  backgroundColor: theme.palette.primary.main,
-                  opacity: 0.08,
-                  height: "100%",
-                  borderRadius: "8px",
-                },
-              }}
-            >
-              {tabOptions.map((tab) => (
-                <CustomTab
-                  key={`first-trace-${tab.value}`}
-                  label={tab.label}
-                  value={tab.value}
-                  disabled={tab.disabled}
-                />
-              ))}
-            </CustomTabs>
-          </TabWrapper>
+          {hasSelectedInstrument ? (
+            <TabWrapper sx={tabWrapperStyles}>
+              <CustomTabs
+                textColor="primary"
+                value={languageTab}
+                onChange={(e, value) => onLanguageChange(value)}
+                TabIndicatorProps={{
+                  style: {
+                    backgroundColor: theme.palette.primary.main,
+                    opacity: 0.08,
+                    height: "100%",
+                    borderRadius: "8px",
+                  },
+                }}
+              >
+                {tabOptions.map((tab) => (
+                  <CustomTab
+                    key={`first-trace-${tab.value}`}
+                    label={tab.label}
+                    value={tab.value}
+                    disabled={tab.disabled}
+                  />
+                ))}
+              </CustomTabs>
+            </TabWrapper>
+          ) : null}
         </Stack>
 
-        <Alert
-          severity="info"
-          icon={<Iconify icon="mdi:code-tags" width={20} />}
-          data-testid="observe-package-specific-code-alert"
-          sx={{ alignItems: "flex-start" }}
-        >
-          <Stack spacing={0.25}>
-            <Typography variant="subtitle2">
-              {selectedInstrumentLabel} {selectedLanguageLabel} code selected
-            </Typography>
-            <Typography variant="body2">
-              The install, package setup, request, and trace checks below are
-              for {selectedInstrumentLabel}. Switch the package if your model
-              call uses another SDK.
-            </Typography>
-          </Stack>
-        </Alert>
+        {hasSelectedInstrument ? (
+          <Alert
+            severity="info"
+            icon={<Iconify icon="mdi:code-tags" width={20} />}
+            data-testid="observe-package-specific-code-alert"
+            sx={{ alignItems: "flex-start" }}
+          >
+            <Stack spacing={0.25}>
+              <Typography variant="subtitle2">
+                {selectedInstrumentLabel} {selectedLanguageLabel} code selected
+              </Typography>
+              <Typography variant="body2">
+                The install, package setup, request, and trace checks below are
+                for {selectedInstrumentLabel}. Switch the package if your model
+                call uses another SDK.
+              </Typography>
+            </Stack>
+          </Alert>
+        ) : null}
 
         {instrumentOptions.length ? (
           <Stack spacing={1}>
@@ -725,189 +731,214 @@ const FirstTraceSetupGuide = ({
           </Alert>
         ) : null}
 
-        <Box
-          data-testid="observe-first-trace-steps"
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              md: "repeat(2, minmax(0, 1fr))",
-              xl: "repeat(4, minmax(0, 1fr))",
-            },
-            gap: 1,
-          }}
-        >
-          {FIRST_TRACE_STEPS.map((step, index) => (
+        {!hasSelectedInstrument ? (
+          <Alert
+            severity="info"
+            icon={<Iconify icon="mdi:package-variant-closed" width={20} />}
+            data-testid="observe-package-required"
+            sx={{ alignItems: "flex-start" }}
+          >
+            <Stack spacing={0.25}>
+              <Typography variant="subtitle2">
+                Choose the package your app uses
+              </Typography>
+              <Typography variant="body2">
+                We will only show setup code after a package is selected, so the
+                snippet matches the SDK that sends your model request.
+              </Typography>
+            </Stack>
+          </Alert>
+        ) : null}
+
+        {!hasSelectedInstrument ? null : (
+          <>
             <Box
-              key={step.id}
+              data-testid="observe-first-trace-steps"
               sx={{
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-                bgcolor: "background.paper",
-                p: 1.25,
-                minHeight: 96,
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "repeat(2, minmax(0, 1fr))",
+                  xl: "repeat(4, minmax(0, 1fr))",
+                },
+                gap: 1,
               }}
             >
-              <Stack spacing={0.75}>
-                <Stack direction="row" spacing={0.75} alignItems="center">
-                  <Chip size="small" label={index + 1} />
-                  <Typography variant="subtitle2">{step.label}</Typography>
-                </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  {step.description}
-                </Typography>
-              </Stack>
+              {FIRST_TRACE_STEPS.map((step, index) => (
+                <Box
+                  key={step.id}
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    bgcolor: "background.paper",
+                    p: 1.25,
+                    minHeight: 96,
+                  }}
+                >
+                  <Stack spacing={0.75}>
+                    <Stack direction="row" spacing={0.75} alignItems="center">
+                      <Chip size="small" label={index + 1} />
+                      <Typography variant="subtitle2">{step.label}</Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {step.description}
+                    </Typography>
+                  </Stack>
+                </Box>
+              ))}
             </Box>
-          ))}
-        </Box>
 
-        <Stack spacing={1} sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle2">
-            Copy complete {selectedInstrumentLabel} {selectedLanguageLabel}{" "}
-            example
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Use this as a scratch file or adapt the same blocks into your app.
-            It includes Future AGI keys, provider keys, project registration,
-            package setup, and one request.
-          </Typography>
-          <InstructionCodeCopy
-            ariaLabel="Copy complete package setup"
-            text={completeSetupCode}
-            language={selectedInstrumentLanguage}
-          />
-        </Stack>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" },
-            gap: 1.5,
-            minWidth: 0,
-          }}
-        >
-          <Stack spacing={1} sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle2">
-              1. Install {selectedInstrumentLabel}
-            </Typography>
-            <InstructionCodeCopy
-              ariaLabel="Copy install command"
-              text={instrumentInstallCode}
-              language={selectedInstrumentLanguage}
-            />
-          </Stack>
-          <Stack spacing={1} sx={{ minWidth: 0 }}>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              alignItems={{ xs: "flex-start", sm: "center" }}
-              justifyContent="space-between"
-            >
+            <Stack spacing={1} sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2">
-                2. Load Future AGI and provider keys
+                Copy complete {selectedInstrumentLabel} {selectedLanguageLabel}{" "}
+                example
               </Typography>
-              <Button
-                size="small"
-                variant="outlined"
-                component={RouterLink}
-                href={apiKeysHref}
-                startIcon={<Iconify icon="mdi:key-outline" width={16} />}
-                sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
-              >
-                {credentialsCopied ? "Create another key" : "Create API key"}
-              </Button>
-            </Stack>
-            {credentialsCopied ? (
-              <Alert severity="success" icon={false} sx={{ py: 0.5 }}>
-                <Typography variant="caption">
-                  Credentials copied. Paste both values into the snippet, then
-                  run one request.
-                </Typography>
-              </Alert>
-            ) : (
               <Typography variant="caption" color="text.secondary">
-                Create a Future AGI API key and secret key before running the
-                snippet.
+                Use this as a scratch file or adapt the same blocks into your
+                app. It includes Future AGI keys, provider keys, project
+                registration, package setup, and one request.
               </Typography>
-            )}
-            <InstructionCodeCopy
-              ariaLabel="Copy project keys"
-              text={getCodeBySection("keys")}
-              language={languageTab}
-            />
-            {instrumentRuntimeKeyCode ? (
-              <>
-                <Typography variant="caption" color="text.secondary">
-                  Also load the {selectedInstrumentLabel} runtime key in the
-                  same shell or process that runs the request.
+              <InstructionCodeCopy
+                ariaLabel="Copy complete package setup"
+                text={completeSetupCode}
+                language={selectedInstrumentLanguage}
+              />
+            </Stack>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" },
+                gap: 1.5,
+                minWidth: 0,
+              }}
+            >
+              <Stack spacing={1} sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle2">
+                  1. Install {selectedInstrumentLabel}
                 </Typography>
                 <InstructionCodeCopy
-                  ariaLabel={`Copy ${selectedInstrumentLabel} runtime keys`}
-                  text={instrumentRuntimeKeyCode}
-                  language="bash"
+                  ariaLabel="Copy install command"
+                  text={instrumentInstallCode}
+                  language={selectedInstrumentLanguage}
                 />
-              </>
-            ) : null}
-            <InstructionCodeCopy
-              ariaLabel="Copy project registration"
-              text={getCodeBySection("projectAddCode")}
-              language={languageTab}
-            />
-          </Stack>
-          <Stack spacing={1} sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle2">
-              3. Connect {selectedInstrumentLabel}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Paste this before importing or creating the client, then run one
-              request in your app.
-            </Typography>
-            <InstructionCodeCopy
-              ariaLabel="Copy package setup code"
-              text={instrumentCode}
-              language={selectedInstrumentLanguage}
-            />
-          </Stack>
-          <Stack spacing={1} sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle2">
-              4. Run one {selectedInstrumentLabel} request
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Use this ready-to-run request if you do not have a local request
-              ready. Keep this page open after it runs; Future AGI waits for the
-              trace, opens review when it arrives, then points you to evaluator
-              setup.
-            </Typography>
-            <InstructionCodeCopy
-              ariaLabel="Copy package request"
-              text={instrumentSampleRequestCode}
-              language={selectedInstrumentLanguage}
-            />
-          </Stack>
-        </Box>
-
-        <VerificationAlert setupVerification={setupVerification} />
-
-        <Alert
-          severity="info"
-          icon={<Iconify icon="mdi:help-circle-outline" width={20} />}
-          data-testid="observe-trace-troubleshooting"
-          sx={{ alignItems: "flex-start" }}
-        >
-          <Stack spacing={0.75}>
-            <Typography variant="subtitle2">
-              {traceTroubleshooting.title}
-            </Typography>
-            <Stack spacing={0.5}>
-              {traceTroubleshooting.checks.map((check) => (
-                <Typography key={check} variant="body2">
-                  {check}
+              </Stack>
+              <Stack spacing={1} sx={{ minWidth: 0 }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  alignItems={{ xs: "flex-start", sm: "center" }}
+                  justifyContent="space-between"
+                >
+                  <Typography variant="subtitle2">
+                    2. Load Future AGI and provider keys
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    component={RouterLink}
+                    href={apiKeysHref}
+                    startIcon={<Iconify icon="mdi:key-outline" width={16} />}
+                    sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+                  >
+                    {credentialsCopied
+                      ? "Create another key"
+                      : "Create API key"}
+                  </Button>
+                </Stack>
+                {credentialsCopied ? (
+                  <Alert severity="success" icon={false} sx={{ py: 0.5 }}>
+                    <Typography variant="caption">
+                      Credentials copied. Paste both values into the snippet,
+                      then run one request.
+                    </Typography>
+                  </Alert>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Create a Future AGI API key and secret key before running
+                    the snippet.
+                  </Typography>
+                )}
+                <InstructionCodeCopy
+                  ariaLabel="Copy project keys"
+                  text={getCodeBySection("keys")}
+                  language={languageTab}
+                />
+                {instrumentRuntimeKeyCode ? (
+                  <>
+                    <Typography variant="caption" color="text.secondary">
+                      Also load the {selectedInstrumentLabel} runtime key in the
+                      same shell or process that runs the request.
+                    </Typography>
+                    <InstructionCodeCopy
+                      ariaLabel={`Copy ${selectedInstrumentLabel} runtime keys`}
+                      text={instrumentRuntimeKeyCode}
+                      language="bash"
+                    />
+                  </>
+                ) : null}
+                <InstructionCodeCopy
+                  ariaLabel="Copy project registration"
+                  text={getCodeBySection("projectAddCode")}
+                  language={languageTab}
+                />
+              </Stack>
+              <Stack spacing={1} sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle2">
+                  3. Connect {selectedInstrumentLabel}
                 </Typography>
-              ))}
-            </Stack>
-          </Stack>
-        </Alert>
+                <Typography variant="caption" color="text.secondary">
+                  Paste this before importing or creating the client, then run
+                  one request in your app.
+                </Typography>
+                <InstructionCodeCopy
+                  ariaLabel="Copy package setup code"
+                  text={instrumentCode}
+                  language={selectedInstrumentLanguage}
+                />
+              </Stack>
+              <Stack spacing={1} sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle2">
+                  4. Run one {selectedInstrumentLabel} request
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Use this ready-to-run request if you do not have a local
+                  request ready. Keep this page open after it runs; Future AGI
+                  waits for the trace, opens review when it arrives, then points
+                  you to evaluator setup.
+                </Typography>
+                <InstructionCodeCopy
+                  ariaLabel="Copy package request"
+                  text={instrumentSampleRequestCode}
+                  language={selectedInstrumentLanguage}
+                />
+              </Stack>
+            </Box>
+
+            <VerificationAlert setupVerification={setupVerification} />
+
+            <Alert
+              severity="info"
+              icon={<Iconify icon="mdi:help-circle-outline" width={20} />}
+              data-testid="observe-trace-troubleshooting"
+              sx={{ alignItems: "flex-start" }}
+            >
+              <Stack spacing={0.75}>
+                <Typography variant="subtitle2">
+                  {traceTroubleshooting.title}
+                </Typography>
+                <Stack spacing={0.5}>
+                  {traceTroubleshooting.checks.map((check) => (
+                    <Typography key={check} variant="body2">
+                      {check}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Stack>
+            </Alert>
+          </>
+        )}
       </Stack>
     </Box>
   );
@@ -1053,18 +1084,18 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
   );
   const selectedInstrument = useMemo(() => {
     if (!instrumentOptions.length) return null;
+    if (showFirstTraceGuide && !selectedInstrumentId) return null;
     return (
       instrumentOptions.find(
         (instrument) => instrument.id === selectedInstrumentId,
       ) || instrumentOptions[0]
     );
-  }, [instrumentOptions, selectedInstrumentId]);
-  const selectedInstrumentLanguage = instrumentSupportsLanguage(
-    selectedInstrument,
-    languageTab,
-  )
-    ? languageTab
-    : firstInstrumentLanguage(selectedInstrument);
+  }, [instrumentOptions, selectedInstrumentId, showFirstTraceGuide]);
+  const selectedInstrumentLanguage = selectedInstrument
+    ? instrumentSupportsLanguage(selectedInstrument, languageTab)
+      ? languageTab
+      : firstInstrumentLanguage(selectedInstrument)
+    : languageTab;
   const selectedInstrumentLanguageKey = languageDataKey(
     selectedInstrumentLanguage,
   );
@@ -1153,10 +1184,15 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
       setSelectedInstrumentId(requestedOption.id);
       return;
     }
-    if (!currentOption) {
+    if (!currentOption && (!showFirstTraceGuide || selectedInstrumentId)) {
       setSelectedInstrumentId(instrumentOptions[0].id);
     }
-  }, [instrumentOptions, requestedInstrumentId, selectedInstrumentId]);
+  }, [
+    instrumentOptions,
+    requestedInstrumentId,
+    selectedInstrumentId,
+    showFirstTraceGuide,
+  ]);
 
   useEffect(() => {
     if (!selectedInstrument) return;

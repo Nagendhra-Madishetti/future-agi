@@ -354,7 +354,7 @@ export const getObserveOnboardingCopy = (
         "Install tracing, load your keys, and send one real or test request.",
       primaryLabel: setupProviderLabel
         ? `Open ${setupProviderLabel} setup`
-        : "Review setup",
+        : "Choose package",
       secondaryLabel: null,
       steps: [
         { label: "Install", complete: false },

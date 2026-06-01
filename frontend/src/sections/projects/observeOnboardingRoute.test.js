@@ -390,7 +390,7 @@ describe("observeOnboardingRoute", () => {
       getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE),
     ).toMatchObject({
       currentStep: "Setup",
-      primaryLabel: "Review setup",
+      primaryLabel: "Choose package",
       title: "Connect Observe to your app",
     });
     expect(

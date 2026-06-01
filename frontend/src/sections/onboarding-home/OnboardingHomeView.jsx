@@ -27,6 +27,7 @@ import { useRecordActivationEvent } from "./hooks/useRecordActivationEvent";
 import { useSaveOnboardingGoal } from "./hooks/useSaveOnboardingGoal";
 import { useSampleProject } from "./hooks/useSampleProject";
 import {
+  buildObserveEvaluatorCreateHref,
   persistObserveSetupIntent,
   readPersistedObserveSetupIntent,
 } from "src/sections/projects/observeOnboardingRoute";
@@ -916,6 +917,40 @@ export default function OnboardingHomeView() {
       trackContext,
     ],
   );
+  const recommendedAction = useMemo(() => {
+    const action = renderedState?.recommendedAction;
+    if (
+      renderedState?.primaryPath !== "observe" ||
+      renderedState?.stage !== "create_trace_evaluator" ||
+      action?.id !== "create_trace_evaluator"
+    ) {
+      return action;
+    }
+
+    const firstObserveId = renderedState.signals?.firstObserveId;
+    const firstTraceId = renderedState.signals?.firstTraceId;
+    if (!firstObserveId || !firstTraceId) return action;
+
+    return {
+      ...action,
+      href: buildObserveEvaluatorCreateHref({
+        observeId: firstObserveId,
+        search: location.search,
+        setupLanguage: searchContext.setupLanguage,
+        setupProvider: searchContext.setupProvider,
+        traceId: firstTraceId,
+      }),
+    };
+  }, [
+    location.search,
+    renderedState?.primaryPath,
+    renderedState?.recommendedAction,
+    renderedState?.signals?.firstObserveId,
+    renderedState?.signals?.firstTraceId,
+    renderedState?.stage,
+    searchContext.setupLanguage,
+    searchContext.setupProvider,
+  ]);
 
   if (isLoading || waitingForWorkspace || (!renderedState && !isError)) {
     return <OnboardingHomeSkeleton />;
@@ -1232,10 +1267,7 @@ export default function OnboardingHomeView() {
     ) : null;
 
   const observePanelProps = {
-    action: actionWithSetupContext(
-      renderedState.recommendedAction,
-      trackContext,
-    ),
+    action: actionWithSetupContext(recommendedAction, trackContext),
     fallbackAction: actionWithSetupContext(
       hideSetupQuickStartFallback ? null : renderedState.fallbackAction,
       trackContext,

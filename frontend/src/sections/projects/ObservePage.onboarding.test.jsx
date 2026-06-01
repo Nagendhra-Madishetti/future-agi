@@ -221,8 +221,26 @@ describe("ObservePage onboarding first-trace handoff", () => {
     );
   });
 
-  it("auto-opens trace review when the trace table reports the first trace", async () => {
+  it("auto-opens trace review when the trace table reports a new trace", async () => {
     render(<ObservePage />);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(OBSERVE_FIRST_TRACE_LOADED_EVENT, {
+          detail: {
+            projectId: "observe-1",
+            traceId: "trace-existing",
+          },
+        }),
+      );
+    });
+    expect(mocks.navigate).not.toHaveBeenCalledWith(
+      buildObserveTraceReviewHref({
+        observeId: "observe-1",
+        traceId: "trace-existing",
+      }),
+      { replace: true },
+    );
 
     act(() => {
       window.dispatchEvent(
@@ -284,6 +302,17 @@ describe("ObservePage onboarding first-trace handoff", () => {
         new CustomEvent(OBSERVE_FIRST_TRACE_LOADED_EVENT, {
           detail: {
             projectId: "observe-1",
+            traceId: "trace-existing",
+          },
+        }),
+      );
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(OBSERVE_FIRST_TRACE_LOADED_EVENT, {
+          detail: {
+            projectId: "observe-1",
             traceId: "trace-2",
           },
         }),
@@ -303,7 +332,7 @@ describe("ObservePage onboarding first-trace handoff", () => {
     );
   });
 
-  it("auto-opens trace review when the polling request finds the first trace", async () => {
+  it("does not auto-open an existing trace from the initial polling baseline", async () => {
     mocks.axiosGet.mockResolvedValue({
       data: {
         result: {
@@ -314,14 +343,13 @@ describe("ObservePage onboarding first-trace handoff", () => {
 
     render(<ObservePage />);
 
-    await waitFor(() =>
-      expect(mocks.navigate).toHaveBeenCalledWith(
-        buildObserveTraceReviewHref({
-          observeId: "observe-1",
-          traceId: "trace-polled",
-        }),
-        { replace: true },
-      ),
+    await waitFor(() => expect(mocks.axiosGet).toHaveBeenCalled());
+    expect(mocks.navigate).not.toHaveBeenCalledWith(
+      buildObserveTraceReviewHref({
+        observeId: "observe-1",
+        traceId: "trace-polled",
+      }),
+      { replace: true },
     );
   });
 

@@ -159,7 +159,10 @@ describe("NewObserve onboarding setup", () => {
           title: "Checking for your first trace",
         }}
       />,
-      { route: "/dashboard/observe?setup=true&source=onboarding" },
+      {
+        route:
+          "/dashboard/observe?setup=true&source=onboarding&provider=openai&language=python",
+      },
     );
 
     const guide = screen.getByTestId("observe-first-trace-guide");
@@ -221,6 +224,52 @@ describe("NewObserve onboarding setup", () => {
     ).toHaveTextContent("Checking for your first trace");
     expect(screen.queryByText("Full setup reference")).not.toBeInTheDocument();
     expect(screen.queryByText("Package options")).not.toBeInTheDocument();
+  });
+
+  it("requires an explicit package selection before showing setup code", async () => {
+    mocks.useQuery.mockReturnValue({
+      data: codeBlockWithInstrumentsFixture,
+      error: null,
+      isLoading: false,
+      isSuccess: true,
+    });
+
+    renderWithRouter(<NewObserve showFirstTraceGuide />, {
+      route: "/dashboard/observe?setup=true&source=onboarding",
+    });
+
+    const guide = screen.getByTestId("observe-first-trace-guide");
+    expect(
+      within(guide).getByText("Choose package, then send one trace"),
+    ).toBeVisible();
+    expect(
+      within(guide).getByTestId("observe-package-required"),
+    ).toHaveTextContent("Choose the package your app uses");
+    expect(
+      within(guide).queryByTestId("observe-package-specific-code-alert"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(guide).queryByLabelText("Copy complete package setup"),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(
+      within(guide).getByRole("button", { name: /anthropic/i }),
+    );
+
+    expect(
+      await within(guide).findByText("Connect Anthropic, then send one trace"),
+    ).toBeVisible();
+    expect(
+      within(guide).getByTestId("observe-package-specific-code-alert"),
+    ).toHaveTextContent("Anthropic Python code selected");
+    expect(
+      within(guide).getByLabelText("Copy package setup code"),
+    ).toHaveTextContent("AnthropicInstrumentor");
+    await waitFor(() => {
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get("provider")).toBe("anthropic");
+      expect(params.get("language")).toBe("python");
+    });
   });
 
   it("uses built-in package snippets when the code-block response omits the requested package", () => {
@@ -310,7 +359,7 @@ describe("NewObserve onboarding setup", () => {
       />,
       {
         route:
-          "/dashboard/observe?setup=true&source=onboarding&credential_step=done",
+          "/dashboard/observe?setup=true&source=onboarding&credential_step=done&provider=openai&language=python",
       },
     );
 
@@ -335,7 +384,7 @@ describe("NewObserve onboarding setup", () => {
 
     renderWithRouter(<NewObserve showFirstTraceGuide />, {
       route:
-        "/dashboard/observe?setup=true&source=onboarding_email&credential_step=done",
+        "/dashboard/observe?setup=true&source=onboarding_email&credential_step=done&provider=openai&language=python",
     });
 
     const guide = screen.getByTestId("observe-first-trace-guide");

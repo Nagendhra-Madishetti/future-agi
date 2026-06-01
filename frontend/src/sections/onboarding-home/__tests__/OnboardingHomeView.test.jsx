@@ -2199,7 +2199,7 @@ describe("OnboardingHomeView", () => {
       within(panel).getByRole("link", { name: /create evaluator/i }),
     ).toHaveAttribute(
       "href",
-      "/dashboard/observe/observe-1?provider=anthropic&language=python&tour_anchor=observe_evaluator_button&journey_step=create_trace_evaluator",
+      "/dashboard/evaluations/create?source=onboarding&step=data&source_type=trace_project&source_id=observe-1&trace_id=trace-1&provider=anthropic&language=python&tour_anchor=observe_evaluator_button&journey_step=create_trace_evaluator",
     );
   });
 

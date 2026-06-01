@@ -226,7 +226,7 @@ describe("ProjectWrapperView observe setup onboarding", () => {
     });
   });
 
-  it("keeps setup open but routes to trace review when the first trace arrives", async () => {
+  it("keeps setup open when the project already has an older trace", async () => {
     mocks.axiosGet.mockResolvedValue({
       data: {
         result: {
@@ -251,13 +251,11 @@ describe("ProjectWrapperView observe setup onboarding", () => {
           project_id: "project-1",
         },
       });
-      expect(window.location.pathname).toBe(
-        "/dashboard/observe/project-1/trace/trace-1",
-      );
     });
+    expect(window.location.pathname).toBe("/dashboard/observe");
     const params = new URLSearchParams(window.location.search);
+    expect(params.get("setup")).toBe("true");
     expect(params.get("source")).toBe("onboarding");
-    expect(params.get("onboarding")).toBe("review-first-trace");
     expect(params.get("provider")).toBe("anthropic");
     expect(params.get("language")).toBe("python");
     expect(params.get("quick_start_id")).toBe("observe");
@@ -359,7 +357,7 @@ describe("ProjectWrapperView observe setup onboarding", () => {
     const focusPanel = screen.getByTestId("observe-onboarding-focus");
     const focusButtons = within(focusPanel).getAllByRole("button");
     expect(focusButtons[0]).toHaveTextContent(/open sample trace/i);
-    expect(focusButtons[1]).toHaveTextContent(/open openai setup/i);
+    expect(focusButtons[1]).toHaveTextContent(/choose package/i);
 
     await user.click(
       screen.getByRole("button", { name: /open sample trace/i }),
