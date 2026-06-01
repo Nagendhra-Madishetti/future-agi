@@ -402,14 +402,26 @@ describe("OnboardingHomeView", () => {
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Create the observe project and prepare the first trace.",
     );
-    expect(
-      within(panel).getByRole("link", {
-        name: /create project from manifest/i,
-      }),
-    ).toHaveAttribute(
-      "href",
-      "/dashboard/observe?setup=true&source=onboarding&tour_anchor=observe_create_project_button&journey_step=connect_observability",
+    const setupUrl = new URL(
+      within(panel)
+        .getByRole("link", {
+          name: /create project from manifest/i,
+        })
+        .getAttribute("href"),
+      "https://futureagi.test",
     );
+    expect(setupUrl.pathname).toBe("/dashboard/observe");
+    expectRouteParams({
+      params: setupUrl.searchParams,
+      values: {
+        setup: "true",
+        source: "onboarding",
+        provider: "openai",
+        language: "python",
+        tour_anchor: "observe_create_project_button",
+        journey_step: "connect_observability",
+      },
+    });
   });
 
   it("renders backend observe journey progress while waiting for a trace", () => {
@@ -1175,7 +1187,7 @@ describe("OnboardingHomeView", () => {
     },
   );
 
-  it("keeps stale sample state from hijacking a real setup quick-start", () => {
+  it("keeps stale sample state from hijacking a real setup quick-start", async () => {
     mocks.useActivationState.mockReturnValue({
       state: normalizedFixture("sampleTraceReady"),
       isLoading: false,
@@ -1209,6 +1221,13 @@ describe("OnboardingHomeView", () => {
     expect(within(panel).getAllByText("Step 1 of 4").length).toBeGreaterThan(0);
     expect(within(panel).getByText("Later steps")).toBeVisible();
     expect(within(panel).queryByText("Show full path")).toBeNull();
+    expect(within(panel).getByTestId("observe-package-picker")).toBeVisible();
+    await userEvent.click(
+      within(panel).getByRole("button", { name: /anthropic/i }),
+    );
+    await userEvent.click(
+      within(panel).getByRole("button", { name: /typescript/i }),
+    );
     expect(within(panel).getByText("Send first trace")).toBeVisible();
     expect(within(panel).getByText("Review first trace")).toBeVisible();
     const setupLink = screen.getByRole("link", {
@@ -1229,6 +1248,8 @@ describe("OnboardingHomeView", () => {
         quick_start_goal: "monitor_production_ai_app",
         quick_start_id: "observe",
         quick_start_primary_path: "observe",
+        provider: "anthropic",
+        language: "typescript",
       },
     });
     expect(screen.queryByTestId("sample-project-panel")).toBeNull();

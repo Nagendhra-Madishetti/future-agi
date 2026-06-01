@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import {
   CurrentStepGuide,
   ObserveJourneyProgress,
@@ -10,6 +12,118 @@ import {
 } from "./observe-panel-utils";
 import { observeFallbackJourneyPlan } from "./observe-fallback-journey-plan";
 import { journeyCurrentStep } from "./journey-guide-utils";
+
+const OBSERVE_PACKAGE_OPTIONS = [
+  { id: "openai", label: "OpenAI", languages: ["python", "typescript"] },
+  { id: "anthropic", label: "Anthropic", languages: ["python", "typescript"] },
+  { id: "langchain", label: "LangChain", languages: ["python", "typescript"] },
+  {
+    id: "openai_agents",
+    label: "OpenAI Agents",
+    languages: ["python", "typescript"],
+  },
+  { id: "llamaindex", label: "LlamaIndex", languages: ["python"] },
+  { id: "bedrock", label: "Bedrock", languages: ["python"] },
+  { id: "mcp", label: "MCP", languages: ["python", "typescript"] },
+];
+
+const LANGUAGE_OPTIONS = [
+  { id: "python", label: "Python" },
+  { id: "typescript", label: "TypeScript" },
+];
+
+const hrefWithObservePackage = (href, { language, provider } = {}) => {
+  if (!href || !href.startsWith("/") || href.startsWith("//")) return href;
+
+  const [withoutHash, hash] = href.split("#");
+  const [pathname, query = ""] = withoutHash.split("?");
+  const params = new URLSearchParams(query);
+  if (provider) params.set("provider", provider);
+  if (language) params.set("language", language);
+  const queryString = params.toString();
+  return `${pathname}${queryString ? `?${queryString}` : ""}${
+    hash ? `#${hash}` : ""
+  }`;
+};
+
+function ObservePackagePicker({
+  language,
+  onLanguageChange,
+  onProviderChange,
+  provider,
+}) {
+  const selectedPackage =
+    OBSERVE_PACKAGE_OPTIONS.find((option) => option.id === provider) ||
+    OBSERVE_PACKAGE_OPTIONS[0];
+
+  return (
+    <Box
+      data-testid="observe-package-picker"
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 1,
+        p: 1.5,
+      }}
+    >
+      <Stack spacing={1}>
+        <Stack spacing={0.25}>
+          <Typography variant="subtitle2">
+            Which package does your app use?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            The setup page will open with matching install and instrumentation
+            code.
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {OBSERVE_PACKAGE_OPTIONS.map((option) => (
+            <Button
+              key={option.id}
+              size="small"
+              variant={option.id === provider ? "contained" : "outlined"}
+              color={option.id === provider ? "primary" : "inherit"}
+              onClick={() => {
+                onProviderChange(option.id);
+                if (!option.languages.includes(language)) {
+                  onLanguageChange(option.languages[0]);
+                }
+              }}
+              sx={{ textTransform: "none" }}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </Stack>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {LANGUAGE_OPTIONS.map((option) => {
+            const isDisabled = !selectedPackage.languages.includes(option.id);
+            return (
+              <Button
+                key={option.id}
+                size="small"
+                variant={option.id === language ? "contained" : "outlined"}
+                color={option.id === language ? "primary" : "inherit"}
+                disabled={isDisabled}
+                onClick={() => onLanguageChange(option.id)}
+                sx={{ textTransform: "none" }}
+              >
+                {option.label}
+              </Button>
+            );
+          })}
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
+ObservePackagePicker.propTypes = {
+  language: PropTypes.string.isRequired,
+  onLanguageChange: PropTypes.func.isRequired,
+  onProviderChange: PropTypes.func.isRequired,
+  provider: PropTypes.string.isRequired,
+};
 
 export default function ObserveSetupPanel({
   action,
@@ -22,6 +136,8 @@ export default function ObserveSetupPanel({
   singleActionFocus = false,
   stage = "connect_observability",
 }) {
+  const [selectedProvider, setSelectedProvider] = useState("openai");
+  const [selectedLanguage, setSelectedLanguage] = useState("python");
   const effectiveJourneyPlan = journeyPlan || observeFallbackJourneyPlan(stage);
   const currentStep = journeyCurrentStep(effectiveJourneyPlan, stage);
   const steps = effectiveJourneyPlan?.steps || [];
@@ -35,9 +151,20 @@ export default function ObserveSetupPanel({
       "Choose your package, create an Observe project, and send one trace.",
     tourAnchor: "observe_create_project_button",
   };
+  const shouldShowPackagePicker = stage === "connect_observability";
+  const packageAwareAction = useMemo(() => {
+    if (!shouldShowPackagePicker || !action?.href) return action;
+    return {
+      ...action,
+      href: hrefWithObservePackage(action.href, {
+        language: selectedLanguage,
+        provider: selectedProvider,
+      }),
+    };
+  }, [action, selectedLanguage, selectedProvider, shouldShowPackagePicker]);
   const actionSlot = (
     <ObservePanelActions
-      action={action}
+      action={packageAwareAction}
       fallbackAction={fallbackAction}
       onPrimaryClick={onPrimaryClick}
       onFallbackClick={onFallbackClick}
@@ -69,6 +196,14 @@ export default function ObserveSetupPanel({
               "Create the project, send one trace, then return here for the first review."
             }
             chips={effectiveJourneyPlan.chips || ["observe", "setup"]}
+          />
+        ) : null}
+        {shouldShowPackagePicker ? (
+          <ObservePackagePicker
+            language={selectedLanguage}
+            onLanguageChange={setSelectedLanguage}
+            onProviderChange={setSelectedProvider}
+            provider={selectedProvider}
           />
         ) : null}
         {actionStep ? (
