@@ -184,6 +184,19 @@ const EVAL_RERUN_COPY = {
   ],
 };
 
+const TRACE_PROJECT_RERUN_COPY = {
+  currentStep: "Rerun",
+  description:
+    "Run the quality check again after the trace-source fix, then compare the result.",
+  title: "Rerun the quality check",
+  steps: [
+    { label: "Review", complete: true },
+    { label: "Fix", complete: true },
+    { label: "Rerun", complete: false },
+    { label: "Inspect", complete: false },
+  ],
+};
+
 const EVAL_REVIEW_COPY = {
   currentStep: "Review",
   description: "Inspect failures or summary before deciding what to fix next.",
@@ -255,8 +268,8 @@ const EVAL_SOURCE_FIX_COPY = {
   },
   trace_project: {
     description:
-      "Review the traces or project setup that produced this eval result, then rerun the eval.",
-    title: "Fix eval source",
+      "Review the traces or project setup that produced this quality-check result, then rerun the quality check.",
+    title: "Fix trace source",
   },
 };
 
@@ -500,6 +513,18 @@ export const getEvalCreateOnboardingCopy = ({
   step,
 } = {}) => {
   if (step === EVAL_CREATE_ONBOARDING_STEPS.RUN && rerunFrom) {
+    if (sourceType === "trace_project") {
+      const setupPackageLabel = observeSetupPackageLabel({
+        setupLanguage,
+        setupProvider,
+      });
+      if (!setupPackageLabel) return TRACE_PROJECT_RERUN_COPY;
+      return {
+        ...TRACE_PROJECT_RERUN_COPY,
+        description: `Run the ${setupPackageLabel} quality check again after the trace-source fix, then compare the result.`,
+        title: `Rerun ${setupPackageLabel} quality check`,
+      };
+    }
     return EVAL_RERUN_COPY;
   }
   if (sourceType === "trace_project") {

@@ -108,6 +108,25 @@ describe("setup org completion routing", () => {
     ).toBe(false);
   });
 
+  it("allows the selected product first-action route after setup handoff", () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    persistSetupCompletionReturnTo(
+      `${paths.dashboard.home}?source=setup_org&quick_start_id=observe&quick_start_goal=monitor_production_ai_app&quick_start_primary_path=observe`,
+    );
+
+    expect(
+      isSetupCompletionHandoff(
+        "/dashboard/observe?setup=true&source=onboarding&provider=openai&language=python&quick_start_id=observe&quick_start_goal=monitor_production_ai_app&quick_start_primary_path=observe",
+      ),
+    ).toBe(true);
+    expect(
+      isSetupCompletionHandoff(
+        "/dashboard/prompts?source=onboarding&quick_start_id=observe&quick_start_goal=monitor_production_ai_app&quick_start_primary_path=prompt",
+      ),
+    ).toBe(false);
+  });
+
   it("ignores internal return targets after setup so activation can resolve", () => {
     expect(resolveSetupCompletionHref("/dashboard/observe?project=1")).toBe(
       setupCompletionHomeHref(),

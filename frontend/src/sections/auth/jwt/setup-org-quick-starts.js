@@ -45,13 +45,13 @@ export const SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS = [
       "Choose your package, copy matching setup code, and turn one trace into a quality check.",
     firstActionLabel: "Choose package",
     pathPreview:
-      "Choose package, copy setup code, send trace, review trace, add quality check.",
+      "Choose package, copy setup code, send trace, review trace, create quality check.",
     sequencePreview: [
       "Choose package",
       "Copy setup code",
       "Send trace",
       "Review trace",
-      "Add quality check",
+      "Create quality check",
     ],
     featured: true,
     icon: "mdi:connection",

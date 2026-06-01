@@ -61,14 +61,14 @@ describe("setup org product-loop quick starts", () => {
       featured: true,
       firstActionLabel: "Choose package",
       pathPreview:
-        "Choose package, copy setup code, send trace, review trace, add quality check.",
+        "Choose package, copy setup code, send trace, review trace, create quality check.",
       primaryPath: "observe",
       sequencePreview: [
         "Choose package",
         "Copy setup code",
         "Send trace",
         "Review trace",
-        "Add quality check",
+        "Create quality check",
       ],
     });
     expect(observeQuickStart.sample).toBeUndefined();

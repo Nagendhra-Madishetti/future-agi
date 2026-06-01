@@ -55,6 +55,7 @@ vi.mock("src/utils/axios", () => ({
     develop: {
       eval: {
         createEvalTemplateV2: "/api/evals/templates/",
+        evalPlayground: "/api/evals/playground/",
         getEvalDetail: (id) => `/api/evals/templates/${id}/`,
       },
     },
@@ -138,8 +139,22 @@ describe("EvalCreatePage onboarding source handoff", () => {
     vi.clearAllMocks();
     mocks.testResult = null;
     mocks.testPlaygroundProps = null;
-    mocks.axiosPost.mockResolvedValue({
-      data: { result: { id: "eval-draft-1" } },
+    mocks.axiosPost.mockImplementation((url) => {
+      if (url === "/api/evals/playground/") {
+        return Promise.resolve({
+          data: {
+            status: true,
+            result: {
+              log_id: "log-1",
+              run_id: "provider-run-1",
+              status: "completed",
+            },
+          },
+        });
+      }
+      return Promise.resolve({
+        data: { result: { id: "eval-draft-1" } },
+      });
     });
     mocks.axiosGet.mockResolvedValue({
       data: { result: {} },
@@ -315,7 +330,19 @@ describe("EvalCreatePage onboarding source handoff", () => {
     await waitFor(() =>
       expect(mocks.updateDraftMutateAsync).toHaveBeenCalled(),
     );
-    expect(mocks.runTest).toHaveBeenCalledWith("eval-draft-1");
+    expect(mocks.axiosPost).toHaveBeenCalledWith(
+      "/api/evals/playground/",
+      expect.objectContaining({
+        template_id: "eval-draft-1",
+        trace_id: "trace-1",
+        config: {
+          mapping: {
+            output: "output",
+          },
+        },
+      }),
+    );
+    expect(mocks.runTest).not.toHaveBeenCalled();
   });
 
   it("opens the first run review route with the returned usage log id", async () => {
@@ -378,7 +405,7 @@ describe("EvalCreatePage onboarding source handoff", () => {
     });
 
     const rerunButton = await screen.findByRole("button", {
-      name: "Rerun eval",
+      name: "Rerun quality check",
     });
     await waitFor(() => expect(rerunButton).toBeEnabled());
 

@@ -203,6 +203,10 @@ const ObservePage = React.memo(() => {
     sourceFixOnboardingParams.isOnboarding &&
     ["trace", "trace_project"].includes(sourceFixOnboardingParams.sourceType) &&
     sourceFixOnboardingParams.sourceId === observeId;
+  const sourceFixRerunLabel =
+    sourceFixOnboardingParams.sourceType === "trace_project"
+      ? "Rerun quality check"
+      : "Rerun eval";
   const sourceFixRerunHref = useMemo(() => {
     if (!showEvalSourceFixBanner || !sourceFixOnboardingParams.evalId) {
       return null;
@@ -935,7 +939,7 @@ const ObservePage = React.memo(() => {
                 size="small"
                 onClick={handleSourceFixRerun}
               >
-                Rerun eval
+                {sourceFixRerunLabel}
               </Button>
             ) : null
           }

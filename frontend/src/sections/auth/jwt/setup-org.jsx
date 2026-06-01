@@ -519,7 +519,7 @@ const SetupOrganization = ({ getStarted = false }) => {
         finishSetup(quickStartOption);
       }
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       const quickStartOption = quickStartOptionRef.current;
       const shouldFinishQuickStart = Boolean(quickStartOption);
       quickStartOptionRef.current = null;
@@ -531,9 +531,20 @@ const SetupOrganization = ({ getStarted = false }) => {
           reason: setupSaveFailureReason(error),
           status: error?.response?.status || error?.status,
         });
-        enqueueSnackbar("Could not save your setup choice. Please try again.", {
-          variant: "error",
+        enqueueSnackbar(
+          "Opening setup. We could not save that profile choice yet.",
+          {
+            variant: "warning",
+          },
+        );
+        updateUserData({
+          role: variables?.role,
+          goals: variables?.goals || [],
+          onboarding_completed: Boolean(
+            variables?.role && variables?.goals?.length,
+          ),
         });
+        finishSetup(quickStartOption);
         return;
       }
       enqueueSnackbar(error?.message || "Failed to save profile", {

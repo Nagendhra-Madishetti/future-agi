@@ -324,6 +324,16 @@ const TracingTestMode = React.forwardRef(
       initialRowType ? normalizeRowType(initialRowType) : "Span",
     );
 
+    useEffect(() => {
+      if (!projectLocked) return;
+      setSelectedProjectId(initialProjectId || "");
+    }, [projectLocked, initialProjectId]);
+
+    useEffect(() => {
+      if (!rowTypeLocked) return;
+      setRowType(initialRowType ? normalizeRowType(initialRowType) : "Span");
+    }, [rowTypeLocked, initialRowType]);
+
     const internalFilterForm = useForm({ defaultValues: { filters: [] } });
     const internalFormFilters = useWatch({
       control: internalFilterForm.control,
@@ -334,13 +344,20 @@ const TracingTestMode = React.forwardRef(
       [internalFormFilters],
     );
     const effectiveFilters = hostsFilter ? internalApiFilters : localFilters;
+    const effectiveFiltersKey = useMemo(
+      () => JSON.stringify(effectiveFilters || []),
+      [effectiveFilters],
+    );
+    const effectiveSelectedProjectId = projectLocked
+      ? initialProjectId || ""
+      : selectedProjectId;
 
     // Filter rows are project-scoped (attribute columns differ per project);
     // clear them when the user switches projects so stale columns aren't sent.
     useEffect(() => {
       if (hostsFilter) internalFilterForm.reset({ filters: [] });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedProjectId]);
+    }, [effectiveSelectedProjectId]);
 
     // Project details fetched per selected project. The list_projects API
     // omits the `source` field, so we hit project-detail to know whether
@@ -355,9 +372,16 @@ const TracingTestMode = React.forwardRef(
       if (selectedProjectDetail) return selectedProjectDetail;
       if (projectLocked) return null;
       return (
-        projects.find((p) => String(p.id) === String(selectedProjectId)) || null
+        projects.find(
+          (p) => String(p.id) === String(effectiveSelectedProjectId),
+        ) || null
       );
-    }, [selectedProjectDetail, projectLocked, projects, selectedProjectId]);
+    }, [
+      effectiveSelectedProjectId,
+      selectedProjectDetail,
+      projectLocked,
+      projects,
+    ]);
 
     const isVoiceProject = selectedProject?.source === PROJECT_SOURCE.SIMULATOR;
 
@@ -366,14 +390,14 @@ const TracingTestMode = React.forwardRef(
     // back to Span so the data table can populate with span rows.
     useEffect(() => {
       if (rowTypeLocked) return;
-      if (!selectedProjectId) return;
+      if (!effectiveSelectedProjectId) return;
       if (isVoiceProject && rowType !== "VoiceCall") {
         setRowType("VoiceCall");
       } else if (!isVoiceProject && rowType === "VoiceCall") {
         setRowType("Span");
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedProjectId, isVoiceProject]);
+    }, [effectiveSelectedProjectId, isVoiceProject]);
 
     // Data
     const [columns, setColumns] = useState([]);
@@ -389,8 +413,8 @@ const TracingTestMode = React.forwardRef(
     // against the last-fetched key tells us synchronously — in the same
     // render that the props changed — that new data is on the way.
     const [lastFetchedKey, setLastFetchedKey] = useState(null);
-    const currentFetchKey = selectedProjectId
-      ? `${selectedProjectId}:${rowType}`
+    const currentFetchKey = effectiveSelectedProjectId
+      ? `${effectiveSelectedProjectId}:${rowType}`
       : null;
     const isPendingNewFetch =
       !!currentFetchKey && lastFetchedKey !== currentFetchKey;
@@ -466,7 +490,7 @@ const TracingTestMode = React.forwardRef(
     // would never detect voice projects. Also covers the task-flow path
     // where the list fetch is skipped entirely.
     useEffect(() => {
-      const pid = projectLocked ? initialProjectId : selectedProjectId;
+      const pid = effectiveSelectedProjectId;
       if (!pid) {
         setSelectedProjectDetail(null);
         return undefined;
@@ -487,11 +511,11 @@ const TracingTestMode = React.forwardRef(
       return () => {
         cancelled = true;
       };
-    }, [projectLocked, initialProjectId, selectedProjectId]);
+    }, [effectiveSelectedProjectId]);
 
     // ── Fetch data when project or rowType changes ──
     useEffect(() => {
-      if (!selectedProjectId) {
+      if (!effectiveSelectedProjectId) {
         setColumns([]);
         setRows([]);
         setTotalRows(0);
@@ -502,7 +526,7 @@ const TracingTestMode = React.forwardRef(
 
       setLoading(true);
       let cancelled = false;
-      const fetchKey = `${selectedProjectId}:${rowType}`;
+      const fetchKey = `${effectiveSelectedProjectId}:${rowType}`;
 
       const fetchData = async () => {
         setRows([]);
@@ -510,7 +534,7 @@ const TracingTestMode = React.forwardRef(
           if (rowType === "VoiceCall") {
             const { data } = await axios.get(endpoints.project.getCallLogs, {
               params: {
-                project_id: selectedProjectId,
+                project_id: effectiveSelectedProjectId,
                 page: 1,
                 page_size: 50,
                 filters: JSON.stringify(effectiveFilters || []),
@@ -528,7 +552,7 @@ const TracingTestMode = React.forwardRef(
 
           let endpoint;
           const params = buildTracingPreviewListParams({
-            selectedProjectId,
+            selectedProjectId: effectiveSelectedProjectId,
             effectiveFilters,
           });
 
@@ -570,7 +594,7 @@ const TracingTestMode = React.forwardRef(
         cancelled = true;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedProjectId, rowType, JSON.stringify(effectiveFilters || [])]);
+    }, [effectiveSelectedProjectId, rowType, effectiveFiltersKey]);
 
     // ── Current row ──
     const currentRow = rows[currentRowIndex] || null;
@@ -1321,7 +1345,7 @@ const TracingTestMode = React.forwardRef(
         {/* Voice indicator — voice projects always map to voice calls, so
             the row-type tabs are replaced by a static chip that mirrors the
             "Voice Calls" label shown in the task flow's live preview. */}
-        {!rowTypeLocked && !!selectedProjectId && isVoiceProject && (
+        {!rowTypeLocked && !!effectiveSelectedProjectId && isVoiceProject && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
             <Typography variant="body2" fontWeight={600}>
               Row Type
@@ -1346,7 +1370,7 @@ const TracingTestMode = React.forwardRef(
             - no project selected yet (nothing to type against)
             - selected project is a voice/simulator project (always
               VoiceCall, row type isn't meaningful) */}
-        {!rowTypeLocked && !!selectedProjectId && !isVoiceProject && (
+        {!rowTypeLocked && !!effectiveSelectedProjectId && !isVoiceProject && (
           <Box>
             <Typography
               variant="caption"
@@ -1426,7 +1450,7 @@ const TracingTestMode = React.forwardRef(
           </Box>
         )}
 
-        {hostsFilter && !!selectedProjectId && (
+        {hostsFilter && !!effectiveSelectedProjectId && (
           <Box>
             <Typography
               variant="caption"
@@ -1446,7 +1470,7 @@ const TracingTestMode = React.forwardRef(
             <TaskFilterBar
               control={internalFilterForm.control}
               setValue={internalFilterForm.setValue}
-              projectId={selectedProjectId}
+              projectId={effectiveSelectedProjectId}
               isSimulator={isVoiceProject}
               rowType={rowType}
             />
@@ -1461,7 +1485,7 @@ const TracingTestMode = React.forwardRef(
         )}
 
         {/* Row navigator */}
-        {selectedProjectId &&
+        {effectiveSelectedProjectId &&
           (rows?.length ?? 0) > 0 &&
           !loading &&
           !isPendingNewFetch && (
@@ -1786,7 +1810,7 @@ const TracingTestMode = React.forwardRef(
         )}
 
         {/* Empty state */}
-        {selectedProjectId &&
+        {effectiveSelectedProjectId &&
           !loading &&
           !isPendingNewFetch &&
           totalRows === 0 && (

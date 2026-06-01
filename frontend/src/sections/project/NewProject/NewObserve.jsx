@@ -320,6 +320,8 @@ const FirstTraceSetupGuide = ({
   const traceTroubleshooting = traceTroubleshootingForInstrument(
     selectedInstrument?.id,
   );
+  const projectKeysCode = getCodeBySection("keys");
+  const projectRegistrationCode = getCodeBySection("projectAddCode");
 
   return (
     <Box
@@ -599,11 +601,13 @@ const FirstTraceSetupGuide = ({
                     the snippet.
                   </Typography>
                 )}
-                <InstructionCodeCopy
-                  ariaLabel="Copy project keys"
-                  text={getCodeBySection("keys")}
-                  language={languageTab}
-                />
+                {projectKeysCode ? (
+                  <InstructionCodeCopy
+                    ariaLabel="Copy project keys"
+                    text={projectKeysCode}
+                    language={languageTab}
+                  />
+                ) : null}
                 {instrumentRuntimeKeyCode ? (
                   <>
                     <Typography variant="caption" color="text.secondary">
@@ -617,11 +621,13 @@ const FirstTraceSetupGuide = ({
                     />
                   </>
                 ) : null}
-                <InstructionCodeCopy
-                  ariaLabel="Copy project registration"
-                  text={getCodeBySection("projectAddCode")}
-                  language={languageTab}
-                />
+                {projectRegistrationCode ? (
+                  <InstructionCodeCopy
+                    ariaLabel="Copy project registration"
+                    text={projectRegistrationCode}
+                    language={languageTab}
+                  />
+                ) : null}
               </Stack>
               <Stack spacing={1} sx={{ minWidth: 0 }}>
                 <Typography variant="subtitle2">
@@ -775,8 +781,9 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
   );
 
   const cleanCode = (code) => {
-    if (typeof code !== "string") return "Code not available";
-    return code.replace(/^\n+/, "").replace(/\n+$/, "");
+    if (typeof code !== "string") return "";
+    const normalized = code.replace(/^\n+/, "").replace(/\n+$/, "");
+    return normalized.trim() ? normalized : "";
   };
 
   // Helper functions to get the correct code based on active tabs

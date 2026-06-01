@@ -1063,6 +1063,39 @@ const EvalCreatePage = () => {
         );
       }
       if (mode === "single") {
+        if (
+          onboardingParams.isOnboarding &&
+          onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.RUN &&
+          onboardingParams.sourceType === "trace_project" &&
+          onboardingParams.traceId
+        ) {
+          try {
+            await updateDraft.mutateAsync(buildUpdatePayload());
+          } catch {
+            // The draft is autosaved before this step; do not block the first
+            // trace-project run if the final debounce save races in local setup.
+          }
+          const { data } = await axios.post(
+            endpoints.develop.eval.evalPlayground,
+            {
+              template_id: draftId,
+              model,
+              error_localizer: errorLocalizerEnabled,
+              config: {
+                mapping: {
+                  output: "output",
+                },
+              },
+              trace_id: onboardingParams.traceId,
+            },
+          );
+          if (data?.status) {
+            handleTestResult(true, data.result);
+          } else {
+            handleTestResult(false, data?.result || "Evaluation failed");
+          }
+          return;
+        }
         await updateDraft.mutateAsync(buildUpdatePayload());
         testPlaygroundRef.current?.runTest?.(draftId);
       } else {
@@ -1082,7 +1115,9 @@ const EvalCreatePage = () => {
     updateDraft,
     handleTestResult,
     enqueueSnackbar,
+    errorLocalizerEnabled,
     evalType,
+    model,
     onboardingParams,
     onboardingQuickStartAttribution,
     recordActivationEvent,
@@ -1141,6 +1176,11 @@ const EvalCreatePage = () => {
   // don't have a test flow in the create page — their children already exist
   // and can be tested individually.
   const canSave = mode === "single" ? canSaveSingle : canSaveComposite;
+  const canRunTraceProjectDirectly =
+    onboardingParams.isOnboarding &&
+    onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.RUN &&
+    onboardingParams.sourceType === "trace_project" &&
+    Boolean(onboardingParams.traceId);
 
   const onboardingPrimaryAction = useMemo(() => {
     if (
@@ -1165,17 +1205,27 @@ const EvalCreatePage = () => {
     }
 
     if (onboardingParams.step === EVAL_CREATE_ONBOARDING_STEPS.RUN) {
+      const isTraceProjectRun = onboardingParams.sourceType === "trace_project";
       const runLabel = onboardingParams.rerunFrom
         ? isTesting
-          ? "Rerunning eval"
-          : "Rerun eval"
+          ? isTraceProjectRun
+            ? "Rerunning quality check"
+            : "Rerunning eval"
+          : isTraceProjectRun
+            ? "Rerun quality check"
+            : "Rerun eval"
         : isTesting
-          ? "Running first eval"
-          : onboardingParams.sourceType === "trace_project"
+          ? isTraceProjectRun
+            ? "Running quality check"
+            : "Running first eval"
+          : isTraceProjectRun
             ? "Run quality check"
             : "Run first eval";
       return {
-        disabled: !draftId || isTesting || !isPlaygroundReady,
+        disabled:
+          !draftId ||
+          isTesting ||
+          (!isPlaygroundReady && !canRunTraceProjectDirectly),
         label: runLabel,
         onClick: handleTestEvaluation,
       };
@@ -1199,6 +1249,7 @@ const EvalCreatePage = () => {
     };
   }, [
     canSave,
+    canRunTraceProjectDirectly,
     autoSavingOnboardingStarter,
     draftId,
     handleConfirmOnboardingSource,

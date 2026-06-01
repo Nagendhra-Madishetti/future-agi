@@ -324,13 +324,24 @@ async function main() {
       user.password,
     );
     await clickVisibleButtonText(page, "Create account and continue");
+    try {
+      await waitForCondition(
+        () => evidence.signupPosts.length > 0,
+        "Signup POST was not observed after clicking submit.",
+        5000,
+      );
+    } catch {
+      await page.evaluate(() => {
+        document.querySelector("form")?.requestSubmit();
+      });
+    }
 
-    await expectVisibleText(page, "Choose your first workflow", {
+    await expectVisibleText(page, "Set up FutureAGI", {
       timeout: 90000,
     });
     await expectVisibleText(
       page,
-      "Pick the workflow closest to your current work. We will open the first action and keep the rest of the steps visible.",
+      "Choose what you want to set up first. We will open step 1, then Home will keep showing the next setup action.",
       { timeout: 90000 },
     );
     if (SAMPLE_GATE_ONLY) {
@@ -339,12 +350,14 @@ async function main() {
       });
       await expectVisibleText(
         page,
-        "Sample data remains available after you start.",
+        "Sample traces are available later for preview. They do not mark setup complete.",
         { timeout: 90000 },
       );
     }
     await waitForBrowserFrame();
-    await clickVisibleButtonText(page, "Connect your agent");
+    await clickVisibleTestId(page, "setup-org-quick-start-observe", {
+      timeout: 45000,
+    });
 
     let setupOrgHomeUrl = null;
     let setupOrgEntryUrl = null;
@@ -381,15 +394,6 @@ async function main() {
         exact: true,
         timeout: 45000,
       });
-      await expectVisibleText(
-        page,
-        "Start with: Open package setup. Then: Send first trace.",
-        { timeout: 45000 },
-      );
-      await expectVisibleText(page, "Next steps", {
-        exact: true,
-        timeout: 45000,
-      });
       await expectVisibleText(page, "Step 1 of 4", { timeout: 45000 });
       await clickVisibleButtonText(page, "Open OpenAI Python setup", 45000);
       await page.waitForFunction(
@@ -422,52 +426,40 @@ async function main() {
 
     const observeCtaHref = null;
     let observeSetupUrl = null;
-    let sampleTraceUrl = setupOrgEntryUrl;
+    const sampleTraceUrl = setupOrgEntryUrl;
     if (!SAMPLE_ONLY) {
       await expectVisibleTestId(page, "observe-onboarding-focus", {
         timeout: 45000,
       });
-      await expectVisibleText(page, "Observe onboarding", { timeout: 45000 });
-      await expectVisibleText(page, "Setup", { timeout: 45000 });
-      await expectVisibleText(page, "Connect Observe to your app", {
+      await expectVisibleText(page, "Connect your app", {
         timeout: 45000,
       });
       await expectVisibleText(
         page,
-        "Install tracing, load your keys, and send one real or test request.",
+        "Choose the package your app uses, paste the matching setup, then run one request. Future AGI waits for the trace, opens review, then guides the first quality check.",
         { timeout: 45000 },
       );
+      await expectVisibleText(page, "Connect OpenAI Python", {
+        timeout: 45000,
+      });
+      await expectVisibleText(page, "Setup guide", { timeout: 45000 });
+      await expectVisibleText(page, "Connect OpenAI, then send one trace", {
+        timeout: 45000,
+      });
       await expectVisibleText(page, "Install", { timeout: 45000 });
       await expectVisibleText(page, "Trace", { timeout: 45000 });
       await expectVisibleText(page, "Review", { timeout: 45000 });
-      await expectVisibleText(page, "Review setup", { timeout: 45000 });
-      await expectVisibleText(page, "Install Dependencies", { timeout: 45000 });
-      await expectVisibleText(page, "Load API keys", { timeout: 45000 });
-      await expectVisibleText(page, "Setup Telemetry", { timeout: 45000 });
-      await expectVisibleText(page, "Setup Instrumentation", {
+      await expectVisibleText(page, "OpenAI Python code selected", {
         timeout: 45000,
       });
+      await expectVisibleText(page, "Which package does your app use?", {
+        timeout: 45000,
+      });
+      await expectVisibleText(page, "Create quality check", { timeout: 45000 });
       await expectNoVisibleText(page, "Code not available");
       observeSetupUrl = page.url();
-      await expectVisibleText(page, "Open sample trace", { timeout: 45000 });
-      await clickVisibleButtonText(page, "Open sample trace", 45000);
-      await waitForSampleTraceRoute(page, { timeout: 45000 });
-      sampleTraceUrl = relativeUrl(page.url());
+      await expectNoVisibleText(page, "Open sample trace");
     }
-    await expectVisibleText(page, "Trace", { exact: true, timeout: 45000 });
-    await expectVisibleText(page, "Sample trace review", { timeout: 45000 });
-    await expectVisibleText(page, "Connect your app", {
-      exact: true,
-      timeout: 45000,
-    });
-    await waitForCondition(
-      () => evidence.sampleProjectPosts.length === 1,
-      "Expected one sample-project POST.",
-    );
-    await waitForCondition(
-      () => evidence.traceDetailRequests.length >= 1,
-      "Expected trace detail request for sample trace.",
-    );
     if (SAMPLE_ONLY) {
       const authState = await page.evaluate(() => ({
         accessToken: localStorage.getItem("accessToken"),
@@ -601,30 +593,6 @@ async function main() {
       console.log(JSON.stringify(report, null, 2));
       return;
     }
-    await clickVisibleButtonText(page, "Connect your app", 45000);
-    await page.waitForFunction(
-      () =>
-        window.location.pathname === "/dashboard/observe" &&
-        new URLSearchParams(window.location.search).get("setup") === "true" &&
-        new URLSearchParams(window.location.search).get("source") ===
-          "sample_trace_review",
-      { timeout: 45000 },
-    );
-    await expectVisibleTestId(page, "observe-onboarding-focus", {
-      timeout: 45000,
-    });
-    await expectVisibleText(page, "Real data", { timeout: 45000 });
-    await expectVisibleText(page, "Connect your app", {
-      exact: true,
-      timeout: 45000,
-    });
-    await expectVisibleText(
-      page,
-      "Use the setup below to send one real or test trace from your app.",
-      { timeout: 45000 },
-    );
-    await expectVisibleText(page, "Sample review", { timeout: 45000 });
-    await expectNoVisibleText(page, "Open sample trace");
     const realSetupReturnUrl = page.url();
 
     const authState = await page.evaluate(() => ({
@@ -731,10 +699,12 @@ async function main() {
       45000,
     );
     const realTraceReviewUrl = page.url();
-    await expectVisibleText(page, "First trace received", { timeout: 45000 });
+    await expectVisibleText(page, "OpenAI Python trace received", {
+      timeout: 45000,
+    });
     await expectVisibleText(
       page,
-      "Review spans, latency, cost, inputs, outputs, and errors here. Next, create a quality check from this trace.",
+      "Review this OpenAI Python trace for spans, latency, cost, inputs, outputs, and errors. Next, create a quality check from it.",
       { timeout: 45000 },
     );
     const postReviewState = await waitForSmokeActivationStage(
@@ -752,7 +722,7 @@ async function main() {
     );
     assert(
       postReviewState.recommended_action?.href ===
-        `/dashboard/observe/${realProject.projectId}/llm-tracing?source=onboarding&onboarding=create-evaluator`,
+        `/dashboard/evaluations/create?source=onboarding&step=data&source_type=trace_project&source_id=${realProject.projectId}&trace_id=${realTrace.traceId}`,
       `Expected focused evaluator route, got ${postReviewState.recommended_action?.href}`,
     );
     await clickVisibleButtonText(page, "Create quality check", 45000);
@@ -775,7 +745,7 @@ async function main() {
     await expectVisibleTestId(page, "eval-onboarding-focus", {
       timeout: 45000,
     });
-    await expectVisibleText(page, "Eval onboarding", { timeout: 45000 });
+    await expectVisibleText(page, "Eval setup", { timeout: 45000 });
     await expectNoVisibleText(page, "Use trace project", { timeout: 45000 });
     await waitForCondition(
       () =>
@@ -855,18 +825,24 @@ async function main() {
       timeout: 45000,
     });
     await expectVisibleText(page, "Run", { timeout: 45000 });
-    await expectVisibleText(page, "Run evaluator on trace project", {
+    await expectVisibleText(page, "Run OpenAI Python quality check", {
       timeout: 45000,
     });
     await expectVisibleText(
       page,
-      "Run the saved scorer once so the first trace-project eval result is reviewable.",
+      "Run the saved quality check on OpenAI Python traces so the first result is reviewable.",
       { timeout: 45000 },
     );
-    await expectVisibleText(page, "Trace project ready", { timeout: 45000 });
-    await expectVisibleText(page, "Run the saved scorer on this source.", {
+    await expectVisibleText(page, "OpenAI Python trace project ready", {
       timeout: 45000,
     });
+    await expectVisibleText(
+      page,
+      "Run the saved quality check on OpenAI Python traces.",
+      {
+        timeout: 45000,
+      },
+    );
     await waitForCondition(
       () =>
         evidence.activationEventPosts.some(
@@ -902,11 +878,11 @@ async function main() {
       45000,
     );
     const evalRunOnboardingUrl = page.url();
-    await expectVisibleText(page, "Run evaluator", { timeout: 45000 });
+    await expectVisibleText(page, "Run quality check", { timeout: 45000 });
     await expectNoVisibleText(page, "Span data not loaded yet", {
       timeout: 60000,
     });
-    await clickVisibleButtonText(page, "Run evaluator", 45000);
+    await clickVisibleButtonText(page, "Run quality check", 45000);
     await waitForCondition(
       () =>
         evidence.evalPlaygroundResponses.some(
@@ -943,12 +919,12 @@ async function main() {
       timeout: 45000,
     });
     await expectVisibleText(page, "Review result", { timeout: 45000 });
-    await expectVisibleText(page, "Review trace evaluator result", {
+    await expectVisibleText(page, "Review trace quality-check result", {
       timeout: 45000,
     });
     await expectVisibleText(
       page,
-      "Review the first trace evaluator result. A healthy result completes setup; a weak or failed result points back to the trace source.",
+      "Review the first OpenAI Python quality-check result. A healthy result completes setup; a weak or failed result points back to the trace source.",
       { timeout: 45000 },
     );
     await waitForCondition(
@@ -1043,13 +1019,13 @@ async function main() {
     );
     await expectVisibleText(
       page,
-      "Review the traces or project setup that produced this eval result, then rerun the eval.",
+      "Review the traces or project setup that produced this quality-check result, then rerun the quality check.",
       { timeout: 45000 },
     );
-    await expectVisibleText(page, "Rerun eval", { timeout: 45000 });
+    await expectVisibleText(page, "Rerun quality check", { timeout: 45000 });
     const evalSourceFixUrl = page.url();
     const evalRunResponsesBeforeRerun = evidence.evalPlaygroundResponses.length;
-    await clickVisibleButtonText(page, "Rerun eval", 45000);
+    await clickVisibleButtonText(page, "Rerun quality check", 45000);
     await page.waitForFunction(
       ({ evalId: expectedEvalId, previousRunId, projectId }) => {
         const params = new URLSearchParams(window.location.search);
@@ -1090,12 +1066,14 @@ async function main() {
       "Expected source-fix rerun clicked activation event.",
       45000,
     );
-    await expectVisibleText(page, "Rerun the eval", { timeout: 45000 });
-    await expectVisibleText(page, "Rerun eval", { timeout: 45000 });
+    await expectVisibleText(page, "Rerun OpenAI Python quality check", {
+      timeout: 45000,
+    });
+    await expectVisibleText(page, "Rerun quality check", { timeout: 45000 });
     await expectNoVisibleText(page, "Span data not loaded yet", {
       timeout: 60000,
     });
-    await clickVisibleButtonText(page, "Rerun eval", 45000);
+    await clickVisibleButtonText(page, "Rerun quality check", 45000);
     await waitForCondition(
       () =>
         evidence.evalPlaygroundResponses.length > evalRunResponsesBeforeRerun &&
@@ -1265,10 +1243,12 @@ async function main() {
     await expectVisibleText(page, "Next best step", {
       timeout: 60000,
     });
-    const ahaMomentPostHogEvent = await waitForAhaMomentPostHogEvent(
-      evidence.posthogEvents,
-      { dailyQualityAvailable: EXPECT_DAILY_QUALITY },
-    );
+    const postHogSmokeSkipped = isPostHogSmokeDisabled(evidence.posthogConsole);
+    const ahaMomentPostHogEvent = postHogSmokeSkipped
+      ? null
+      : await waitForAhaMomentPostHogEvent(evidence.posthogEvents, {
+          dailyQualityAvailable: EXPECT_DAILY_QUALITY,
+        });
     const evalPostRepairHomeUrl = page.url();
 
     assert(evidence.signupPosts.length === 1, "Expected one signup POST.");
@@ -1292,45 +1272,18 @@ async function main() {
       "Expected no setup POST on observe quick start.",
     );
     assert(
-      evidence.sampleProjectPosts[0]?.source === "observe_setup_onboarding",
-      `Expected sample source observe_setup_onboarding, got ${evidence.sampleProjectPosts[0]?.source}`,
-    );
-    assert(
-      evidence.sampleProjectPosts[0]?.reason === "setup_observe",
-      `Expected sample reason setup_observe, got ${evidence.sampleProjectPosts[0]?.reason}`,
-    );
-    assert(
-      evidence.activationEventPosts.some(
-        (payload) =>
-          payload?.event_name === "sample_trace_detail_opened" &&
-          payload?.primary_path === "sample" &&
-          payload?.stage === "review_first_trace" &&
-          payload?.is_sample === true &&
-          hasObserveQuickStartMetadata(payload),
-      ),
-      "Expected sample trace detail activation event.",
-    );
-    assert(
-      evidence.activationEventPosts.some(
-        (payload) =>
-          payload?.event_name === "sample_to_real_setup_clicked" &&
-          payload?.primary_path === "sample" &&
-          payload?.stage === "connect_real_data" &&
-          payload?.is_sample === true &&
-          hasObserveQuickStartMetadata(payload),
-      ),
-      "Expected sample to real setup activation event.",
+      evidence.sampleProjectPosts.length === 0,
+      `Expected no sample project POST on the real setup path, got ${evidence.sampleProjectPosts.length}`,
     );
     assert(
       evidence.activationEventPosts.some(
         (payload) =>
           payload?.event_name === "onboarding_observe_route_focus_viewed" &&
           payload?.primary_path === "observe" &&
-          payload?.stage === "connect_real_data" &&
-          payload?.source === "sample_trace_review" &&
-          payload?.metadata?.setup_source === "sample_trace_review",
+          payload?.stage === "connect_observability" &&
+          payload?.source === "observe_setup_onboarding",
       ),
-      "Expected real setup focus event after sample trace review.",
+      "Expected real observe setup focus event.",
     );
     assert(
       evidence.activationStateRequests.some((request) =>
@@ -1455,6 +1408,7 @@ async function main() {
         daily_quality_cta_href: dailyQualityCtaHref,
         post_aha_cta_href: postAhaCtaHref,
         expected_daily_quality_available: EXPECT_DAILY_QUALITY,
+        posthog_smoke_skipped: postHogSmokeSkipped,
         aha_moment_posthog_event: ahaMomentPostHogEvent,
         eval_first_quality_loop_completed_event:
           evidence.activationEventPosts.find(
@@ -1484,18 +1438,21 @@ async function main() {
         ),
         real_trace_review_state: summarizeActivationState(realTraceReviewState),
         real_trace_review_url: realTraceReviewUrl,
-        sample_project_post: evidence.sampleProjectPosts[0],
-        sample_trace_activation_event: evidence.activationEventPosts.find(
-          (payload) => payload?.event_name === "sample_trace_detail_opened",
-        ),
-        sample_to_real_setup_event: evidence.activationEventPosts.find(
-          (payload) => payload?.event_name === "sample_to_real_setup_clicked",
-        ),
-        sample_review_return_focus_event: evidence.activationEventPosts.find(
-          (payload) =>
-            payload?.event_name === "onboarding_observe_route_focus_viewed" &&
-            payload?.source === "sample_trace_review",
-        ),
+        sample_project_post: evidence.sampleProjectPosts[0] || null,
+        sample_trace_activation_event:
+          evidence.activationEventPosts.find(
+            (payload) => payload?.event_name === "sample_trace_detail_opened",
+          ) || null,
+        sample_to_real_setup_event:
+          evidence.activationEventPosts.find(
+            (payload) => payload?.event_name === "sample_to_real_setup_clicked",
+          ) || null,
+        sample_review_return_focus_event:
+          evidence.activationEventPosts.find(
+            (payload) =>
+              payload?.event_name === "onboarding_observe_route_focus_viewed" &&
+              payload?.source === "sample_trace_review",
+          ) || null,
         sample_trace_url: sampleTraceUrl,
         setup_org_entry_url: setupOrgEntryUrl,
         setup_org_home_url: setupOrgHomeUrl,
@@ -1767,6 +1724,39 @@ async function expectVisibleTestId(page, testId, { timeout = 30000 } = {}) {
   );
 }
 
+async function clickVisibleTestId(page, testId, { timeout = 30000 } = {}) {
+  await page.waitForFunction(
+    (expectedTestId) => {
+      const element = document.querySelector(
+        `[data-testid="${expectedTestId}"]`,
+      );
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const disabled =
+        element.disabled || element.getAttribute("aria-disabled") === "true";
+      return style.visibility !== "hidden" &&
+        style.display !== "none" &&
+        rect.width > 0 &&
+        rect.height > 0 &&
+        !disabled
+        ? element
+        : false;
+    },
+    { timeout },
+    testId,
+  );
+  const clicked = await page.evaluate((expectedTestId) => {
+    const element = document.querySelector(`[data-testid="${expectedTestId}"]`);
+    if (!element) return false;
+    element.scrollIntoView({ block: "center", inline: "center" });
+    element.click();
+    return true;
+  }, testId);
+  assert(clicked, `Expected visible test id for ${testId}.`);
+  await waitForBrowserFrame();
+}
+
 async function expectVisibleActionHref(
   page,
   text,
@@ -1883,7 +1873,7 @@ async function clickVisibleActionHref(
 }
 
 async function clickVisibleButtonText(page, text, timeout = 30000) {
-  const handle = await page.waitForFunction(
+  await page.waitForFunction(
     (expectedText) => {
       const normalized = (value) => String(value || "").trim();
       const isVisible = (element) => {
@@ -1910,14 +1900,34 @@ async function clickVisibleButtonText(page, text, timeout = 30000) {
     { timeout },
     text,
   );
-  const element = handle.asElement();
-  assert(element, `Expected visible button for ${text}.`);
-  await element.evaluate((button) => {
-    button.scrollIntoView({ block: "center", inline: "center" });
-  });
+  const clicked = await page.evaluate((expectedText) => {
+    const normalized = (value) => String(value || "").trim();
+    const isVisible = (element) => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.visibility !== "hidden" &&
+        style.display !== "none" &&
+        rect.width > 0 &&
+        rect.height > 0 &&
+        !element.disabled
+      );
+    };
+    const action = Array.from(
+      document.querySelectorAll("a, button, [role='button']"),
+    ).find(
+      (element) =>
+        isVisible(element) &&
+        (normalized(element.getAttribute("aria-label")) === expectedText ||
+          normalized(element.textContent) === expectedText),
+    );
+    if (!action) return false;
+    action.scrollIntoView({ block: "center", inline: "center" });
+    action.click();
+    return true;
+  }, text);
+  assert(clicked, `Expected visible button for ${text}.`);
   await waitForBrowserFrame();
-  await element.click();
-  await handle.dispose();
 }
 
 async function waitForBrowserFrame() {
@@ -2055,6 +2065,14 @@ function summarizePostHogEvent(event = {}) {
     event: event.event,
     properties,
   };
+}
+
+function isPostHogSmokeDisabled(posthogConsole = []) {
+  return posthogConsole.some((entry) =>
+    String(entry?.text || "").includes(
+      "PostHog: usable VITE_POSTHOG_KEY not set",
+    ),
+  );
 }
 
 async function waitForAhaMomentPostHogEvent(

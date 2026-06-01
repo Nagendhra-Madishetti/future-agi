@@ -96,11 +96,17 @@ export const isSetupCompletionHandoff = (href) => {
       url.pathname.includes("/trace/") &&
       url.searchParams.get("sample") === "true" &&
       url.searchParams.get("from") === "onboarding";
+    const isFirstSetupActionHandoff =
+      quickStartMatches &&
+      url.pathname.startsWith(paths.dashboard.root) &&
+      url.searchParams.get("source") === "onboarding" &&
+      Boolean(storedQuickStartPrimaryPath) &&
+      quickStartPrimaryPath === storedQuickStartPrimaryPath;
 
     return (
       storedUrl.searchParams.get("source") === SETUP_COMPLETION_SOURCE &&
       quickStartMatches &&
-      (isHomeHandoff || isSamplePreviewHandoff)
+      (isHomeHandoff || isSamplePreviewHandoff || isFirstSetupActionHandoff)
     );
   } catch {
     return false;

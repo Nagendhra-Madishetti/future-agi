@@ -301,7 +301,7 @@ describe("EvalUsageTab onboarding review run recovery", () => {
     expect(screen.getByText("Fix trace source")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Review the trace source that produced this result, then rerun the evaluator.",
+        "Review the trace source that produced this result, then rerun the quality check.",
       ),
     ).toBeInTheDocument();
   });

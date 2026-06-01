@@ -315,6 +315,45 @@ describe("NewObserve onboarding setup", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("omits missing project snippets from the first-trace guide", () => {
+    mocks.useQuery.mockReturnValue({
+      data: {
+        installationGuide: codeBlockFixture.installationGuide,
+        instruments: {
+          openai: codeBlockWithInstrumentsFixture.instruments.openai,
+        },
+      },
+      error: null,
+      isLoading: false,
+      isSuccess: true,
+    });
+
+    renderWithRouter(<NewObserve showFirstTraceGuide />, {
+      route:
+        "/dashboard/observe?setup=true&source=onboarding&provider=openai&language=python",
+    });
+
+    const guide = screen.getByTestId("observe-first-trace-guide");
+    expect(
+      within(guide).queryByText("Code not available"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(guide).queryByLabelText("Copy project keys"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(guide).queryByLabelText("Copy project registration"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(guide).getByLabelText("Copy complete package setup"),
+    ).toHaveTextContent('os.environ.setdefault("OPENAI_API_KEY", "...")');
+    expect(
+      within(guide).getByLabelText("Copy complete package setup"),
+    ).toHaveTextContent("OpenAIInstrumentor");
+    expect(
+      within(guide).getByLabelText("Copy complete package setup"),
+    ).toHaveTextContent("openai python smoke");
+  });
+
   it("keeps quick-start attribution through API key creation", () => {
     persistSetupQuickStartAttribution({
       quickStartGoal: "monitor_production_ai_app",

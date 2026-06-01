@@ -1358,7 +1358,7 @@ const DetailPanelContent = ({
         buttonLabel: "Continue to Home",
         description: isRepairReview
           ? "The rerun is ready. Continue to Home and keep reviewing product signals."
-          : "The first evaluator run is ready. Continue to Home and keep the setup checklist moving.",
+          : "The first quality-check run is ready. Continue to Home and keep the setup checklist moving.",
         icon: "mingcute:chart-line-line",
         onClick: onReviewCompleteClick,
       }
@@ -1370,7 +1370,7 @@ const DetailPanelContent = ({
               : "Open source fix",
           description:
             sourceType === "trace_project"
-              ? "Review the trace source that produced this result, then rerun the evaluator."
+              ? "Review the trace source that produced this result, then rerun the quality check."
               : "Fix the source tied to this result, then rerun the eval.",
           icon: "mingcute:external-link-line",
           onClick: onSourceFixClick,
