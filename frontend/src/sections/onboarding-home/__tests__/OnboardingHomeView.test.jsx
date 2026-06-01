@@ -788,7 +788,7 @@ describe("OnboardingHomeView", () => {
       within(panel).queryByRole("link", { name: /open workbench/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("onboarding-state-summary")).toBeNull();
-    expect(screen.getByTestId("onboarding-path-card-grid")).toBeVisible();
+    expect(screen.queryByTestId("onboarding-path-card-grid")).toBeNull();
   });
 
   it("renders the completed setup screen after the first observe workflow", () => {
@@ -1282,7 +1282,7 @@ describe("OnboardingHomeView", () => {
       expect(
         screen.queryByTestId("onboarding-product-loop-stepper"),
       ).toBeNull();
-      expect(screen.getByTestId("onboarding-path-card-grid")).toBeVisible();
+      expect(screen.queryByTestId("onboarding-path-card-grid")).toBeNull();
       expect(readPersistedSetupQuickStartAttribution()).toEqual({
         quickStartGoal,
         quickStartId,

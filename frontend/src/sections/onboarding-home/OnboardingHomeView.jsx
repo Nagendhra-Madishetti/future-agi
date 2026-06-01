@@ -828,6 +828,7 @@ export default function OnboardingHomeView() {
   const showFirstRunSetupDetails = Boolean(
     renderedState &&
       !showGoalPicker &&
+      !isFirstRunQuickStartFocus &&
       !quickStartMismatchAction &&
       !showSampleAsPrimary &&
       ![
