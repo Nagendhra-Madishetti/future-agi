@@ -18,6 +18,7 @@ import {
   persistObserveSetupIntent,
 } from "src/sections/projects/observeOnboardingRoute";
 import {
+  getObservePackageSampleRequestCode,
   getObserveSetupPackageOptions,
   normalizeObserveSetupLanguage,
   normalizeObserveSetupProvider,
@@ -162,8 +163,14 @@ function ObservePackageCodePreview({ language, provider }) {
     setupLanguage: language,
     setupProvider: provider,
   });
+  const sampleRequestCode = getObservePackageSampleRequestCode({
+    setupLanguage: language,
+    setupProvider: provider,
+  });
 
-  if (!selectedSetupLabel || !installCommand) return null;
+  if (!selectedSetupLabel || (!installCommand && !sampleRequestCode)) {
+    return null;
+  }
 
   return (
     <Box
@@ -182,34 +189,69 @@ function ObservePackageCodePreview({ language, provider }) {
             {selectedSetupLabel} setup preview
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Setup starts with this install command. The next page gives the
-            Future AGI keys, provider key setup, package instrumentation, and a
-            request to run.
+            These snippets match the package you selected. The setup page adds
+            Future AGI keys, package instrumentation, trace waiting, trace
+            review, and the next quality check.
           </Typography>
         </Stack>
-        <Box
-          component="pre"
-          data-testid="observe-package-install-command"
-          sx={{
-            m: 0,
-            p: 1,
-            borderRadius: 1,
-            bgcolor: "grey.900",
-            color: "common.white",
-            fontFamily: "monospace",
-            fontSize: 13,
-            lineHeight: 1.6,
-            overflowX: "auto",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
-          {installCommand}
-        </Box>
+        {installCommand ? (
+          <Stack spacing={0.75}>
+            <Typography variant="caption" color="text.secondary">
+              Install
+            </Typography>
+            <Box
+              component="pre"
+              data-testid="observe-package-install-command"
+              sx={{
+                m: 0,
+                p: 1,
+                borderRadius: 1,
+                bgcolor: "grey.900",
+                color: "common.white",
+                fontFamily: "monospace",
+                fontSize: 13,
+                lineHeight: 1.6,
+                overflowX: "auto",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {installCommand}
+            </Box>
+          </Stack>
+        ) : null}
+        {sampleRequestCode ? (
+          <Stack spacing={0.75}>
+            <Typography variant="caption" color="text.secondary">
+              One request to send the first trace
+            </Typography>
+            <Box
+              component="pre"
+              data-testid="observe-package-request-code"
+              sx={{
+                m: 0,
+                p: 1,
+                borderRadius: 1,
+                bgcolor: "grey.900",
+                color: "common.white",
+                fontFamily: "monospace",
+                fontSize: 13,
+                lineHeight: 1.6,
+                maxHeight: 220,
+                overflowX: "auto",
+                overflowY: "auto",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {sampleRequestCode}
+            </Box>
+          </Stack>
+        ) : null}
         <Typography variant="caption" color="text.secondary">
           After you run one request, keep the trace page open. Future AGI waits
-          for the trace, opens review when it arrives, then points you to
-          evaluator setup.
+          for the trace, opens review when it arrives, then points you to the
+          first quality check.
         </Typography>
       </Stack>
     </Box>

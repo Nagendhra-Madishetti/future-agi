@@ -426,6 +426,17 @@ export const getObservePackageInstallCommand = ({
   return entry.install[language] || "";
 };
 
+export const getObservePackageSampleRequestCode = ({
+  setupLanguage,
+  setupProvider,
+} = {}) => {
+  const entry = observeSetupPackageFromProvider(setupProvider);
+  const language = normalizeObserveSetupLanguage(setupLanguage);
+  if (!entry || !language) return "";
+  const languageKey = observeLanguageDataKey(language);
+  return entry.snippets[languageKey]?.sample_request_code || "";
+};
+
 export const getObserveInstrumentInstallCommand = ({
   instrumentId,
   language,

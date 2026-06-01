@@ -417,6 +417,12 @@ describe("OnboardingHomeView", () => {
     expect(
       within(panel).getByTestId("observe-package-install-command"),
     ).toHaveTextContent("pip install traceAI-openai openai");
+    expect(
+      within(panel).getByTestId("observe-package-request-code"),
+    ).toHaveTextContent("client = OpenAI");
+    expect(
+      within(panel).getByTestId("observe-package-code-preview"),
+    ).toHaveTextContent("One request to send the first trace");
     const setupUrl = new URL(
       within(panel)
         .getByRole("link", {
@@ -1347,6 +1353,9 @@ describe("OnboardingHomeView", () => {
     expect(
       within(panel).getByTestId("observe-package-install-command"),
     ).toHaveTextContent("pip install traceAI-anthropic anthropic");
+    expect(
+      within(panel).getByTestId("observe-package-request-code"),
+    ).toHaveTextContent("client = anthropic.Anthropic");
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Open Anthropic Python setup",
     );
