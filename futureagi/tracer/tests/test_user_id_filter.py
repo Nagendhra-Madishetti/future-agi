@@ -297,7 +297,15 @@ class EndUserAndIdColumnFilterTests(unittest.TestCase):
                 filter_value=["003b76f1-2b4a-4af5-b0dc-224d687374d4"],
             )
             self.assertIsNotNone(sql)
-            self.assertIn("toString(trace_session_id) IN", sql)
+            # P3b step1.5: session-id membership is now id-remap-resolved
+            # (new→old via trace_session_id_remap) so a cross-cutover straddler
+            # unifies under the OLD curated session id — NOT the bare
+            # `toString(trace_session_id) IN` form. Parallel to the user path
+            # (test_user_id_does_not_affect_plain_user_filter).
+            self.assertIn("trace_session_id_remap", sql)
+            self.assertIn("id_remap.new_id", sql)
+            self.assertIn("%(sess_1)s", sql)
+            self.assertNotIn("toString(trace_session_id) IN", sql)
 
     def test_nullable_uuid_null_checks_do_not_compare_to_empty_string(self):
         b = self._build()
