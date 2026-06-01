@@ -403,7 +403,7 @@ class SampleProjectView(APIView):
                 source=data.get("source") or "onboarding_home",
                 reason=data.get("reason") or "manual_open",
                 is_enabled=bool(flags.get("onboarding_sample_project")),
-                can_create=context.permissions["can_write"],
+                can_create=context.permissions["can_read"],
                 manifest_id=data.get("manifest_id"),
                 manifest_version=data.get("manifest_version"),
                 email_context=_email_context_metadata(data),

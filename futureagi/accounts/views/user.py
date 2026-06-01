@@ -150,6 +150,19 @@ def _organization_has_completed_profile_setup(organization, *, exclude_user_id=N
     )
 
 
+def _organization_has_completed_product_setup(organization):
+    if not organization:
+        return False
+
+    from accounts.models import OnboardingActivationEvent
+
+    return OnboardingActivationEvent.no_workspace_objects.filter(
+        organization=organization,
+        event_name="first_quality_loop_completed",
+        is_sample=False,
+    ).exists()
+
+
 @swagger_auto_schema(
     method="post",
     request_body=RedisKeyRequestSerializer,
@@ -786,9 +799,12 @@ def get_user_info(request):
     if (
         is_invited_user
         and not onboarding_completed
-        and _organization_has_completed_profile_setup(
-            current_org,
-            exclude_user_id=user.id,
+        and (
+            _organization_has_completed_profile_setup(
+                current_org,
+                exclude_user_id=user.id,
+            )
+            or _organization_has_completed_product_setup(current_org)
         )
     ):
         onboarding_completed = True

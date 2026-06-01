@@ -143,14 +143,10 @@ describe("PathFocusPanel", () => {
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Next: Save version",
     );
-    expect(within(panel).getByText("Next steps")).toBeVisible();
+    expect(within(panel).getByText("What happens next")).toBeVisible();
     expect(within(panel).getAllByText("Step 2 of 6").length).toBeGreaterThan(0);
-    expect(
-      screen.queryByTestId("path-focus-step-start_prompt"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("path-focus-step-run_prompt_test"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("path-focus-step-start_prompt")).toBeVisible();
+    expect(screen.getByTestId("path-focus-step-run_prompt_test")).toBeVisible();
     expect(
       within(
         screen.getByTestId("path-focus-step-save_prompt_version"),

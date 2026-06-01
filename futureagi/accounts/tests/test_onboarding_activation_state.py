@@ -226,6 +226,40 @@ def test_activation_state_auto_provisions_sample_project_without_open_event(
     )
 
 
+@pytest.mark.django_db
+def test_activation_state_auto_provisions_sample_project_for_read_only_users(
+    organization,
+    workspace,
+    user,
+):
+    payload = resolve_activation_state(
+        context=_context(user, organization, workspace, can_write=False),
+        flags=_flags(
+            onboarding_sample_project=True,
+            onboarding_sample_project_enabled=True,
+        ),
+        signals=OnboardingSignals(first_checks={}),
+    )
+
+    sample_project = payload["sample_project"]
+    assert payload["stage"] == "permission_limited"
+    assert sample_project["status"] == "ready_for_observe"
+    assert sample_project["created"] is True
+    assert sample_project["available"] is True
+    assert sample_project["entry_route"].startswith("/dashboard/observe/")
+    assert (
+        OnboardingSampleProject.no_workspace_objects.filter(workspace=workspace).count()
+        == 1
+    )
+    assert (
+        OnboardingActivationEvent.no_workspace_objects.filter(
+            workspace=workspace,
+            is_sample=True,
+        ).count()
+        == 0
+    )
+
+
 def test_activation_flow_config_drives_goal_and_stage_wiring():
     assert configured_default_goal_id() == "monitor_production_ai_app"
     assert configured_goal_primary_paths()["monitor_production_ai_app"] == "observe"

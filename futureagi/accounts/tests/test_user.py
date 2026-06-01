@@ -258,6 +258,65 @@ class TestGetUserInfoAPI:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["onboarding_completed"] is True
 
+    def test_invited_user_skips_first_run_when_org_has_product_setup(
+        self, api_client, user, organization, workspace
+    ):
+        """New members should not repeat first-run setup after product activation."""
+        from accounts.models import User
+        from accounts.models.organization_membership import OrganizationMembership
+        from accounts.models.workspace import WorkspaceMembership
+        from accounts.services.onboarding.activation_events import record_event
+        from tfc.constants.levels import Level
+        from tfc.constants.roles import OrganizationRoles
+
+        record_event(
+            user=user,
+            organization=organization,
+            workspace=workspace,
+            event_name="first_quality_loop_completed",
+            source="test",
+            product_path="observe",
+            is_sample=False,
+            allow_observe_loop_completion=True,
+        )
+
+        invitee = User.objects.create_user(
+            email="activated-org-member@futureagi.com",
+            password="testpassword123",
+            name="Activated Org Member",
+            organization=organization,
+            organization_role=OrganizationRoles.MEMBER,
+            invited_by=user,
+        )
+        org_membership = OrganizationMembership.no_workspace_objects.create(
+            user=invitee,
+            organization=organization,
+            role=OrganizationRoles.MEMBER,
+            level=Level.MEMBER,
+            is_active=True,
+            invited_by=user,
+        )
+        WorkspaceMembership.no_workspace_objects.create(
+            workspace=workspace,
+            user=invitee,
+            role=OrganizationRoles.WORKSPACE_MEMBER,
+            level=Level.WORKSPACE_MEMBER,
+            organization_membership=org_membership,
+            invited_by=user,
+            is_active=True,
+        )
+
+        api_client.force_authenticate(user=invitee)
+        api_client.set_workspace(workspace)
+
+        try:
+            response = api_client.get("/accounts/user-info/")
+        finally:
+            api_client.stop_workspace_injection()
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["onboarding_completed"] is True
+
 
 @pytest.mark.integration
 @pytest.mark.api

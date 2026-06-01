@@ -284,7 +284,7 @@ def resolve_activation_state(*, context, flags, signals):
         organization=context.organization,
         workspace=context.workspace,
         is_enabled=bool(flags.get("onboarding_sample_project")),
-        can_create=context.permissions["can_write"],
+        can_create=context.permissions["can_read"],
     )
     stage = _stage_for_context(context, flags, signals)
     if stage == "waiting_for_first_trace_sample_available" and not sample_project.get(

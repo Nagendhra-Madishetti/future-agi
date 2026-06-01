@@ -73,16 +73,17 @@ export default function ObserveSetupPanel({
           />
         ) : (
           <Stack spacing={0.25}>
-            <Typography variant="subtitle2">First action</Typography>
+            <Typography variant="subtitle2">Your setup checklist</Typography>
             <Typography variant="body2" color="text.secondary">
-              Complete this action, then continue with the next steps below.
+              Finish the highlighted action first. The remaining steps stay
+              visible so you know what comes next.
             </Typography>
           </Stack>
         )}
         {actionStep ? (
           <CurrentStepGuide
             actionSlot={actionSlot}
-            label={singleActionFocus ? "First action" : "Start here"}
+            label="Start here"
             nextStep={nextStep}
             step={actionStep}
             stage={stage}
@@ -92,7 +93,7 @@ export default function ObserveSetupPanel({
         ) : null}
         <ObserveJourneyProgress
           journeyPlan={effectiveJourneyPlan}
-          singleActionFocus={singleActionFocus}
+          singleActionFocus={singleActionFocus || Boolean(actionStep)}
           showCurrentStepGuide={false}
           stage={stage}
         />

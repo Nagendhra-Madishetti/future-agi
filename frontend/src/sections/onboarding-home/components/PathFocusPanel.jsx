@@ -16,13 +16,6 @@ const activeStepIndex = (steps, stage) => {
   return index >= 0 ? index : null;
 };
 
-const upcomingStep = (step, displayIndex, offset) => ({
-  ...step,
-  displayIndex,
-  status: "queued",
-  statusLabel: offset === 0 ? "Next" : `Step ${displayIndex}`,
-});
-
 export default function PathFocusPanel({
   action,
   fallbackAction,
@@ -50,17 +43,7 @@ export default function PathFocusPanel({
   const currentStep = currentIndex === null ? null : plan.steps[currentIndex];
   const nextStep =
     currentIndex === null ? null : plan.steps[currentIndex + 1] || null;
-  const showOnlyUpcomingSteps =
-    singleActionFocus &&
-    currentIndex !== null &&
-    currentIndex < plan.steps.length - 1;
-  const visibleSteps = showOnlyUpcomingSteps
-    ? plan.steps
-        .slice(currentIndex + 1)
-        .map((step, index) =>
-          upcomingStep(step, currentIndex + index + 2, index),
-        )
-    : plan.steps;
+  const visibleSteps = plan.steps;
   const currentActionSlot = currentStep ? (
     <ObservePanelActions
       action={action}
@@ -96,9 +79,10 @@ export default function PathFocusPanel({
           />
         ) : (
           <Stack spacing={0.25}>
-            <Typography variant="subtitle2">First action</Typography>
+            <Typography variant="subtitle2">Your setup checklist</Typography>
             <Typography variant="body2" color="text.secondary">
-              Complete this action, then continue with the next steps below.
+              Finish the highlighted action first. The remaining steps stay
+              visible so you know what comes next.
             </Typography>
           </Stack>
         )}
@@ -106,7 +90,7 @@ export default function PathFocusPanel({
         {currentStep ? (
           <CurrentStepGuide
             actionSlot={currentActionSlot}
-            label={singleActionFocus ? "First action" : "Start here"}
+            label="Start here"
             nextStep={nextStep}
             step={currentStep}
             stage={stage}
@@ -121,10 +105,8 @@ export default function PathFocusPanel({
           alignItems={{ xs: "flex-start", sm: "center" }}
           justifyContent="space-between"
         >
-          <Typography variant="subtitle2">
-            {showOnlyUpcomingSteps ? "Next steps" : "What happens next"}
-          </Typography>
-          {focusedGuide && currentIndex !== null && !showOnlyUpcomingSteps ? (
+          <Typography variant="subtitle2">What happens next</Typography>
+          {focusedGuide && currentIndex !== null ? (
             <Chip
               size="small"
               variant="outlined"
@@ -135,7 +117,7 @@ export default function PathFocusPanel({
 
         {visibleSteps.length ? (
           <JourneyStepList
-            currentIndex={showOnlyUpcomingSteps ? null : currentIndex}
+            currentIndex={currentIndex}
             gridColumns={3}
             singleActionFocus={focusedGuide}
             steps={visibleSteps}
