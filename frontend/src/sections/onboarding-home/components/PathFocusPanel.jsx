@@ -82,22 +82,12 @@ export default function PathFocusPanel({
             description={plan.description}
             chips={plan.chips}
           />
-        ) : (
-          <Stack spacing={0.25}>
-            <Typography variant="subtitle2">
-              Open the first product screen
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Use the button below. When this step is done, Home will show the
-              next setup action.
-            </Typography>
-          </Stack>
-        )}
+        ) : null}
 
         {currentStep ? (
           <CurrentStepGuide
             actionSlot={currentActionSlot}
-            label="Do this first"
+            label={singleActionFocus ? "Current step" : "Do this first"}
             nextStep={nextStep}
             step={currentStep}
             stage={stage}

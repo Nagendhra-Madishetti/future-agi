@@ -15,6 +15,7 @@ import {
   styled,
   MobileStepper,
   Button,
+  Chip,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "src/components/snackbar";
@@ -54,16 +55,16 @@ const QUICK_START_ROLE = "AI Builder";
 
 const SETUP_SIDE_PANEL_STEPS = [
   {
-    label: "Choose one task",
-    description: "Pick the product work you want to do first.",
+    label: "Choose a workflow",
+    description: "Start with the area you already recognize.",
   },
   {
-    label: "Open the first screen",
-    description: "We send you to the product area for step 1.",
+    label: "Complete step 1",
+    description: "We open the product screen for the first setup action.",
   },
   {
-    label: "Continue from Home",
-    description: "Home shows the next step after each real setup action.",
+    label: "Return to Home",
+    description: "Home keeps showing the next setup action.",
   },
 ];
 
@@ -260,12 +261,12 @@ const SetupOrgSidePanel = () => (
     >
       <Stack spacing={1}>
         <Typography variant="overline" color="text.secondary">
-          First product task
+          Setup flow
         </Typography>
-        <Typography variant="h4">Start with the work you recognize</Typography>
+        <Typography variant="h4">One step at a time</Typography>
         <Typography variant="body1" color="text.secondary">
-          Choose one task now. Sample traces stay available for preview, and
-          real setup starts from the first product screen.
+          Choose the workflow that matches your work. After each real setup
+          action, Home moves you to the next step.
         </Typography>
       </Stack>
 
@@ -585,30 +586,32 @@ const SetupOrganization = ({ getStarted = false }) => {
     },
     [handleProductLoopQuickStart],
   );
-  const renderProductLoopQuickStart = (option) => {
-    const ButtonComponent = option.featured ? LoadingButton : Button;
+  const quickStartLoading = (option) =>
+    isSavingUserData && quickStartOptionRef.current?.id === option.id;
+
+  const renderFeaturedProductLoopQuickStart = (option) => {
     return (
-      <ButtonComponent
+      <LoadingButton
         key={option.id}
         fullWidth
         data-testid={`setup-org-quick-start-${option.id}`}
         sx={{
           borderRadius: 0.5,
-          minHeight: { xs: 124, sm: 142 },
+          minHeight: { xs: 178, sm: 190 },
           height: "auto",
           alignItems: "flex-start",
           justifyContent: "flex-start",
-          px: 1.75,
-          py: 1.25,
+          px: { xs: 1.75, sm: 2 },
+          py: { xs: 1.5, sm: 2 },
           textAlign: "left",
           whiteSpace: "normal",
           textTransform: "none",
           color: "text.primary",
-          bgcolor: option.featured ? "action.hover" : "background.paper",
-          borderColor: option.featured ? "primary.main" : "divider",
+          bgcolor: "action.hover",
+          borderColor: "primary.main",
           "&:hover": {
             bgcolor: "action.selected",
-            borderColor: option.featured ? "primary.main" : "text.primary",
+            borderColor: "primary.main",
           },
           "& .MuiButton-startIcon": {
             mt: 0.2,
@@ -618,7 +621,7 @@ const SetupOrganization = ({ getStarted = false }) => {
           },
         }}
         variant="outlined"
-        loading={option.featured ? isSavingUserData : undefined}
+        loading={quickStartLoading(option)}
         disabled={isSavingUserData}
         aria-label={option.buttonLabel}
         onClick={() => handleProductLoopQuickStart(option)}
@@ -641,107 +644,130 @@ const SetupOrganization = ({ getStarted = false }) => {
         >
           <Stack
             component="span"
+            direction="row"
             spacing={0.75}
-            sx={{ display: "flex", minWidth: 0, width: "100%" }}
+            flexWrap="wrap"
+            sx={{ display: "flex" }}
           >
-            <Stack
-              component="span"
-              direction={{ xs: "column", sm: "row" }}
-              spacing={0.75}
-              justifyContent="space-between"
-              alignItems={{ xs: "flex-start", sm: "center" }}
-              sx={{ width: "100%" }}
-            >
-              <Stack
-                component="span"
-                spacing={0.35}
-                sx={{ display: "flex", minWidth: 0 }}
-              >
-                <Box
-                  component="span"
-                  sx={{
-                    alignSelf: "flex-start",
-                    border: "1px solid",
-                    borderColor: option.featured ? "primary.main" : "divider",
-                    borderRadius: 0.75,
-                    color: option.featured ? "primary.main" : "text.secondary",
-                    fontSize: 11,
-                    fontWeight: "fontWeightMedium",
-                    lineHeight: 1.4,
-                    px: 0.75,
-                    py: 0.15,
-                  }}
-                >
-                  {option.surfaceLabel}
-                </Box>
-                <Typography
-                  component="span"
-                  variant="subtitle2"
-                  sx={{ lineHeight: 1.2 }}
-                >
-                  {option.buttonLabel}
-                </Typography>
-                <Typography
-                  component="span"
-                  variant="caption"
-                  sx={{
-                    color: "text.secondary",
-                    lineHeight: 1.25,
-                  }}
-                >
-                  Goal: {option.shortDescription}
-                </Typography>
-              </Stack>
-              {option.featured ? (
-                <Typography
-                  component="span"
-                  sx={{
-                    color: "primary.main",
-                    fontSize: 12,
-                    fontWeight: "fontWeightMedium",
-                    lineHeight: 1.4,
-                  }}
-                >
-                  Recommended
-                </Typography>
-              ) : null}
-            </Stack>
-            <Typography
-              component="span"
-              variant="body2"
-              sx={{
-                color: "text.primary",
-                fontWeight: "fontWeightMedium",
-              }}
-            >
-              First step: {option.firstActionLabel}
-            </Typography>
-            {option.sequencePreview?.length ? (
-              <Typography
-                component="span"
-                variant="caption"
-                sx={{
-                  color: "text.secondary",
-                  lineHeight: 1.35,
-                }}
-              >
-                Later: {option.sequencePreview.slice(1, 4).join(" -> ")}
-              </Typography>
-            ) : null}
-            <Typography
-              component="span"
-              variant="button"
-              sx={{
-                alignSelf: "flex-start",
-                color: "primary.main",
-                mt: 0.25,
-              }}
-            >
-              Open first step
-            </Typography>
+            <Chip size="small" label={option.surfaceLabel} />
+            <Chip size="small" color="primary" label="Recommended" />
           </Stack>
+          <Typography component="span" variant="h5" sx={{ lineHeight: 1.15 }}>
+            {option.buttonLabel}
+          </Typography>
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ color: "text.secondary", lineHeight: 1.45 }}
+          >
+            {option.shortDescription}
+          </Typography>
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{
+              color: "text.primary",
+              fontWeight: "fontWeightMedium",
+            }}
+          >
+            Step 1: {option.firstActionLabel}
+          </Typography>
+          {option.sequencePreview?.length ? (
+            <Typography
+              component="span"
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                lineHeight: 1.35,
+              }}
+            >
+              Then: {option.sequencePreview.slice(1, 4).join(" -> ")}
+            </Typography>
+          ) : null}
+          <Typography
+            component="span"
+            variant="button"
+            sx={{
+              alignSelf: "flex-start",
+              color: "primary.main",
+              mt: 0.25,
+            }}
+          >
+            Start setup
+          </Typography>
         </Stack>
-      </ButtonComponent>
+      </LoadingButton>
+    );
+  };
+
+  const renderAlternativeProductLoopQuickStart = (option) => {
+    return (
+      <LoadingButton
+        key={option.id}
+        fullWidth
+        data-testid={`setup-org-quick-start-${option.id}`}
+        sx={{
+          borderRadius: 0.5,
+          minHeight: 86,
+          height: "auto",
+          alignItems: "flex-start",
+          justifyContent: "flex-start",
+          px: 1.5,
+          py: 1.25,
+          textAlign: "left",
+          whiteSpace: "normal",
+          textTransform: "none",
+          color: "text.primary",
+          bgcolor: "background.paper",
+          borderColor: "divider",
+          "&:hover": {
+            bgcolor: "action.hover",
+            borderColor: "text.primary",
+          },
+          "& .MuiButton-endIcon": {
+            alignSelf: "flex-start",
+            mt: 0.25,
+          },
+        }}
+        variant="outlined"
+        loading={quickStartLoading(option)}
+        disabled={isSavingUserData}
+        aria-label={option.buttonLabel}
+        onClick={() => handleProductLoopQuickStart(option)}
+        onPointerUp={(event) =>
+          handleProductLoopQuickStartPointerUp(event, option)
+        }
+        color="primary"
+        endIcon={<Iconify icon="mdi:arrow-right" width={18} />}
+      >
+        <Stack
+          component="span"
+          spacing={0.35}
+          sx={{ display: "flex", minWidth: 0, width: "100%" }}
+        >
+          <Typography
+            component="span"
+            variant="subtitle2"
+            sx={{ lineHeight: 1.2 }}
+          >
+            {option.buttonLabel}
+          </Typography>
+          <Typography
+            component="span"
+            variant="caption"
+            sx={{ color: "text.secondary", lineHeight: 1.3 }}
+          >
+            Step 1: {option.firstActionLabel}
+          </Typography>
+          <Typography
+            component="span"
+            variant="caption"
+            sx={{ color: "text.secondary", lineHeight: 1.3 }}
+          >
+            {option.shortDescription}
+          </Typography>
+        </Stack>
+      </LoadingButton>
     );
   };
 
@@ -749,22 +775,41 @@ const SetupOrganization = ({ getStarted = false }) => {
     const productQuickStarts = SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.filter(
       (option) => isSetupOrgFirstSetupQuickStart(option),
     );
+    const featuredQuickStart =
+      productQuickStarts.find((option) => option.featured) ||
+      productQuickStarts[0];
+    const alternativeQuickStarts = productQuickStarts.filter(
+      (option) => option.id !== featuredQuickStart?.id,
+    );
 
     return (
-      <Stack spacing={1.5}>
-        <Box
-          data-testid="setup-org-product-quick-starts"
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, minmax(0, 1fr))",
-            },
-            gap: 1,
-          }}
-        >
-          {productQuickStarts.map(renderProductLoopQuickStart)}
-        </Box>
+      <Stack spacing={2}>
+        {featuredQuickStart
+          ? renderFeaturedProductLoopQuickStart(featuredQuickStart)
+          : null}
+
+        {alternativeQuickStarts.length ? (
+          <Stack spacing={1}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Other starting points
+            </Typography>
+            <Box
+              data-testid="setup-org-product-quick-starts"
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                },
+                gap: 1,
+              }}
+            >
+              {alternativeQuickStarts.map(
+                renderAlternativeProductLoopQuickStart,
+              )}
+            </Box>
+          </Stack>
+        ) : null}
 
         <Box
           data-testid="setup-org-sample-note"
@@ -779,8 +824,8 @@ const SetupOrganization = ({ getStarted = false }) => {
           <Stack direction="row" spacing={1} alignItems="flex-start">
             <Iconify icon="mdi:database-eye-outline" width={20} />
             <Typography variant="body2" color="text.secondary">
-              Sample traces stay available for preview after this. They do not
-              mark setup complete.
+              Sample traces are available later for preview. They do not mark
+              setup complete.
             </Typography>
           </Stack>
         </Box>
@@ -1140,7 +1185,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                   lineHeight: "36px",
                 }}
               >
-                What do you want to set up first?
+                Set up FutureAGI
               </Typography>
               <Typography
                 variant="body1"
@@ -1150,8 +1195,8 @@ const SetupOrganization = ({ getStarted = false }) => {
                   maxWidth: 520,
                 }}
               >
-                Pick one product task. Sample traces stay preview-only; the next
-                screen opens the first real setup step.
+                Choose one workflow. We will open step 1, then Home will keep
+                showing the next setup action.
               </Typography>
             </Box>
 

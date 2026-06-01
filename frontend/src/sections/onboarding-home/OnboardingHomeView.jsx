@@ -818,11 +818,11 @@ export default function OnboardingHomeView() {
               "Open the sample trace to inspect the product. Real setup still starts from one product task.",
           }
         : {
-            eyebrow: "First product task",
+            eyebrow: "Setup",
             title: selectedSetupQuickStart.buttonLabel,
             description: firstRunNextStepLabel
-              ? `${selectedSetupQuickStart.shortDescription} Open ${firstRunCurrentStepLabel} below; after that, Home will show ${firstRunNextStepLabel}.`
-              : `${selectedSetupQuickStart.shortDescription} Open ${firstRunCurrentStepLabel} below.`,
+              ? `${selectedSetupQuickStart.shortDescription} Current step: ${firstRunCurrentStepLabel}. After it is done, Home will show ${firstRunNextStepLabel}.`
+              : `${selectedSetupQuickStart.shortDescription} Current step: ${firstRunCurrentStepLabel}.`,
             surfaceLabel: selectedSetupQuickStart.surfaceLabel,
           }
       : quickStartMismatchAction

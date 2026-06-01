@@ -2,7 +2,6 @@ import React from "react";
 import PropTypes from "prop-types";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import {
   CurrentStepGuide,
   ObserveJourneyProgress,
@@ -71,21 +70,11 @@ export default function ObserveSetupPanel({
             }
             chips={effectiveJourneyPlan.chips || ["observe", "setup"]}
           />
-        ) : (
-          <Stack spacing={0.25}>
-            <Typography variant="subtitle2">
-              Open the first product screen
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Use the button below. When this step is done, Home will show the
-              next setup action.
-            </Typography>
-          </Stack>
-        )}
+        ) : null}
         {actionStep ? (
           <CurrentStepGuide
             actionSlot={actionSlot}
-            label="Do this first"
+            label={singleActionFocus ? "Current step" : "Do this first"}
             nextStep={nextStep}
             step={actionStep}
             stage={stage}

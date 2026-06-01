@@ -1106,7 +1106,7 @@ describe("OnboardingHomeView", () => {
         }),
       ).toBeVisible();
       expect(
-        screen.getByText(new RegExp(`Open ${primaryLabel} below`)),
+        screen.getByText(new RegExp(`Current step: ${primaryLabel}`)),
       ).toBeVisible();
       expect(
         screen.getByText(quickStartOption.shortDescription, {
