@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import replace
 
 from django.utils import timezone
 
@@ -19,6 +20,7 @@ from accounts.services.onboarding.flow_config import (
     configured_stage_progress,
     resolve_stage_from_config,
 )
+from accounts.services.onboarding.goals import resolve_goal_for_context
 from accounts.services.onboarding.journey_plan import resolve_journey_plan
 from accounts.services.onboarding.lifecycle_eligibility import (
     evaluate_lifecycle_decision,
@@ -417,8 +419,33 @@ def resolve_activation_state(*, context, flags, signals):
     return _validate_payload(payload)
 
 
-def resolve_activation_state_for_request(request):
+def _context_with_activation_event_scope(context, event_data=None):
+    if not event_data:
+        return context
+
+    metadata = event_data.get("metadata") or {}
+    goal_context = resolve_goal_for_context(
+        user=context.user,
+        organization=context.organization,
+        workspace=context.workspace,
+        requested_goal=metadata.get("quick_start_goal"),
+        requested_primary_path=metadata.get("quick_start_primary_path"),
+        source="setup_org",
+    )
+    if goal_context.get("source") != "setup_quick_start":
+        return context
+
+    return replace(
+        context,
+        primary_path=goal_context["primary_path"],
+        selected_goal=goal_context["goal"],
+        source="setup_org",
+    )
+
+
+def resolve_activation_state_for_request(request, event_data=None):
     context = resolve_onboarding_context(request)
+    context = _context_with_activation_event_scope(context, event_data)
     flags = get_onboarding_flags(
         user=context.user,
         organization=context.organization,

@@ -11,7 +11,7 @@ import FormSearchField from "src/components/FormSearchField/FormSearchField";
 import Iconify from "src/components/iconify";
 import SvgColor from "src/components/svg-color";
 import { useMutation } from "@tanstack/react-query";
-import { useLocation, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import CustomTooltip from "src/components/tooltip/CustomTooltip";
 import {
   useSelectedScenariosStore,
@@ -39,6 +39,14 @@ import {
   VOICE_ONBOARDING_MODES,
 } from "../onboardingVoiceRouteEvents";
 import TestOnboardingFocusPanel from "../TestOnboardingFocusPanel";
+import {
+  buildEvalRunStepHref,
+  buildEvalSourceFixRerunClickedPayload,
+  buildEvalSourceFixRouteFocusPayload,
+  EVAL_FIX_RERUN_ORIGINS,
+  evalSetupQuickStartAttributionFromSearch,
+  getEvalSourceFixOnboardingParams,
+} from "src/sections/evals/components/evalCreateOnboarding";
 
 const ScenarioPopover = lazy(() => import("./ScenarioPopover"));
 const TestRunsSelection = lazy(() => import("./TestRunsSelection"));
@@ -50,8 +58,10 @@ const TestRunHeader = () => {
   const theme = useTheme();
   const { role } = useAuthContext();
   const location = useLocation();
+  const navigate = useNavigate();
   const { mutate: recordActivationEvent } = useRecordActivationEvent();
   const recordedFocusRef = useRef(false);
+  const recordedEvalSourceFixFocusRef = useRef(false);
   const { search, setSearch } = useTestRunsSearchStore();
   const [scenarioPopoverOpen, setScenarioPopoverOpen] = useState(false);
   const scenarioPopoverRef = useRef(null);
@@ -127,6 +137,33 @@ const TestRunHeader = () => {
     () => voiceSetupQuickStartAttributionFromSearch(location.search),
     [location.search],
   );
+  const evalSourceFixParams = useMemo(
+    () => getEvalSourceFixOnboardingParams(location.search),
+    [location.search],
+  );
+  const evalQuickStartAttribution = useMemo(
+    () => evalSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
+  const showEvalSourceFixFocus = Boolean(
+    evalSourceFixParams.isOnboarding &&
+      evalSourceFixParams.sourceType === "simulation" &&
+      evalSourceFixParams.sourceId === testId,
+  );
+  const evalSourceFixRerunHref = useMemo(() => {
+    if (!showEvalSourceFixFocus || !evalSourceFixParams.evalId) return null;
+    return buildEvalRunStepHref({
+      evalId: evalSourceFixParams.evalId,
+      previousRunId: evalSourceFixParams.runId,
+      quickStartAttribution: evalQuickStartAttribution,
+      rerunFrom: EVAL_FIX_RERUN_ORIGINS.SOURCE_FIX,
+      setupLanguage: evalSourceFixParams.setupLanguage,
+      setupProvider: evalSourceFixParams.setupProvider,
+      sourceId: evalSourceFixParams.sourceId,
+      sourceType: evalSourceFixParams.sourceType,
+      traceId: evalSourceFixParams.traceId,
+    });
+  }, [evalQuickStartAttribution, evalSourceFixParams, showEvalSourceFixFocus]);
   const isRunTestCallMode =
     voiceParams.mode === VOICE_ONBOARDING_MODES.RUN_TEST_CALL;
   const isVoiceRunTestCallMode =
@@ -183,8 +220,76 @@ const TestRunHeader = () => {
     voiceParams.mode,
   ]);
 
+  useEffect(() => {
+    if (!showEvalSourceFixFocus || recordedEvalSourceFixFocusRef.current)
+      return;
+    recordedEvalSourceFixFocusRef.current = true;
+    recordActivationEvent?.(
+      buildEvalSourceFixRouteFocusPayload({
+        evalId: evalSourceFixParams.evalId,
+        quickStartAttribution: evalQuickStartAttribution,
+        route: "simulation_runs",
+        runId: evalSourceFixParams.runId,
+        setupLanguage: evalSourceFixParams.setupLanguage,
+        setupProvider: evalSourceFixParams.setupProvider,
+        sourceId: evalSourceFixParams.sourceId,
+        sourceType: evalSourceFixParams.sourceType,
+        traceId: evalSourceFixParams.traceId,
+      }),
+    );
+  }, [
+    evalQuickStartAttribution,
+    evalSourceFixParams,
+    recordActivationEvent,
+    showEvalSourceFixFocus,
+  ]);
+
+  const handleEvalSourceFixRerun = () => {
+    if (!evalSourceFixRerunHref) return;
+    const navigateToRerun = () => navigate(evalSourceFixRerunHref);
+    if (recordActivationEvent) {
+      recordActivationEvent(
+        buildEvalSourceFixRerunClickedPayload({
+          evalId: evalSourceFixParams.evalId,
+          quickStartAttribution: evalQuickStartAttribution,
+          rerunRoute: evalSourceFixRerunHref,
+          route: "simulation_runs",
+          runId: evalSourceFixParams.runId,
+          setupLanguage: evalSourceFixParams.setupLanguage,
+          setupProvider: evalSourceFixParams.setupProvider,
+          sourceId: evalSourceFixParams.sourceId,
+          sourceType: evalSourceFixParams.sourceType,
+          traceId: evalSourceFixParams.traceId,
+        }),
+        { onSettled: navigateToRerun },
+      );
+    } else {
+      navigateToRerun();
+    }
+  };
+
   return (
     <Stack spacing={1.5} sx={{ width: "100%" }}>
+      <TestOnboardingFocusPanel
+        currentStep="Fix source"
+        description="Update the simulation scenario or expected behavior that produced the weak result, then rerun the quality check."
+        eyebrow="Simulation / Evals"
+        hidden={!showEvalSourceFixFocus}
+        primaryAction={{
+          label: "Rerun quality check",
+          onClick: handleEvalSourceFixRerun,
+          disabled: !evalSourceFixRerunHref,
+        }}
+        steps={[
+          { label: "Run", complete: true },
+          { label: "Review", complete: true },
+          { label: "Fix source", complete: false },
+          { label: "Rerun", complete: false },
+        ]}
+        title="Fix the simulation source"
+        tourAnchor={evalSourceFixParams.tourAnchor}
+        sx={{ mb: 0 }}
+      />
       <TestOnboardingFocusPanel
         currentStep="Test call"
         description="Run one test call with the selected voice agent. When the call finishes, we open the call review and then guide you to success criteria."
@@ -338,7 +443,7 @@ const TestRunHeader = () => {
                   disabled
                   sx={{ whiteSpace: "nowrap", minWidth: "fit-content" }}
                 >
-                  Github Actions
+                  GitHub Actions
                 </Button>
               </Box>
             </CustomTooltip>
@@ -352,7 +457,7 @@ const TestRunHeader = () => {
                 isAgentDefinitionDeleted
                   ? "Agent definition has been deleted. Please select a new agent definition to run simulation."
                   : selectedScenarios.length === 0
-                    ? "Select atleast one scenario to run test"
+                    ? "Select at least one scenario to run the simulation."
                     : "Some selected scenarios are not completed. Wait for them to finish or remove them from the selection."
               }
               size="small"

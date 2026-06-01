@@ -45,9 +45,9 @@ goals:
     estimated_minutes: 7
   evaluate_quality:
     primary_path: evals
-    label: Test AI using simulation
-    description: Create a small eval or simulation and review failures.
-    outcome_preview: An eval run with results and failures ready to review.
+    label: Test AI with Simulation / Evals
+    description: Choose a source, run a quality check, and fix or finish from the first result.
+    outcome_preview: A reviewed quality result with the right next fix or completion path.
     estimated_minutes: 7
   connect_voice_ai_agent:
     primary_path: voice
@@ -115,8 +115,8 @@ paths:
     first_action_id: create_voice_agent
     requires_permission: voice:write
   evals:
-    label: Test AI using simulation
-    description: Create datasets, scorers, and failure review loops.
+    label: Test AI with Simulation / Evals
+    description: Choose sources, run quality checks, and review the first result.
     first_action_id: create_eval_dataset
     requires_permission: evals:write
   dashboards:
@@ -409,9 +409,9 @@ journeys:
         description: Create a guardrail for future requests.
   evals_first_run:
     primary_path: evals
-    eyebrow: Eval setup
-    title: Create one eval and review the first failure
-    description: Add a small dataset, attach a scorer, run the eval, and inspect what failed.
+    eyebrow: Simulation / Evals
+    title: Test AI and act on the first result
+    description: Choose a small dataset, simulation, or trace source, add a quality check, run it, and fix what failed.
     chips:
       - evals
       - quality
@@ -421,36 +421,36 @@ journeys:
         action_id: create_eval_dataset
         success_event: eval_dataset_created
         tour_anchor: eval_dataset_button
-        label: Create eval dataset
-        description: Start with a focused set of examples.
+        label: Choose source
+        description: Start with focused examples, a simulation, or traces.
       - id: add_eval_scorer
         stage: add_eval_scorer
         action_id: add_eval_scorer
         success_event: eval_scorer_created
         tour_anchor: eval_scorer_button
-        label: Add scorer
-        description: Define what the eval should measure.
+        label: Add check
+        description: Define what good output should satisfy.
       - id: run_eval
         stage: run_eval
         action_id: run_eval
         success_event: eval_run_completed
         tour_anchor: eval_run_button
-        label: Run eval
-        description: Run the check once.
+        label: Run check
+        description: Run it once and open the result.
       - id: review_eval_failures
         stage: review_eval_failures
         action_id: review_eval_failures
         success_event: eval_failures_reviewed
         tour_anchor: eval_failure_review_link
-        label: Review failure
-        description: Inspect the first useful failure.
+        label: Review result
+        description: Inspect the first result and pick the right next action.
       - id: eval_next_loop
         stage: eval_next_loop
         action_id: fix_eval_source
         success_event: eval_failure_action_created
         tour_anchor: eval_next_loop_button
-        label: Improve
-        description: Turn the failure into the next fix.
+        label: Fix or finish
+        description: Fix the source or tune the check, then rerun.
   voice_first_run:
     primary_path: voice
     eyebrow: Voice setup
@@ -815,10 +815,10 @@ actions:
     fallback_route_key: get_started
   create_eval_dataset:
     kind: setup
-    title: Create eval dataset
-    description: Add the first dataset or trace source for the eval loop.
+    title: Choose what to test
+    description: Choose the first dataset, simulation, or trace source for the quality loop.
     route_key: eval_create_data
-    cta_label: Create eval dataset
+    cta_label: Choose source
     priority: 100
     estimated_minutes: 3
     requires_permission: evals:write
@@ -827,10 +827,10 @@ actions:
     fallback_route_key: eval_list
   add_eval_scorer:
     kind: improve
-    title: Add eval scorer
-    description: Add the metric that decides whether the output is good.
+    title: Add quality check
+    description: Add the check that decides whether the output is good.
     route_key: eval_add_scorer
-    cta_label: Add scorer
+    cta_label: Add check
     priority: 100
     estimated_minutes: 3
     requires_permission: evals:write
@@ -839,10 +839,10 @@ actions:
     fallback_route_key: eval_list
   run_eval:
     kind: send_signal
-    title: Run eval
-    description: Run the eval once before reviewing the result.
+    title: Run quality check
+    description: Run the check once before reviewing the result.
     route_key: eval_run_first
-    cta_label: Run eval
+    cta_label: Run check
     priority: 100
     estimated_minutes: 3
     requires_permission: evals:write
@@ -851,8 +851,8 @@ actions:
     fallback_route_key: eval_list
   review_eval_failures:
     kind: review
-    title: Review eval result
-    description: Inspect failures or summary before moving the loop forward.
+    title: Review quality result
+    description: Inspect the result and choose whether to fix the source or tune the quality check.
     route_key: eval_review_failures
     cta_label: Review result
     priority: 100
@@ -863,7 +863,7 @@ actions:
   fix_eval_source:
     kind: adjacent_loop
     title: Fix the source
-    description: Use the failure review to update the source or expected behavior.
+    description: Use the review to update the source or expected behavior, then rerun.
     route_key: eval_next_loop
     cta_label: Fix source
     priority: 95
@@ -1669,9 +1669,9 @@ stages:
     fallback_action: open_evals
     requires_write: true
     copy:
-      eyebrow: Eval dataset
-      title: Create eval dataset
-      description: Add the examples that define expected behavior.
+      eyebrow: Simulation / Evals
+      title: Choose what to test
+      description: Choose examples, a simulation, or traces that define expected behavior.
     next:
       - add_eval_scorer
   add_eval_scorer:
@@ -1685,9 +1685,9 @@ stages:
     fallback_action: open_evals
     requires_write: true
     copy:
-      eyebrow: Eval scorer
-      title: Add a scorer
-      description: Add the metric that decides whether an output is good.
+      eyebrow: Quality check
+      title: Add a quality check
+      description: Add the check that decides whether an output is good.
     next:
       - run_eval
   run_eval:
@@ -1701,9 +1701,9 @@ stages:
     fallback_action: open_evals
     requires_write: true
     copy:
-      eyebrow: Eval run
-      title: Run an eval
-      description: Run the eval and collect the first result.
+      eyebrow: Quality run
+      title: Run a quality check
+      description: Run the check and collect the first result.
     next:
       - review_eval_failures
   review_eval_failures:
@@ -1717,9 +1717,9 @@ stages:
     fallback_action: open_evals
     requires_write: false
     copy:
-      eyebrow: Eval failures
-      title: Review failures
-      description: Inspect failures and choose the next fix.
+      eyebrow: Result review
+      title: Review the first result
+      description: Inspect the result and choose whether to fix the source or tune the quality check.
     next:
       - eval_next_loop
   eval_next_loop:
@@ -1733,9 +1733,9 @@ stages:
     fallback_action: open_eval_usage
     requires_write: true
     copy:
-      eyebrow: Eval setup
-      title: Continue eval setup
-      description: Use the failures to drive the next improvement.
+      eyebrow: Fix or finish
+      title: Fix from the result
+      description: Use the result to fix the source, then rerun.
     next: []
   open_sample_project:
     copy:

@@ -148,6 +148,42 @@ def test_sample_trace_review_does_not_advance_real_observe_stage(
 
 @pytest.mark.django_db
 @override_settings(ONBOARDING_FEATURE_FLAGS={"onboarding_activation_state_api": True})
+def test_activation_event_response_uses_quick_start_context_from_body(
+    auth_client,
+    organization,
+    workspace,
+    user,
+):
+    user.goals = ["monitor_production_ai_app"]
+    user.save(update_fields=["goals"])
+
+    response = auth_client.post(
+        "/accounts/activation-events/",
+        {
+            "event_name": "onboarding_eval_route_focus_viewed",
+            "primary_path": "evals",
+            "stage": "create_eval_dataset",
+            "source": "eval_create_onboarding",
+            "artifact_type": "eval",
+            "artifact_id": "eval-1",
+            "metadata": {
+                "quick_start_goal": "evaluate_quality",
+                "quick_start_id": "evals",
+                "quick_start_primary_path": "evals",
+            },
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    activation_state = response.json()["result"]["activation_state"]
+    assert activation_state["goal"] == "evaluate_quality"
+    assert activation_state["primary_path"] == "evals"
+    assert activation_state["eval"] is not None
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS={"onboarding_activation_state_api": True})
 def test_observe_setup_route_focus_records_event(auth_client, workspace, user):
     user.goals = ["monitor_production_ai_app"]
     user.save(update_fields=["goals"])

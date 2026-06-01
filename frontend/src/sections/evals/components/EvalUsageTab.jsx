@@ -1367,11 +1367,11 @@ const DetailPanelContent = ({
           buttonLabel:
             sourceType === "trace_project"
               ? "Fix trace source"
-              : "Open source fix",
+              : "Fix source and rerun",
           description:
             sourceType === "trace_project"
-              ? "Review the trace source that produced this result, then rerun the quality check."
-              : "Fix the source tied to this result, then rerun the eval.",
+              ? "Review the traces that produced this result, adjust the source behavior, then rerun the quality check."
+              : "Fix the dataset, simulation, or source tied to this result, then rerun the quality check.",
           icon: "mingcute:external-link-line",
           onClick: onSourceFixClick,
         }

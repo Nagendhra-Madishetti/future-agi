@@ -44,6 +44,7 @@ import {
   getEvalFailureActionOnboardingParams,
   getEvalReviewOnboardingCopy,
   getEvalReviewOnboardingParams,
+  getEvalRunFailureCount,
   getEvalRunResultId,
   getEvalStarterScorer,
   getEvalSourceFixOnboardingCopy,
@@ -330,7 +331,7 @@ describe("evalCreateOnboarding", () => {
       }),
     ).toMatchObject({
       currentStep: "Source",
-      title: "Create the eval source",
+      title: "Choose what to test",
     });
     expect(evalCreateOnboardingStage(EVAL_CREATE_ONBOARDING_STEPS.RUN)).toBe(
       "run_eval",
@@ -752,6 +753,7 @@ describe("evalCreateOnboarding", () => {
       evalType: "agent",
       mode: "single",
       result: {
+        failed_spans_count: 2,
         log_id: "log-1",
         output: "Failed",
         reason: "Do not include result content",
@@ -770,6 +772,7 @@ describe("evalCreateOnboarding", () => {
       metadata: {
         eval_id: "eval-1",
         eval_type: "agent",
+        failure_count: 2,
         is_composite: false,
         log_id: "log-1",
         mode: "single",
@@ -783,6 +786,13 @@ describe("evalCreateOnboarding", () => {
     });
     expect(payload.metadata).not.toHaveProperty("output");
     expect(payload.metadata).not.toHaveProperty("reason");
+  });
+
+  it("extracts failure count from eval run result variants", () => {
+    expect(getEvalRunFailureCount({ failure_count: "3" })).toBe(3);
+    expect(getEvalRunFailureCount({ failed_spans: ["a", "b"] })).toBe(2);
+    expect(getEvalRunFailureCount({ status: "failed" })).toBe(1);
+    expect(getEvalRunFailureCount({ status: "completed" })).toBeNull();
   });
 
   it("builds a run-clicked payload before result content exists", () => {
@@ -824,6 +834,7 @@ describe("evalCreateOnboarding", () => {
       previousRunId: "run-1",
       rerunFrom: EVAL_FIX_RERUN_ORIGINS.SOURCE_FIX,
       result: {
+        failed_count: 1,
         log_id: "run-2",
         output: "Do not include result content",
         reason: "Do not include result content",
@@ -842,6 +853,7 @@ describe("evalCreateOnboarding", () => {
       metadata: {
         eval_id: "eval-1",
         eval_type: "agent",
+        failure_count: 1,
         is_composite: false,
         log_id: "run-2",
         mode: "single",
@@ -920,12 +932,13 @@ describe("evalCreateOnboarding", () => {
   it("returns review copy for the review route focus panel", () => {
     expect(getEvalReviewOnboardingCopy()).toMatchObject({
       currentStep: "Review",
-      title: "Review the eval result",
+      title: "Review the first quality result",
       steps: [
         { label: "Source", complete: true },
-        { label: "Scorer", complete: true },
+        { label: "Quality check", complete: true },
         { label: "Run", complete: true },
         { label: "Review", complete: false },
+        { label: "Fix or finish", complete: false },
       ],
     });
 
@@ -1109,6 +1122,15 @@ describe("evalCreateOnboarding", () => {
     expect(
       buildEvalSourceFixHref({
         runId: "run-1",
+        sourceId: "sim-1",
+        sourceType: "simulation",
+      }),
+    ).toBe(
+      "/dashboard/simulate/test/sim-1/runs?source=onboarding&step=fix-eval-failure&source_type=simulation&source_id=sim-1&run_id=run-1",
+    );
+    expect(
+      buildEvalSourceFixHref({
+        runId: "run-1",
         sourceId: "unknown-1",
         sourceType: "unknown",
       }),
@@ -1149,9 +1171,16 @@ describe("evalCreateOnboarding", () => {
     expect(
       getEvalSourceFixOnboardingCopy({ sourceType: "dataset" }),
     ).toMatchObject({
-      title: "Fix eval source",
+      title: "Fix the eval source",
       description:
-        "Update this dataset, then rerun the eval to confirm the failure is fixed.",
+        "Update the dataset row or expected output that produced the failed result, then rerun the quality check.",
+    });
+    expect(
+      getEvalSourceFixOnboardingCopy({ sourceType: "simulation" }),
+    ).toMatchObject({
+      title: "Fix the simulation source",
+      description:
+        "Update the simulation scenario or expected behavior that produced this result, then rerun the quality check.",
     });
   });
 

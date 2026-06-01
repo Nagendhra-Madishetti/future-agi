@@ -104,33 +104,38 @@ def evaluate(output: Any = None, context: dict = None, **kwargs):
 const STEP_COPY = {
   [EVAL_CREATE_ONBOARDING_STEPS.DATA]: {
     currentStep: "Source",
-    description: "Choose the data or trace source before adding the scorer.",
-    title: "Create the eval source",
+    description:
+      "Choose the examples, simulation, or trace source to test before adding the quality check.",
+    title: "Choose what to test",
     steps: [
       { label: "Source", complete: false },
-      { label: "Scorer", complete: false },
+      { label: "Quality check", complete: false },
       { label: "Run", complete: false },
+      { label: "Review", complete: false },
     ],
   },
   [EVAL_CREATE_ONBOARDING_STEPS.SCORER]: {
-    currentStep: "Scorer",
+    currentStep: "Quality check",
     description:
-      "Start with a safe output-quality scorer, then save it to run this source.",
-    title: "Add the eval scorer",
+      "Start with a safe output-quality check, then save it to run against this source.",
+    title: "Add the quality check",
     steps: [
       { label: "Source", complete: true },
-      { label: "Scorer", complete: false },
+      { label: "Quality check", complete: false },
       { label: "Run", complete: false },
+      { label: "Review", complete: false },
     ],
   },
   [EVAL_CREATE_ONBOARDING_STEPS.RUN]: {
     currentStep: "Run",
-    description: "Run the scorer once so the first eval result is reviewable.",
-    title: "Run the first eval",
+    description:
+      "Run the quality check once, then review the first result before moving on.",
+    title: "Run the first quality check",
     steps: [
       { label: "Source", complete: true },
-      { label: "Scorer", complete: true },
+      { label: "Quality check", complete: true },
       { label: "Run", complete: false },
+      { label: "Review", complete: false },
     ],
   },
 };
@@ -199,13 +204,15 @@ const TRACE_PROJECT_RERUN_COPY = {
 
 const EVAL_REVIEW_COPY = {
   currentStep: "Review",
-  description: "Inspect failures or summary before deciding what to fix next.",
-  title: "Review the eval result",
+  description:
+    "Open the first result. If it failed or looks weak, fix the source that produced it; if the source is right, tune the quality check.",
+  title: "Review the first quality result",
   steps: [
     { label: "Source", complete: true },
-    { label: "Scorer", complete: true },
+    { label: "Quality check", complete: true },
     { label: "Run", complete: true },
     { label: "Review", complete: false },
+    { label: "Fix or finish", complete: false },
   ],
 };
 
@@ -258,17 +265,22 @@ const traceProjectReviewCopy = ({ setupLanguage, setupProvider } = {}) => {
 const EVAL_SOURCE_FIX_COPY = {
   dataset: {
     description:
-      "Update this dataset, then rerun the eval to confirm the failure is fixed.",
-    title: "Fix eval source",
+      "Update the dataset row or expected output that produced the failed result, then rerun the quality check.",
+    title: "Fix the eval source",
+  },
+  simulation: {
+    description:
+      "Update the simulation scenario or expected behavior that produced this result, then rerun the quality check.",
+    title: "Fix the simulation source",
   },
   trace: {
     description:
-      "Review the trace evidence and adjust the source workflow, then rerun the eval.",
-    title: "Fix eval source",
+      "Review the trace evidence, adjust the workflow that produced it, then rerun the quality check.",
+    title: "Fix the trace source",
   },
   trace_project: {
     description:
-      "Review the traces or project setup that produced this quality-check result, then rerun the quality check.",
+      "Review the traces or project setup that produced this result, then rerun the quality check.",
     title: "Fix trace source",
   },
 };
@@ -781,6 +793,38 @@ export const getEvalRunResultId = (result = {}) =>
   result?.evaluation_id ||
   null;
 
+const numericFailureCount = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  if (Array.isArray(value)) return value.length;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : null;
+};
+
+export const getEvalRunFailureCount = (result = {}) => {
+  const candidates = [
+    result?.failure_count,
+    result?.failureCount,
+    result?.failed_count,
+    result?.failedCount,
+    result?.failed_spans_count,
+    result?.failedSpansCount,
+    result?.failed_spans,
+    result?.failedSpans,
+    result?.failures,
+    result?.failed,
+  ];
+  for (const candidate of candidates) {
+    const count = numericFailureCount(candidate);
+    if (count !== null) return count;
+  }
+
+  const status = String(result?.status || result?.result || "").toLowerCase();
+  if (["fail", "failed", "failure", "error", "errored"].includes(status)) {
+    return 1;
+  }
+  return null;
+};
+
 export const getEvalUsageLogId = (log = {}) => {
   const detail = log?.detail || {};
   return (
@@ -983,8 +1027,8 @@ export const getEvalSourceFixOnboardingParams = (search = "") => {
 export const getEvalSourceFixOnboardingCopy = ({ sourceType } = {}) =>
   EVAL_SOURCE_FIX_COPY[sourceType] || {
     description:
-      "Update the source that produced this eval result, then rerun the eval.",
-    title: "Fix eval source",
+      "Update the source that produced this result, then rerun the quality check.",
+    title: "Fix the source",
   };
 
 export const buildEvalReviewStepHref = ({
@@ -1063,6 +1107,8 @@ export const buildEvalSourceFixHref = ({
   let basePath = null;
   if (sourceType === "dataset") {
     basePath = `/dashboard/develop/${sourceId}`;
+  } else if (sourceType === "simulation") {
+    basePath = `/dashboard/simulate/test/${sourceId}/runs`;
   } else if (["trace", "trace_project"].includes(sourceType)) {
     basePath = `/dashboard/observe/${sourceId}/llm-tracing`;
   }
@@ -1355,6 +1401,7 @@ export const buildEvalRunCompletedPayload = ({
   traceId,
 } = {}) => {
   const resultRunId = getEvalRunResultId(result);
+  const failureCount = getEvalRunFailureCount(result);
   const artifactId = safeKeyPart(runId || resultRunId || evalId, "eval-run");
 
   return {
@@ -1370,6 +1417,7 @@ export const buildEvalRunCompletedPayload = ({
       eval_log_id: result?.eval_log_id,
       eval_task_id: result?.eval_task_id,
       evaluation_id: result?.evaluation_id,
+      failure_count: failureCount,
       is_composite: Boolean(isComposite),
       log_id: result?.log_id,
       mode,
@@ -1411,6 +1459,7 @@ export const buildEvalFixRerunCompletedPayload = ({
 } = {}) => {
   const normalizedRerunFrom = normalizeFixRerunOrigin(rerunFrom);
   const resultRunId = getEvalRunResultId(result);
+  const failureCount = getEvalRunFailureCount(result);
   const artifactId = safeKeyPart(runId || resultRunId || evalId, "eval-run");
 
   return {
@@ -1426,6 +1475,7 @@ export const buildEvalFixRerunCompletedPayload = ({
       eval_log_id: result?.eval_log_id,
       eval_task_id: result?.eval_task_id,
       evaluation_id: result?.evaluation_id,
+      failure_count: failureCount,
       is_composite: Boolean(isComposite),
       log_id: result?.log_id,
       mode,

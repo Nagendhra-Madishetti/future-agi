@@ -4,6 +4,7 @@ import TestRunHeader from "../TestRunHeader";
 
 const mocks = vi.hoisted(() => ({
   locationSearch: "",
+  navigate: vi.fn(),
   recordActivationEvent: vi.fn(),
   role: "admin",
   runTest: vi.fn(),
@@ -28,6 +29,7 @@ vi.mock("react-router", () => ({
   useLocation: () => ({
     search: mocks.locationSearch,
   }),
+  useNavigate: () => mocks.navigate,
   useParams: () => ({
     testId: "test-1",
   }),
@@ -165,6 +167,7 @@ describe("TestRunHeader voice onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.locationSearch = "";
+    mocks.navigate = vi.fn();
     mocks.role = "admin";
     mocks.search = "";
     mocks.selectedScenarios = ["scenario-1"];
@@ -228,5 +231,60 @@ describe("TestRunHeader voice onboarding", () => {
       ).toBeVisible(),
     );
     expect(screen.getByRole("button", { name: /scenarios/i })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /github actions/i }),
+    ).toHaveTextContent("GitHub Actions");
+  });
+
+  it("shows a simulation source-fix handoff before rerunning the quality check", async () => {
+    mocks.locationSearch =
+      "?source=onboarding&step=fix-eval-failure&source_type=simulation&source_id=test-1&eval_id=eval-1&run_id=run-1&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals";
+
+    render(<TestRunHeader />);
+
+    expect(screen.getByText("Simulation / Evals")).toBeVisible();
+    expect(screen.getByText("Fix the simulation source")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Update the simulation scenario or expected behavior that produced the weak result, then rerun the quality check.",
+      ),
+    ).toBeVisible();
+
+    await waitFor(() =>
+      expect(mocks.recordActivationEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: "onboarding_eval_source_fix_route_viewed",
+          primaryPath: "evals",
+          stage: "eval_next_loop",
+          metadata: expect.objectContaining({
+            eval_id: "eval-1",
+            run_id: "run-1",
+            source_id: "test-1",
+            source_type: "simulation",
+          }),
+        }),
+      ),
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /^rerun quality check$/i }),
+    );
+
+    expect(mocks.recordActivationEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "onboarding_eval_source_fix_rerun_clicked",
+        metadata: expect.objectContaining({
+          eval_id: "eval-1",
+          rerun_route:
+            "/dashboard/evaluations/create/eval-1?source=onboarding&step=run&source_type=simulation&source_id=test-1&rerun_from=source_fix&previous_run_id=run-1&quick_start_goal=evaluate_quality&quick_start_id=evals&quick_start_primary_path=evals",
+          run_id: "run-1",
+          source_id: "test-1",
+          source_type: "simulation",
+        }),
+      }),
+      expect.objectContaining({
+        onSettled: expect.any(Function),
+      }),
+    );
   });
 });

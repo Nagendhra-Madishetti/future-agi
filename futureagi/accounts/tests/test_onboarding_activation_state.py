@@ -7,7 +7,10 @@ from accounts.models import (
     User,
 )
 from accounts.services.onboarding.activation_events import record_event
-from accounts.services.onboarding.activation_state import resolve_activation_state
+from accounts.services.onboarding.activation_state import (
+    _context_with_activation_event_scope,
+    resolve_activation_state,
+)
 from accounts.services.onboarding.context import OnboardingContext
 from accounts.services.onboarding.flow_config import (
     configured_default_goal_id,
@@ -87,6 +90,30 @@ def _context(
         },
         warnings=[],
     )
+
+
+def test_context_with_activation_event_scope_uses_quick_start_metadata():
+    context = _context(
+        object(),
+        object(),
+        object(),
+        goal="monitor_production_ai_app",
+        primary_path="observe",
+    )
+
+    scoped_context = _context_with_activation_event_scope(
+        context,
+        {
+            "metadata": {
+                "quick_start_goal": "evaluate_quality",
+                "quick_start_primary_path": "evals",
+            }
+        },
+    )
+
+    assert scoped_context.selected_goal == "evaluate_quality"
+    assert scoped_context.primary_path == "evals"
+    assert scoped_context.source == "setup_org"
 
 
 @pytest.mark.django_db

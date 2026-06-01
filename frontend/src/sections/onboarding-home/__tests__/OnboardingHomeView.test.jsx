@@ -1064,15 +1064,17 @@ describe("OnboardingHomeView", () => {
         pathState({
           action: pathAction({
             id: "create_eval_dataset",
-            title: "Create eval dataset",
-            description: "Add the first dataset or trace source.",
+            title: "Choose what to test",
+            description:
+              "Choose the first dataset, simulation, or trace source.",
             href: "/dashboard/evaluations/create?source=onboarding&step=data",
-            ctaLabel: "Create eval dataset",
+            ctaLabel: "Choose source",
             completionEvent: "eval_dataset_created",
             targetPath: "evals",
           }),
           goal: "evaluate_quality",
-          pathDescription: "Create a small eval and review the first failure.",
+          pathDescription:
+            "Choose a source, run a quality check, and review the first result.",
           pathLabel: "Evaluate quality",
           primaryPath: "evals",
           stage: "create_eval_dataset",
@@ -1081,7 +1083,7 @@ describe("OnboardingHomeView", () => {
       quickStartId: "evals",
       quickStartPrimaryPath: "evals",
       pathname: "/dashboard/evaluations/create",
-      primaryLabel: "Create eval dataset",
+      primaryLabel: "Choose source",
       stage: "create_eval_dataset",
       routeParams: {
         source: "onboarding",
@@ -2517,15 +2519,16 @@ describe("OnboardingHomeView", () => {
         action: pathAction({
           id: "run_eval",
           kind: "test",
-          title: "Run eval",
-          description: "Run the first eval and review the result.",
+          title: "Run quality check",
+          description: "Run the first quality check and review the result.",
           href,
-          ctaLabel: "Run eval",
+          ctaLabel: "Run check",
           completionEvent: "eval_run_completed",
           targetPath: "evals",
         }),
         goal: "evaluate_quality",
-        pathDescription: "Create a small eval and review the first failure.",
+        pathDescription:
+          "Choose a source, run a quality check, and review the first result.",
         pathLabel: "Evaluate quality",
         primaryPath: "evals",
         stage: "run_eval",
@@ -2540,23 +2543,23 @@ describe("OnboardingHomeView", () => {
     renderView();
 
     const panel = screen.getByTestId("path-focus-panel-evals");
-    const cta = within(panel).getByRole("link", { name: /run eval/i });
-    expect(screen.getByText("Eval run")).toBeVisible();
-    expect(screen.getByText("Run the first eval")).toBeVisible();
+    const cta = within(panel).getByRole("link", { name: /run check/i });
+    expect(screen.getByText("Quality run")).toBeVisible();
+    expect(screen.getByText("Run the first quality check")).toBeVisible();
     expect(
-      screen.getByText("Run the eval once so the first result is reviewable."),
+      screen.getByText("Run it once so the first result is reviewable."),
     ).toBeVisible();
-    expect(within(panel).getByText("Eval setup")).toBeVisible();
+    expect(within(panel).getByText("Simulation / Evals")).toBeVisible();
     expect(
-      within(panel).getByText("Create one eval and review the first failure"),
+      within(panel).getByText("Test AI and act on the first result"),
     ).toBeVisible();
     expect(
       within(panel).getByText(
-        "Add a small dataset, attach a scorer, run the eval, and inspect what failed.",
+        "Choose a small dataset, simulation, or trace source, add a quality check, run it, and fix what failed.",
       ),
     ).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
-      "Run the check once.",
+      "Run it once and open the result.",
     );
     expect(screen.queryByText("Open Get Started")).not.toBeInTheDocument();
     expect(cta).toHaveAttribute(
@@ -2781,7 +2784,7 @@ describe("OnboardingHomeView", () => {
     {
       goal: "evaluate_quality",
       id: "evals",
-      label: "Create eval dataset",
+      label: "Choose test source",
       pathname: "/dashboard/evaluations/create",
       primaryPath: "evals",
       title: "Test AI with Simulation / Evals",

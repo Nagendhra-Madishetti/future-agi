@@ -40,9 +40,9 @@ export const DESTINATION_TOUR_ANCHORS = [
 
 export const DESTINATION_TOUR_STEP_COPY = {
   add_eval_scorer: {
-    label: "Add scorer",
+    label: "Add quality check",
     description:
-      "Use the highlighted action to define the signal this eval measures.",
+      "Use the highlighted action to define what good output should satisfy.",
   },
   add_gateway_policy: {
     label: "Add policy",
@@ -135,9 +135,9 @@ export const DESTINATION_TOUR_STEP_COPY = {
       "Use the highlighted action to inspect the first agent signal.",
   },
   review_eval_failures: {
-    label: "Review failure",
+    label: "Review result",
     description:
-      "Use the highlighted action to inspect the first useful eval failure.",
+      "Use the highlighted action to inspect the first result and choose the next action.",
   },
   review_first_trace: {
     label: "Review signal",
@@ -163,8 +163,8 @@ export const DESTINATION_TOUR_STEP_COPY = {
     description: "Save the draft if prompted, then run one scenario.",
   },
   run_eval: {
-    label: "Run eval",
-    description: "Use the highlighted action to run the first eval.",
+    label: "Run quality check",
+    description: "Use the highlighted action to run the first quality check.",
   },
   run_gateway_request: {
     label: "Send request",

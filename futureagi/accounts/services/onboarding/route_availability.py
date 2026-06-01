@@ -334,6 +334,8 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
     eval_review_href = _with_query(eval_review_base, eval_review_params)
     if eval_source_type == "dataset" and eval_source_id:
         eval_source_fix_base = f"/dashboard/develop/{eval_source_id}"
+    elif eval_source_type == "simulation" and eval_source_id:
+        eval_source_fix_base = f"/dashboard/simulate/test/{eval_source_id}/runs"
     elif eval_source_type == "trace_project" and eval_source_id:
         eval_source_fix_base = f"/dashboard/observe/{eval_source_id}/llm-tracing"
     else:

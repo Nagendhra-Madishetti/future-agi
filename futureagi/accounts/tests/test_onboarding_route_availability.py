@@ -205,6 +205,41 @@ def test_eval_source_fix_route_uses_trace_project_context():
     }
 
 
+def test_eval_source_fix_route_uses_simulation_context():
+    simulation_id = uuid4()
+    eval_id = uuid4()
+    run_id = uuid4()
+    routes = resolve_route_availability(
+        context=_context(),
+        flags={
+            "onboarding_eval_path": True,
+            "onboarding_eval_route_modes": True,
+            "onboarding_sample_project": False,
+            "onboarding_daily_quality_home": False,
+        },
+        signals=OnboardingSignals(
+            first_checks={},
+            eval_has_failures=True,
+            eval_has_review=True,
+            eval_run_id=str(run_id),
+            eval_scorer_template_id=str(eval_id),
+            eval_source_id=str(simulation_id),
+            eval_source_type="simulation",
+        ),
+    )
+
+    assert routes["eval_next_loop"] == {
+        "href": (
+            f"/dashboard/simulate/test/{simulation_id}/runs?"
+            "source=onboarding&step=fix-eval-failure"
+            f"&source_type=simulation&source_id={simulation_id}"
+            f"&eval_id={eval_id}&run_id={run_id}"
+        ),
+        "is_available": True,
+        "reason": None,
+    }
+
+
 def test_eval_review_route_preserves_source_context_for_fix_loop():
     dataset_id = uuid4()
     eval_id = uuid4()

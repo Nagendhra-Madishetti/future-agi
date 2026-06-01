@@ -68,8 +68,10 @@ export const ONBOARDING_GOAL_OPTIONS = [
     goal: "evaluate_quality",
     primaryPath: "evals",
     label: "Test AI with Simulation / Evals",
-    description: "Create an eval or simulation and review the first result.",
-    outcomePreview: "An eval run with results and failures ready to review.",
+    description:
+      "Choose a source, run a quality check, and fix or finish from the first result.",
+    outcomePreview:
+      "A reviewed quality result with the right next fix or completion path.",
     estimatedMinutes: 7,
   },
   {
@@ -112,8 +114,11 @@ export const ONBOARDING_EVENT_LABELS = {
   daily_quality_action_opened: "Daily quality action opened",
   daily_quality_item_reviewed: "Daily quality item reviewed",
   dataset_example_added: "Dataset example added",
-  eval_dataset_created: "Evaluator source created",
-  eval_run_completed: "Evaluator run completed",
+  eval_dataset_created: "Quality source created",
+  eval_failure_action_created: "Eval fix action created",
+  eval_failures_reviewed: "Eval result reviewed",
+  eval_run_completed: "Quality check run completed",
+  eval_scorer_created: "Quality check created",
   first_quality_loop_completed: "First product workflow completed",
   gateway_failure_resolved: "Gateway failure resolved",
   gateway_key_created: "Gateway key created",
@@ -260,30 +265,31 @@ export const ONBOARDING_STAGE_COPY = {
     description: "Add a policy that keeps the request path controlled.",
   },
   create_eval_dataset: {
-    eyebrow: "Eval",
-    title: "Create the eval source",
+    eyebrow: "Simulation / Evals",
+    title: "Choose what to test",
     description:
-      "Add a focused dataset or trace source before adding a scorer.",
+      "Choose a focused dataset, simulation, or trace source before adding the quality check.",
   },
   add_eval_scorer: {
-    eyebrow: "Eval scorer",
-    title: "Add the eval scorer",
-    description: "Define what the eval should measure before running it.",
+    eyebrow: "Quality check",
+    title: "Add the quality check",
+    description: "Define what good output looks like before running it.",
   },
   run_eval: {
-    eyebrow: "Eval run",
-    title: "Run the first eval",
-    description: "Run the eval once so the first result is reviewable.",
+    eyebrow: "Quality run",
+    title: "Run the first quality check",
+    description: "Run it once so the first result is reviewable.",
   },
   review_eval_failures: {
-    eyebrow: "Eval review",
-    title: "Review eval failures",
-    description: "Inspect the first failed result and decide the next fix.",
+    eyebrow: "Result review",
+    title: "Review the first result",
+    description:
+      "Inspect the result and choose whether to fix the source or tune the quality check.",
   },
   eval_next_loop: {
-    eyebrow: "Eval setup",
-    title: "Improve from the eval result",
-    description: "Turn the reviewed failure into the next improvement.",
+    eyebrow: "Fix or finish",
+    title: "Fix from the result",
+    description: "Turn the reviewed failure into a source fix, then rerun.",
   },
   create_voice_agent: {
     eyebrow: "Voice",

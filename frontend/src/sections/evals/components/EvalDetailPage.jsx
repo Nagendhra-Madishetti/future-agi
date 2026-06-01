@@ -535,7 +535,7 @@ const EvalDetailPage = () => {
         label:
           reviewOnboardingParams.sourceType === "trace_project"
             ? "Fix trace source"
-            : "Open source fix",
+            : "Fix source and rerun",
         onClick: handleReviewPrimaryAction,
       };
     }

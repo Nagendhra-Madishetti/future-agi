@@ -282,7 +282,7 @@ class ActivationEventView(APIView):
                 is_sample=data.get("is_sample", False),
                 idempotency_key=idempotency_key,
             )
-            payload = resolve_activation_state_for_request(request)
+            payload = resolve_activation_state_for_request(request, event_data=data)
             return self._gm.success_response(
                 {
                     "event_id": str(event.id),

@@ -119,14 +119,16 @@ export const SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS = [
     surfaceLabel: "Simulation / Evals",
     buttonLabel: "Test AI with Simulation / Evals",
     shortDescription:
-      "Create an eval or simulation and review the first result.",
-    firstActionLabel: "Create eval dataset",
-    pathPreview: "Add scorer, run eval, review failure, improve.",
+      "Choose a source, add a quality check, run it, review the first result, and fix what failed.",
+    firstActionLabel: "Choose test source",
+    pathPreview:
+      "Choose source, add quality check, run, review result, fix or finish.",
     sequencePreview: [
-      "Create eval dataset",
-      "Add scorer",
-      "Run eval",
-      "Review",
+      "Choose test source",
+      "Add quality check",
+      "Run first check",
+      "Review result",
+      "Fix or finish",
     ],
     icon: "mdi:check-decagram-outline",
   }),
