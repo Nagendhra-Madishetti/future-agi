@@ -253,6 +253,104 @@ const SMOKES = [
     },
   },
   {
+    id: "onboarding-destination-tour-observe-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed proof that the destination tour highlights the Observe first action and preserves plan attribution.",
+    env: {
+      ONBOARDING_SMOKE_ASSERT_DESTINATION_TOUR: "1",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "onboarding-destination-tour-prompt-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed proof that the destination tour highlights the Prompt first action and preserves plan attribution.",
+    env: {
+      ONBOARDING_SMOKE_ASSERT_DESTINATION_TOUR: "1",
+      ONBOARDING_SMOKE_PATH_FOCUS: "prompt",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "onboarding-destination-tour-agent-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed proof that the destination tour highlights the Agent first action and preserves plan attribution.",
+    env: {
+      ONBOARDING_SMOKE_ASSERT_DESTINATION_TOUR: "1",
+      ONBOARDING_SMOKE_PATH_FOCUS: "agent",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "onboarding-destination-tour-gateway-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed proof that the destination tour highlights the Gateway first action and preserves plan attribution.",
+    env: {
+      ONBOARDING_SMOKE_ASSERT_DESTINATION_TOUR: "1",
+      ONBOARDING_SMOKE_PATH_FOCUS: "gateway",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "onboarding-destination-tour-evals-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed proof that the destination tour highlights the Simulation / Evals first action and preserves plan attribution.",
+    env: {
+      ONBOARDING_SMOKE_ASSERT_DESTINATION_TOUR: "1",
+      ONBOARDING_SMOKE_PATH_FOCUS: "evals",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "onboarding-destination-tour-voice-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed proof that the destination tour highlights the Voice first action and preserves plan attribution.",
+    env: {
+      ONBOARDING_SMOKE_ASSERT_DESTINATION_TOUR: "1",
+      ONBOARDING_SMOKE_PATH_FOCUS: "voice",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "onboarding-destination-tour-missing-anchor-controlled",
+    mode: "controlled",
+    file: "onboarding-home-observe-smoke.mjs",
+    description:
+      "Stubbed proof that destination tour recovery routes users back to the current Home plan when an anchor is missing.",
+    env: {
+      ONBOARDING_SMOKE_MISSING_DESTINATION_TOUR: "1",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
+    id: "onboarding-destination-tour-controlled",
+    mode: "controlled",
+    suite: true,
+    sequence: [
+      "onboarding-destination-tour-observe-controlled",
+      "onboarding-destination-tour-prompt-controlled",
+      "onboarding-destination-tour-agent-controlled",
+      "onboarding-destination-tour-gateway-controlled",
+      "onboarding-destination-tour-evals-controlled",
+      "onboarding-destination-tour-voice-controlled",
+      "onboarding-destination-tour-missing-anchor-controlled",
+    ],
+    description:
+      "Composite controlled proof that destination tours work across first-run paths and recover missing anchors.",
+  },
+  {
     id: "prompt-first-run-controlled",
     mode: "controlled",
     file: "prompt-first-run-controlled-smoke.mjs",
@@ -305,6 +403,7 @@ const SMOKES = [
       "setup-org-agent-controlled",
       "setup-org-gateway-controlled",
       "setup-org-evals-controlled",
+      "setup-org-voice-controlled",
       "onboarding-home-observe-controlled",
       "onboarding-home-sample-open-controlled",
       "onboarding-observe-project-first-trace-controlled",
@@ -325,6 +424,7 @@ const SMOKES = [
       "setup-org-agent-controlled",
       "setup-org-gateway-controlled",
       "setup-org-evals-controlled",
+      "setup-org-voice-controlled",
       "onboarding-home-observe-controlled",
       "onboarding-home-sample-open-controlled",
       "onboarding-observe-project-first-trace-controlled",

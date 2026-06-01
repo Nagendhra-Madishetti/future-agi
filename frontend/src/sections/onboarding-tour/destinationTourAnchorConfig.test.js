@@ -71,4 +71,25 @@ describe("destinationTourAnchorConfig", () => {
       stepNumber: 2,
     });
   });
+
+  it("uses user-facing quality-check copy for eval and trace steps", () => {
+    expect(DESTINATION_TOUR_STEP_COPY.create_eval_dataset).toMatchObject({
+      label: "Choose source",
+    });
+    expect(DESTINATION_TOUR_STEP_COPY.create_trace_evaluator).toMatchObject({
+      label: "Create quality check",
+    });
+    expect(DESTINATION_TOUR_STEP_COPY.eval_next_loop).toMatchObject({
+      label: "Fix or finish",
+    });
+    expect(
+      destinationTourProgressForStep({
+        journeyStep: "create_trace_evaluator",
+        tourAnchor: "observe_evaluator_button",
+      }),
+    ).toMatchObject({
+      currentLabel: "Create quality check",
+      planTitle: "Observe loop",
+    });
+  });
 });

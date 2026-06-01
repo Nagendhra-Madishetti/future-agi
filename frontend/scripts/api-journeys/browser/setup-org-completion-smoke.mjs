@@ -98,7 +98,7 @@ const QUICK_STARTS = {
   evals: {
     buttonText: "Test AI with Simulation / Evals",
     expectedTitleText: "Test AI with Simulation / Evals",
-    expectedActionText: "Create eval dataset",
+    expectedActionText: "Choose source",
     expectedAttribution: {
       quick_start_goal: "evaluate_quality",
       quick_start_id: "evals",
@@ -788,14 +788,16 @@ function pathFocusDetails(primaryPath) {
     evals: {
       goal: "evaluate_quality",
       stage: "create_eval_dataset",
-      pathLabel: "Evaluate quality",
-      pathDescription: "Create a small eval and review the first failure.",
+      pathLabel: "Test AI with Simulation / Evals",
+      pathDescription:
+        "Choose a source, run a quality check, and fix or finish from the first result.",
       flagName: "onboarding_eval_path",
       actionId: "create_eval_dataset",
       actionKind: "setup",
-      actionTitle: "Create eval dataset",
-      actionDescription: "Add a focused dataset or trace source.",
-      cta: "Create eval dataset",
+      actionTitle: "Choose what to test",
+      actionDescription:
+        "Choose the first dataset, simulation, or trace source for the quality loop.",
+      cta: "Choose source",
       href: "/dashboard/evaluations/create?source=onboarding&step=data",
       requiresPermission: "evals:write",
       completionEvent: "eval_dataset_created",

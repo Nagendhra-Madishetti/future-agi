@@ -138,6 +138,12 @@ const OPEN_SAMPLE_HOME = envFlag("ONBOARDING_SMOKE_OPEN_SAMPLE");
 const POST_AHA_HOME = envFlag("ONBOARDING_SMOKE_POST_AHA_HOME");
 const FEATURE_DISABLED_HOME = envFlag("ONBOARDING_SMOKE_FEATURE_DISABLED_HOME");
 const PATH_FOCUS = process.env.ONBOARDING_SMOKE_PATH_FOCUS || "";
+const ASSERT_DESTINATION_TOUR = envFlag(
+  "ONBOARDING_SMOKE_ASSERT_DESTINATION_TOUR",
+);
+const MISSING_DESTINATION_TOUR = envFlag(
+  "ONBOARDING_SMOKE_MISSING_DESTINATION_TOUR",
+);
 const SETUP_PROVIDER = normalizeSetupProvider(
   process.env.ONBOARDING_SMOKE_SETUP_PROVIDER || "openai",
 );
@@ -160,6 +166,8 @@ const SCREENSHOT_PATH =
     POST_AHA_HOME ? "-post-aha-fallback" : ""
   }${FEATURE_DISABLED_HOME ? "-get-started-fallback" : ""}${
     PATH_FOCUS ? `-${PATH_FOCUS}-path-focus` : ""
+  }${ASSERT_DESTINATION_TOUR ? "-destination-tour" : ""}${
+    MISSING_DESTINATION_TOUR ? "-missing-tour-anchor" : ""
   }.png`;
 const HOME_SCREENSHOT_PATH =
   process.env.ONBOARDING_HOME_SCREENSHOT ||
@@ -193,6 +201,8 @@ async function main() {
     post_aha_home: POST_AHA_HOME,
     feature_disabled_home: FEATURE_DISABLED_HOME,
     path_focus: PATH_FOCUS,
+    assert_destination_tour: ASSERT_DESTINATION_TOUR,
+    missing_destination_tour: MISSING_DESTINATION_TOUR,
   };
 
   const browser = await puppeteer.launch({
@@ -385,10 +395,69 @@ async function main() {
       return;
     }
 
+    if (MISSING_DESTINATION_TOUR) {
+      const missingTourUrl = withDestinationTourParams({
+        basePath: "/dashboard/home?source=onboarding",
+        journeyStep: "run_gateway_request",
+        tourAnchor: "missing_gateway_request_button",
+        quickStart: {
+          goal: "control_model_traffic",
+          id: "gateway",
+          primaryPath: "gateway",
+        },
+      });
+
+      await page.goto(`${APP_BASE}${missingTourUrl}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await page.waitForFunction(
+        () => window.location.pathname === "/dashboard/home",
+        { timeout: 30000 },
+      );
+      await assertMissingDestinationTour(page, {
+        expectedFallbackHref:
+          "/dashboard/home?source=destination_tour_fallback&journey_step=run_gateway_request&tour_anchor=missing_gateway_request_button&quick_start_goal=control_model_traffic&quick_start_id=gateway&quick_start_primary_path=gateway",
+      });
+      await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
+      evidence.screenshot = SCREENSHOT_PATH;
+      assert(
+        apiFailures.length === 0,
+        `API failures: ${apiFailures.join("; ")}`,
+      );
+      assert(pageErrors.length === 0, `Page errors: ${pageErrors.join("; ")}`);
+      console.log(
+        JSON.stringify(
+          {
+            status: "passed",
+            app_base: APP_BASE,
+            api_base: auth.apiBase,
+            organization_id: auth.organizationId,
+            workspace_id: auth.workspaceId,
+            evidence,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+
     if (PATH_FOCUS) {
       const pathProfile = pathFocusProfile(PATH_FOCUS);
+      const pathFocusUrl = ASSERT_DESTINATION_TOUR
+        ? withDestinationTourParams({
+            basePath: "/dashboard/home?source=onboarding",
+            journeyStep: pathProfile.stage,
+            tourAnchor: pathProfile.tourAnchor,
+            quickStart: {
+              goal: pathProfile.goal,
+              id: pathProfile.primaryPath,
+              primaryPath: pathProfile.primaryPath,
+            },
+          })
+        : "/dashboard/home?source=onboarding";
 
-      await page.goto(`${APP_BASE}/dashboard/home?source=onboarding`, {
+      await page.goto(`${APP_BASE}${pathFocusUrl}`, {
         waitUntil: "domcontentloaded",
       });
       await page.waitForFunction(
@@ -449,6 +518,9 @@ async function main() {
         evidence.home_cta_href = ctaHref;
       }
       await waitForNoVisibleText(page, "Invalid Date");
+      if (ASSERT_DESTINATION_TOUR) {
+        await assertDestinationTour(page, pathProfile);
+      }
       await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
       evidence.screenshot = SCREENSHOT_PATH;
       evidence.activation_state_requests = activationStateRequests.length;
@@ -474,7 +546,20 @@ async function main() {
       return;
     }
 
-    await page.goto(`${APP_BASE}/dashboard/home?source=setup_org`, {
+    const observeHomeUrl = ASSERT_DESTINATION_TOUR
+      ? withDestinationTourParams({
+          basePath: "/dashboard/home?source=setup_org",
+          journeyStep: "connect_observability",
+          tourAnchor: "observe_create_project_button",
+          quickStart: {
+            goal: "monitor_production_ai_app",
+            id: "observe",
+            primaryPath: "observe",
+          },
+        })
+      : "/dashboard/home?source=setup_org";
+
+    await page.goto(`${APP_BASE}${observeHomeUrl}`, {
       waitUntil: "domcontentloaded",
     });
     await page.waitForFunction(
@@ -486,11 +571,15 @@ async function main() {
     );
 
     await expectSelector(page, '[data-testid="observe-setup-panel"]');
-    await expectSelector(page, '[data-testid="sample-project-panel"]');
+    if (!ASSERT_DESTINATION_TOUR) {
+      await expectSelector(page, '[data-testid="sample-project-panel"]');
+    }
     await expectVisibleText(page, "Observe", { exact: true });
-    await expectVisibleText(page, "Preview sample trace", { exact: true });
+    if (!ASSERT_DESTINATION_TOUR) {
+      await expectVisibleText(page, "Preview sample trace", { exact: true });
+    }
     await expectVisibleText(page, "Connect your agent", { exact: true });
-    await expectVisibleText(page, "Open package setup", { exact: true });
+    await expectVisibleText(page, "Open package setup");
     if (SETUP_PROVIDER !== "openai") {
       await clickVisibleText(page, SETUP_PACKAGE.providerLabel, {
         rootSelector: '[data-testid="observe-package-picker"]',
@@ -507,6 +596,9 @@ async function main() {
     await expectVisibleText(page, "Send first trace", { exact: true });
     await expectVisibleText(page, "Review first trace", { exact: true });
     await expectVisibleText(page, "Create quality check", { exact: true });
+    if (ASSERT_DESTINATION_TOUR) {
+      await assertDestinationTour(page, observeDestinationTourProfile());
+    }
     await page.screenshot({ path: HOME_SCREENSHOT_PATH, fullPage: true });
     evidence.home_screenshot = HOME_SCREENSHOT_PATH;
 
@@ -1290,17 +1382,18 @@ function pathFocusProfile(pathFocus) {
       primaryPath: "evals",
       goal: "evaluate_quality",
       stage: "run_eval",
-      stageEyebrow: "Eval run",
-      stageTitle: "Run the first eval",
-      stageDescription: "Run the eval once so the first result is reviewable.",
-      pathLabel: "Evaluate quality",
-      pathDescription: "Create a small eval and review the first failure.",
+      stageEyebrow: "Quality run",
+      stageTitle: "Run the first quality check",
+      stageDescription: "Run it once so the first result is reviewable.",
+      pathLabel: "Test AI with Simulation / Evals",
+      pathDescription:
+        "Choose a source, run a quality check, and fix or finish from the first result.",
       flagName: "onboarding_eval_path",
       actionId: "run_eval",
       actionKind: "test",
-      actionTitle: "Run eval",
-      actionDescription: "Run the first eval and review the result.",
-      cta: "Run eval",
+      actionTitle: "Run quality check",
+      actionDescription: "Run the check once before reviewing the result.",
+      cta: "Run check",
       href: "/dashboard/evaluations/create?source=onboarding&step=run",
       completionEvent: "eval_run_completed",
       disabled: false,
@@ -1335,6 +1428,9 @@ function pathFocusProfile(pathFocus) {
   const stageCopy = ONBOARDING_STAGE_COPY[profile.stage];
   const plan = PATH_FOCUS_PLANS[profile.primaryPath];
   const currentStep = plan?.steps?.find((step) => step.stage === profile.stage);
+  const currentStepIndex = plan?.steps?.findIndex(
+    (step) => step.stage === profile.stage,
+  );
   assert(stageCopy, `Missing stage copy for ${profile.stage}`);
   assert(plan, `Missing path-focus plan for ${profile.primaryPath}`);
   assert(currentStep, `Missing current step for ${profile.stage}`);
@@ -1347,8 +1443,30 @@ function pathFocusProfile(pathFocus) {
     panelTitle: plan.title,
     currentStepLabel: currentStep.label,
     currentStepDescription: currentStep.description,
-    expectedHref: hrefWithJourneyGuide(profile.href, currentStep),
+    expectedHref: hrefWithJourneyGuide(
+      hrefWithQuickStart(profile.href, {
+        goal: profile.goal,
+        id: profile.primaryPath,
+        primaryPath: profile.primaryPath,
+      }),
+      currentStep,
+    ),
+    nextLabel: plan.steps[currentStepIndex + 1]?.label || null,
+    stepCount: plan.steps.length,
+    stepNumber: currentStepIndex + 1,
+    tourAnchor: currentStep.tourAnchor,
   };
+}
+
+function hrefWithQuickStart(href, quickStart) {
+  if (!href || !href.startsWith("/") || href.startsWith("//")) return href;
+  const [withoutHash, hash] = href.split("#");
+  const [pathname, query = ""] = withoutHash.split("?");
+  const params = new URLSearchParams(query);
+  params.set("quick_start_goal", quickStart.goal);
+  params.set("quick_start_id", quickStart.id);
+  params.set("quick_start_primary_path", quickStart.primaryPath);
+  return `${pathname}?${params.toString()}${hash ? `#${hash}` : ""}`;
 }
 
 function pathFocusActivationState(auth, pathFocus) {
@@ -1431,6 +1549,114 @@ function pathFocusActivationState(auth, pathFocus) {
   };
 }
 
+function observeDestinationTourProfile() {
+  return {
+    goal: "monitor_production_ai_app",
+    nextLabel: "Send trace",
+    panelTitle: "Observe loop",
+    primaryPath: "observe",
+    stage: "connect_observability",
+    stepCount: 4,
+    stepNumber: 1,
+    tourAnchor: "observe_create_project_button",
+  };
+}
+
+function withDestinationTourParams({
+  basePath,
+  journeyStep,
+  quickStart,
+  replay = false,
+  tourAnchor,
+}) {
+  const url = new URL(basePath, APP_BASE);
+  url.searchParams.set("journey_step", journeyStep);
+  url.searchParams.set("tour_anchor", tourAnchor);
+  if (quickStart?.goal)
+    url.searchParams.set("quick_start_goal", quickStart.goal);
+  if (quickStart?.id) url.searchParams.set("quick_start_id", quickStart.id);
+  if (quickStart?.primaryPath) {
+    url.searchParams.set("quick_start_primary_path", quickStart.primaryPath);
+  }
+  if (replay) url.searchParams.set("tour_replay", "1");
+  return `${url.pathname}${url.search}`;
+}
+
+async function assertDestinationTour(page, profile) {
+  const popoverSelector = '[data-testid="destination-tour-anchor"]';
+  const expectedProgress = `Step ${profile.stepNumber} of ${profile.stepCount}`;
+  const expectedPlanLine = profile.nextLabel
+    ? `${profile.panelTitle} - Next: ${profile.nextLabel}`
+    : profile.panelTitle;
+  const expectedPlanHref =
+    `/dashboard/home?source=destination_tour_plan&journey_step=${profile.stage}` +
+    `&tour_anchor=${profile.tourAnchor}&quick_start_goal=${profile.goal}` +
+    `&quick_start_id=${profile.primaryPath}&quick_start_primary_path=${profile.primaryPath}`;
+
+  await expectSelector(page, popoverSelector);
+  await expectVisibleText(page, expectedProgress, { exact: true });
+  await expectVisibleText(page, expectedPlanLine, { exact: true });
+  await expectVisibleText(page, destinationTourLabelForStep(profile.stage), {
+    exact: true,
+  });
+  await expectSelector(
+    page,
+    `[data-tour-anchor="${profile.tourAnchor}"][data-onboarding-tour-active="true"]`,
+  );
+  const viewPlanHref = await visibleLinkHrefByText(page, "View plan", {
+    rootSelector: popoverSelector,
+  });
+  assert(
+    viewPlanHref === expectedPlanHref,
+    `Unexpected destination tour plan href: ${viewPlanHref}`,
+  );
+
+  await clickVisibleText(page, "Got it", { rootSelector: popoverSelector });
+  await page.waitForFunction(
+    () => !document.querySelector('[data-testid="destination-tour-anchor"]'),
+    { timeout: 10000 },
+  );
+
+  const replayUrl = new URL(page.url());
+  replayUrl.searchParams.set("tour_replay", "1");
+  await page.goto(replayUrl.toString(), { waitUntil: "domcontentloaded" });
+  await expectSelector(page, popoverSelector);
+  await expectVisibleText(page, expectedProgress, { exact: true });
+}
+
+function destinationTourLabelForStep(journeyStep) {
+  return (
+    {
+      connect_observability: "Connect observability",
+      create_agent: "Create agent",
+      run_agent_scenario: "Run scenario",
+      run_eval: "Run quality check",
+      run_gateway_request: "Send request",
+      start_prompt: "Create prompt",
+      create_voice_agent: "Create agent",
+    }[journeyStep] || "Next step"
+  );
+}
+
+async function assertMissingDestinationTour(page, { expectedFallbackHref }) {
+  const recoverySelector = '[data-testid="destination-tour-missing-anchor"]';
+  await expectSelector(page, recoverySelector);
+  await expectVisibleText(page, "Step 3 of 6", { exact: true });
+  await expectVisibleText(page, "Route one request safely", { exact: true });
+  await expectVisibleText(page, "Send request", { exact: true });
+  await expectVisibleText(
+    page,
+    "This page changed or is still loading. Return to Home for the latest step, or try finding the action again.",
+  );
+  const fallbackHref = await visibleLinkHrefByText(page, "Back to Home", {
+    rootSelector: recoverySelector,
+  });
+  assert(
+    fallbackHref === expectedFallbackHref,
+    `Unexpected missing-anchor fallback href: ${fallbackHref}`,
+  );
+}
+
 function normalizeSetupProvider(value) {
   const normalizedValue = String(value || "")
     .trim()
@@ -1474,6 +1700,9 @@ function expectedObserveSetupHref({ language, provider }) {
   const params = new URLSearchParams({
     setup: "true",
     source: "onboarding",
+    quick_start_goal: "monitor_production_ai_app",
+    quick_start_id: "observe",
+    quick_start_primary_path: "observe",
     provider,
     language,
     tour_anchor: "observe_create_project_button",

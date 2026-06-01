@@ -495,6 +495,7 @@ export function ObservePanelActions({
       <Button
         variant={primaryVariant}
         component={primaryHref ? RouterLink : "button"}
+        data-tour-anchor={journeyStep?.tourAnchor || undefined}
         href={primaryHref || undefined}
         disabled={!primaryHref}
         onClick={() => onPrimaryClick?.(action)}

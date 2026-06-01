@@ -53,9 +53,9 @@ export const DESTINATION_TOUR_STEP_COPY = {
     description: "Use the highlighted action to define what a good call means.",
   },
   agent_create_eval: {
-    label: "Create eval",
+    label: "Create quality check",
     description:
-      "Use the highlighted action to keep this agent behavior measurable.",
+      "Use the highlighted action to make this agent behavior measurable.",
   },
   compare_prompt_versions: {
     label: "Compare versions",
@@ -85,8 +85,9 @@ export const DESTINATION_TOUR_STEP_COPY = {
     description: "Use the highlighted action to add a runnable starter prompt.",
   },
   create_eval_dataset: {
-    label: "Create dataset",
-    description: "Use the highlighted action to start the eval source.",
+    label: "Choose source",
+    description:
+      "Use the highlighted action to choose examples, a simulation, or traces.",
   },
   create_gateway_key: {
     label: "Create key",
@@ -102,18 +103,18 @@ export const DESTINATION_TOUR_STEP_COPY = {
       "Use the highlighted action to create, run, and save one more version.",
   },
   create_trace_evaluator: {
-    label: "Create check",
+    label: "Create quality check",
     description:
-      "Use the highlighted action to turn this trace into a repeatable check.",
+      "Use the highlighted action to turn this trace into a repeatable quality check.",
   },
   create_voice_agent: {
     label: "Create agent",
     description: "Use the highlighted action to start the voice workflow.",
   },
   eval_next_loop: {
-    label: "Improve source",
+    label: "Fix or finish",
     description:
-      "Use the highlighted action to turn the failure into the next fix.",
+      "Use the highlighted action to fix the source or tune the quality check.",
   },
   fix_gateway_failure: {
     label: "Fix issue",
@@ -236,7 +237,7 @@ const DESTINATION_TOUR_PROGRESS_PLANS = {
       },
       {
         stage: "create_trace_evaluator",
-        label: "Create check",
+        label: "Create quality check",
         tourAnchor: "observe_evaluator_button",
       },
     ],

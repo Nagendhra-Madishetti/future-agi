@@ -125,6 +125,9 @@ describe("PathFocusPanel", () => {
       "href",
       "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",
     );
+    expect(
+      within(panel).getByRole("link", { name: "Run test" }),
+    ).toHaveAttribute("data-tour-anchor", "prompt_run_test_button");
     expect(within(panel).queryByRole("link", { name: /show tip/i })).toBeNull();
   });
 
