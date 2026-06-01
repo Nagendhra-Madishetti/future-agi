@@ -36,7 +36,7 @@ describe("AgentOnboardingFocusPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Agent onboarding")).toBeVisible();
+    expect(screen.getByText("Setup guide")).toBeVisible();
     expect(screen.getByText("Run the first agent workflow")).toBeVisible();
     expect(screen.getByText("Agent")).toBeVisible();
     expect(screen.getAllByText("Scenario").length).toBeGreaterThan(0);

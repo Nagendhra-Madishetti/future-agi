@@ -21,6 +21,7 @@ STATIC_ROUTE_KEYS = (
     "prompt_metrics",
     "agent_list",
     "agent_create",
+    "agent_add_node",
     "agent_run_scenario",
     "agent_review_trace",
     "agent_save_eval",

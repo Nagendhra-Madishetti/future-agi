@@ -2,6 +2,7 @@ import { Box, Skeleton, Stack } from "@mui/material";
 import PropTypes from "prop-types";
 import React, { useCallback, useMemo } from "react";
 import { useReactFlow } from "@xyflow/react";
+import { useSearchParams } from "react-router-dom";
 import { AGENT_NODE } from "../utils/constants";
 import {
   useGetNodeTemplates,
@@ -11,6 +12,11 @@ import { useAgentPlaygroundStoreShallow } from "../store";
 import NodeCard from "../components/NodeCard";
 import AgentOnboardingFocusPanel from "../components/AgentOnboardingFocusPanel";
 import useAddNodeOptimistic from "./hooks/useAddNodeOptimistic";
+import {
+  agentSetupQuickStartAttributionFromSearch,
+  buildAgentNodeAddedPayload,
+} from "../agentOnboardingEvents";
+import { recordActivationEvent } from "src/sections/onboarding-home/api/onboarding-home-api";
 
 const NodeCardSkeleton = () => (
   <Box sx={{ borderRadius: 1, padding: 0.5, width: "220px" }}>
@@ -33,12 +39,15 @@ export default function NodeSelectionPanel({
   width,
   disabled = false,
   onboardingMode,
+  tourAnchor,
 }) {
   const { addNode } = useAddNodeOptimistic();
   const { setCenter, getZoom } = useReactFlow();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const { currentAgent } = useAgentPlaygroundStoreShallow((state) => ({
+  const { currentAgent, nodes } = useAgentPlaygroundStoreShallow((state) => ({
     currentAgent: state.currentAgent,
+    nodes: state.nodes,
   }));
   const { data: referenceableGraphs = [] } = useGetReferenceableGraphs(
     currentAgent?.id,
@@ -67,15 +76,54 @@ export default function NodeSelectionPanel({
           zoom: getZoom(),
         });
       }
+      return result;
     },
     [addNode, disabled, setCenter, getZoom],
   );
 
   const isAddEvalMode = onboardingMode === "add-eval";
+  const isRunScenarioMode = onboardingMode === "run-scenario";
+  const llmPromptNode = useMemo(
+    () => nodesList.find((node) => node.id === "llm_prompt"),
+    [nodesList],
+  );
   const evalNode = useMemo(
     () => nodesList.find((node) => node.id === "eval"),
     [nodesList],
   );
+  const handleAddPromptNode = useCallback(async () => {
+    if (!llmPromptNode) return;
+    const result = await handleNodeClick(llmPromptNode);
+    if (!result) return;
+    const eventPayload = buildAgentNodeAddedPayload({
+      agentId: currentAgent?.id,
+      nodeId: result.nodeId,
+      quickStartAttribution:
+        agentSetupQuickStartAttributionFromSearch(searchParams),
+      versionId: currentAgent?.version_id,
+    });
+    try {
+      await recordActivationEvent(eventPayload);
+    } catch {
+      // Activation tracking should not block the builder action.
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("journey_step", "run_agent_scenario");
+        next.set("tour_anchor", "agent_run_scenario_button");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [
+    currentAgent?.id,
+    currentAgent?.version_id,
+    handleNodeClick,
+    llmPromptNode,
+    searchParams,
+    setSearchParams,
+  ]);
   const handleAddEvalNode = useCallback(() => {
     if (!evalNode) return;
     handleNodeClick(evalNode);
@@ -120,6 +168,34 @@ export default function NodeSelectionPanel({
         }),
       }}
     >
+      <AgentOnboardingFocusPanel
+        currentStep="Agent step"
+        description="Add one prompt step so the agent has something concrete to run."
+        hidden={!isRunScenarioMode || nodes.length > 0}
+        blocker={
+          disabled
+            ? "Builder busy"
+            : isLoading
+              ? "Loading steps"
+              : !llmPromptNode
+                ? "Prompt step unavailable"
+                : null
+        }
+        primaryAction={{
+          label: "Add LLM Prompt",
+          onClick: handleAddPromptNode,
+          disabled: disabled || isLoading || !llmPromptNode,
+          tourAnchor,
+        }}
+        steps={[
+          { label: "Agent", complete: true },
+          { label: "Step", complete: false },
+          { label: "Scenario", complete: false },
+          { label: "Review", complete: false },
+        ]}
+        title="Add the first agent step"
+        sx={{ mb: 1.5 }}
+      />
       <AgentOnboardingFocusPanel
         currentStep="Coverage"
         description="Add an eval node for the reviewed behavior, then save and rerun the workflow to prove the agent stays reliable."
@@ -182,4 +258,5 @@ NodeSelectionPanel.propTypes = {
   width: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
   disabled: PropTypes.bool,
   onboardingMode: PropTypes.string,
+  tourAnchor: PropTypes.string,
 };

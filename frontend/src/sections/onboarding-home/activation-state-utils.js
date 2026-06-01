@@ -49,6 +49,7 @@ export const ACTIVATION_STAGE_NAMES = Object.freeze([
   "compare_prompt_versions",
   "prompt_next_loop",
   "create_agent",
+  "add_agent_node",
   "run_agent_scenario",
   "review_agent_trace",
   "save_agent_eval",
@@ -222,6 +223,7 @@ const normalizeSignals = (raw = {}) => ({
   agentHasAgentVersion: Boolean(
     raw.agent_has_agent_version ?? raw.agentHasAgentVersion,
   ),
+  agentHasStep: Boolean(raw.agent_has_step ?? raw.agentHasStep),
   agentHasScenario: Boolean(raw.agent_has_scenario ?? raw.agentHasScenario),
   agentHasRun: Boolean(raw.agent_has_run ?? raw.agentHasRun),
   agentRunFailed: Boolean(raw.agent_run_failed ?? raw.agentRunFailed),
@@ -572,6 +574,7 @@ const normalizeAgentState = (raw) => {
     stage: raw.stage ?? null,
     hasAgent: Boolean(raw.has_agent ?? raw.hasAgent),
     hasAgentVersion: Boolean(raw.has_agent_version ?? raw.hasAgentVersion),
+    hasStep: Boolean(raw.has_step ?? raw.hasStep),
     hasScenario: Boolean(raw.has_scenario ?? raw.hasScenario),
     hasRun: Boolean(raw.has_run ?? raw.hasRun),
     hasReview: Boolean(raw.has_review ?? raw.hasReview),

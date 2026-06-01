@@ -277,6 +277,13 @@ const SMOKES = [
       "Stubbed proof from first-run Home eval CTA into eval source creation.",
   },
   {
+    id: "agent-home-to-create-controlled",
+    mode: "controlled",
+    file: "agent-home-to-create-controlled-smoke.mjs",
+    description:
+      "Stubbed proof from first-run Home agent CTA through agent creation into run-scenario focus.",
+  },
+  {
     id: "onboarding-first-signup-aha-coverage-controlled",
     mode: "controlled",
     suite: true,

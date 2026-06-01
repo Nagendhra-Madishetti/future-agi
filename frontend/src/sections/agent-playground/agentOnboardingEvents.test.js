@@ -5,6 +5,7 @@ import {
   buildAgentBuilderHref,
   buildAgentCreatedPayload,
   buildAgentEvalBuilderHref,
+  buildAgentNodeAddedPayload,
   buildAgentOnboardingReturnHref,
   buildAgentPrototypeRunCompletedPayload,
   buildAgentReviewRunHref,
@@ -73,6 +74,28 @@ describe("agentOnboardingEvents", () => {
       }),
     ).toMatchObject({
       eventName: "agent_created",
+      quick_start_goal: "build_ai_agent",
+      quick_start_id: "agent",
+      quick_start_primary_path: "agent",
+    });
+    expect(
+      buildAgentNodeAddedPayload({
+        agentId: "agent-1",
+        nodeId: "node-1",
+        quickStartAttribution: attribution,
+        versionId: "version-1",
+      }),
+    ).toMatchObject({
+      eventName: "agent_node_added",
+      primaryPath: "agent",
+      stage: "add_agent_node",
+      source: "agent_playground",
+      metadata: {
+        agent_id: "agent-1",
+        node_id: "node-1",
+        version_id: "version-1",
+      },
+      idempotencyKey: "agent_node_added:agent-1:node-1",
       quick_start_goal: "build_ai_agent",
       quick_start_id: "agent",
       quick_start_primary_path: "agent",

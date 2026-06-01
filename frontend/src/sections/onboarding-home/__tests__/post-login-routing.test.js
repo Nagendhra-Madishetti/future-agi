@@ -170,6 +170,7 @@ describe("post-login routing", () => {
       "compare_prompt_versions",
       "prompt_next_loop",
       "create_agent",
+      "add_agent_node",
       "run_agent_scenario",
       "review_agent_trace",
       "save_agent_eval",

@@ -64,6 +64,7 @@ export default function FalconAIFab() {
   const { isOSS } = useDeploymentMode();
   const isSidebarOpen = useFalconStore((s) => s.isSidebarOpen);
   const toggleSidebar = useFalconStore((s) => s.toggleSidebar);
+  const searchParams = new URLSearchParams(search);
 
   // Global keyboard shortcut: Cmd+K (Mac) / Ctrl+K (Windows)
   useEffect(() => {
@@ -83,8 +84,10 @@ export default function FalconAIFab() {
   // Hide FAB on Falcon AI full-page view
   if (pathname.startsWith("/dashboard/falcon-ai")) return null;
   if (
-    pathname === "/dashboard/home" &&
-    new URLSearchParams(search).get("source") === "setup_org"
+    searchParams.get("source") === "setup_org" ||
+    searchParams.has("quick_start_id") ||
+    searchParams.has("journey_step") ||
+    searchParams.has("onboarding")
   ) {
     return null;
   }

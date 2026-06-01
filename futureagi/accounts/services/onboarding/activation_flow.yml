@@ -151,6 +151,7 @@ tour_anchors:
   - prompt_compare_versions_button
   - prompt_add_example_button
   - agent_create_button
+  - agent_add_node_button
   - agent_run_scenario_button
   - agent_trace_review_link
   - agent_save_eval_button
@@ -300,7 +301,7 @@ journeys:
     primary_path: agent
     eyebrow: Agent setup
     title: Prototype an agent with a quality check
-    description: Create an agent, run one scenario, inspect the run, then save coverage.
+    description: Create an agent, add one step, run a scenario, inspect the run, then save coverage.
     chips:
       - agent
       - scenario
@@ -312,6 +313,13 @@ journeys:
         tour_anchor: agent_create_button
         label: Create agent
         description: Start with one runnable agent.
+      - id: add_agent_node
+        stage: add_agent_node
+        action_id: add_agent_node
+        success_event: agent_node_added
+        tour_anchor: agent_add_node_button
+        label: Add step
+        description: Add one prompt step so the agent has something to run.
       - id: run_agent_scenario
         stage: run_agent_scenario
         action_id: run_agent_scenario
@@ -630,6 +638,18 @@ actions:
     estimated_minutes: 3
     requires_permission: agent:write
     completion_event: agent_created
+    target_path: agent
+    fallback_route_key: agent_list
+  add_agent_node:
+    kind: setup
+    title: Add an agent step
+    description: Add one prompt step before running the first scenario.
+    route_key: agent_add_node
+    cta_label: Add step
+    priority: 100
+    estimated_minutes: 2
+    requires_permission: agent:write
+    completion_event: agent_node_added
     target_path: agent
     fallback_route_key: agent_list
   run_agent_scenario:
@@ -1363,6 +1383,22 @@ stages:
       title: Create an agent
       description: Create the first agent before running a scenario.
     next:
+      - add_agent_node
+  add_agent_node:
+    progress:
+      build: in_progress
+      test: not_started
+      observe: available
+      ship: available
+      improve: available
+    recommended_action: add_agent_node
+    fallback_action: open_agent_playground
+    requires_write: true
+    copy:
+      eyebrow: Agent step
+      title: Add the first agent step
+      description: Add one prompt step so the agent has something to run.
+    next:
       - run_agent_scenario
   run_agent_scenario:
     progress:
@@ -1877,6 +1913,15 @@ stage_rules:
         - context_equals:
             primary_path: agent
         - signal: agent_has_agent
+        - signal: agent_has_step
+        - signal_not: agent_has_run
+  - stage: add_agent_node
+    when:
+      all:
+        - context_equals:
+            primary_path: agent
+        - signal: agent_has_agent
+        - signal_not: agent_has_step
         - signal_not: agent_has_run
   - stage: create_agent
     when:
@@ -2156,6 +2201,7 @@ activation_events:
     - onboarding_voice_sample_viewed
     - prompt_version_promoted
     - agent_created
+    - agent_node_added
     - agent_scenario_created
     - agent_prototype_run_completed
     - agent_trace_reviewed

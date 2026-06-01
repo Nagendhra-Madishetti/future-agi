@@ -20,6 +20,7 @@ from accounts.services.onboarding.signal_resolver import (
 )
 from accounts.tests.onboarding_model_factories import (
     create_agent_graph,
+    create_agent_graph_node,
     create_graph_execution,
 )
 
@@ -147,11 +148,12 @@ def test_agent_run_campaign_is_eligible_after_agent_created(
 ):
     now = timezone.now()
     _select_agent_goal(user, organization, workspace, now - timedelta(days=1))
-    graph, _version = create_agent_graph(
+    graph, version = create_agent_graph(
         organization=organization,
         workspace=workspace,
         user=user,
     )
+    create_agent_graph_node(graph_version=version)
     type(graph).no_workspace_objects.filter(id=graph.id).update(
         created_at=now - timedelta(hours=6),
         updated_at=now - timedelta(hours=6),

@@ -491,13 +491,20 @@ def stage_started_at(*, activation_state, organization, workspace, now):
             "created_at",
             None,
         )
-    if stage == "run_agent_scenario":
+    if stage == "add_agent_node":
         return _first_agent_created_at(activation_state, workspace) or _latest_event_at(
             organization,
             workspace,
             "agent_created",
             is_sample=False,
         )
+    if stage == "run_agent_scenario":
+        return _latest_event_at(
+            organization,
+            workspace,
+            "agent_node_added",
+            is_sample=False,
+        ) or _first_agent_created_at(activation_state, workspace)
     if stage == "review_agent_trace":
         return _latest_event_at(
             organization,

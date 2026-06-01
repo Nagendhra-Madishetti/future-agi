@@ -15,6 +15,7 @@ export const DESTINATION_TOUR_ANCHORS = [
   "prompt_compare_versions_button",
   "prompt_add_example_button",
   "agent_create_button",
+  "agent_add_node_button",
   "agent_run_scenario_button",
   "agent_trace_review_link",
   "agent_save_eval_button",
@@ -78,6 +79,10 @@ export const DESTINATION_TOUR_STEP_COPY = {
   create_agent: {
     label: "Create agent",
     description: "Use the highlighted action to start the agent loop.",
+  },
+  add_agent_node: {
+    label: "Add step",
+    description: "Use the highlighted action to add the first agent step.",
   },
   create_eval_dataset: {
     label: "Create dataset",

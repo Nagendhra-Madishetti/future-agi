@@ -26,6 +26,7 @@ payload_allowlist:
     - agent_has_review
     - agent_has_run
     - agent_has_scenario
+    - agent_has_step
     - agent_multiple_scenarios
     - agent_permission_limited
     - agent_prototype_runs

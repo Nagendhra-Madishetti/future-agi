@@ -187,6 +187,21 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
         if agent_route_modes_enabled and agent_id:
             agent_run_href = f"{agent_run_href}?onboarding=run-scenario"
 
+    agent_add_node_href = (
+        f"/dashboard/agents/playground/{agent_id}/build"
+        if agent_id
+        else agent_create_href
+    )
+    if agent_route_modes_enabled and agent_id:
+        agent_add_node_href = _with_query(
+            agent_add_node_href,
+            {
+                "onboarding": "run-scenario",
+                "journey_step": "add_agent_node",
+                "tour_anchor": "agent_add_node_button",
+            },
+        )
+
     if agent_source == "simulate" and agent_test_id and agent_execution_id:
         agent_review_href = (
             f"/dashboard/simulate/test/{agent_test_id}/{agent_execution_id}/"
@@ -492,6 +507,11 @@ def resolve_route_availability(*, context, flags, signals, sample_project=None):
         "prompt_metrics": prompt_route("metrics", requires_write=False),
         "agent_list": _available_if(agent_path_enabled, "/dashboard/agents"),
         "agent_create": agent_route(agent_create_href),
+        "agent_add_node": agent_route(
+            agent_add_node_href,
+            is_available=bool(agent_id),
+            reason="missing_id",
+        ),
         "agent_run_scenario": agent_route(
             agent_run_href,
             is_available=bool(agent_id or agent_source == "simulate"),

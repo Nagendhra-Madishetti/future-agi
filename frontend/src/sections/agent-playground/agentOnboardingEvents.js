@@ -135,6 +135,32 @@ export const buildAgentCreatedPayload = ({
   ...setupQuickStartAttributionParams(quickStartAttribution),
 });
 
+export const buildAgentNodeAddedPayload = ({
+  agentId,
+  nodeId,
+  quickStartAttribution,
+  versionId,
+} = {}) => ({
+  eventName: "agent_node_added",
+  primaryPath: "agent",
+  stage: "add_agent_node",
+  source: "agent_playground",
+  artifactType: "agent_node",
+  artifactId: String(nodeId || "agent-node"),
+  metadata: compactObject({
+    agent_id: agentId,
+    node_id: nodeId,
+    version_id: versionId,
+  }),
+  idempotencyKey: [
+    "agent_node_added",
+    agentId || "agent",
+    nodeId || "agent-node",
+  ].join(":"),
+  isSample: false,
+  ...setupQuickStartAttributionParams(quickStartAttribution),
+});
+
 export const buildAgentPrototypeRunCompletedPayload = ({
   agentId,
   executionId,

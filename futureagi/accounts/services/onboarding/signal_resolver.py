@@ -94,6 +94,7 @@ class OnboardingSignals:
     agent_sample_count: int = 0
     agent_has_agent: bool = False
     agent_has_agent_version: bool = False
+    agent_has_step: bool = False
     agent_has_scenario: bool = False
     agent_has_run: bool = False
     agent_run_failed: bool = False
@@ -262,6 +263,7 @@ class OnboardingSignals:
             "agent_sample_count": self.agent_sample_count,
             "agent_has_agent": self.agent_has_agent,
             "agent_has_agent_version": self.agent_has_agent_version,
+            "agent_has_step": self.agent_has_step,
             "agent_has_scenario": self.agent_has_scenario,
             "agent_has_run": self.agent_has_run,
             "agent_run_failed": self.agent_run_failed,
@@ -618,6 +620,7 @@ def collect_onboarding_signals(*, user, organization, workspace):
         agent_sample_count=agent_signals.sample_agent_count,
         agent_has_agent=agent_signals.has_agent,
         agent_has_agent_version=agent_signals.has_agent_version,
+        agent_has_step=agent_signals.has_step,
         agent_has_scenario=agent_signals.has_scenario,
         agent_has_run=agent_signals.has_run,
         agent_run_failed=agent_signals.run_failed,

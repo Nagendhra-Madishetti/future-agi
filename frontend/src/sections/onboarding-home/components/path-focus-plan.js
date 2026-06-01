@@ -48,7 +48,7 @@ export const PATH_FOCUS_PLANS = {
     eyebrow: "Agent setup",
     title: "Prototype an agent with a quality check",
     description:
-      "Create an agent, run one scenario, inspect the run, then save coverage.",
+      "Create an agent, add one step, run a scenario, inspect the run, then save coverage.",
     chips: ["agent", "scenario"],
     steps: [
       {
@@ -56,6 +56,12 @@ export const PATH_FOCUS_PLANS = {
         label: "Create agent",
         description: "Start with one runnable agent.",
         tourAnchor: "agent_create_button",
+      },
+      {
+        stage: "add_agent_node",
+        label: "Add step",
+        description: "Add one prompt step so the agent has something to run.",
+        tourAnchor: "agent_add_node_button",
       },
       {
         stage: "run_agent_scenario",

@@ -21,6 +21,7 @@ export default function BuilderActions({
   width,
   hasNodes = true,
   onboardingMode,
+  rightOffset = 0,
   tourAnchor,
 }) {
   const { runWorkflow, stopWorkflow, isRunning, isInitiating } =
@@ -115,7 +116,7 @@ export default function BuilderActions({
     setShowStopConfirmDialog(false);
   };
 
-  const showRunScenarioFocus = onboardingMode === "run-scenario";
+  const showRunScenarioFocus = onboardingMode === "run-scenario" && hasNodes;
   const onboardingBlocker = (() => {
     if (!hasNodes) {
       return "Add one node first";
@@ -148,14 +149,14 @@ export default function BuilderActions({
           position: "absolute",
           top: 12,
           left: `calc(${width} + 16px)`,
-          right: 16,
+          right: rightOffset ? `calc(${rightOffset}px + 16px)` : 16,
           zIndex: 8,
           pointerEvents: "auto",
         }}
       >
         <AgentOnboardingFocusPanel
           currentStep="Scenario"
-          description="Run one saved agent workflow so the first result can be reviewed before creating evals or versions."
+          description="Add prompt instructions if needed, then save and run the agent once so the first output can be reviewed."
           hidden={!showRunScenarioFocus}
           blocker={onboardingBlocker}
           primaryAction={{
@@ -174,11 +175,12 @@ export default function BuilderActions({
           }
           steps={[
             { label: "Agent", complete: true },
+            { label: "Step", complete: true },
             { label: "Scenario", complete: hasRun },
             { label: "Review", complete: false },
           ]}
           sx={{ mb: 0 }}
-          title="Run the first agent workflow"
+          title="Run the first agent scenario"
           tourAnchor={tourAnchor}
         />
       </Box>
@@ -238,33 +240,36 @@ export default function BuilderActions({
         )}
 
         {/* Run Button - Show when has nodes, not loading, and not running */}
-        {hasNodes && !isLoadingTemplate && !isRunning && (
-          <LoadingButton
-            variant="contained"
-            color="primary"
-            size="small"
-            loading={isInitiating}
-            onClick={handleRunWorkflow}
-            sx={{
-              flexShrink: 0,
-            }}
-            startIcon={
-              hasRun ? (
-                <Iconify icon="mingcute:refresh-2-line" width={20} />
-              ) : (
-                <SvgColor
-                  sx={{
-                    height: 20,
-                    width: 20,
-                  }}
-                  src="/assets/icons/navbar/ic_get_started.svg"
-                />
-              )
-            }
-          >
-            {hasRun ? "Rerun Agent Workflow" : "Run Agent Workflow"}
-          </LoadingButton>
-        )}
+        {hasNodes &&
+          !isLoadingTemplate &&
+          !isRunning &&
+          !showRunScenarioFocus && (
+            <LoadingButton
+              variant="contained"
+              color="primary"
+              size="small"
+              loading={isInitiating}
+              onClick={handleRunWorkflow}
+              sx={{
+                flexShrink: 0,
+              }}
+              startIcon={
+                hasRun ? (
+                  <Iconify icon="mingcute:refresh-2-line" width={20} />
+                ) : (
+                  <SvgColor
+                    sx={{
+                      height: 20,
+                      width: 20,
+                    }}
+                    src="/assets/icons/navbar/ic_get_started.svg"
+                  />
+                )
+              }
+            >
+              {runWorkflowLabel}
+            </LoadingButton>
+          )}
 
         {/* Show/Hide Outcome Button */}
         {hasNodes && hasRun && !isLoadingTemplate && (
@@ -331,5 +336,6 @@ BuilderActions.propTypes = {
   width: PropTypes.string.isRequired,
   hasNodes: PropTypes.bool,
   onboardingMode: PropTypes.string,
+  rightOffset: PropTypes.number,
   tourAnchor: PropTypes.string,
 };

@@ -126,6 +126,11 @@ const routeAvailability = (overrides = {}) => ({
     is_available: false,
     reason: "feature_disabled",
   },
+  agent_add_node: {
+    href: "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&journey_step=add_agent_node&tour_anchor=agent_add_node_button",
+    is_available: false,
+    reason: "missing_id",
+  },
   agent_run_scenario: {
     href: "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario",
     is_available: false,
@@ -354,6 +359,11 @@ const agentRouteAvailability = (overrides = {}) =>
     },
     agent_create: {
       href: "/dashboard/agents?onboarding=create",
+      is_available: true,
+      reason: null,
+    },
+    agent_add_node: {
+      href: "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&journey_step=add_agent_node&tour_anchor=agent_add_node_button",
       is_available: true,
       reason: null,
     },
@@ -2015,21 +2025,21 @@ export const activationStateFixtures = {
   agentCreatedNoRun: baseState({
     goal: "build_ai_agent",
     primary_path: "agent",
-    stage: "run_agent_scenario",
+    stage: "add_agent_node",
     recommended_action: agentAction({
-      id: "run_agent_scenario",
-      kind: "send_signal",
-      title: "Run one scenario",
-      description: "Run the agent once before reviewing the execution.",
-      href: "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario",
-      cta_label: "Run scenario",
-      estimated_minutes: 4,
-      completion_event: "agent_prototype_run_completed",
+      id: "add_agent_node",
+      kind: "setup",
+      title: "Add an agent step",
+      description: "Add one prompt step before running the first scenario.",
+      href: "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&journey_step=add_agent_node&tour_anchor=agent_add_node_button",
+      cta_label: "Add step",
+      estimated_minutes: 2,
+      completion_event: "agent_node_added",
     }),
     fallback_action: agentFallbackAction(),
     progress: {
-      build: "complete",
-      test: "in_progress",
+      build: "in_progress",
+      test: "not_started",
       observe: "available",
       ship: "available",
       improve: "available",
@@ -2042,6 +2052,7 @@ export const activationStateFixtures = {
       agent_version_id: "agent-version-1",
       agent_has_agent: true,
       agent_has_agent_version: true,
+      agent_has_step: false,
     },
     available_paths: agentAvailablePaths(),
     feature_flags: {
@@ -2051,9 +2062,10 @@ export const activationStateFixtures = {
     },
     route_availability: agentRouteAvailability(),
     agent: agentState({
-      stage: "run_agent_scenario",
+      stage: "add_agent_node",
       has_agent: true,
       has_agent_version: true,
+      has_step: false,
     }),
   }),
 

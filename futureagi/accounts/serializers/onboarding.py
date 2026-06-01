@@ -1719,6 +1719,7 @@ class ActivationEventRequestSerializer(serializers.Serializer):
                 "observe_setup",
                 "project",
                 "agent",
+                "agent_node",
                 "graph_execution",
                 "test_execution",
                 "call_execution",

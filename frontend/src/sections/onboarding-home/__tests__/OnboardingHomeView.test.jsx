@@ -2086,18 +2086,18 @@ describe("OnboardingHomeView", () => {
     renderView();
 
     const panel = screen.getByTestId("path-focus-panel-agent");
-    expect(screen.getByText("Run a scenario")).toBeVisible();
+    expect(screen.getByText("Add the first agent step")).toBeVisible();
     expect(
       within(panel).getByText("Prototype an agent with a quality check"),
     ).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
-      "Exercise the agent on one task.",
+      "Add one prompt step so the agent has something to run.",
     );
     expect(
-      within(panel).getByRole("link", { name: /run scenario/i }),
+      within(panel).getByRole("link", { name: /add step/i }),
     ).toHaveAttribute(
       "href",
-      "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&tour_anchor=agent_run_scenario_button&journey_step=run_agent_scenario",
+      "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&journey_step=add_agent_node&tour_anchor=agent_add_node_button",
     );
     expect(screen.getByText("Selected path")).toBeVisible();
     expect(screen.getAllByText("agent").length).toBeGreaterThan(0);
@@ -2119,10 +2119,10 @@ describe("OnboardingHomeView", () => {
 
     const panel = screen.getByTestId("path-focus-panel-agent");
     expect(
-      within(panel).getByRole("link", { name: /run scenario/i }),
+      within(panel).getByRole("link", { name: /add step/i }),
     ).toHaveAttribute(
       "href",
-      "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&quick_start_goal=build_ai_agent&quick_start_id=agent&quick_start_primary_path=agent&tour_anchor=agent_run_scenario_button&journey_step=run_agent_scenario",
+      "/dashboard/agents/playground/agent-1/build?onboarding=run-scenario&journey_step=add_agent_node&tour_anchor=agent_add_node_button&quick_start_goal=build_ai_agent&quick_start_id=agent&quick_start_primary_path=agent",
     );
   });
 

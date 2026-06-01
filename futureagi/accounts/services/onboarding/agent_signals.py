@@ -19,6 +19,7 @@ class AgentOnboardingSignals:
     agent_source: str | None = None
     agent_version_id: str | None = None
     has_agent_version: bool = False
+    step_count: int = 0
     scenario_count: int = 0
     scenario_id: str | None = None
     run_count: int = 0
@@ -46,6 +47,10 @@ class AgentOnboardingSignals:
     @property
     def has_scenario(self):
         return self.scenario_count > 0
+
+    @property
+    def has_step(self):
+        return self.step_count > 0 or self.has_scenario
 
     @property
     def has_run(self):
@@ -79,6 +84,7 @@ class AgentOnboardingSignals:
             "stage": stage,
             "has_agent": self.has_agent,
             "has_agent_version": self.has_agent_version,
+            "has_step": self.has_step,
             "has_scenario": self.has_scenario,
             "has_run": self.has_run,
             "has_review": self.has_review,
@@ -135,6 +141,7 @@ def _graph_evidence(*, organization, workspace):
     from agent_playground.models.graph import Graph
     from agent_playground.models.graph_execution import GraphExecution
     from agent_playground.models.graph_version import GraphVersion
+    from agent_playground.models.node import Node
 
     graphs = Graph.no_workspace_objects.filter(
         organization=organization,
@@ -183,10 +190,17 @@ def _graph_evidence(*, organization, workspace):
             .first()
         )
 
+    step_count = (
+        Node.no_workspace_objects.filter(graph_version=version, deleted=False).count()
+        if version
+        else 0
+    )
+
     return {
         "agent_count": len(graph_ids),
         "agent": graph,
         "version": version,
+        "step_count": step_count,
         "execution": terminal_execution,
         "completed_at": (
             terminal_execution.completed_at if terminal_execution else None
@@ -378,6 +392,11 @@ def collect_agent_onboarding_signals(*, user, organization, workspace):
     version = evidence.get("version")
     execution = evidence.get("execution")
     agent_count = graph.get("agent_count", 0) + simulation.get("agent_count", 0)
+    step_count = (
+        graph.get("step_count", 0)
+        if source == AGENT_SOURCE_PLAYGROUND
+        else simulation.get("scenario_count", 0)
+    )
     scenario = simulation.get("scenario")
     run_test = simulation.get("run_test")
     call_execution = simulation.get("call_execution")
@@ -437,6 +456,7 @@ def collect_agent_onboarding_signals(*, user, organization, workspace):
         agent_source=source,
         agent_version_id=str(version.id) if version else None,
         has_agent_version=bool(version),
+        step_count=step_count,
         scenario_count=simulation.get("scenario_count", 0),
         scenario_id=str(scenario.id) if scenario else None,
         run_count=1 if has_run else 0,

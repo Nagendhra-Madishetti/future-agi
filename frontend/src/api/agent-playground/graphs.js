@@ -75,8 +75,16 @@ export const useCreateGraph = ({
         onboardingMode
           ? buildAgentBuilderHref({
               agentId: result.id,
+              journeyStep:
+                onboardingMode === "run-scenario"
+                  ? "add_agent_node"
+                  : undefined,
               onboarding: onboardingMode,
               quickStartAttribution,
+              tourAnchor:
+                onboardingMode === "run-scenario"
+                  ? "agent_add_node_button"
+                  : undefined,
               versionId: result.active_version?.id,
             })
           : `/dashboard/agents/playground/${result.id}/build${search ? `?${search}` : ""}`,

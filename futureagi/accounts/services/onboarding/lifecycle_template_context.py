@@ -141,6 +141,7 @@ def _label_from_action(action_id, campaign_group):
         "add_prompt_failure_example": "Add failing example",
         "open_prompt_metrics": "Open prompt metrics",
         "create_agent": "Create agent",
+        "add_agent_node": "Add step",
         "run_agent_scenario": "Run scenario",
         "review_agent_trace": "Review run",
         "save_agent_eval": "Save as eval",

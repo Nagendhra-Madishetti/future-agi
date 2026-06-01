@@ -6,10 +6,14 @@ from django.utils import timezone
 from agent_playground.models.choices import (
     GraphExecutionStatus,
     GraphVersionStatus,
+    NodeType,
+    PortMode,
 )
 from agent_playground.models.graph import Graph
 from agent_playground.models.graph_execution import GraphExecution
 from agent_playground.models.graph_version import GraphVersion
+from agent_playground.models.node import Node
+from agent_playground.models.node_template import NodeTemplate
 from agentcc.models import AgentccAPIKey, AgentccOrgConfig, AgentccRequestLog
 from agentcc.models.guardrail_policy import AgentccGuardrailPolicy
 from agentcc.models.provider_credential import AgentccProviderCredential
@@ -181,6 +185,28 @@ def create_agent_graph(*, organization, workspace, user, name=None):
         status=GraphVersionStatus.ACTIVE,
     )
     return graph, version
+
+
+def create_agent_graph_node(*, graph_version, name=None):
+    template = NodeTemplate.no_workspace_objects.create(
+        name=f"onboarding_llm_prompt_{uuid.uuid4().hex[:8]}",
+        display_name="LLM Prompt",
+        description="Prompt step for onboarding tests.",
+        categories=["llm"],
+        input_definition=[],
+        output_definition=[],
+        input_mode=PortMode.DYNAMIC,
+        output_mode=PortMode.DYNAMIC,
+        config_schema={},
+    )
+    return Node.no_workspace_objects.create(
+        graph_version=graph_version,
+        node_template=template,
+        type=NodeType.ATOMIC,
+        name=name or f"Prompt step {uuid.uuid4().hex[:8]}",
+        config={},
+        position={"x": 100, "y": 100},
+    )
 
 
 def create_graph_execution(

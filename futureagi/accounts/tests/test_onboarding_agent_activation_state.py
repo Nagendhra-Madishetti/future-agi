@@ -13,6 +13,7 @@ from accounts.services.onboarding.signal_resolver import (
 from accounts.tests.onboarding_model_factories import (
     create_agent_definition,
     create_agent_graph,
+    create_agent_graph_node,
     create_agent_scenario,
     create_agent_version,
     create_call_execution,
@@ -118,7 +119,7 @@ def test_agent_path_without_agent_returns_create_agent(
 
 
 @pytest.mark.django_db
-def test_graph_agent_without_run_returns_run_scenario(organization, workspace, user):
+def test_graph_agent_without_step_returns_add_agent_node(organization, workspace, user):
     graph, version = create_agent_graph(
         organization=organization,
         workspace=workspace,
@@ -127,10 +128,34 @@ def test_graph_agent_without_run_returns_run_scenario(organization, workspace, u
 
     payload = _agent_state(user, organization, workspace)
 
+    assert payload["stage"] == "add_agent_node"
+    assert payload["recommended_action"]["id"] == "add_agent_node"
+    assert payload["agent"]["agent_id"] == str(graph.id)
+    assert payload["agent"]["agent_version_id"] == str(version.id)
+    assert payload["agent"]["has_step"] is False
+    assert payload["recommended_action"]["href"].endswith(
+        "onboarding=run-scenario&journey_step=add_agent_node&tour_anchor=agent_add_node_button"
+    )
+
+
+@pytest.mark.django_db
+def test_graph_agent_with_step_without_run_returns_run_scenario(
+    organization, workspace, user
+):
+    graph, version = create_agent_graph(
+        organization=organization,
+        workspace=workspace,
+        user=user,
+    )
+    create_agent_graph_node(graph_version=version)
+
+    payload = _agent_state(user, organization, workspace)
+
     assert payload["stage"] == "run_agent_scenario"
     assert payload["recommended_action"]["id"] == "run_agent_scenario"
     assert payload["agent"]["agent_id"] == str(graph.id)
     assert payload["agent"]["agent_version_id"] == str(version.id)
+    assert payload["agent"]["has_step"] is True
     assert payload["recommended_action"]["href"].endswith("onboarding=run-scenario")
 
 

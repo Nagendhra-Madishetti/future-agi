@@ -5,6 +5,7 @@ SUPPORTED_ONBOARDING_STAGE_RULE_SIGNALS = frozenset(
         "agent_has_eval_coverage",
         "agent_has_review",
         "agent_has_run",
+        "agent_has_step",
         "agent_multiple_scenarios",
         "alert_exists",
         "dashboard_exists",

@@ -37,15 +37,10 @@ export default function AgentOnboardingFocusPanel({
         ...sx,
       }}
     >
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={1.5}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-      >
+      <Stack spacing={1.25}>
         <Stack spacing={0.75} sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-            <Chip size="small" label="Agent onboarding" />
+            <Chip size="small" label="Setup guide" />
             {currentStep ? (
               <Chip size="small" variant="outlined" label={currentStep} />
             ) : null}
@@ -85,6 +80,7 @@ export default function AgentOnboardingFocusPanel({
               onClick={secondaryAction.onClick}
               disabled={secondaryAction.disabled}
               startIcon={<Iconify icon="mdi:arrow-right" width={18} />}
+              sx={{ whiteSpace: "nowrap" }}
             >
               {secondaryAction.label}
             </Button>
@@ -96,6 +92,7 @@ export default function AgentOnboardingFocusPanel({
               onClick={primaryAction.onClick}
               disabled={primaryAction.disabled}
               startIcon={<Iconify icon="mdi:arrow-right" width={18} />}
+              sx={{ whiteSpace: "nowrap" }}
             >
               {primaryAction.label}
             </Button>

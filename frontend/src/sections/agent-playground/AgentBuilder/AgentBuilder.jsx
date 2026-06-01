@@ -288,6 +288,7 @@ export default function AgentBuilder() {
             width={SELECTION_PANEL_WIDTH}
             disabled={isLoadingTemplate || isRunning || isVersionLoading}
             onboardingMode={onboardingMode}
+            tourAnchor={tourAnchor}
           />
           <Box
             sx={{
@@ -331,6 +332,9 @@ export default function AgentBuilder() {
               width={SELECTION_PANEL_WIDTH}
               hasNodes={hasNodes}
               onboardingMode={onboardingMode}
+              rightOffset={
+                isDrawerOpen && !isLoadingTemplate ? nodeDrawerResize.width : 0
+              }
               tourAnchor={tourAnchor}
             />
             {/* Run Agent Panel - Shows output after workflow run */}

@@ -4,6 +4,8 @@ import NodeSelectionPanel from "../NodeSelectionPanel";
 
 const mockAddNode = vi.fn();
 const mockSetCenter = vi.fn();
+const mockSetSearchParams = vi.fn();
+const mockRecordActivationEvent = vi.fn();
 
 vi.mock("../hooks/useAddNodeOptimistic", () => ({
   default: () => ({ addNode: mockAddNode }),
@@ -14,6 +16,19 @@ vi.mock("@xyflow/react", () => ({
     getZoom: () => 1,
     setCenter: mockSetCenter,
   }),
+}));
+
+vi.mock("react-router-dom", () => ({
+  useSearchParams: () => [
+    new URLSearchParams(
+      "quick_start_goal=build_ai_agent&quick_start_id=agent&quick_start_primary_path=agent",
+    ),
+    mockSetSearchParams,
+  ],
+}));
+
+vi.mock("src/sections/onboarding-home/api/onboarding-home-api", () => ({
+  recordActivationEvent: (...args) => mockRecordActivationEvent(...args),
 }));
 
 const mockTemplateNodes = [
@@ -37,7 +52,10 @@ vi.mock("src/api/agent-playground/agent-playground", () => ({
 }));
 
 vi.mock("../../store", () => ({
-  useAgentPlaygroundStoreShallow: () => ({ currentAgent: { id: "agent-1" } }),
+  useAgentPlaygroundStoreShallow: () => ({
+    currentAgent: { id: "agent-1", version_id: "version-1" },
+    nodes: [],
+  }),
 }));
 
 vi.mock("../../components/NodeCard", () => ({
@@ -49,7 +67,59 @@ vi.mock("../../components/NodeCard", () => ({
 describe("NodeSelectionPanel onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAddNode.mockResolvedValue({ position: { x: 100, y: 200 } });
+    mockAddNode.mockResolvedValue({
+      nodeId: "node-1",
+      position: { x: 100, y: 200 },
+    });
+    mockRecordActivationEvent.mockResolvedValue({});
+  });
+
+  it("renders add-step guidance and advances to run-scenario after adding a prompt node", async () => {
+    render(
+      <NodeSelectionPanel
+        width="240px"
+        onboardingMode="run-scenario"
+        tourAnchor="agent_add_node_button"
+      />,
+    );
+
+    expect(screen.getByTestId("agent-onboarding-focus")).toBeVisible();
+    expect(screen.getByText("Add the first agent step")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: /add llm prompt/i }));
+
+    await waitFor(() => {
+      expect(mockAddNode).toHaveBeenCalledWith({
+        type: "llm_prompt",
+        position: undefined,
+        node_template_id: "tpl-1",
+      });
+    });
+    expect(mockRecordActivationEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifactId: "node-1",
+        artifactType: "agent_node",
+        eventName: "agent_node_added",
+        primaryPath: "agent",
+        stage: "add_agent_node",
+        metadata: {
+          agent_id: "agent-1",
+          node_id: "node-1",
+          version_id: "version-1",
+        },
+        quick_start_goal: "build_ai_agent",
+        quick_start_id: "agent",
+        quick_start_primary_path: "agent",
+      }),
+    );
+    expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(Function), {
+      replace: true,
+    });
+    const nextParams = mockSetSearchParams.mock.calls[0][0](
+      new URLSearchParams(),
+    );
+    expect(nextParams.get("journey_step")).toBe("run_agent_scenario");
+    expect(nextParams.get("tour_anchor")).toBe("agent_run_scenario_button");
   });
 
   it("renders eval coverage guidance and adds an eval node from the primary action", async () => {
