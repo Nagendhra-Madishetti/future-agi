@@ -48,7 +48,7 @@ const ProjectFtux = ({
         <Box sx={{ height: "10px" }} />
         <Typography fontSize="20px" fontWeight={700} color="text.primary">
           {showObserveOnboarding
-            ? "Connect your agent"
+            ? "Connect your app"
             : `Welcome to ${isObserve ? "Observe" : "Prototype"}`}
         </Typography>
         <Box sx={{ height: "5px" }} />
@@ -59,7 +59,7 @@ const ProjectFtux = ({
           maxWidth={620}
         >
           {showObserveOnboarding
-            ? "Choose the package your app uses, paste the matching setup, then run one request. We will wait for the trace and move you to evaluator setup after review."
+            ? "Choose the package your app uses, paste the matching setup, then run one request. We wait for the trace and move you to evaluator setup after review."
             : "Create a project to experiment on your model"}
         </Typography>
         <Box sx={{ height: "20px" }} />
@@ -70,6 +70,7 @@ const ProjectFtux = ({
           description={observeSetupCopy.description}
           primaryAction={observeSetupPrimaryAction}
           secondaryAction={observeSetupSecondaryAction}
+          singleActionFocus
           steps={observeSetupCopy.steps}
           sx={{ width: "100%", mb: 2 }}
           title={observeSetupCopy.title}

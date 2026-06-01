@@ -13,6 +13,7 @@ export default function ObserveOnboardingFocusPanel({
   hidden = false,
   primaryAction,
   secondaryAction,
+  singleActionFocus = false,
   steps = [],
   sx,
   title,
@@ -75,16 +76,6 @@ export default function ObserveOnboardingFocusPanel({
           ) : null}
         </Stack>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {secondaryAction ? (
-            <Button
-              variant="outlined"
-              onClick={secondaryAction.onClick}
-              disabled={secondaryAction.disabled}
-              startIcon={<Iconify icon="mdi:arrow-right" width={18} />}
-            >
-              {secondaryAction.label}
-            </Button>
-          ) : null}
           {primaryAction ? (
             <Button
               data-tour-anchor={primaryAction.tourAnchor || tourAnchor}
@@ -94,6 +85,16 @@ export default function ObserveOnboardingFocusPanel({
               startIcon={<Iconify icon="mdi:arrow-right" width={18} />}
             >
               {primaryAction.label}
+            </Button>
+          ) : null}
+          {secondaryAction && !singleActionFocus ? (
+            <Button
+              variant="outlined"
+              onClick={secondaryAction.onClick}
+              disabled={secondaryAction.disabled}
+              startIcon={<Iconify icon="mdi:arrow-right" width={18} />}
+            >
+              {secondaryAction.label}
             </Button>
           ) : null}
         </Stack>
@@ -115,6 +116,7 @@ ObserveOnboardingFocusPanel.propTypes = {
   hidden: PropTypes.bool,
   primaryAction: actionShape,
   secondaryAction: actionShape,
+  singleActionFocus: PropTypes.bool,
   steps: PropTypes.arrayOf(
     PropTypes.shape({
       complete: PropTypes.bool,

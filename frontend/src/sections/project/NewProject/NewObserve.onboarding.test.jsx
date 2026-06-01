@@ -174,10 +174,13 @@ describe("NewObserve onboarding setup", () => {
     expect(
       within(guide).getByTestId("observe-package-specific-code-alert"),
     ).toHaveTextContent("OpenAI Python code selected");
-    expect(within(guide).getByText("Pick SDK package")).toBeVisible();
+    expect(within(guide).getByText("Choose package")).toBeVisible();
     expect(within(guide).getByText("Create keys")).toBeVisible();
     expect(within(guide).getByText("Run one request")).toBeVisible();
-    expect(within(guide).getByText("Review and create eval")).toBeVisible();
+    expect(within(guide).getByText("Create evaluator")).toBeVisible();
+    expect(
+      within(guide).getByTestId("observe-current-setup-task"),
+    ).toHaveTextContent("Next: create a Future AGI API key");
     expect(
       within(guide).getByText("pip install traceAI-openai openai"),
     ).toBeVisible();
@@ -246,6 +249,9 @@ describe("NewObserve onboarding setup", () => {
       within(guide).getByTestId("observe-package-required"),
     ).toHaveTextContent("Choose the package your app uses");
     expect(
+      within(guide).getByTestId("observe-current-setup-task"),
+    ).toHaveTextContent("Choose your package");
+    expect(
       within(guide).queryByTestId("observe-package-specific-code-alert"),
     ).not.toBeInTheDocument();
     expect(
@@ -262,6 +268,9 @@ describe("NewObserve onboarding setup", () => {
     expect(
       within(guide).getByTestId("observe-package-specific-code-alert"),
     ).toHaveTextContent("Anthropic Python code selected");
+    expect(
+      within(guide).getByTestId("observe-current-setup-task"),
+    ).toHaveTextContent("Next: create a Future AGI API key");
     expect(
       within(guide).getByLabelText("Copy package setup code"),
     ).toHaveTextContent("AnthropicInstrumentor");
@@ -369,6 +378,9 @@ describe("NewObserve onboarding setup", () => {
         "Credentials copied. Paste both values into the snippet, then run one request.",
       ),
     ).toBeVisible();
+    expect(
+      within(guide).getByTestId("observe-current-setup-task"),
+    ).toHaveTextContent("Run one OpenAI request");
     expect(
       within(guide).getByRole("link", { name: /Create another key/i }),
     ).toBeVisible();

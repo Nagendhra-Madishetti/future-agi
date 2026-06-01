@@ -660,6 +660,7 @@ const ProjectWrapperView = () => {
               description={observeSetupCopy.description}
               primaryAction={observeSetupPrimaryAction}
               secondaryAction={observeSetupSecondaryAction}
+              singleActionFocus
               steps={observeSetupCopy.steps}
               sx={{ mb: 0 }}
               title={observeSetupCopy.title}

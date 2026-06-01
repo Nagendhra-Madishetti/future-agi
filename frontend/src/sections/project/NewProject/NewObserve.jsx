@@ -114,7 +114,7 @@ const apiKeysOnboardingHref = ({
 const FIRST_TRACE_STEPS = [
   {
     id: "package",
-    label: "Pick SDK package",
+    label: "Choose package",
     description: "Choose the package that makes the model call in your app.",
   },
   {
@@ -129,8 +129,8 @@ const FIRST_TRACE_STEPS = [
   },
   {
     id: "review",
-    label: "Review and create eval",
-    description: "We open the trace, then guide you to evaluator setup.",
+    label: "Create evaluator",
+    description: "Review the trace, then create the first evaluator from it.",
   },
 ];
 
@@ -558,6 +558,112 @@ VerificationAlert.propTypes = {
   }),
 };
 
+const CurrentSetupTask = ({
+  apiKeysHref,
+  credentialsCopied,
+  hasSelectedInstrument,
+  selectedInstrumentLabel,
+  selectedLanguageLabel,
+  setupVerification,
+}) => {
+  if (!hasSelectedInstrument) {
+    return (
+      <Alert
+        severity="info"
+        icon={<Iconify icon="mdi:package-variant-closed" width={20} />}
+        data-testid="observe-current-setup-task"
+        sx={{ alignItems: "flex-start" }}
+      >
+        <Stack spacing={0.25}>
+          <Typography variant="subtitle2">Choose your package</Typography>
+          <Typography variant="body2">
+            Select the SDK that sends the model request. The setup code changes
+            to match that package before anything else is shown.
+          </Typography>
+        </Stack>
+      </Alert>
+    );
+  }
+
+  if (!credentialsCopied) {
+    return (
+      <Alert
+        severity="info"
+        icon={<Iconify icon="mdi:key-outline" width={20} />}
+        action={
+          <Button
+            color="inherit"
+            size="small"
+            component={RouterLink}
+            href={apiKeysHref}
+          >
+            Create key
+          </Button>
+        }
+        data-testid="observe-current-setup-task"
+        sx={{ alignItems: "center" }}
+      >
+        <Stack spacing={0.25}>
+          <Typography variant="subtitle2">
+            Next: create a Future AGI API key
+          </Typography>
+          <Typography variant="body2">
+            Then return here and run the {selectedInstrumentLabel}{" "}
+            {selectedLanguageLabel} example with your provider key loaded.
+          </Typography>
+        </Stack>
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert
+      severity={setupVerification?.status === "ready" ? "success" : "info"}
+      icon={
+        setupVerification?.status === "ready" ? undefined : (
+          <CircularProgress size={18} />
+        )
+      }
+      action={
+        setupVerification?.primaryAction ? (
+          <Button
+            color="inherit"
+            size="small"
+            onClick={setupVerification.primaryAction.onClick}
+            disabled={setupVerification.primaryAction.disabled}
+          >
+            {setupVerification.primaryAction.label}
+          </Button>
+        ) : null
+      }
+      data-testid="observe-current-setup-task"
+      sx={{ alignItems: "center" }}
+    >
+      <Stack spacing={0.25}>
+        <Typography variant="subtitle2">
+          {setupVerification?.status === "ready"
+            ? "Trace detected"
+            : `Run one ${selectedInstrumentLabel} request`}
+        </Typography>
+        <Typography variant="body2">
+          {setupVerification?.status === "ready"
+            ? "Open the trace review, then create the first evaluator from it."
+            : `Paste the ${selectedLanguageLabel} example into your app or a scratch file, run it once, and keep this page open while Future AGI waits for the trace.`}
+        </Typography>
+      </Stack>
+    </Alert>
+  );
+};
+
+CurrentSetupTask.propTypes = {
+  apiKeysHref: PropTypes.string.isRequired,
+  credentialsCopied: PropTypes.bool,
+  hasSelectedInstrument: PropTypes.bool.isRequired,
+  selectedInstrumentLabel: PropTypes.string.isRequired,
+  selectedLanguageLabel: PropTypes.string.isRequired,
+  setupVerification: VerificationAlert.propTypes.setupVerification,
+};
+
 const FirstTraceSetupGuide = ({
   credentialsCopied,
   completeSetupCode,
@@ -673,6 +779,15 @@ const FirstTraceSetupGuide = ({
             </Stack>
           </Alert>
         ) : null}
+
+        <CurrentSetupTask
+          apiKeysHref={apiKeysHref}
+          credentialsCopied={credentialsCopied}
+          hasSelectedInstrument={hasSelectedInstrument}
+          selectedInstrumentLabel={selectedInstrumentLabel}
+          selectedLanguageLabel={selectedLanguageLabel}
+          setupVerification={setupVerification}
+        />
 
         {instrumentOptions.length ? (
           <Stack spacing={1}>
@@ -795,9 +910,9 @@ const FirstTraceSetupGuide = ({
                 example
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Use this as a scratch file or adapt the same blocks into your
-                app. It includes Future AGI keys, provider keys, project
-                registration, package setup, and one request.
+                Copy these blocks in order. Load the keys in the process that
+                runs your app, then run the package request so Future AGI can
+                detect the first trace.
               </Typography>
               <InstructionCodeCopy
                 ariaLabel="Copy complete package setup"

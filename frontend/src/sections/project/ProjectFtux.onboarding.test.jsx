@@ -62,10 +62,10 @@ describe("ProjectFtux observe onboarding", () => {
     );
 
     expect(screen.getByText("Connect Observe to your app")).toBeVisible();
-    expect(screen.getByText("Connect your agent")).toBeVisible();
+    expect(screen.getByText("Connect your app")).toBeVisible();
     expect(
       screen.getByText(
-        "Choose the package your app uses, paste the matching setup, then run one request. We will wait for the trace and move you to evaluator setup after review.",
+        "Choose the package your app uses, paste the matching setup, then run one request. We wait for the trace and move you to evaluator setup after review.",
       ),
     ).toBeVisible();
     expect(screen.getByText("Install")).toBeVisible();
@@ -75,8 +75,8 @@ describe("ProjectFtux observe onboarding", () => {
     expect(screen.getByText("First trace guide enabled")).toBeVisible();
     expect(screen.getByText("Checking for your first trace")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: /open sample trace/i }),
-    ).toBeVisible();
+      screen.queryByRole("button", { name: /open sample trace/i }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /review setup/i }));
 

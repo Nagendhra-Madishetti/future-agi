@@ -54,4 +54,24 @@ describe("ObserveOnboardingFocusPanel", () => {
     expect(onSecondary).toHaveBeenCalledTimes(1);
     expect(onPrimary).toHaveBeenCalledTimes(1);
   });
+
+  it("hides secondary actions in single-action focus mode", () => {
+    render(
+      <ObserveOnboardingFocusPanel
+        singleActionFocus
+        currentStep="Setup"
+        description="Choose the package and run one request."
+        primaryAction={{ label: "Choose package", onClick: vi.fn() }}
+        secondaryAction={{ label: "Open sample trace", onClick: vi.fn() }}
+        title="Connect your app"
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /choose package/i }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /open sample trace/i }),
+    ).not.toBeInTheDocument();
+  });
 });

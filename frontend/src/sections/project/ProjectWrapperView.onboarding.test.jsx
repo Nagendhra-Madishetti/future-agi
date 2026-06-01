@@ -337,8 +337,7 @@ describe("ProjectWrapperView observe setup onboarding", () => {
     ).toBeNull();
   });
 
-  it("opens a sample trace from the observe setup focus", async () => {
-    const user = userEvent.setup();
+  it("keeps the sample trace shortcut out of the focused real setup action", () => {
     mocks.useQuery.mockReturnValue({
       data: {
         result: {
@@ -355,26 +354,13 @@ describe("ProjectWrapperView observe setup onboarding", () => {
 
     expect(screen.getByText("Checking for your first trace")).toBeVisible();
     const focusPanel = screen.getByTestId("observe-onboarding-focus");
-    const focusButtons = within(focusPanel).getAllByRole("button");
-    expect(focusButtons[0]).toHaveTextContent(/open sample trace/i);
-    expect(focusButtons[1]).toHaveTextContent(/choose package/i);
-
-    await user.click(
-      screen.getByRole("button", { name: /open sample trace/i }),
-    );
-
-    expect(mocks.openSampleProject).toHaveBeenCalledWith({
-      path: "observe",
-      source: "observe_setup_onboarding",
-      reason: "setup_observe",
-      openAfterCreate: true,
-    });
-    await waitFor(() => {
-      expect(window.location.pathname).toBe(
-        "/dashboard/observe/sample-project/trace/sample-trace",
-      );
-      expect(window.location.search).toBe("?sample=true&from=onboarding");
-    });
+    expect(
+      within(focusPanel).getByRole("button", { name: /choose package/i }),
+    ).toBeVisible();
+    expect(
+      within(focusPanel).queryByRole("button", { name: /open sample trace/i }),
+    ).not.toBeInTheDocument();
+    expect(mocks.openSampleProject).not.toHaveBeenCalled();
   });
 
   it("returns sample trace users to real setup guidance", async () => {

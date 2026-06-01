@@ -176,6 +176,11 @@ describe("Observe API key onboarding handoff", () => {
     );
 
     const guide = screen.getByTestId("observe-first-trace-guide");
+    await user.click(within(guide).getByRole("button", { name: /^openai$/i }));
+    expect(
+      await within(guide).findByText("Connect OpenAI, then send one trace"),
+    ).toBeVisible();
+
     await user.click(
       within(guide).getByRole("link", { name: /create api key/i }),
     );
@@ -208,6 +213,9 @@ describe("Observe API key onboarding handoff", () => {
     expect(
       new URLSearchParams(window.location.search).get("credential_step"),
     ).toBe("done");
+    expect(new URLSearchParams(window.location.search).get("provider")).toBe(
+      "openai",
+    );
     expect(
       within(screen.getByTestId("observe-first-trace-guide")).getByText(
         "Credentials copied. Paste both values into the snippet, then run one request.",
