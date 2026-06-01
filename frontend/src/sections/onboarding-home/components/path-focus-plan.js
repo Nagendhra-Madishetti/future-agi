@@ -98,7 +98,7 @@ export const PATH_FOCUS_PLANS = {
     steps: [
       {
         stage: "configure_gateway_provider",
-        label: "Add provider",
+        label: "Add model provider",
         description: "Connect the model provider to route traffic.",
         tourAnchor: "gateway_provider_button",
       },
@@ -143,7 +143,7 @@ export const PATH_FOCUS_PLANS = {
     steps: [
       {
         stage: "create_eval_dataset",
-        label: "Create dataset",
+        label: "Create eval dataset",
         description: "Start with a focused set of examples.",
         tourAnchor: "eval_dataset_button",
       },
@@ -175,14 +175,14 @@ export const PATH_FOCUS_PLANS = {
   },
   voice: {
     eyebrow: "Voice setup",
-    title: "Connect a voice agent",
+    title: "Connect a voice AI agent",
     description:
-      "Create or connect a voice agent, run one call, review it, and add success criteria.",
+      "Create or connect a voice AI agent, run one call, review it, and add success criteria.",
     chips: ["voice", "call"],
     steps: [
       {
         stage: "create_voice_agent",
-        label: "Create agent",
+        label: "Create voice agent",
         description: "Start with one voice agent.",
         tourAnchor: "voice_agent_button",
       },

@@ -54,7 +54,7 @@ describe("setup org product-loop quick starts", () => {
     expect(sampleQuickStarts[0]).toMatchObject({
       goal: "explore_sample_data",
       primaryPath: "sample",
-      buttonLabel: "Open sample data",
+      buttonLabel: "Preview sample trace",
     });
     expect(observeQuickStart).toMatchObject({
       buttonLabel: "Connect your agent",
@@ -85,7 +85,7 @@ describe("setup org product-loop quick starts", () => {
       "Prototype agent",
       "Set up gateway",
       "Test AI using simulation",
-      "Connect voice agent",
+      "Connect a voice AI agent",
     ]);
   });
 

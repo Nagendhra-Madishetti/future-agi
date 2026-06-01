@@ -135,14 +135,14 @@ const SETUP_QUICK_START_ERROR_FALLBACKS = {
   },
   evals: {
     description: "Create a small eval or simulation and review failures.",
-    href: "/dashboard/evaluations/create?source=onboarding&step=dataset&tour_anchor=eval_dataset_button&journey_step=create_eval_dataset",
-    label: "Create dataset",
+    href: "/dashboard/evaluations/create?source=onboarding&step=data&tour_anchor=eval_dataset_button&journey_step=create_eval_dataset",
+    label: "Create eval dataset",
     title: "Test AI using simulation",
   },
   gateway: {
     description: "Add a provider, create a key, and send one gateway request.",
     href: "/dashboard/gateway/providers?source=onboarding&tour_anchor=gateway_provider_button&journey_step=configure_gateway_provider",
-    label: "Add provider",
+    label: "Add model provider",
     title: "Set up gateway",
   },
   observe: {
@@ -168,8 +168,8 @@ const SETUP_QUICK_START_ERROR_FALLBACKS = {
   voice: {
     description: "Create or connect one voice agent and run a test call.",
     href: "/dashboard/simulate/agent-definitions/create-new-agent-definition?source=onboarding&onboarding=create-voice-agent&tour_anchor=voice_agent_button&journey_step=create_voice_agent",
-    label: "Create agent",
-    title: "Connect voice agent",
+    label: "Create voice agent",
+    title: "Connect a voice AI agent",
   },
 };
 
@@ -644,9 +644,9 @@ export default function OnboardingHomeView() {
   const setupQuickStartHandoffCopy =
     isSetupQuickStart && isSampleQuickStart
       ? {
-          title: "Sample data is a preview",
+          title: "Sample trace is preview-only",
           description:
-            "Use it to inspect screens. Real setup still starts from one product task.",
+            "Use it to inspect the product. Real setup still starts from one product task.",
         }
       : null;
   const isFirstRunQuickStartFocus =
@@ -813,16 +813,16 @@ export default function OnboardingHomeView() {
       ? isSampleQuickStart
         ? {
             eyebrow: "Sample preview",
-            title: "Preview sample data",
+            title: "Preview sample trace",
             description:
-              "Open the sample trace to inspect screens. Real setup still starts from one product task.",
+              "Open the sample trace to inspect the product. Real setup still starts from one product task.",
           }
         : {
-            eyebrow: "First setup",
+            eyebrow: "First product task",
             title: selectedSetupQuickStart.buttonLabel,
             description: firstRunNextStepLabel
-              ? `${selectedSetupQuickStart.shortDescription} First step: ${firstRunCurrentStepLabel}. Next: ${firstRunNextStepLabel}.`
-              : `${selectedSetupQuickStart.shortDescription} First step: ${firstRunCurrentStepLabel}.`,
+              ? `${selectedSetupQuickStart.shortDescription} Open ${firstRunCurrentStepLabel} below; after that, Home will show ${firstRunNextStepLabel}.`
+              : `${selectedSetupQuickStart.shortDescription} Open ${firstRunCurrentStepLabel} below.`,
             surfaceLabel: selectedSetupQuickStart.surfaceLabel,
           }
       : quickStartMismatchAction
@@ -1259,22 +1259,6 @@ export default function OnboardingHomeView() {
               </Typography>
               <Typography variant="body2" sx={{ mt: 0.25 }}>
                 {setupQuickStartHandoffCopy.description}
-              </Typography>
-            </Alert>
-          ) : null}
-          {isFirstRunQuickStartFocus && !isSampleQuickStart ? (
-            <Alert
-              severity="info"
-              data-testid="first-run-setup-instructions"
-              sx={{ borderRadius: 1, mt: 1, maxWidth: 760 }}
-            >
-              <Typography variant="subtitle2" component="div">
-                Start with {firstRunCurrentStepLabel}
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 0.25 }}>
-                Click {firstRunCurrentStepLabel} in the setup card below. When
-                that action is complete, this checklist moves to the next step.
-                Sample screens stay preview-only.
               </Typography>
             </Alert>
           ) : null}

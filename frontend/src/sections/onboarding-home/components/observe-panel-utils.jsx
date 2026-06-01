@@ -27,7 +27,7 @@ const STATUS_COPY = {
     color: "success.main",
   },
   current: {
-    label: "Start here",
+    label: "Current",
     icon: "mdi:progress-clock",
     color: "primary.main",
   },
@@ -179,7 +179,7 @@ CurrentStepGuide.propTypes = {
 
 const focusedStepLabel = ({ activeIndex, index, status }) => {
   if (status === "complete") return "Done";
-  if (status === "current") return "Start here";
+  if (status === "current") return "Current";
   if (activeIndex !== null && index === activeIndex + 1) return "Next";
   return `Step ${index + 1}`;
 };
@@ -194,6 +194,7 @@ export function JourneyStepList({
   currentIndex,
   gridColumns = 4,
   singleActionFocus = false,
+  startIndex = 0,
   steps,
   testIdPrefix,
 }) {
@@ -208,8 +209,17 @@ export function JourneyStepList({
     return (
       <Stack spacing={0.75}>
         {steps.map((step, index) => {
-          const status = derivedStepStatus({ activeIndex, index, step });
-          const statusLabel = focusedStepLabel({ activeIndex, index, status });
+          const absoluteIndex = startIndex + index;
+          const status = derivedStepStatus({
+            activeIndex,
+            index: absoluteIndex,
+            step,
+          });
+          const statusLabel = focusedStepLabel({
+            activeIndex,
+            index: absoluteIndex,
+            status,
+          });
           const isCurrent = status === "current";
 
           return (
@@ -265,7 +275,7 @@ export function JourneyStepList({
                     {status === "complete" ? (
                       <Iconify icon="mdi:check" width={16} />
                     ) : (
-                      index + 1
+                      absoluteIndex + 1
                     )}
                   </Box>
                   <Box sx={{ minWidth: 0 }}>
@@ -305,7 +315,12 @@ export function JourneyStepList({
       }}
     >
       {steps.map((step, index) => {
-        const status = derivedStepStatus({ activeIndex, index, step });
+        const absoluteIndex = startIndex + index;
+        const status = derivedStepStatus({
+          activeIndex,
+          index: absoluteIndex,
+          step,
+        });
         const statusCopy = STATUS_COPY[status] || STATUS_COPY.queued;
 
         return (
@@ -363,6 +378,7 @@ JourneyStepList.propTypes = {
   currentIndex: PropTypes.number,
   gridColumns: PropTypes.number,
   singleActionFocus: PropTypes.bool,
+  startIndex: PropTypes.number,
   steps: PropTypes.array,
   testIdPrefix: PropTypes.string.isRequired,
 };
@@ -380,7 +396,10 @@ export function ObserveJourneyProgress({
 
   const currentStep = journeyCurrentStep(journeyPlan, stage);
   const currentIndex = Math.max(steps.indexOf(currentStep), 0);
-  const visibleSteps = steps;
+  const visibleStepStartIndex = singleActionFocus ? currentIndex + 1 : 0;
+  const visibleSteps = singleActionFocus
+    ? steps.slice(visibleStepStartIndex)
+    : steps;
   const focusedGuide = singleActionFocus || Boolean(actionSlot);
 
   if (singleActionFocus && !showCurrentStepGuide && visibleSteps.length === 0) {
@@ -392,7 +411,7 @@ export function ObserveJourneyProgress({
       {showCurrentStepGuide ? (
         <CurrentStepGuide
           actionSlot={actionSlot}
-          label={focusedGuide ? "Start here" : "Current step"}
+          label={focusedGuide ? "Do this next" : "Current step"}
           nextStep={steps[currentIndex + 1]}
           step={currentStep}
           stage={stage}
@@ -400,25 +419,30 @@ export function ObserveJourneyProgress({
           totalSteps={steps.length}
         />
       ) : null}
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        spacing={1}
-        alignItems={{ xs: "flex-start", sm: "center" }}
-        justifyContent="space-between"
-      >
-        <Typography variant="subtitle2">What happens next</Typography>
-        {focusedGuide ? (
-          <Chip
-            size="small"
-            variant="outlined"
-            label={`Step ${currentIndex + 1} of ${steps.length}`}
-          />
-        ) : null}
-      </Stack>
+      {visibleSteps.length ? (
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          justifyContent="space-between"
+        >
+          <Typography variant="subtitle2">
+            {singleActionFocus ? "Later steps" : "What happens next"}
+          </Typography>
+          {focusedGuide && !singleActionFocus ? (
+            <Chip
+              size="small"
+              variant="outlined"
+              label={`Step ${currentIndex + 1} of ${steps.length}`}
+            />
+          ) : null}
+        </Stack>
+      ) : null}
       {visibleSteps.length ? (
         <JourneyStepList
           currentIndex={currentIndex}
           singleActionFocus={focusedGuide}
+          startIndex={visibleStepStartIndex}
           steps={visibleSteps}
           testIdPrefix="observe-journey-step"
         />

@@ -54,16 +54,16 @@ const QUICK_START_ROLE = "AI Builder";
 
 const SETUP_SIDE_PANEL_STEPS = [
   {
-    label: "Choose one path",
-    description: "Pick the product work you want to start with.",
+    label: "Choose one task",
+    description: "Pick the product work you want to do first.",
   },
   {
-    label: "Do step 1",
-    description: "We open the right screen and highlight the first action.",
+    label: "Open the first screen",
+    description: "We send you to the product area for step 1.",
   },
   {
-    label: "Finish the checklist",
-    description: "The same checklist stays visible until setup is complete.",
+    label: "Continue from Home",
+    description: "Home shows the next step after each real setup action.",
   },
 ];
 
@@ -260,13 +260,12 @@ const SetupOrgSidePanel = () => (
     >
       <Stack spacing={1}>
         <Typography variant="overline" color="text.secondary">
-          First setup
+          First product task
         </Typography>
-        <Typography variant="h4">Start from the product path</Typography>
+        <Typography variant="h4">Start with the work you recognize</Typography>
         <Typography variant="body1" color="text.secondary">
-          Choose the work you want to do first. You will land on the exact
-          product screen for step 1, with the remaining setup steps still
-          visible.
+          Choose one task now. Sample traces stay available for preview, and
+          real setup starts from the first product screen.
         </Typography>
       </Stack>
 
@@ -690,7 +689,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                     lineHeight: 1.25,
                   }}
                 >
-                  Best for: {option.shortDescription}
+                  Goal: {option.shortDescription}
                 </Typography>
               </Stack>
               {option.featured ? (
@@ -726,7 +725,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                   lineHeight: 1.35,
                 }}
               >
-                Then: {option.sequencePreview.slice(1, 4).join(" -> ")}
+                Later: {option.sequencePreview.slice(1, 4).join(" -> ")}
               </Typography>
             ) : null}
             <Typography
@@ -738,7 +737,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                 mt: 0.25,
               }}
             >
-              Start this setup
+              Open first step
             </Typography>
           </Stack>
         </Stack>
@@ -780,8 +779,8 @@ const SetupOrganization = ({ getStarted = false }) => {
           <Stack direction="row" spacing={1} alignItems="flex-start">
             <Iconify icon="mdi:database-eye-outline" width={20} />
             <Typography variant="body2" color="text.secondary">
-              Sample data stays available as preview data after this. It does
-              not mark setup complete.
+              Sample traces stay available for preview after this. They do not
+              mark setup complete.
             </Typography>
           </Stack>
         </Box>
@@ -1141,7 +1140,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                   lineHeight: "36px",
                 }}
               >
-                Choose your first setup path
+                What do you want to set up first?
               </Typography>
               <Typography
                 variant="body1"
@@ -1151,8 +1150,8 @@ const SetupOrganization = ({ getStarted = false }) => {
                   maxWidth: 520,
                 }}
               >
-                Pick the product work you want to do first. We will open step 1
-                and keep the full setup checklist visible.
+                Pick one product task. Sample traces stay preview-only; the next
+                screen opens the first real setup step.
               </Typography>
             </Box>
 

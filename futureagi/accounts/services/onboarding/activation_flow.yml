@@ -362,7 +362,7 @@ journeys:
         action_id: gateway_add_provider
         success_event: gateway_provider_added
         tour_anchor: gateway_provider_button
-        label: Add provider
+        label: Add model provider
         description: Connect the model provider to route traffic.
       - id: create_gateway_key
         stage: create_gateway_key
@@ -413,7 +413,7 @@ journeys:
         action_id: create_eval_dataset
         success_event: eval_dataset_created
         tour_anchor: eval_dataset_button
-        label: Create dataset
+        label: Create eval dataset
         description: Start with a focused set of examples.
       - id: add_eval_scorer
         stage: add_eval_scorer
@@ -446,8 +446,8 @@ journeys:
   voice_first_run:
     primary_path: voice
     eyebrow: Voice setup
-    title: Connect a voice agent
-    description: Create or connect a voice agent, run one call, review it, and add success criteria.
+    title: Connect a voice AI agent
+    description: Create or connect a voice AI agent, run one call, review it, and add success criteria.
     chips:
       - voice
       - call
@@ -457,7 +457,7 @@ journeys:
         action_id: create_voice_agent
         success_event: voice_agent_created
         tour_anchor: voice_agent_button
-        label: Create agent
+        label: Create voice agent
         description: Start with one voice agent.
       - id: run_voice_test_call
         stage: run_voice_test_call
@@ -719,10 +719,10 @@ actions:
     fallback_route_key: get_started
   gateway_add_provider:
     kind: setup
-    title: Add gateway provider
+    title: Add model provider
     description: Add one provider before sending model traffic through the gateway.
     route_key: gateway_provider
-    cta_label: Add provider
+    cta_label: Add model provider
     priority: 100
     estimated_minutes: 3
     requires_permission: gateway:write
@@ -807,10 +807,10 @@ actions:
     fallback_route_key: get_started
   create_eval_dataset:
     kind: setup
-    title: Create eval source
+    title: Create eval dataset
     description: Add the first dataset or trace source for the eval loop.
     route_key: eval_create_data
-    cta_label: Add source
+    cta_label: Create eval dataset
     priority: 100
     estimated_minutes: 3
     requires_permission: evals:write
@@ -887,7 +887,7 @@ actions:
     title: Create voice agent
     description: Create or connect one voice agent before the first test call.
     route_key: voice_create_agent
-    cta_label: Create agent
+    cta_label: Create voice agent
     priority: 100
     estimated_minutes: 3
     requires_permission: voice:write
@@ -1662,7 +1662,7 @@ stages:
     requires_write: true
     copy:
       eyebrow: Eval dataset
-      title: Create a dataset
+      title: Create eval dataset
       description: Add the examples that define expected behavior.
     next:
       - add_eval_scorer

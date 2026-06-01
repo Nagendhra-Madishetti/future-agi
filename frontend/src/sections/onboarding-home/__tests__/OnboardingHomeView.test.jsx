@@ -343,8 +343,8 @@ describe("OnboardingHomeView", () => {
     );
 
     expect(samplePanel).toBeVisible();
-    expect(within(samplePanel).getByText("Sample data")).toBeVisible();
-    expect(within(samplePanel).getByText("Preview sample data")).toBeVisible();
+    expect(within(samplePanel).getByText("Sample trace")).toBeVisible();
+    expect(within(samplePanel).getByText("Preview sample trace")).toBeVisible();
     expect(
       within(samplePanel).getByRole("button", { name: /open sample trace/i }),
     ).toBeVisible();
@@ -398,7 +398,7 @@ describe("OnboardingHomeView", () => {
     expect(
       within(currentStep).getByText("Create project from manifest"),
     ).toBeVisible();
-    expect(within(currentStep).getByText("Start here")).toBeVisible();
+    expect(within(currentStep).getByText("Current")).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Create the observe project and prepare the first trace.",
     );
@@ -434,7 +434,7 @@ describe("OnboardingHomeView", () => {
     expect(
       within(currentStep).getByText("Send trace from manifest"),
     ).toBeVisible();
-    expect(within(currentStep).getByText("Start here")).toBeVisible();
+    expect(within(currentStep).getByText("Current")).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Send one production or test trace.",
     );
@@ -588,13 +588,13 @@ describe("OnboardingHomeView", () => {
 
     const samplePanel = screen.getByTestId("sample-project-panel");
     expect(samplePanel).toBeVisible();
-    expect(within(samplePanel).getByText("Sample data")).toBeVisible();
+    expect(within(samplePanel).getByText("Sample trace")).toBeVisible();
     expect(
       within(samplePanel).getByRole("button", { name: /open sample trace/i }),
     ).toBeVisible();
     expect(
       within(samplePanel).getByRole("link", {
-        name: /connect your agent/i,
+        name: /connect real data/i,
       }),
     ).toHaveAttribute("href", "/dashboard/observe");
     expect(screen.queryByTestId("observe-setup-panel")).not.toBeInTheDocument();
@@ -687,9 +687,9 @@ describe("OnboardingHomeView", () => {
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Run one focused example before saving.",
     );
-    expect(within(panel).getByText("What happens next")).toBeVisible();
+    expect(within(panel).getByText("Later steps")).toBeVisible();
     expect(within(panel).getAllByText("Step 2 of 6").length).toBeGreaterThan(0);
-    expect(screen.getByTestId("path-focus-step-run_prompt_test")).toBeVisible();
+    expect(screen.queryByTestId("path-focus-step-run_prompt_test")).toBeNull();
     expect(
       screen.getByTestId("path-focus-step-save_prompt_version"),
     ).toBeVisible();
@@ -945,7 +945,7 @@ describe("OnboardingHomeView", () => {
       quickStartId: "gateway",
       quickStartPrimaryPath: "gateway",
       pathname: "/dashboard/gateway/providers",
-      primaryLabel: "Add provider",
+      primaryLabel: "Add model provider",
       stage: "configure_gateway_provider",
       routeParams: {
         source: "onboarding",
@@ -959,10 +959,10 @@ describe("OnboardingHomeView", () => {
         pathState({
           action: pathAction({
             id: "create_eval_dataset",
-            title: "Create eval source",
+            title: "Create eval dataset",
             description: "Add the first dataset or trace source.",
             href: "/dashboard/evaluations/create?source=onboarding&step=data",
-            ctaLabel: "Add source",
+            ctaLabel: "Create eval dataset",
             completionEvent: "eval_dataset_created",
             targetPath: "evals",
           }),
@@ -976,7 +976,7 @@ describe("OnboardingHomeView", () => {
       quickStartId: "evals",
       quickStartPrimaryPath: "evals",
       pathname: "/dashboard/evaluations/create",
-      primaryLabel: "Create dataset",
+      primaryLabel: "Create eval dataset",
       stage: "create_eval_dataset",
       routeParams: {
         source: "onboarding",
@@ -994,7 +994,7 @@ describe("OnboardingHomeView", () => {
             title: "Create voice agent",
             description: "Create or connect one voice agent.",
             href: "/dashboard/simulate/agent-definitions/create-new-agent-definition?source=onboarding&onboarding=create-voice-agent",
-            ctaLabel: "Create agent",
+            ctaLabel: "Create voice agent",
             completionEvent: "voice_agent_created",
             targetPath: "voice",
           }),
@@ -1009,7 +1009,7 @@ describe("OnboardingHomeView", () => {
       quickStartPrimaryPath: "voice",
       pathname:
         "/dashboard/simulate/agent-definitions/create-new-agent-definition",
-      primaryLabel: "Create agent",
+      primaryLabel: "Create voice agent",
       stage: "create_voice_agent",
       routeParams: {
         source: "onboarding",
@@ -1106,7 +1106,7 @@ describe("OnboardingHomeView", () => {
         }),
       ).toBeVisible();
       expect(
-        screen.getByText(new RegExp(`First step: ${primaryLabel}`)),
+        screen.getByText(new RegExp(`Open ${primaryLabel} below`)),
       ).toBeVisible();
       expect(
         screen.getByText(quickStartOption.shortDescription, {
@@ -1120,7 +1120,7 @@ describe("OnboardingHomeView", () => {
       expect(within(panel).getAllByText(/^Step 1 of /).length).toBeGreaterThan(
         0,
       );
-      expect(within(panel).getByText("What happens next")).toBeVisible();
+      expect(within(panel).getByText("Later steps")).toBeVisible();
       expect(within(panel).queryByText("Show full path")).toBeNull();
       const primaryLink = within(panel).getByRole("link", {
         name: new RegExp(primaryLabel, "i"),
@@ -1147,16 +1147,15 @@ describe("OnboardingHomeView", () => {
           within(panel).getByTestId("current-step-guide"),
         ).toHaveTextContent("Create Observe project");
         expect(
-          screen.getByTestId("observe-journey-step-connect_observability"),
-        ).toBeVisible();
-        expect(
           screen.getByTestId("observe-journey-step-send_first_trace"),
         ).toBeVisible();
       } else {
         expect(
           within(panel).getByTestId("current-step-guide"),
         ).toHaveTextContent(primaryLabel);
-        expect(screen.getByTestId(`path-focus-step-${stage}`)).toBeVisible();
+        expect(
+          screen.queryByTestId(`path-focus-step-${stage}`),
+        ).not.toBeInTheDocument();
       }
       expect(
         within(panel).queryByRole("link", {
@@ -1208,7 +1207,7 @@ describe("OnboardingHomeView", () => {
       within(panel).getAllByText("Create Observe project").length,
     ).toBeGreaterThan(0);
     expect(within(panel).getAllByText("Step 1 of 4").length).toBeGreaterThan(0);
-    expect(within(panel).getByText("What happens next")).toBeVisible();
+    expect(within(panel).getByText("Later steps")).toBeVisible();
     expect(within(panel).queryByText("Show full path")).toBeNull();
     expect(within(panel).getByText("Send first trace")).toBeVisible();
     expect(within(panel).getByText("Review first signal")).toBeVisible();
@@ -1263,10 +1262,10 @@ describe("OnboardingHomeView", () => {
       }),
     ).toBeVisible();
     const panel = screen.getByTestId("path-focus-panel-prompt");
-    expect(screen.getByTestId("path-focus-step-start_prompt")).toBeVisible();
+    expect(screen.queryByTestId("path-focus-step-start_prompt")).toBeNull();
     expect(screen.getByTestId("path-focus-step-run_prompt_test")).toBeVisible();
     expect(within(panel).getAllByText("Step 1 of 6").length).toBeGreaterThan(0);
-    expect(within(panel).getByText("What happens next")).toBeVisible();
+    expect(within(panel).getByText("Later steps")).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Create prompt",
     );
@@ -1457,7 +1456,7 @@ describe("OnboardingHomeView", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByTestId("setup-quick-start-handoff-alert"),
-    ).toHaveTextContent("Sample data is a preview");
+    ).toHaveTextContent("Sample trace is preview-only");
     expect(mutateAsync).not.toHaveBeenCalled();
     await userEvent.click(
       within(samplePanel).getByRole("button", { name: /open sample trace/i }),
@@ -1569,7 +1568,7 @@ describe("OnboardingHomeView", () => {
 
     const samplePanel = screen.getByTestId("sample-project-panel");
     const realSetupLink = within(samplePanel).getByRole("link", {
-      name: /connect your agent/i,
+      name: /connect real data/i,
     });
     const params = new URLSearchParams(
       realSetupLink.getAttribute("href").split("?")[1],
@@ -1979,7 +1978,7 @@ describe("OnboardingHomeView", () => {
     expect(
       within(currentStep).getByText("Review signal from manifest"),
     ).toBeVisible();
-    expect(within(currentStep).getByText("Start here")).toBeVisible();
+    expect(within(currentStep).getByText("Current")).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Inspect the first signal and decide what to measure.",
     );
@@ -2141,7 +2140,7 @@ describe("OnboardingHomeView", () => {
         name: "Set up gateway",
       }),
     ).toBeVisible();
-    expect(within(panel).getByText("What happens next")).toBeVisible();
+    expect(within(panel).getByText("Later steps")).toBeVisible();
     expect(within(panel).getAllByText("Send request").length).toBeGreaterThan(
       0,
     );
@@ -2279,10 +2278,10 @@ describe("OnboardingHomeView", () => {
       ),
     ).toBeVisible();
     expect(within(panel).getByText("Voice setup")).toBeVisible();
-    expect(within(panel).getByText("Connect a voice agent")).toBeVisible();
+    expect(within(panel).getByText("Connect a voice AI agent")).toBeVisible();
     expect(
       within(panel).getByText(
-        "Create or connect a voice agent, run one call, review it, and add success criteria.",
+        "Create or connect a voice AI agent, run one call, review it, and add success criteria.",
       ),
     ).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
@@ -2437,7 +2436,7 @@ describe("OnboardingHomeView", () => {
     {
       goal: "control_model_traffic",
       id: "gateway",
-      label: "Add provider",
+      label: "Add model provider",
       pathname: "/dashboard/gateway/providers",
       primaryPath: "gateway",
       title: "Set up gateway",
@@ -2450,13 +2449,13 @@ describe("OnboardingHomeView", () => {
     {
       goal: "evaluate_quality",
       id: "evals",
-      label: "Create dataset",
+      label: "Create eval dataset",
       pathname: "/dashboard/evaluations/create",
       primaryPath: "evals",
       title: "Test AI using simulation",
       routeParams: {
         source: "onboarding",
-        step: "dataset",
+        step: "data",
         tour_anchor: "eval_dataset_button",
         journey_step: "create_eval_dataset",
       },
@@ -2464,11 +2463,11 @@ describe("OnboardingHomeView", () => {
     {
       goal: "connect_voice_ai_agent",
       id: "voice",
-      label: "Create agent",
+      label: "Create voice agent",
       pathname:
         "/dashboard/simulate/agent-definitions/create-new-agent-definition",
       primaryPath: "voice",
-      title: "Connect voice agent",
+      title: "Connect a voice AI agent",
       routeParams: {
         source: "onboarding",
         onboarding: "create-voice-agent",

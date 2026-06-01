@@ -73,17 +73,19 @@ export default function ObserveSetupPanel({
           />
         ) : (
           <Stack spacing={0.25}>
-            <Typography variant="subtitle2">Your setup checklist</Typography>
+            <Typography variant="subtitle2">
+              Open the first product screen
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              Finish the Start here step first. The remaining steps stay visible
-              so you know what comes next.
+              Use the button below. When this step is done, Home will show the
+              next setup action.
             </Typography>
           </Stack>
         )}
         {actionStep ? (
           <CurrentStepGuide
             actionSlot={actionSlot}
-            label="Start here"
+            label="Do this first"
             nextStep={nextStep}
             step={actionStep}
             stage={stage}
@@ -93,7 +95,7 @@ export default function ObserveSetupPanel({
         ) : null}
         <ObserveJourneyProgress
           journeyPlan={effectiveJourneyPlan}
-          singleActionFocus={singleActionFocus || Boolean(actionStep)}
+          singleActionFocus={singleActionFocus}
           showCurrentStepGuide={false}
           stage={stage}
         />

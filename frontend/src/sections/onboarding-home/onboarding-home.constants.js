@@ -85,6 +85,9 @@ export const ONBOARDING_GOAL_OPTIONS = [
   },
 ];
 
+const isPreviewOnlyGoal = (goal) =>
+  goal?.primaryPath === "sample" || goal?.goal === "explore_sample_data";
+
 export const ONBOARDING_STAGE_COPY = {
   feature_disabled: {
     eyebrow: "Setup",
@@ -328,25 +331,27 @@ export const getGoalOptionsForState = (state) => {
     (state?.availablePaths || []).map((path) => [path.id, path]),
   );
 
-  return goals.map((goal) => {
-    const path = availablePaths.get(goal.primaryPath);
-    const route = state?.routeAvailability?.[`path_${goal.primaryPath}`];
-    const hasPathEvidence = Boolean(path || route);
-    const isAvailable =
-      goal.disabled !== true &&
-      (path?.isAvailable ?? route?.isAvailable ?? !hasPathEvidence);
-    const disabledReason =
-      goal.disabledReason ||
-      path?.blockedReason ||
-      route?.reason ||
-      (isAvailable ? null : "path unavailable");
+  return goals
+    .filter((goal) => !isPreviewOnlyGoal(goal))
+    .map((goal) => {
+      const path = availablePaths.get(goal.primaryPath);
+      const route = state?.routeAvailability?.[`path_${goal.primaryPath}`];
+      const hasPathEvidence = Boolean(path || route);
+      const isAvailable =
+        goal.disabled !== true &&
+        (path?.isAvailable ?? route?.isAvailable ?? !hasPathEvidence);
+      const disabledReason =
+        goal.disabledReason ||
+        path?.blockedReason ||
+        route?.reason ||
+        (isAvailable ? null : "path unavailable");
 
-    return {
-      ...goal,
-      href: path?.href || route?.href || "",
-      isAvailable,
-      disabled: !isAvailable,
-      disabledReason,
-    };
-  });
+      return {
+        ...goal,
+        href: path?.href || route?.href || "",
+        isAvailable,
+        disabled: !isAvailable,
+        disabledReason,
+      };
+    });
 };

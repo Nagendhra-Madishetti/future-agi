@@ -43,7 +43,12 @@ export default function PathFocusPanel({
   const currentStep = currentIndex === null ? null : plan.steps[currentIndex];
   const nextStep =
     currentIndex === null ? null : plan.steps[currentIndex + 1] || null;
-  const visibleSteps = plan.steps;
+  const visibleStepStartIndex =
+    singleActionFocus && currentIndex !== null ? currentIndex + 1 : 0;
+  const visibleSteps =
+    singleActionFocus && currentIndex !== null
+      ? plan.steps.slice(visibleStepStartIndex)
+      : plan.steps;
   const currentActionSlot = currentStep ? (
     <ObservePanelActions
       action={action}
@@ -79,10 +84,12 @@ export default function PathFocusPanel({
           />
         ) : (
           <Stack spacing={0.25}>
-            <Typography variant="subtitle2">Your setup checklist</Typography>
+            <Typography variant="subtitle2">
+              Open the first product screen
+            </Typography>
             <Typography variant="body2" color="text.secondary">
-              Finish the Start here step first. The remaining steps stay visible
-              so you know what comes next.
+              Use the button below. When this step is done, Home will show the
+              next setup action.
             </Typography>
           </Stack>
         )}
@@ -90,7 +97,7 @@ export default function PathFocusPanel({
         {currentStep ? (
           <CurrentStepGuide
             actionSlot={currentActionSlot}
-            label="Start here"
+            label="Do this first"
             nextStep={nextStep}
             step={currentStep}
             stage={stage}
@@ -99,27 +106,32 @@ export default function PathFocusPanel({
           />
         ) : null}
 
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          justifyContent="space-between"
-        >
-          <Typography variant="subtitle2">What happens next</Typography>
-          {focusedGuide && currentIndex !== null ? (
-            <Chip
-              size="small"
-              variant="outlined"
-              label={`Step ${currentIndex + 1} of ${plan.steps.length}`}
-            />
-          ) : null}
-        </Stack>
+        {visibleSteps.length ? (
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+          >
+            <Typography variant="subtitle2">
+              {singleActionFocus ? "Later steps" : "What happens next"}
+            </Typography>
+            {focusedGuide && !singleActionFocus && currentIndex !== null ? (
+              <Chip
+                size="small"
+                variant="outlined"
+                label={`Step ${currentIndex + 1} of ${plan.steps.length}`}
+              />
+            ) : null}
+          </Stack>
+        ) : null}
 
         {visibleSteps.length ? (
           <JourneyStepList
             currentIndex={currentIndex}
             gridColumns={3}
             singleActionFocus={focusedGuide}
+            startIndex={visibleStepStartIndex}
             steps={visibleSteps}
             testIdPrefix="path-focus-step"
           />

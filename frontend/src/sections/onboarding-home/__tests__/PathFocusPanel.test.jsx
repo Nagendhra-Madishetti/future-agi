@@ -52,7 +52,7 @@ describe("PathFocusPanel", () => {
     ).toBeVisible();
     expect(
       within(screen.getByTestId("path-focus-step-run_prompt_test")).getByText(
-        "Start here",
+        "Current",
       ),
     ).toBeVisible();
     expect(
@@ -113,7 +113,7 @@ describe("PathFocusPanel", () => {
     ).toBeVisible();
     expect(
       within(screen.getByTestId("path-focus-step-run_prompt_test")).getByText(
-        "Start here",
+        "Current",
       ),
     ).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
@@ -143,10 +143,10 @@ describe("PathFocusPanel", () => {
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Next: Save version",
     );
-    expect(within(panel).getByText("What happens next")).toBeVisible();
+    expect(within(panel).getByText("Later steps")).toBeVisible();
     expect(within(panel).getAllByText("Step 2 of 6").length).toBeGreaterThan(0);
-    expect(screen.getByTestId("path-focus-step-start_prompt")).toBeVisible();
-    expect(screen.getByTestId("path-focus-step-run_prompt_test")).toBeVisible();
+    expect(screen.queryByTestId("path-focus-step-start_prompt")).toBeNull();
+    expect(screen.queryByTestId("path-focus-step-run_prompt_test")).toBeNull();
     expect(
       within(
         screen.getByTestId("path-focus-step-save_prompt_version"),
@@ -227,7 +227,7 @@ describe("PathFocusPanel", () => {
     expect(
       within(
         screen.getByTestId("path-focus-step-run_gateway_request"),
-      ).getByText("Start here"),
+      ).getByText("Current"),
     ).toBeVisible();
     expect(
       within(panel).getByRole("link", { name: "Send request" }),

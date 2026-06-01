@@ -40,7 +40,7 @@ const QUICK_STARTS = {
     fixture: "newWorkspaceNoGoal",
   },
   sample_preview: {
-    buttonText: "Preview sample screens",
+    buttonText: "Preview sample trace",
     expectedAttribution: {
       quick_start_goal: "explore_sample_data",
       quick_start_id: "sample_preview",
@@ -76,7 +76,7 @@ const QUICK_STARTS = {
   gateway: {
     buttonText: "Set up gateway",
     expectedTitleText: "Set up gateway",
-    expectedActionText: "Add provider",
+    expectedActionText: "Add model provider",
     expectedAttribution: {
       quick_start_goal: "control_model_traffic",
       quick_start_id: "gateway",
@@ -88,7 +88,7 @@ const QUICK_STARTS = {
   evals: {
     buttonText: "Test AI using simulation",
     expectedTitleText: "Test AI using simulation",
-    expectedActionText: "Create dataset",
+    expectedActionText: "Create eval dataset",
     expectedAttribution: {
       quick_start_goal: "evaluate_quality",
       quick_start_id: "evals",
@@ -96,12 +96,19 @@ const QUICK_STARTS = {
     },
     expectedGoal: "evaluate_quality",
     activationState: pathFocusActivationState,
+    expectedPathname: "/dashboard/evaluations/create",
+    expectedRouteParams: {
+      source: "onboarding",
+      step: "data",
+      tour_anchor: "eval_dataset_button",
+      journey_step: "create_eval_dataset",
+    },
     primaryPath: "evals",
   },
   voice: {
-    buttonText: "Connect voice agent",
-    expectedTitleText: "Connect voice agent",
-    expectedActionText: "Create agent",
+    buttonText: "Connect a voice AI agent",
+    expectedTitleText: "Connect a voice AI agent",
+    expectedActionText: "Create voice agent",
     expectedAttribution: {
       quick_start_goal: "connect_voice_ai_agent",
       quick_start_id: "voice",
@@ -109,6 +116,14 @@ const QUICK_STARTS = {
     },
     expectedGoal: "connect_voice_ai_agent",
     activationState: pathFocusActivationState,
+    expectedPathname:
+      "/dashboard/simulate/agent-definitions/create-new-agent-definition",
+    expectedRouteParams: {
+      source: "onboarding",
+      onboarding: "create-voice-agent",
+      tour_anchor: "voice_agent_button",
+      journey_step: "create_voice_agent",
+    },
     primaryPath: "voice",
   },
 };
@@ -213,10 +228,10 @@ async function main() {
     await page.goto(`${APP_BASE}/auth/jwt/setup-org?step=0`, {
       waitUntil: "domcontentloaded",
     });
-    await expectVisibleText(page, "Choose your first setup path");
+    await expectVisibleText(page, "What do you want to set up first?");
     await expectVisibleText(
       page,
-      "Pick the product work you want to do first. We will open step 1 and keep the full setup checklist visible.",
+      "Pick one product task. Sample traces stay preview-only; the next screen opens the first real setup step.",
     );
     if (SAMPLE_PREVIEW_GUARD) {
       const samplePreviewVisible = await isVisibleButtonText(
@@ -229,7 +244,7 @@ async function main() {
       );
       await expectVisibleText(
         page,
-        "Sample data stays available as preview data after this.",
+        "Sample traces stay available for preview after this.",
       );
     }
     const quickStartInitiallyVisible = await isVisibleButtonText(
@@ -263,8 +278,8 @@ async function main() {
 
     await expectVisibleTestId(page, "onboarding-home-view");
     if (EXPECT_SAMPLE_HANDOFF) {
-      await expectVisibleText(page, "Preview sample data", { exact: true });
-      await expectVisibleText(page, "Sample data is a preview");
+      await expectVisibleText(page, "Preview sample trace", { exact: true });
+      await expectVisibleText(page, "Sample trace is preview-only");
       await expectVisibleText(page, "Open sample trace");
       await clickVisibleButtonText(page, "Open sample trace");
       await waitForSampleTraceRoute(page, { timeout: 30000 });
@@ -282,22 +297,24 @@ async function main() {
       });
       await expectVisibleText(
         page,
-        `First step: ${QUICK_START.expectedActionText}`,
+        `Open ${QUICK_START.expectedActionText} below`,
       );
-      await expectVisibleText(
-        page,
-        `Start with ${QUICK_START.expectedActionText}`,
-        {
-          exact: true,
-        },
-      );
-      await expectVisibleText(page, "Your setup checklist", { exact: true });
-      await expectVisibleText(page, "Start here", { exact: true });
-      await expectVisibleText(page, "What happens next", { exact: true });
+      await expectVisibleText(page, "Open the first product screen", {
+        exact: true,
+      });
+      await expectVisibleText(page, "Do this first", { exact: true });
+      await expectVisibleText(page, "Later steps", { exact: true });
       await expectVisibleText(page, "Step 1 of");
       await expectVisibleText(page, QUICK_START.expectedActionText, {
         exact: true,
       });
+      if (QUICK_START.expectedPathname) {
+        const primaryHref = await hrefForVisibleLinkText(
+          page,
+          QUICK_START.expectedActionText,
+        );
+        assertSetupActionHref(primaryHref, QUICK_START);
+      }
       await waitForNoVisibleText(page, "Show full path");
       await expectNoSelector(page, '[data-testid="sample-project-panel"]');
 
@@ -767,10 +784,10 @@ function pathFocusDetails(primaryPath) {
       flagName: "onboarding_eval_path",
       actionId: "create_eval_dataset",
       actionKind: "setup",
-      actionTitle: "Create eval source",
+      actionTitle: "Create eval dataset",
       actionDescription: "Add a focused dataset or trace source.",
-      cta: "Create dataset",
-      href: "/dashboard/evaluations/create?source=onboarding&step=dataset",
+      cta: "Create eval dataset",
+      href: "/dashboard/evaluations/create?source=onboarding&step=data",
       requiresPermission: "evals:write",
       completionEvent: "eval_dataset_created",
     },
@@ -785,7 +802,7 @@ function pathFocusDetails(primaryPath) {
       actionTitle: "Create voice agent",
       actionDescription:
         "Create or connect one voice agent before the first test call.",
-      cta: "Create agent",
+      cta: "Create voice agent",
       href: "/dashboard/simulate/agent-definitions/create-new-agent-definition?source=onboarding&onboarding=create-voice-agent",
       requiresPermission: "voice:write",
       completionEvent: "voice_agent_created",
@@ -1143,6 +1160,59 @@ async function clickVisibleButtonText(page, text, timeout = 30000) {
     element.click();
   });
   await handle.dispose();
+}
+
+async function hrefForVisibleLinkText(page, text, timeout = 30000) {
+  const handle = await page.waitForFunction(
+    (expectedText) => {
+      const normalized = (value) => String(value || "").trim();
+      const matchesLink = (element) =>
+        normalized(element.getAttribute("aria-label")) === expectedText ||
+        normalized(element.textContent) === expectedText ||
+        normalized(element.textContent).includes(expectedText);
+      const isVisible = (element) => {
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.visibility !== "hidden" &&
+          style.display !== "none" &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+      return Array.from(document.querySelectorAll("a[href]")).find(
+        (element) => isVisible(element) && matchesLink(element),
+      );
+    },
+    { timeout },
+    text,
+  );
+  const element = handle.asElement();
+  if (!element) {
+    throw new Error(`Link not found: ${text}`);
+  }
+  const href = await element.evaluate((node) => node.getAttribute("href"));
+  await handle.dispose();
+  return href;
+}
+
+function assertSetupActionHref(href, quickStart) {
+  const url = new URL(href, APP_BASE);
+  assert(
+    url.pathname === quickStart.expectedPathname,
+    `Expected setup action pathname ${quickStart.expectedPathname}, got ${url.pathname}`,
+  );
+  const expectedParams = {
+    ...quickStart.expectedRouteParams,
+    ...quickStart.expectedAttribution,
+  };
+  Object.entries(expectedParams).forEach(([key, expected]) => {
+    const actual = url.searchParams.get(key);
+    assert(
+      actual === expected,
+      `Expected setup action ${key}=${expected}, got ${actual} in ${href}`,
+    );
+  });
 }
 
 async function isVisibleButtonText(page, text) {

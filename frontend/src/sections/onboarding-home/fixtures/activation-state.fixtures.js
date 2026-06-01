@@ -479,11 +479,11 @@ const gatewayAction = (overrides = {}) =>
   action({
     id: "gateway_add_provider",
     kind: "setup",
-    title: "Add gateway provider",
+    title: "Add model provider",
     description:
       "Add one provider before sending model traffic through the gateway.",
     href: "/dashboard/gateway/providers?source=onboarding",
-    cta_label: "Add provider",
+    cta_label: "Add model provider",
     estimated_minutes: 3,
     requires_permission: "gateway:write",
     completion_event: "gateway_provider_added",

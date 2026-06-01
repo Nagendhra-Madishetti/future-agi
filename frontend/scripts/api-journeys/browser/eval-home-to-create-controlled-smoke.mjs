@@ -415,7 +415,7 @@ async function installBrowserState(page, auth) {
 function evalHomeActivationState(auth) {
   const activationState = getActivationStateFixture("observeNoSetup");
   const actionHref =
-    "/dashboard/evaluations/create?source=onboarding&step=dataset";
+    "/dashboard/evaluations/create?source=onboarding&step=data";
 
   return {
     ...activationState,

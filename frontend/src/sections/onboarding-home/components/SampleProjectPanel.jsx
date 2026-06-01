@@ -46,10 +46,10 @@ export default function SampleProjectPanel({
   const isRealDataStep = activationStage === "connect_real_data";
   const title = isRealDataStep
     ? "Connect the same workflow to real data"
-    : "Preview sample data";
+    : "Preview sample trace";
   const description = isRealDataStep
-    ? "Use the sample trace as a reference, then connect your agent so the same workflow runs on production data."
-    : "Optional preview data is ready if you want to inspect the screens. Connect your agent to finish setup.";
+    ? "Use the sample trace as a reference, then connect real data so the workflow runs on your production traces."
+    : "Optional sample trace is ready if you want to inspect the product. Connect real data to finish setup.";
   const openSampleTourAnchor =
     activationStage === "review_sample_signal" || isRealDataStep
       ? "sample_trace_link"
@@ -64,8 +64,8 @@ export default function SampleProjectPanel({
       value: "A failure signal you can inspect",
     },
     {
-      label: "Next action",
-      value: "Turn it into an evaluator",
+      label: "Real setup",
+      value: "Connect real data to create checks from your own traces",
     },
   ];
   const openSampleButton = (
@@ -92,7 +92,7 @@ export default function SampleProjectPanel({
       startIcon={<Iconify icon="mdi:connection" width={18} />}
       sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
     >
-      Connect your agent
+      Connect real data
     </Button>
   );
 
@@ -115,7 +115,7 @@ export default function SampleProjectPanel({
           justifyContent="space-between"
         >
           <Stack direction="row" spacing={0.75} alignItems="center">
-            <Chip size="small" variant="outlined" label="Sample data" />
+            <Chip size="small" variant="outlined" label="Sample trace" />
             <Chip size="small" label={sampleProject.label || "Sample"} />
             <Chip size="small" variant="outlined" label={statusLabel} />
           </Stack>
@@ -134,7 +134,7 @@ export default function SampleProjectPanel({
         </Stack>
 
         <Box
-          data-testid="sample-project-aha-preview"
+          data-testid="sample-project-preview-points"
           sx={{
             display: "grid",
             gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
@@ -163,7 +163,7 @@ export default function SampleProjectPanel({
 
         {sampleProject.status === "partially_ready" && !hasRoute ? (
           <Typography variant="body2" color="text.secondary">
-            The sample trace is not ready. Connect your agent to continue.
+            The sample trace is not ready. Connect real data to continue.
           </Typography>
         ) : null}
 

@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { render, screen } from "src/utils/test-utils";
 import GoalPicker from "../components/GoalPicker";
-import { ONBOARDING_GOAL_OPTIONS } from "../onboarding-home.constants";
+import {
+  getGoalOptionsForState,
+  ONBOARDING_GOAL_OPTIONS,
+} from "../onboarding-home.constants";
 
 describe("GoalPicker", () => {
   it("selects a goal and saves the selected option", async () => {
@@ -76,5 +79,16 @@ describe("GoalPicker", () => {
 
     expect(screen.getByText("Goal could not be saved")).toBeVisible();
     expect(screen.getByLabelText("Connect your agent")).toBeChecked();
+  });
+
+  it("does not offer preview-only sample data as a setup goal", () => {
+    const goals = getGoalOptionsForState({
+      availableGoals: ONBOARDING_GOAL_OPTIONS,
+    });
+
+    expect(goals.map((goal) => goal.label)).not.toContain(
+      "Explore with sample data",
+    );
+    expect(goals.every((goal) => goal.primaryPath !== "sample")).toBe(true);
   });
 });
