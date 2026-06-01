@@ -15,6 +15,9 @@ class Command(BaseCommand):
         parser.add_argument("--campaign-key")
         parser.add_argument("--force", action="store_true")
         parser.add_argument("--now")
+        parser.add_argument("--observe-credentials-ready", action="store_true")
+        parser.add_argument("--observe-setup-language")
+        parser.add_argument("--observe-setup-provider")
 
     def handle(self, *args, **options):
         now = None
@@ -28,6 +31,9 @@ class Command(BaseCommand):
                 campaign_key=options.get("campaign_key"),
                 force=options["force"],
                 now=now,
+                observe_credentials_ready=options["observe_credentials_ready"],
+                observe_setup_language=options.get("observe_setup_language"),
+                observe_setup_provider=options.get("observe_setup_provider"),
             )
         except ImproperlyConfigured as exc:
             raise CommandError(str(exc)) from exc

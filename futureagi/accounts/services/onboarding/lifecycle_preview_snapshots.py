@@ -25,6 +25,26 @@ PREVIEW_SOURCE = "lifecycle_preview_snapshot"
 DEFAULT_TARGET_ROUTE = f"/dashboard/home?source={PREVIEW_SOURCE}"
 MANIFEST_SCHEMA_VERSION = "onboarding-lifecycle-preview-manifest-2026-05-29.v1"
 MANIFEST_FILENAME = "manifest.json"
+OBSERVE_WAITING_CAMPAIGN_KEY = "observe_waiting_for_first_trace"
+OBSERVE_SETUP_PROVIDER_LABELS = {
+    "anthropic": "Anthropic",
+    "bedrock": "Bedrock",
+    "langchain": "LangChain",
+    "llamaindex": "LlamaIndex",
+    "mcp": "MCP",
+    "openai": "OpenAI",
+    "openai_agents": "OpenAI Agents",
+}
+OBSERVE_SETUP_PROVIDER_ALIASES = {
+    "llama-index": "llamaindex",
+    "llama_index": "llamaindex",
+    "openai-agents": "openai_agents",
+    "openaiagents": "openai_agents",
+}
+OBSERVE_SETUP_LANGUAGE_LABELS = {
+    "python": "Python",
+    "typescript": "TypeScript",
+}
 
 
 @dataclass(frozen=True)
@@ -72,13 +92,78 @@ def _preview_digest(now):
     }
 
 
-def _preview_send_log(campaign, *, now):
+def _safe_observe_setup_provider(value):
+    normalized = str(value or "").strip().lower().replace(" ", "_")
+    normalized = OBSERVE_SETUP_PROVIDER_ALIASES.get(normalized, normalized)
+    if not normalized:
+        return None
+    if normalized not in OBSERVE_SETUP_PROVIDER_LABELS:
+        raise ImproperlyConfigured(f"Unsupported observe setup provider: {value}")
+    return normalized
+
+
+def _safe_observe_setup_language(value):
+    normalized = str(value or "").strip().lower().replace(" ", "_")
+    if not normalized:
+        return None
+    if normalized not in OBSERVE_SETUP_LANGUAGE_LABELS:
+        raise ImproperlyConfigured(f"Unsupported observe setup language: {value}")
+    return normalized
+
+
+def _observe_setup_preview_metadata(
+    *,
+    campaign,
+    credentials_ready=False,
+    language=None,
+    now,
+    provider=None,
+):
+    if campaign["campaign_key"] != OBSERVE_WAITING_CAMPAIGN_KEY:
+        return {}
+
+    provider = _safe_observe_setup_provider(provider)
+    language = _safe_observe_setup_language(language)
+    metadata = {}
+    if credentials_ready:
+        metadata["observe_credentials_ready"] = True
+        metadata["observe_credentials_ready_at"] = now.isoformat()
+    if provider:
+        metadata["observe_setup_provider"] = provider
+        metadata["observe_setup_provider_label"] = OBSERVE_SETUP_PROVIDER_LABELS[
+            provider
+        ]
+    if language:
+        metadata["observe_setup_language"] = language
+        metadata["observe_setup_language_label"] = OBSERVE_SETUP_LANGUAGE_LABELS[
+            language
+        ]
+    return metadata
+
+
+def _preview_send_log(
+    campaign,
+    *,
+    now,
+    observe_credentials_ready=False,
+    observe_setup_language=None,
+    observe_setup_provider=None,
+):
     preview_id = uuid5(
         NAMESPACE_URL, f"futureagi:onboarding:{campaign['campaign_key']}"
     )
     metadata = {"source": PREVIEW_SOURCE}
     if campaign.get("requires_digest_preview"):
         metadata["digest_preview"] = _preview_digest(now)
+    metadata.update(
+        _observe_setup_preview_metadata(
+            campaign=campaign,
+            credentials_ready=observe_credentials_ready,
+            language=observe_setup_language,
+            now=now,
+            provider=observe_setup_provider,
+        )
+    )
     user = SimpleNamespace(
         id=uuid5(NAMESPACE_URL, "futureagi:onboarding:preview-user"),
         first_name="FutureAGI reviewer",
@@ -187,11 +272,27 @@ def write_lifecycle_preview_snapshots(
     campaign_key=None,
     force=False,
     now=None,
+    observe_credentials_ready=False,
+    observe_setup_language=None,
+    observe_setup_provider=None,
 ):
     now = now or timezone.now()
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     campaigns = _campaigns_for_snapshot(campaign_key)
+    if (
+        campaign_key
+        and campaign_key != OBSERVE_WAITING_CAMPAIGN_KEY
+        and (
+            observe_credentials_ready
+            or observe_setup_language
+            or observe_setup_provider
+        )
+    ):
+        raise ImproperlyConfigured(
+            "Observe setup preview options require campaign "
+            f"{OBSERVE_WAITING_CAMPAIGN_KEY} or all campaigns."
+        )
 
     expected_files = [output_path / "index.md", output_path / MANIFEST_FILENAME]
     for campaign in campaigns:
@@ -208,7 +309,13 @@ def write_lifecycle_preview_snapshots(
     manifest_rows = []
     files = []
     for campaign in campaigns:
-        send_log = _preview_send_log(campaign, now=now)
+        send_log = _preview_send_log(
+            campaign,
+            now=now,
+            observe_credentials_ready=observe_credentials_ready,
+            observe_setup_language=observe_setup_language,
+            observe_setup_provider=observe_setup_provider,
+        )
         preview = render_lifecycle_email_preview(
             send_log=send_log,
             campaign=campaign,

@@ -222,6 +222,89 @@ def test_observe_waiting_template_uses_credential_ready_context(
     )
 
 
+def test_lifecycle_preview_command_writes_observe_package_snapshot(tmp_path):
+    output = StringIO()
+
+    call_command(
+        "generate_onboarding_lifecycle_previews",
+        "--output-dir",
+        str(tmp_path),
+        "--campaign-key",
+        "observe_waiting_for_first_trace",
+        "--observe-setup-provider",
+        "Anthropic",
+        "--observe-setup-language",
+        "TypeScript",
+        "--now",
+        "2026-05-29T10:00:00Z",
+        stdout=output,
+    )
+
+    command_output = output.getvalue()
+    assert "count=1" in command_output
+    html = (tmp_path / "observe_waiting_for_first_trace.html").read_text()
+    text = (tmp_path / "observe_waiting_for_first_trace.txt").read_text()
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+
+    assert manifest["count"] == 1
+    assert manifest["campaigns"][0]["campaign_key"] == (
+        "observe_waiting_for_first_trace"
+    )
+    assert "observe project for Anthropic TypeScript" in text
+    assert "Open the Anthropic TypeScript setup" in text
+    assert "Confirm ANTHROPIC_API_KEY" in text
+    assert "Call AnthropicInstrumentor before creating the Anthropic client" in text
+    assert "Open the Anthropic TypeScript setup" in html
+    assert "choose the package your app uses" not in text
+
+
+def test_lifecycle_preview_command_writes_observe_credentials_ready_variant(tmp_path):
+    output = StringIO()
+
+    call_command(
+        "generate_onboarding_lifecycle_previews",
+        "--output-dir",
+        str(tmp_path),
+        "--campaign-key",
+        "observe_waiting_for_first_trace",
+        "--observe-setup-provider",
+        "anthropic",
+        "--observe-setup-language",
+        "typescript",
+        "--observe-credentials-ready",
+        "--now",
+        "2026-05-29T10:00:00Z",
+        stdout=output,
+    )
+
+    text = (tmp_path / "observe_waiting_for_first_trace.txt").read_text()
+
+    assert "has Anthropic TypeScript setup credentials ready" in text
+    assert "Paste the copied values into the Anthropic snippet" in text
+    assert "Confirm ANTHROPIC_API_KEY" in text
+
+
+def test_lifecycle_preview_command_rejects_observe_package_for_other_campaign(
+    tmp_path,
+):
+    output = StringIO()
+
+    with pytest.raises(
+        CommandError,
+        match="Observe setup preview options require campaign",
+    ):
+        call_command(
+            "generate_onboarding_lifecycle_previews",
+            "--output-dir",
+            str(tmp_path),
+            "--campaign-key",
+            "welcome_resume_goal",
+            "--observe-setup-provider",
+            "anthropic",
+            stdout=output,
+        )
+
+
 def test_lifecycle_preview_command_writes_no_send_snapshot(tmp_path):
     output = StringIO()
 

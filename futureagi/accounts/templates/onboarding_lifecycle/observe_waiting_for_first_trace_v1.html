@@ -11,8 +11,13 @@
       <p style="margin:0;">Paste the copied values into the matching package snippet, run one request, and FutureAGI will open the trace when it arrives.</p>
     {% endif %}
   {% else %}
-    <p style="margin:0 0 16px;">Hi {{ user_name }}, {{ workspace_name }} has an observe project but no real trace yet.</p>
-    <p style="margin:0;">Open setup, choose the package your app uses, send one trace, and FutureAGI will guide you from trace review to evaluator creation.</p>
+    {% if observe_setup_package_label %}
+      <p style="margin:0 0 16px;">Hi {{ user_name }}, {{ workspace_name }} has an observe project for {{ observe_setup_package_label }} but no real trace yet.</p>
+      <p style="margin:0;">Open the {{ observe_setup_package_label }} setup, send one request from your app, and FutureAGI will guide you from trace review to evaluator creation.</p>
+    {% else %}
+      <p style="margin:0 0 16px;">Hi {{ user_name }}, {{ workspace_name }} has an observe project but no real trace yet.</p>
+      <p style="margin:0;">Open setup, choose the package your app uses, send one trace, and FutureAGI will guide you from trace review to evaluator creation.</p>
+    {% endif %}
   {% endif %}
   <div style="margin:18px 0 0;padding:14px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">
     <p style="margin:0 0 8px;font-weight:600;color:#111827;">{{ observe_trace_check_title }}</p>
