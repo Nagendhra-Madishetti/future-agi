@@ -40,6 +40,7 @@ CAMPAIGN_KEYS = tuple(campaign["campaign_key"] for campaign in lifecycle_campaig
         ("langchain", "LangChainInstrumentor"),
         ("openai_agents", "Runner.run"),
         ("llama_index", "LlamaIndexInstrumentor"),
+        ("llamaindex", "LlamaIndexInstrumentor"),
         ("bedrock", "bedrock:InvokeModel"),
         ("mcp", "MCP_SERVER_URL"),
     ],

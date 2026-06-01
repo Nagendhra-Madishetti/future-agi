@@ -83,6 +83,11 @@ OBSERVE_TRACE_CHECKS_BY_PROVIDER = {
     },
 }
 
+OBSERVE_TRACE_CHECK_PROVIDER_ALIASES = {
+    "llamaindex": "llama_index",
+    "openaiagents": "openai_agents",
+}
+
 
 def _base_url():
     base = (
@@ -129,7 +134,10 @@ def observe_setup_package_label(metadata):
 
 
 def observe_trace_checks(metadata):
-    provider = (metadata.get("observe_setup_provider") or "").strip().lower()
+    provider = (
+        (metadata.get("observe_setup_provider") or "").strip().lower().replace("-", "_")
+    )
+    provider = OBSERVE_TRACE_CHECK_PROVIDER_ALIASES.get(provider, provider)
     return OBSERVE_TRACE_CHECKS_BY_PROVIDER.get(provider, DEFAULT_OBSERVE_TRACE_CHECKS)
 
 
