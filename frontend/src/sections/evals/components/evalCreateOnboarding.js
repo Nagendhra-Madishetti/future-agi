@@ -134,6 +134,42 @@ const STEP_COPY = {
   },
 };
 
+const TRACE_PROJECT_STEP_COPY = {
+  [EVAL_CREATE_ONBOARDING_STEPS.DATA]: {
+    currentStep: "Trace source",
+    description:
+      "The reviewed trace project is selected. Next, add a starter scorer for this source.",
+    title: "Use reviewed trace project",
+    steps: [
+      { label: "Trace source", complete: false },
+      { label: "Evaluator", complete: false },
+      { label: "Run", complete: false },
+    ],
+  },
+  [EVAL_CREATE_ONBOARDING_STEPS.SCORER]: {
+    currentStep: "First evaluator",
+    description:
+      "A safe output-quality scorer is loaded for this trace project. Create it, then run it once.",
+    title: "Create the first trace evaluator",
+    steps: [
+      { label: "Trace source", complete: true },
+      { label: "Evaluator", complete: false },
+      { label: "Run", complete: false },
+    ],
+  },
+  [EVAL_CREATE_ONBOARDING_STEPS.RUN]: {
+    currentStep: "Run evaluator",
+    description:
+      "Run the saved scorer once so the first trace-project eval result is reviewable.",
+    title: "Run evaluator on trace project",
+    steps: [
+      { label: "Trace source", complete: true },
+      { label: "Evaluator", complete: true },
+      { label: "Run", complete: false },
+    ],
+  },
+};
+
 const EVAL_RERUN_COPY = {
   currentStep: "Rerun",
   description:
@@ -416,9 +452,19 @@ export const shouldAutoSaveEvalOnboardingStarterScorer = ({
       sourceId,
   );
 
-export const getEvalCreateOnboardingCopy = ({ rerunFrom, step } = {}) => {
+export const getEvalCreateOnboardingCopy = ({
+  rerunFrom,
+  sourceType,
+  step,
+} = {}) => {
   if (step === EVAL_CREATE_ONBOARDING_STEPS.RUN && rerunFrom) {
     return EVAL_RERUN_COPY;
+  }
+  if (sourceType === "trace_project") {
+    return (
+      TRACE_PROJECT_STEP_COPY[step] ||
+      TRACE_PROJECT_STEP_COPY[EVAL_CREATE_ONBOARDING_STEPS.SCORER]
+    );
   }
   return STEP_COPY[step] || STEP_COPY[EVAL_CREATE_ONBOARDING_STEPS.SCORER];
 };
@@ -471,25 +517,37 @@ export const getEvalOnboardingSourceSummary = ({
   if (step === EVAL_CREATE_ONBOARDING_STEPS.DATA) {
     return {
       description: setupPackageLabel
-        ? `Use this ${setupPackageLabel} trace project to add a scorer next.`
-        : "Use this source to add a scorer next.",
-      label: `${summaryLabel} selected`,
+        ? `Source is locked to this ${setupPackageLabel} trace project. Add a scorer next.`
+        : sourceType === "trace_project"
+          ? "Source is locked to this trace project. Add a scorer next."
+          : "Use this source to add a scorer next.",
+      label:
+        sourceType === "trace_project"
+          ? `${summaryLabel} locked`
+          : `${summaryLabel} selected`,
     };
   }
 
   if (step === EVAL_CREATE_ONBOARDING_STEPS.SCORER) {
     return {
       description: setupPackageLabel
-        ? `Starter scorer is ready for ${setupPackageLabel} traces. Edit it or save to run this source.`
-        : "Starter scorer is ready. Edit it or save to run this source.",
-      label: `${summaryLabel} ready`,
+        ? `Starter scorer is loaded for ${setupPackageLabel} traces. Create the evaluator, then run it once.`
+        : sourceType === "trace_project"
+          ? "Starter scorer is loaded for this trace project. Create the evaluator, then run it once."
+          : "Starter scorer is ready. Edit it or save to run this source.",
+      label:
+        sourceType === "trace_project"
+          ? `${summaryLabel} locked`
+          : `${summaryLabel} ready`,
     };
   }
 
   return {
     description: setupPackageLabel
-      ? `Run the saved scorer on ${setupPackageLabel} traces.`
-      : "Run the saved scorer on this source.",
+      ? `Run the saved evaluator on ${setupPackageLabel} traces.`
+      : sourceType === "trace_project"
+        ? "Run the saved evaluator on this trace project."
+        : "Run the saved scorer on this source.",
     label: `${summaryLabel} ready`,
   };
 };

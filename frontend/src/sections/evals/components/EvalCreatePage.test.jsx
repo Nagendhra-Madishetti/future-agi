@@ -252,8 +252,15 @@ describe("EvalCreatePage onboarding source handoff", () => {
         "/dashboard/evaluations/create/eval-draft-1?source=onboarding&step=run&source_type=trace_project&source_id=project-1&provider=anthropic&language=typescript",
     });
 
+    expect(
+      await screen.findByText("Run evaluator on trace project"),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("tab", { name: "Composite" }),
+    ).not.toBeInTheDocument();
+
     const runButton = await screen.findByRole("button", {
-      name: "Run first eval",
+      name: "Run evaluator",
     });
     await waitFor(() => expect(runButton).toBeEnabled());
 
@@ -297,7 +304,7 @@ describe("EvalCreatePage onboarding source handoff", () => {
     });
 
     const runButton = await screen.findByRole("button", {
-      name: "Run first eval",
+      name: "Run evaluator",
     });
     await waitFor(() => expect(runButton).toBeEnabled());
 

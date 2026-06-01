@@ -184,6 +184,9 @@ const EvalCreatePage = () => {
     () => getEvalCreateOnboardingParams(location.search),
     [location.search],
   );
+  const isTraceProjectOnboarding =
+    onboardingParams.isOnboarding &&
+    onboardingParams.sourceType === "trace_project";
   const onboardingQuickStartAttribution = useMemo(
     () => evalSetupQuickStartAttributionFromSearch(location.search),
     [location.search],
@@ -1083,13 +1086,14 @@ const EvalCreatePage = () => {
   const handleModeChange = useCallback(
     (_, val) => {
       if (val === mode) return;
+      if (isTraceProjectOnboarding) return;
       if (hasProgressToDiscard) {
         setPendingMode(val);
         return;
       }
       setMode(val);
     },
-    [mode, hasProgressToDiscard],
+    [mode, hasProgressToDiscard, isTraceProjectOnboarding],
   );
 
   const handleConfirmModeSwitch = useCallback(() => {
@@ -1139,7 +1143,9 @@ const EvalCreatePage = () => {
           autoSavingOnboardingStarter || !draftId || isLoading || !canSave,
         label: autoSavingOnboardingStarter
           ? "Preparing first run"
-          : "Save starter scorer",
+          : onboardingParams.sourceType === "trace_project"
+            ? "Create evaluator"
+            : "Save starter scorer",
         onClick: mode === "single" ? handleSaveSingle : handleSaveComposite,
       };
     }
@@ -1151,7 +1157,9 @@ const EvalCreatePage = () => {
           : "Rerun eval"
         : isTesting
           ? "Running first eval"
-          : "Run first eval";
+          : onboardingParams.sourceType === "trace_project"
+            ? "Run evaluator"
+            : "Run first eval";
       return {
         disabled: !draftId || isTesting || !isPlaygroundReady,
         label: runLabel,
@@ -1288,80 +1296,91 @@ const EvalCreatePage = () => {
                 <Typography variant="subtitle1" fontWeight={600}>
                   Eval details
                 </Typography>
-                <Tabs
-                  value={mode}
-                  onChange={handleModeChange}
-                  TabIndicatorProps={{ style: { display: "none" } }}
-                  sx={{
-                    minHeight: 28,
-                    "& .MuiTab-root": {
+                {isTraceProjectOnboarding ? (
+                  <Chip
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    label="Trace evaluator"
+                  />
+                ) : (
+                  <Tabs
+                    value={mode}
+                    onChange={handleModeChange}
+                    TabIndicatorProps={{ style: { display: "none" } }}
+                    sx={{
                       minHeight: 28,
-                      px: 1.5,
-                      py: 0,
-                      mr: "0px !important",
-                      textTransform: "none",
-                      fontSize: "13px",
-                      borderRadius: "6px",
-                    },
-                    border: "1px solid",
-                    borderColor: "divider",
-                    p: "2px",
-                    borderRadius: "8px",
-                    bgcolor: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "rgba(255,255,255,0.04)"
-                        : "background.neutral",
-                  }}
-                >
-                  <Tab
-                    value="single"
-                    label="Single"
-                    sx={{
-                      bgcolor:
-                        mode === "single"
-                          ? (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.12)"
-                                : "background.paper"
-                          : "transparent",
-                      boxShadow:
-                        mode === "single"
-                          ? (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "none"
-                                : "0 1px 3px rgba(0,0,0,0.08)"
-                          : "none",
-                      borderRadius: "6px",
-                      fontWeight: mode === "single" ? 600 : 400,
-                      color:
-                        mode === "single" ? "text.primary" : "text.disabled",
+                      "& .MuiTab-root": {
+                        minHeight: 28,
+                        px: 1.5,
+                        py: 0,
+                        mr: "0px !important",
+                        textTransform: "none",
+                        fontSize: "13px",
+                        borderRadius: "6px",
+                      },
+                      border: "1px solid",
+                      borderColor: "divider",
+                      p: "2px",
+                      borderRadius: "8px",
+                      bgcolor: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "rgba(255,255,255,0.04)"
+                          : "background.neutral",
                     }}
-                  />
-                  <Tab
-                    value="composite"
-                    label="Composite"
-                    sx={{
-                      bgcolor:
-                        mode === "composite"
-                          ? (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.12)"
-                                : "background.paper"
-                          : "transparent",
-                      boxShadow:
-                        mode === "composite"
-                          ? (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "none"
-                                : "0 1px 3px rgba(0,0,0,0.08)"
-                          : "none",
-                      borderRadius: "6px",
-                      fontWeight: mode === "composite" ? 600 : 400,
-                      color:
-                        mode === "composite" ? "text.primary" : "text.disabled",
-                    }}
-                  />
-                </Tabs>
+                  >
+                    <Tab
+                      value="single"
+                      label="Single"
+                      sx={{
+                        bgcolor:
+                          mode === "single"
+                            ? (theme) =>
+                                theme.palette.mode === "dark"
+                                  ? "rgba(255,255,255,0.12)"
+                                  : "background.paper"
+                            : "transparent",
+                        boxShadow:
+                          mode === "single"
+                            ? (theme) =>
+                                theme.palette.mode === "dark"
+                                  ? "none"
+                                  : "0 1px 3px rgba(0,0,0,0.08)"
+                            : "none",
+                        borderRadius: "6px",
+                        fontWeight: mode === "single" ? 600 : 400,
+                        color:
+                          mode === "single" ? "text.primary" : "text.disabled",
+                      }}
+                    />
+                    <Tab
+                      value="composite"
+                      label="Composite"
+                      sx={{
+                        bgcolor:
+                          mode === "composite"
+                            ? (theme) =>
+                                theme.palette.mode === "dark"
+                                  ? "rgba(255,255,255,0.12)"
+                                  : "background.paper"
+                            : "transparent",
+                        boxShadow:
+                          mode === "composite"
+                            ? (theme) =>
+                                theme.palette.mode === "dark"
+                                  ? "none"
+                                  : "0 1px 3px rgba(0,0,0,0.08)"
+                            : "none",
+                        borderRadius: "6px",
+                        fontWeight: mode === "composite" ? 600 : 400,
+                        color:
+                          mode === "composite"
+                            ? "text.primary"
+                            : "text.disabled",
+                      }}
+                    />
+                  </Tabs>
+                )}
               </Box>
 
               {mode === "single" ? (

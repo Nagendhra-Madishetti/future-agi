@@ -855,10 +855,12 @@ async function main() {
       timeout: 45000,
     });
     await expectVisibleText(page, "Run", { timeout: 45000 });
-    await expectVisibleText(page, "Run the first eval", { timeout: 45000 });
+    await expectVisibleText(page, "Run evaluator on trace project", {
+      timeout: 45000,
+    });
     await expectVisibleText(
       page,
-      "Run the scorer once so the first eval result is reviewable.",
+      "Run the saved scorer once so the first trace-project eval result is reviewable.",
       { timeout: 45000 },
     );
     await expectVisibleText(page, "Trace project ready", { timeout: 45000 });
@@ -900,11 +902,11 @@ async function main() {
       45000,
     );
     const evalRunOnboardingUrl = page.url();
-    await expectVisibleText(page, "Run first eval", { timeout: 45000 });
+    await expectVisibleText(page, "Run evaluator", { timeout: 45000 });
     await expectNoVisibleText(page, "Span data not loaded yet", {
       timeout: 60000,
     });
-    await clickVisibleButtonText(page, "Run first eval", 45000);
+    await clickVisibleButtonText(page, "Run evaluator", 45000);
     await waitForCondition(
       () =>
         evidence.evalPlaygroundResponses.some(

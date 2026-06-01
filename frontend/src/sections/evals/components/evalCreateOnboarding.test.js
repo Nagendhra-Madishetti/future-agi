@@ -246,6 +246,20 @@ describe("evalCreateOnboarding", () => {
     expect(evalCreateOnboardingStage(EVAL_CREATE_ONBOARDING_STEPS.RUN)).toBe(
       "run_eval",
     );
+    expect(
+      getEvalCreateOnboardingCopy({
+        sourceType: "trace_project",
+        step: EVAL_CREATE_ONBOARDING_STEPS.SCORER,
+      }),
+    ).toMatchObject({
+      currentStep: "First evaluator",
+      title: "Create the first trace evaluator",
+      steps: [
+        { label: "Trace source", complete: true },
+        { label: "Evaluator", complete: false },
+        { label: "Run", complete: false },
+      ],
+    });
   });
 
   it("returns rerun copy when the eval follows a source fix", () => {
@@ -407,8 +421,8 @@ describe("evalCreateOnboarding", () => {
       }),
     ).toEqual({
       description:
-        "Use this Anthropic Python trace project to add a scorer next.",
-      label: "Anthropic Python trace project selected",
+        "Source is locked to this Anthropic Python trace project. Add a scorer next.",
+      label: "Anthropic Python trace project locked",
     });
 
     expect(
@@ -422,8 +436,8 @@ describe("evalCreateOnboarding", () => {
       }),
     ).toEqual({
       description:
-        "Starter scorer is ready for OpenAI TypeScript traces. Edit it or save to run this source.",
-      label: "OpenAI TypeScript trace project ready",
+        "Starter scorer is loaded for OpenAI TypeScript traces. Create the evaluator, then run it once.",
+      label: "OpenAI TypeScript trace project locked",
     });
 
     expect(
@@ -436,8 +450,20 @@ describe("evalCreateOnboarding", () => {
         step: EVAL_CREATE_ONBOARDING_STEPS.RUN,
       }),
     ).toEqual({
-      description: "Run the saved scorer on LlamaIndex Python traces.",
+      description: "Run the saved evaluator on LlamaIndex Python traces.",
       label: "LlamaIndex Python trace project ready",
+    });
+
+    expect(
+      getEvalOnboardingSourceSummary({
+        isOnboarding: true,
+        sourceId: "project-1",
+        sourceType: "trace_project",
+        step: EVAL_CREATE_ONBOARDING_STEPS.RUN,
+      }),
+    ).toEqual({
+      description: "Run the saved evaluator on this trace project.",
+      label: "Trace project ready",
     });
   });
 

@@ -14,6 +14,16 @@ const SCREENSHOT_PATH =
   process.env.ONBOARDING_FIRST_TRACE_SCREENSHOT ||
   `/tmp/onboarding-first-trace-review-smoke-${VIEWPORT_NAME}.png`;
 const STUB_AUTH = envFlag("ONBOARDING_SMOKE_STUB_AUTH");
+const SETUP_PROVIDER = normalizeSetupValue(
+  process.env.ONBOARDING_SMOKE_SETUP_PROVIDER,
+);
+const SETUP_LANGUAGE = normalizeSetupValue(
+  process.env.ONBOARDING_SMOKE_SETUP_LANGUAGE,
+);
+const SETUP_PACKAGE_LABEL = setupPackageLabel({
+  setupLanguage: SETUP_LANGUAGE,
+  setupProvider: SETUP_PROVIDER,
+});
 
 async function main() {
   assert(STUB_AUTH, "Set ONBOARDING_SMOKE_STUB_AUTH=1 for this smoke.");
@@ -92,9 +102,12 @@ async function main() {
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   try {
-    await page.goto(`${APP_BASE}/dashboard/home?source=onboarding`, {
-      waitUntil: "domcontentloaded",
-    });
+    await page.goto(
+      `${APP_BASE}/dashboard/home?${homeOnboardingSearch().toString()}`,
+      {
+        waitUntil: "domcontentloaded",
+      },
+    );
     await page.waitForFunction(
       () =>
         window.location.pathname === "/dashboard/home" &&
@@ -104,7 +117,13 @@ async function main() {
     );
 
     await expectSelector(page, '[data-testid="waiting-for-signal-panel"]');
-    await expectVisibleText(page, "Send one real trace", { exact: true });
+    await expectVisibleText(
+      page,
+      SETUP_PACKAGE_LABEL
+        ? `Send one ${SETUP_PACKAGE_LABEL} trace`
+        : "Send one trace",
+      { exact: true },
+    );
     await expectVisibleText(page, "Projects: 1 · Traces: 0", { exact: true });
     await expectVisibleText(page, "Send trace", { exact: true });
 
@@ -119,26 +138,39 @@ async function main() {
     const reviewTraceHref = await visibleLinkHrefByText(page, "Review trace", {
       rootSelector: '[data-testid="first-signal-panel"]',
     });
+    const reviewTraceUrl = new URL(reviewTraceHref, APP_BASE);
     assert(
-      reviewTraceHref ===
-        "/dashboard/observe/observe-1/trace/trace-1?source=onboarding&onboarding=review-first-trace",
-      `Unexpected review trace href: ${reviewTraceHref}`,
+      reviewTraceUrl.pathname === "/dashboard/observe/observe-1/trace/trace-1",
+      `Unexpected review trace path: ${reviewTraceHref}`,
     );
+    assert(
+      reviewTraceUrl.searchParams.get("source") === "onboarding" &&
+        reviewTraceUrl.searchParams.get("onboarding") === "review-first-trace",
+      `Unexpected review trace params: ${reviewTraceHref}`,
+    );
+    assertSetupContext(reviewTraceUrl.searchParams, reviewTraceHref);
 
     await clickVisibleText(page, "Review trace", {
       rootSelector: '[data-testid="first-signal-panel"]',
     });
     await page.waitForFunction(
-      () => {
+      ({ setupLanguage, setupProvider }) => {
         const params = new URLSearchParams(window.location.search);
-        return (
+        const routeMatched =
           window.location.pathname ===
             "/dashboard/observe/observe-1/trace/trace-1" &&
           params.get("source") === "onboarding" &&
-          params.get("onboarding") === "review-first-trace"
-        );
+          params.get("onboarding") === "review-first-trace";
+        const setupMatched =
+          (!setupProvider || params.get("provider") === setupProvider) &&
+          (!setupLanguage || params.get("language") === setupLanguage);
+        return routeMatched && setupMatched;
       },
       { timeout: 30000 },
+      {
+        setupLanguage: SETUP_LANGUAGE,
+        setupProvider: SETUP_PROVIDER,
+      },
     );
 
     await waitForCondition(
@@ -156,27 +188,55 @@ async function main() {
     );
     await expectVisibleText(page, "Trace", { exact: true });
     await expectVisibleText(page, "trace-1");
-    await expectVisibleText(page, "First trace received", { exact: true });
+    await expectVisibleText(
+      page,
+      SETUP_PACKAGE_LABEL
+        ? `${SETUP_PACKAGE_LABEL} trace received`
+        : "First trace received",
+      { exact: true },
+    );
     await expectVisibleText(page, "Create evaluator", { exact: true });
     await clickVisibleText(page, "Create evaluator");
     await page.waitForFunction(
-      () => {
+      ({ setupLanguage, setupProvider }) => {
         const params = new URLSearchParams(window.location.search);
-        return (
+        const routeMatched =
           window.location.pathname ===
             "/dashboard/evaluations/create/eval-draft-1" &&
           params.get("source") === "onboarding" &&
           params.get("step") === "run" &&
           params.get("source_type") === "trace_project" &&
-          params.get("source_id") === "observe-1"
-        );
+          params.get("source_id") === "observe-1";
+        const setupMatched =
+          (!setupProvider || params.get("provider") === setupProvider) &&
+          (!setupLanguage || params.get("language") === setupLanguage);
+        return routeMatched && setupMatched;
       },
       { timeout: 30000 },
+      {
+        setupLanguage: SETUP_LANGUAGE,
+        setupProvider: SETUP_PROVIDER,
+      },
     );
     await expectSelector(page, '[data-testid="eval-onboarding-focus"]');
-    await expectVisibleText(page, "Eval onboarding", { exact: true });
-    await expectVisibleText(page, "Run the first eval", { exact: true });
-    await expectVisibleText(page, "Trace project ready", { exact: true });
+    await expectVisibleText(page, "Eval setup", { exact: true });
+    await expectVisibleText(page, "Run evaluator on trace project", {
+      exact: true,
+    });
+    await expectVisibleText(
+      page,
+      SETUP_PACKAGE_LABEL
+        ? `${SETUP_PACKAGE_LABEL} trace project ready`
+        : "Trace project ready",
+      { exact: true },
+    );
+    await expectVisibleText(
+      page,
+      SETUP_PACKAGE_LABEL
+        ? `Run the saved evaluator on ${SETUP_PACKAGE_LABEL} traces.`
+        : "Run the saved evaluator on this trace project.",
+      { exact: true },
+    );
     await waitForCondition(
       () =>
         activationEventPosts.some(
@@ -303,6 +363,53 @@ async function main() {
   } finally {
     await browser.close();
   }
+}
+
+function normalizeSetupValue(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function homeOnboardingSearch() {
+  const params = new URLSearchParams();
+  params.set("source", "onboarding");
+  if (SETUP_PROVIDER) params.set("provider", SETUP_PROVIDER);
+  if (SETUP_LANGUAGE) params.set("language", SETUP_LANGUAGE);
+  return params;
+}
+
+function assertSetupContext(params, href) {
+  if (SETUP_PROVIDER) {
+    assert(
+      params.get("provider") === SETUP_PROVIDER,
+      `Expected provider ${SETUP_PROVIDER} in href: ${href}`,
+    );
+  }
+  if (SETUP_LANGUAGE) {
+    assert(
+      params.get("language") === SETUP_LANGUAGE,
+      `Expected language ${SETUP_LANGUAGE} in href: ${href}`,
+    );
+  }
+}
+
+function setupPackageLabel({ setupLanguage, setupProvider } = {}) {
+  const providerLabels = {
+    anthropic: "Anthropic",
+    bedrock: "Amazon Bedrock",
+    langchain: "LangChain",
+    llama_index: "LlamaIndex",
+    llamaindex: "LlamaIndex",
+    mcp: "MCP",
+    openai: "OpenAI",
+    openai_agents: "OpenAI Agents",
+  };
+  const languageLabels = {
+    python: "Python",
+    typescript: "TypeScript",
+  };
+  return [providerLabels[setupProvider], languageLabels[setupLanguage]]
+    .filter(Boolean)
+    .join(" ");
 }
 
 async function installRuntime(

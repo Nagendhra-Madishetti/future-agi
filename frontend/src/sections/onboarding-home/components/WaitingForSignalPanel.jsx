@@ -32,9 +32,7 @@ export default function WaitingForSignalPanel({
     setupLanguage,
     setupProvider,
   });
-  const traceLabel = setupPackageLabel
-    ? `${setupPackageLabel} trace`
-    : "first trace";
+  const traceLabel = setupPackageLabel ? `${setupPackageLabel} trace` : "trace";
   const requestLabel = setupPackageLabel
     ? `${setupPackageLabel} request`
     : "request";
