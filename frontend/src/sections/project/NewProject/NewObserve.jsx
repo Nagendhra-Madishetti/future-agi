@@ -160,6 +160,74 @@ run_your_existing_${
   }_request()`;
 };
 
+const DEFAULT_TRACE_TROUBLESHOOTING = {
+  title: "If the trace does not arrive",
+  checks: [
+    "Confirm the Future AGI API key and secret are loaded in the process running the request.",
+    "Run the request after project registration and package instrumentation.",
+    "Keep this page open, then use the first trace review step when the trace appears.",
+  ],
+};
+
+const TRACE_TROUBLESHOOTING_BY_INSTRUMENT = {
+  anthropic: {
+    title: "If the Anthropic trace does not arrive",
+    checks: [
+      "Confirm ANTHROPIC_API_KEY is loaded where the request runs.",
+      "Call AnthropicInstrumentor before creating the Anthropic client.",
+      "Run client.messages.create once, then keep this page open for trace detection.",
+    ],
+  },
+  bedrock: {
+    title: "If the Bedrock trace does not arrive",
+    checks: [
+      "Confirm AWS credentials, AWS_REGION, and BEDROCK_MODEL_ID are available.",
+      "Confirm the role can call bedrock:InvokeModel for the selected model.",
+      "Call BedrockInstrumentor before creating or using the bedrock-runtime client.",
+    ],
+  },
+  langchain: {
+    title: "If the LangChain trace does not arrive",
+    checks: [
+      "Confirm the model provider key, such as OPENAI_API_KEY, is loaded.",
+      "Call LangChainInstrumentor before creating ChatOpenAI or your chain.",
+      "Run llm.invoke or your chain once, then watch this page for the trace.",
+    ],
+  },
+  llama_index: {
+    title: "If the LlamaIndex trace does not arrive",
+    checks: [
+      "Confirm the LLM or embedding provider key, such as OPENAI_API_KEY, is loaded.",
+      "Call LlamaIndexInstrumentor before building the index or query engine.",
+      "Run query_engine.query once so a real retrieval or generation span is created.",
+    ],
+  },
+  mcp: {
+    title: "If the MCP trace does not arrive",
+    checks: [
+      "Confirm MCP_SERVER_URL and MCP_SERVER_TOKEN reach a server that lists tools.",
+      "Instrument both OpenAI Agents and MCP before Runner.run starts.",
+      "Run one safe MCP tool call, then keep this page open for trace detection.",
+    ],
+  },
+  openai: {
+    title: "If the OpenAI trace does not arrive",
+    checks: [
+      "Confirm OPENAI_API_KEY is loaded where the request runs.",
+      "Call OpenAIInstrumentor before creating the OpenAI client.",
+      "Run responses.create once, then keep this page open for trace detection.",
+    ],
+  },
+  openai_agents: {
+    title: "If the OpenAI Agents trace does not arrive",
+    checks: [
+      "Confirm OPENAI_API_KEY is loaded where Runner.run executes.",
+      "Call OpenAIAgentsInstrumentor before constructing or running the agent.",
+      "Run Runner.run or Runner.run_sync once, then continue to trace review.",
+    ],
+  },
+};
+
 const languageDataKey = (language) =>
   language === "typescript" ? "TypeScript" : "Python";
 
@@ -178,6 +246,10 @@ const instrumentSortRank = (id) => {
   const index = SETUP_INSTRUMENT_PRIORITY.indexOf(id);
   return index === -1 ? SETUP_INSTRUMENT_PRIORITY.length : index;
 };
+
+const traceTroubleshootingForInstrument = (instrumentId) =>
+  TRACE_TROUBLESHOOTING_BY_INSTRUMENT[instrumentId] ||
+  DEFAULT_TRACE_TROUBLESHOOTING;
 
 const VerificationAlert = ({ setupVerification }) => {
   if (!setupVerification) return null;
@@ -251,6 +323,9 @@ const FirstTraceSetupGuide = ({
   const selectedInstrumentLabel = selectedInstrument?.name || "your package";
   const selectedLanguageLabel =
     selectedInstrumentLanguage === "typescript" ? "TypeScript" : "Python";
+  const traceTroubleshooting = traceTroubleshootingForInstrument(
+    selectedInstrument?.id,
+  );
 
   return (
     <Box
@@ -492,6 +567,26 @@ const FirstTraceSetupGuide = ({
         </Box>
 
         <VerificationAlert setupVerification={setupVerification} />
+
+        <Alert
+          severity="info"
+          icon={<Iconify icon="mdi:help-circle-outline" width={20} />}
+          data-testid="observe-trace-troubleshooting"
+          sx={{ alignItems: "flex-start" }}
+        >
+          <Stack spacing={0.75}>
+            <Typography variant="subtitle2">
+              {traceTroubleshooting.title}
+            </Typography>
+            <Stack spacing={0.5}>
+              {traceTroubleshooting.checks.map((check) => (
+                <Typography key={check} variant="body2">
+                  {check}
+                </Typography>
+              ))}
+            </Stack>
+          </Stack>
+        </Alert>
       </Stack>
     </Box>
   );

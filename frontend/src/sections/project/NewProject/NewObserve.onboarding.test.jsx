@@ -292,6 +292,14 @@ describe("NewObserve onboarding setup", () => {
       within(guide).getByText("4. Run one Anthropic request"),
     ).toBeVisible();
     expect(within(guide).getByText("anthropic python smoke")).toBeVisible();
+    expect(
+      within(guide).getByText("If the Anthropic trace does not arrive"),
+    ).toBeVisible();
+    expect(
+      within(guide).getByText(
+        "Confirm ANTHROPIC_API_KEY is loaded where the request runs.",
+      ),
+    ).toBeVisible();
 
     await userEvent.click(
       within(guide).getByRole("tab", { name: /typescript/i }),
@@ -424,6 +432,9 @@ describe("NewObserve onboarding setup", () => {
         within(guide).getByText(`4. Run one ${title} request`),
       ).toBeVisible();
       expect(within(guide).getByText(smoke)).toBeVisible();
+      expect(
+        within(guide).getByTestId("observe-trace-troubleshooting"),
+      ).toHaveTextContent(`If the ${title} trace does not arrive`);
       expect(
         within(guide).getByRole("tab", { name: /typescript/i }),
       ).toBeDisabled();

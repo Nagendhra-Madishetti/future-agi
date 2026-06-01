@@ -72,8 +72,8 @@ function ObservePackagePicker({
             Which package does your app use?
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            The setup page will open with matching install and instrumentation
-            code.
+            The setup page will open with matching install, request, and trace
+            checks.
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
