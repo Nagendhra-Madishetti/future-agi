@@ -58,13 +58,15 @@ describe("evalCreateOnboarding", () => {
   it("parses eval create onboarding query params", () => {
     expect(
       getEvalCreateOnboardingParams(
-        "?source=onboarding&step=run&source_type=dataset&source_id=data-1&run_id=run-1",
+        "?source=onboarding&step=run&source_type=dataset&source_id=data-1&run_id=run-1&provider=Anthropic&language=TypeScript",
       ),
     ).toEqual({
       isOnboarding: true,
       previousRunId: null,
       rerunFrom: null,
       runId: "run-1",
+      setupLanguage: "typescript",
+      setupProvider: "anthropic",
       sourceId: "data-1",
       sourceType: "dataset",
       step: EVAL_CREATE_ONBOARDING_STEPS.RUN,
@@ -140,11 +142,13 @@ describe("evalCreateOnboarding", () => {
     expect(
       buildEvalScorerSourceHref({
         evalId: "eval-1",
+        setupLanguage: "typescript",
+        setupProvider: "anthropic",
         sourceId: "project-1",
         sourceType: "trace_project",
       }),
     ).toBe(
-      "/dashboard/evaluations/create/eval-1?source=onboarding&step=scorer&source_type=trace_project&source_id=project-1",
+      "/dashboard/evaluations/create/eval-1?source=onboarding&step=scorer&source_type=trace_project&source_id=project-1&provider=anthropic&language=typescript",
     );
     expect(
       buildEvalScorerEditHref({
@@ -161,22 +165,27 @@ describe("evalCreateOnboarding", () => {
     expect(
       buildEvalRunStepHref({
         evalId: "eval-1",
+        search: "?provider=llama_index&language=python",
         sourceId: "data-1",
         sourceType: "dataset",
       }),
     ).toBe(
-      "/dashboard/evaluations/create/eval-1?source=onboarding&step=run&source_type=dataset&source_id=data-1",
+      "/dashboard/evaluations/create/eval-1?source=onboarding&step=run&source_type=dataset&source_id=data-1&provider=llamaindex&language=python",
     );
     expect(
       buildEvalRunStepHref({
         evalId: "eval-1",
         previousRunId: "run-1",
         rerunFrom: EVAL_FIX_RERUN_ORIGINS.SOURCE_FIX,
+        setupIntent: {
+          setup_language: "typescript",
+          setup_provider: "openai-agents",
+        },
         sourceId: "data-1",
         sourceType: "dataset",
       }),
     ).toBe(
-      "/dashboard/evaluations/create/eval-1?source=onboarding&step=run&source_type=dataset&source_id=data-1&rerun_from=source_fix&previous_run_id=run-1",
+      "/dashboard/evaluations/create/eval-1?source=onboarding&step=run&source_type=dataset&source_id=data-1&rerun_from=source_fix&previous_run_id=run-1&provider=openai_agents&language=typescript",
     );
   });
 
@@ -683,6 +692,8 @@ describe("evalCreateOnboarding", () => {
       previousRunId: null,
       rerunFrom: null,
       runId: "run-1",
+      setupLanguage: null,
+      setupProvider: null,
       sourceId: "data-1",
       sourceType: "dataset",
       step: "review",
@@ -914,6 +925,8 @@ describe("evalCreateOnboarding", () => {
       evalId: "eval-1",
       isOnboarding: true,
       runId: "run-1",
+      setupLanguage: null,
+      setupProvider: null,
       sourceId: "data-1",
       sourceType: "dataset",
       step: "fix-eval-failure",
@@ -924,6 +937,8 @@ describe("evalCreateOnboarding", () => {
       evalId: null,
       isOnboarding: false,
       runId: null,
+      setupLanguage: null,
+      setupProvider: null,
       sourceId: null,
       sourceType: null,
       step: null,
@@ -1156,6 +1171,8 @@ describe("evalCreateOnboarding", () => {
       previousRunId: "run-0",
       rerunFrom: EVAL_FIX_RERUN_ORIGINS.SOURCE_FIX,
       runId: "run-1",
+      setupLanguage: null,
+      setupProvider: null,
       sourceId: "data-1",
       sourceType: "dataset",
       step: "fix-eval-failure",
@@ -1167,6 +1184,8 @@ describe("evalCreateOnboarding", () => {
       previousRunId: null,
       rerunFrom: null,
       runId: null,
+      setupLanguage: null,
+      setupProvider: null,
       sourceId: null,
       sourceType: null,
       step: null,

@@ -196,6 +196,22 @@ const EVAL_SOURCE_FIX_COPY = {
 
 const validSteps = new Set(Object.values(EVAL_CREATE_ONBOARDING_STEPS));
 const validFixRerunOrigins = new Set(Object.values(EVAL_FIX_RERUN_ORIGINS));
+const OBSERVE_SETUP_PROVIDERS = new Set([
+  "anthropic",
+  "bedrock",
+  "langchain",
+  "llamaindex",
+  "mcp",
+  "openai",
+  "openai_agents",
+]);
+const OBSERVE_SETUP_PROVIDER_ALIASES = {
+  "llama-index": "llamaindex",
+  llama_index: "llamaindex",
+  "openai-agents": "openai_agents",
+  openaiagents: "openai_agents",
+};
+const OBSERVE_SETUP_LANGUAGES = new Set(["python", "typescript"]);
 
 const compactMetadata = (metadata = {}) =>
   Object.fromEntries(
@@ -247,6 +263,76 @@ const evalQuickStartAttributionInput = ({
 const normalizeFixRerunOrigin = (value) =>
   validFixRerunOrigins.has(value) ? value : null;
 
+const normalizeSetupValue = (value) =>
+  typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const normalizeObserveSetupProvider = (value) => {
+  const normalizedValue = normalizeSetupValue(value);
+  const canonicalValue =
+    OBSERVE_SETUP_PROVIDER_ALIASES[normalizedValue] || normalizedValue;
+  return OBSERVE_SETUP_PROVIDERS.has(canonicalValue) ? canonicalValue : null;
+};
+
+const normalizeObserveSetupLanguage = (value) => {
+  const normalizedValue = normalizeSetupValue(value);
+  return OBSERVE_SETUP_LANGUAGES.has(normalizedValue) ? normalizedValue : null;
+};
+
+const setupIntentFromSearch = (search = "") => {
+  const params = toSearchParams(search);
+  return {
+    setupLanguage: normalizeObserveSetupLanguage(
+      params.get("language") || params.get("lang"),
+    ),
+    setupProvider: normalizeObserveSetupProvider(
+      params.get("provider") ||
+        params.get("package") ||
+        params.get("instrument"),
+    ),
+  };
+};
+
+const setupIntentInput = ({
+  search,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
+} = {}) => {
+  if (setupIntent) {
+    return {
+      setupLanguage: normalizeObserveSetupLanguage(
+        setupIntent.setupLanguage || setupIntent.setup_language,
+      ),
+      setupProvider: normalizeObserveSetupProvider(
+        setupIntent.setupProvider || setupIntent.setup_provider,
+      ),
+    };
+  }
+  const parsedIntent = search ? setupIntentFromSearch(search) : {};
+  return {
+    setupLanguage: normalizeObserveSetupLanguage(
+      setupLanguage || parsedIntent.setupLanguage,
+    ),
+    setupProvider: normalizeObserveSetupProvider(
+      setupProvider || parsedIntent.setupProvider,
+    ),
+  };
+};
+
+const appendSetupIntentParams = (params, options = {}) => {
+  const { setupLanguage, setupProvider } = setupIntentInput(options);
+  if (setupProvider) params.set("provider", setupProvider);
+  if (setupLanguage) params.set("language", setupLanguage);
+};
+
+const setupIntentMetadata = (options = {}) => {
+  const { setupLanguage, setupProvider } = setupIntentInput(options);
+  return {
+    setup_language: setupLanguage || undefined,
+    setup_provider: setupProvider || undefined,
+  };
+};
+
 export const getEvalDetailTabFromSearch = (search = "") => {
   const tab = toSearchParams(search).get("tab");
   return EVAL_DETAIL_TABS.has(tab) ? tab : "details";
@@ -275,6 +361,7 @@ export const getEvalCreateOnboardingParams = (search = "") => {
     previousRunId: params.get("previous_run_id"),
     rerunFrom: normalizeFixRerunOrigin(params.get("rerun_from")),
     runId: params.get("run_id"),
+    ...setupIntentFromSearch(params),
     sourceId: params.get("source_id"),
     sourceType: params.get("source_type"),
     step,
@@ -403,6 +490,9 @@ export const buildEvalScorerSourceHref = ({
   evalId,
   quickStartAttribution,
   search,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType = "dataset",
 } = {}) => {
@@ -411,6 +501,12 @@ export const buildEvalScorerSourceHref = ({
   params.set("step", EVAL_CREATE_ONBOARDING_STEPS.SCORER);
   params.set("source_type", sourceType || "dataset");
   if (sourceId) params.set("source_id", sourceId);
+  appendSetupIntentParams(params, {
+    search,
+    setupIntent,
+    setupLanguage,
+    setupProvider,
+  });
 
   return appendEvalOnboardingAttributionToHref(
     `/dashboard/evaluations/create${evalId ? `/${evalId}` : ""}?${params.toString()}`,
@@ -424,6 +520,9 @@ export const buildEvalScorerEditHref = ({
   quickStartAttribution,
   rerunFrom,
   search,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -435,6 +534,12 @@ export const buildEvalScorerEditHref = ({
   if (sourceType) params.set("source_type", sourceType);
   if (sourceId) params.set("source_id", sourceId);
   appendEvalFixRerunParams(params, { previousRunId, rerunFrom });
+  appendSetupIntentParams(params, {
+    search,
+    setupIntent,
+    setupLanguage,
+    setupProvider,
+  });
 
   return appendEvalOnboardingAttributionToHref(
     `/dashboard/evaluations/create/${evalId}?${params.toString()}`,
@@ -448,6 +553,9 @@ export const buildEvalRunStepHref = ({
   quickStartAttribution,
   rerunFrom,
   search,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -457,6 +565,12 @@ export const buildEvalRunStepHref = ({
   if (sourceType) params.set("source_type", sourceType);
   if (sourceId) params.set("source_id", sourceId);
   appendEvalFixRerunParams(params, { previousRunId, rerunFrom });
+  appendSetupIntentParams(params, {
+    search,
+    setupIntent,
+    setupLanguage,
+    setupProvider,
+  });
 
   return appendEvalOnboardingAttributionToHref(
     `/dashboard/evaluations/create/${evalId}?${params.toString()}`,
@@ -565,6 +679,7 @@ export const getEvalReviewOnboardingParams = (search = "") => {
     previousRunId: params.get("previous_run_id"),
     rerunFrom: normalizeFixRerunOrigin(params.get("rerun_from")),
     runId: params.get("run_id"),
+    ...setupIntentFromSearch(params),
     sourceId: params.get("source_id"),
     sourceType: params.get("source_type"),
     step,
@@ -585,6 +700,7 @@ export const getEvalFailureActionOnboardingParams = (search = "") => {
     previousRunId: params.get("previous_run_id"),
     rerunFrom: normalizeFixRerunOrigin(params.get("rerun_from")),
     runId: params.get("run_id"),
+    ...setupIntentFromSearch(params),
     sourceId: params.get("source_id"),
     sourceType: params.get("source_type"),
     step,
@@ -606,6 +722,7 @@ export const getEvalSourceFixOnboardingParams = (search = "") => {
       (params.get("source") === "onboarding" || Boolean(journeyStep)) &&
       step === EVAL_FIX_STEP,
     runId: params.get("run_id"),
+    ...setupIntentFromSearch(params),
     sourceId: params.get("source_id"),
     sourceType: params.get("source_type"),
     step,
@@ -627,6 +744,9 @@ export const buildEvalReviewStepHref = ({
   rerunFrom,
   runId,
   search,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -641,6 +761,12 @@ export const buildEvalReviewStepHref = ({
   if (sourceType) params.set("source_type", sourceType);
   if (sourceId) params.set("source_id", sourceId);
   appendEvalFixRerunParams(params, { previousRunId, rerunFrom });
+  appendSetupIntentParams(params, {
+    search,
+    setupIntent,
+    setupLanguage,
+    setupProvider,
+  });
 
   return appendEvalOnboardingAttributionToHref(
     `${basePath}?${params.toString()}`,
@@ -660,6 +786,8 @@ export const buildEvalReviewDetailHref = (evalId, search = "") => {
     previousRunId: reviewParams.previousRunId,
     rerunFrom: reviewParams.rerunFrom,
     search,
+    setupLanguage: reviewParams.setupLanguage,
+    setupProvider: reviewParams.setupProvider,
     sourceId: reviewParams.sourceId,
     sourceType: reviewParams.sourceType,
   });
@@ -670,6 +798,9 @@ export const buildEvalSourceFixHref = ({
   quickStartAttribution,
   runId,
   search,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -690,6 +821,12 @@ export const buildEvalSourceFixHref = ({
   params.set("source_id", sourceId);
   if (evalId) params.set("eval_id", evalId);
   if (runId) params.set("run_id", runId);
+  appendSetupIntentParams(params, {
+    search,
+    setupIntent,
+    setupLanguage,
+    setupProvider,
+  });
 
   return appendEvalOnboardingAttributionToHref(
     `${basePath}?${params.toString()}`,
@@ -703,6 +840,9 @@ export const buildEvalPostRepairHomeHref = ({
   rerunFrom,
   runId,
   search,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -714,6 +854,12 @@ export const buildEvalPostRepairHomeHref = ({
   if (sourceType) params.set("source_type", sourceType);
   if (sourceId) params.set("source_id", sourceId);
   appendEvalFixRerunParams(params, { previousRunId, rerunFrom });
+  appendSetupIntentParams(params, {
+    search,
+    setupIntent,
+    setupLanguage,
+    setupProvider,
+  });
 
   return appendEvalOnboardingAttributionToHref(
     `/dashboard/home?${params.toString()}`,
@@ -730,6 +876,9 @@ export const buildEvalRouteFocusPayload = ({
   quickStartAttribution,
   rerunFrom,
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
   step,
@@ -754,6 +903,7 @@ export const buildEvalRouteFocusPayload = ({
       previous_run_id: previousRunId,
       rerun_from: normalizeFixRerunOrigin(rerunFrom),
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: normalizedStep,
@@ -772,6 +922,9 @@ export const buildEvalSourceSelectedPayload = ({
   draftId,
   quickStartAttribution,
   rowType,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
   step,
@@ -792,6 +945,7 @@ export const buildEvalSourceSelectedPayload = ({
     metadata: compactMetadata({
       draft_id: draftId,
       row_type: rowType,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: normalizedStep,
@@ -839,6 +993,9 @@ export const buildEvalScorerCreatedPayload = ({
   evalType,
   isComposite = false,
   quickStartAttribution,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
   step,
@@ -856,6 +1013,7 @@ export const buildEvalScorerCreatedPayload = ({
       eval_id: evalId,
       eval_type: evalType,
       is_composite: Boolean(isComposite),
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step,
@@ -878,6 +1036,9 @@ export const buildEvalRunClickedPayload = ({
   previousRunId,
   quickStartAttribution,
   rerunFrom,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -898,6 +1059,7 @@ export const buildEvalRunClickedPayload = ({
       mode,
       previous_run_id: previousRunId,
       rerun_from: normalizedRerunFrom,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: EVAL_CREATE_ONBOARDING_STEPS.RUN,
@@ -920,6 +1082,9 @@ export const buildEvalRunCompletedPayload = ({
   quickStartAttribution,
   result = {},
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -943,6 +1108,7 @@ export const buildEvalRunCompletedPayload = ({
       log_id: result?.log_id,
       mode,
       run_id: runId || resultRunId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       status: result?.status || "completed",
@@ -969,6 +1135,9 @@ export const buildEvalFixRerunCompletedPayload = ({
   rerunFrom,
   result = {},
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -995,6 +1164,7 @@ export const buildEvalFixRerunCompletedPayload = ({
       previous_run_id: previousRunId,
       rerun_from: normalizedRerunFrom,
       run_id: runId || resultRunId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       status: result?.status || "completed",
@@ -1018,6 +1188,9 @@ export const buildEvalReviewRouteFocusPayload = ({
   rerunFrom,
   route = "eval_detail",
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
 } = {}) => {
   const artifactId = safeKeyPart(runId || evalId, EVAL_REVIEW_ARTIFACT_ID);
 
@@ -1034,6 +1207,7 @@ export const buildEvalReviewRouteFocusPayload = ({
       rerun_from: normalizeFixRerunOrigin(rerunFrom),
       route,
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       step: EVAL_REVIEW_STEP,
       tab: "usage",
     }),
@@ -1052,6 +1226,9 @@ export const buildEvalSourceFixRouteFocusPayload = ({
   quickStartAttribution,
   route,
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -1071,6 +1248,7 @@ export const buildEvalSourceFixRouteFocusPayload = ({
       eval_id: evalId,
       route,
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: EVAL_FIX_STEP,
@@ -1091,6 +1269,9 @@ export const buildEvalSourceFixRerunClickedPayload = ({
   rerunRoute,
   route,
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -1111,6 +1292,7 @@ export const buildEvalSourceFixRerunClickedPayload = ({
       rerun_route: rerunRoute,
       route,
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: EVAL_FIX_STEP,
@@ -1133,6 +1315,9 @@ export const buildEvalFailuresReviewedPayload = ({
   reviewSurface = "usage_log_detail",
   rowSource,
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -1155,6 +1340,7 @@ export const buildEvalFailuresReviewedPayload = ({
       review_surface: reviewSurface,
       row_source: rowSource,
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: EVAL_REVIEW_STEP,
@@ -1180,6 +1366,9 @@ export const buildEvalFixRerunReviewedPayload = ({
   reviewSurface = "usage_log_detail",
   rowSource,
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -1205,6 +1394,7 @@ export const buildEvalFixRerunReviewedPayload = ({
       review_surface: reviewSurface,
       row_source: rowSource,
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: EVAL_REVIEW_STEP,
@@ -1230,6 +1420,9 @@ export const buildEvalFailureActionCreatedPayload = ({
   quickStartAttribution,
   rowSource,
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
   step,
@@ -1254,6 +1447,7 @@ export const buildEvalFailureActionCreatedPayload = ({
       fix_route: fixRoute,
       row_source: rowSource,
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: step || EVAL_FIX_STEP,
@@ -1275,6 +1469,9 @@ export const buildEvalSourceFixCtaClickedPayload = ({
   quickStartAttribution,
   rowSource,
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -1296,6 +1493,7 @@ export const buildEvalSourceFixCtaClickedPayload = ({
       fix_route: fixRoute,
       row_source: rowSource,
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: EVAL_FIX_STEP,
@@ -1317,6 +1515,9 @@ export const buildEvalScorerEditCtaClickedPayload = ({
   quickStartAttribution,
   rowSource,
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -1338,6 +1539,7 @@ export const buildEvalScorerEditCtaClickedPayload = ({
       eval_log_id: evalLogId,
       row_source: rowSource,
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: EVAL_CREATE_ONBOARDING_STEPS.SCORER,
@@ -1360,6 +1562,9 @@ export const buildEvalFirstQualityLoopCompletedPayload = ({
   rerunFrom,
   reviewOutcome,
   runId,
+  setupIntent,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
 } = {}) => {
@@ -1380,6 +1585,7 @@ export const buildEvalFirstQualityLoopCompletedPayload = ({
       rerun_from: normalizedRerunFrom,
       review_outcome: reviewOutcome,
       run_id: runId,
+      ...setupIntentMetadata({ setupIntent, setupLanguage, setupProvider }),
       source_id: sourceId,
       source_type: sourceType,
       step: EVAL_REVIEW_STEP,
