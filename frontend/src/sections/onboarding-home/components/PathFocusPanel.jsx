@@ -81,8 +81,8 @@ export default function PathFocusPanel({
           <Stack spacing={0.25}>
             <Typography variant="subtitle2">Your setup checklist</Typography>
             <Typography variant="body2" color="text.secondary">
-              Finish the highlighted action first. The remaining steps stay
-              visible so you know what comes next.
+              Finish the Start here step first. The remaining steps stay visible
+              so you know what comes next.
             </Typography>
           </Stack>
         )}

@@ -821,8 +821,8 @@ export default function OnboardingHomeView() {
             eyebrow: "First setup",
             title: selectedSetupQuickStart.buttonLabel,
             description: firstRunNextStepLabel
-              ? `${selectedSetupQuickStart.shortDescription} Do first: ${firstRunCurrentStepLabel}. Next: ${firstRunNextStepLabel}.`
-              : `${selectedSetupQuickStart.shortDescription} Do first: ${firstRunCurrentStepLabel}.`,
+              ? `${selectedSetupQuickStart.shortDescription} First step: ${firstRunCurrentStepLabel}. Next: ${firstRunNextStepLabel}.`
+              : `${selectedSetupQuickStart.shortDescription} First step: ${firstRunCurrentStepLabel}.`,
             surfaceLabel: selectedSetupQuickStart.surfaceLabel,
           }
       : quickStartMismatchAction
@@ -1269,12 +1269,12 @@ export default function OnboardingHomeView() {
               sx={{ borderRadius: 1, mt: 1, maxWidth: 760 }}
             >
               <Typography variant="subtitle2" component="div">
-                Start with the highlighted action
+                Start with {firstRunCurrentStepLabel}
               </Typography>
               <Typography variant="body2" sx={{ mt: 0.25 }}>
-                Use the button in the setup card below. When the action is
-                complete, this checklist moves to the next step. Sample screens
-                stay preview-only.
+                Click {firstRunCurrentStepLabel} in the setup card below. When
+                that action is complete, this checklist moves to the next step.
+                Sample screens stay preview-only.
               </Typography>
             </Alert>
           ) : null}

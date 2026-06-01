@@ -38,7 +38,7 @@ export const SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS = [
   quickStart("monitor_production_ai_app", {
     id: "observe",
     goal: "monitor_production_ai_app",
-    surfaceLabel: "Tracing",
+    surfaceLabel: "Observe",
     buttonLabel: "Connect your agent",
     shortDescription: "Send traces from your AI app and review quality.",
     firstActionLabel: "Create Observe project",
@@ -98,7 +98,7 @@ export const SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS = [
   quickStart("evaluate_quality", {
     id: "evals",
     goal: "evaluate_quality",
-    surfaceLabel: "Evals / simulation",
+    surfaceLabel: "Simulation",
     buttonLabel: "Test AI using simulation",
     shortDescription: "Create a small eval or simulation and review failures.",
     firstActionLabel: "Create dataset",
