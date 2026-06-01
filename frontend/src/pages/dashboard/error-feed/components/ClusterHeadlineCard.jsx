@@ -334,18 +334,11 @@ function AnalyzedState({
   const isDark = theme.palette.mode === "dark";
   return (
     <Stack gap={1.25}>
-      <MetaStrip
-        confidence={data.confidence}
-        category={data.category}
-        analyzedAt={data.analyzedAt}
-        newSinceAnalysis={data.newSinceAnalysis}
-        onRerun={onRerun}
-      />
-
-      {/* Step chips are intentionally NOT rendered post-completion. Earlier
-          we kept them visible (all-done) to keep the box height stable
-          across analyzing → analyzed, but the resulting card was too tall
-          for an at-a-glance result; we'd rather have a compact summary. */}
+      {/* MetaStrip (confidence dot + category + timestamp + rerun) used to
+          live here. Confidence + category are still readable from the
+          collapsed-summary text in the accordion header; the timestamp
+          and rerun control moved next to the chevron at the top so the
+          card stays compact post-analysis. */}
 
       <Typography
         fontSize="14px"
@@ -645,6 +638,50 @@ export default function ClusterHeadlineCard({
         )}
 
         <Box sx={{ flex: 1 }} />
+
+        {/* Analyzed timestamp + rerun control — visible when expanded on
+            an analyzed state. Lives in the header now (replaces the old
+            MetaStrip that sat in the body) so the box stays compact. */}
+        {!collapsed && state === "analyzed" && (
+          <Stack
+            direction="row"
+            alignItems="center"
+            gap={0.6}
+            sx={{ flexShrink: 0 }}
+          >
+            <Typography
+              fontSize="10.5px"
+              color="text.disabled"
+              sx={{ textTransform: "uppercase", letterSpacing: "0.06em" }}
+            >
+              Analyzed {data?.analyzedAt ?? "just now"}
+            </Typography>
+            <Tooltip title="Re-run analysis (1 credit)" arrow>
+              <Box
+                onClick={(e) => {
+                  e.stopPropagation();
+                  runAnalysis();
+                }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 22,
+                  height: 22,
+                  borderRadius: "5px",
+                  cursor: "pointer",
+                  color: "text.disabled",
+                  "&:hover": {
+                    color: "text.primary",
+                    bgcolor: isDark ? alpha("#fff", 0.06) : alpha("#000", 0.04),
+                  },
+                }}
+              >
+                <Iconify icon="mdi:refresh" width={13} />
+              </Box>
+            </Tooltip>
+          </Stack>
+        )}
 
         <Tooltip title={collapsed ? "Expand" : "Collapse"} arrow>
           <Box
