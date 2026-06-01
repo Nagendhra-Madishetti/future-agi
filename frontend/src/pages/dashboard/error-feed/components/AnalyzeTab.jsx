@@ -660,60 +660,6 @@ function SubagentCard({ msg }) {
 }
 SubagentCard.propTypes = { msg: PropTypes.object.isRequired };
 
-// "Try asking" suggestion chips — clicking one submits it as the next
-// follow-up. Disabled while the parent is streaming.
-function SuggestionChips({ items, disabled, onPick }) {
-  if (!items?.length) return null;
-  return (
-    <Stack gap={0.75} sx={{ pl: 3, pt: 0.5 }}>
-      <Typography
-        fontSize="9.5px"
-        fontWeight={700}
-        color="text.disabled"
-        sx={{ textTransform: "uppercase", letterSpacing: "0.09em" }}
-      >
-        Try asking
-      </Typography>
-      <Stack direction="row" gap={0.75} flexWrap="wrap">
-        {items.map((q) => (
-          <Chip
-            key={q}
-            label={q}
-            size="small"
-            disabled={disabled}
-            onClick={() => onPick?.(q)}
-            sx={{
-              height: 26,
-              borderRadius: "13px",
-              fontSize: "12px",
-              fontWeight: 500,
-              cursor: "pointer",
-              bgcolor: (theme) =>
-                theme.palette.mode === "dark"
-                  ? alpha("#fff", 0.05)
-                  : alpha("#000", 0.04),
-              color: "text.primary",
-              border: "1px solid",
-              borderColor: "divider",
-              "&:hover": {
-                bgcolor: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? alpha("#fff", 0.09)
-                    : alpha("#000", 0.06),
-              },
-            }}
-          />
-        ))}
-      </Stack>
-    </Stack>
-  );
-}
-SuggestionChips.propTypes = {
-  items: PropTypes.array,
-  disabled: PropTypes.bool,
-  onPick: PropTypes.func,
-};
-
 // Sticky input bar at the bottom of the tab. Disabled until the main run
 // finishes (so the user can't fork a sub-agent mid-cluster-analysis) and
 // while a sub-agent is streaming (to avoid stacking parallel runs).
@@ -777,7 +723,19 @@ function FollowUpInput({ disabled, placeholder, onSubmit }) {
         placeholder={placeholder}
         InputProps={{
           disableUnderline: true,
-          sx: { fontSize: "13px", lineHeight: 1.5, py: 0.5 },
+          sx: {
+            fontSize: "13.5px",
+            lineHeight: 1.5,
+            py: 0.5,
+            // MUI's default placeholder is `text.disabled` at low opacity,
+            // which reads as ghostly. Bump to `text.secondary` at full
+            // opacity so the prompt-text is clearly legible.
+            "& input::placeholder, & textarea::placeholder": {
+              color: "text.secondary",
+              opacity: 1,
+              fontWeight: 500,
+            },
+          },
         }}
       />
       <Tooltip title={disabled ? "Waiting for current run…" : "Send (Enter)"} arrow>
@@ -818,6 +776,80 @@ FollowUpInput.propTypes = {
   onSubmit: PropTypes.func,
 };
 
+// Sticky bottom block — example-question chips on top, input bar on the
+// bottom — so the compose affordance reads as a single unit at the foot
+// of the tab. The chip list is contextual: starter examples until the
+// user asks something, then the latest sub-agent's "Try asking" set.
+function ComposeArea({ suggestions, suggestionsHeader, disabled, placeholder, onSubmit }) {
+  return (
+    <Stack gap={1} sx={{ flexShrink: 0 }}>
+      {suggestions?.length > 0 && (
+        <Stack gap={0.5} sx={{ px: 0.25 }}>
+          <Typography
+            fontSize="9.5px"
+            fontWeight={700}
+            color="text.disabled"
+            sx={{ textTransform: "uppercase", letterSpacing: "0.09em" }}
+          >
+            {suggestionsHeader}
+          </Typography>
+          <Stack direction="row" gap={0.6} flexWrap="wrap">
+            {suggestions.map((q) => (
+              <Chip
+                key={q}
+                label={q}
+                size="small"
+                disabled={disabled}
+                onClick={() => onSubmit?.(q)}
+                sx={{
+                  height: 26,
+                  borderRadius: "13px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? alpha("#fff", 0.05)
+                      : alpha("#000", 0.04),
+                  color: "text.primary",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  "&:hover": {
+                    bgcolor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? alpha("#fff", 0.09)
+                        : alpha("#000", 0.06),
+                  },
+                }}
+              />
+            ))}
+          </Stack>
+        </Stack>
+      )}
+      <FollowUpInput
+        disabled={disabled}
+        placeholder={placeholder}
+        onSubmit={onSubmit}
+      />
+    </Stack>
+  );
+}
+ComposeArea.propTypes = {
+  suggestions: PropTypes.array,
+  suggestionsHeader: PropTypes.string,
+  disabled: PropTypes.bool,
+  placeholder: PropTypes.string,
+  onSubmit: PropTypes.func,
+};
+
+// Default starter suggestions shown before the user asks their first
+// follow-up. Tuned to the cluster-analysis context.
+const STARTER_SUGGESTIONS = [
+  "Why did this start happening?",
+  "How do I roll back to v23?",
+  "Show me an unaffected call",
+];
+
 // ── Main AnalyzeTab ───────────────────────────────────────────────────────
 
 export default function AnalyzeTab({ error }) {
@@ -841,6 +873,20 @@ export default function AnalyzeTab({ error }) {
   const isStreaming = runState === "streaming";
   const isFollowUpStreaming = followUpRunState === "streaming";
   const mainRunDone = runState === "done";
+
+  // The compose-area chip set is contextual:
+  //   - Before the first follow-up → curated starter examples
+  //   - After each sub-agent answer → that answer's own "Try asking" set
+  // Suggestion messages stay in the thread for completeness/history but
+  // aren't rendered inline; the compose area is the single source of truth.
+  const latestSuggestionsMsg = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].type === "suggestions") return messages[i];
+    }
+    return null;
+  }, [messages]);
+  const composeSuggestions = latestSuggestionsMsg?.items ?? STARTER_SUGGESTIONS;
+  const composeHeader = latestSuggestionsMsg ? "Try asking" : "Try asking";
 
   // Chronological order — the cluster steps build the case, the synthesis
   // is the headline, follow-ups continue the conversation below it.
@@ -1014,25 +1060,25 @@ export default function AnalyzeTab({ error }) {
                 return <AssistantIntro key={m.id} text={m.text} />;
               if (m.type === "subagent")
                 return <SubagentCard key={m.id} msg={m} />;
-              if (m.type === "suggestions")
-                return (
-                  <SuggestionChips
-                    key={m.id}
-                    items={m.items}
-                    disabled={isFollowUpStreaming}
-                    onPick={runFollowUp}
-                  />
-                );
+              // suggestions are rendered in the bottom ComposeArea instead
+              // of inline in the thread — single source of truth, always
+              // sits next to the input where the user is composing.
+              if (m.type === "suggestions") return null;
               return null;
             })
           )}
         </Stack>
       </Box>
 
-      {/* Sticky follow-up input — visible once the main run has produced a
-          synthesis. Disabled while a sub-agent is mid-stream. */}
+      {/* Sticky compose area — example chips + input, anchored to the
+          bottom of the tab. Visible once the main run has produced a
+          synthesis; chips seed with curated examples until the user asks
+          their first follow-up, then track the latest sub-agent's
+          "Try asking" set. */}
       {mainRunDone && (
-        <FollowUpInput
+        <ComposeArea
+          suggestions={composeSuggestions}
+          suggestionsHeader={composeHeader}
           disabled={isFollowUpStreaming}
           placeholder={
             isFollowUpStreaming
