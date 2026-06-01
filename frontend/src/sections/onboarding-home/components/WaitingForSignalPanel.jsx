@@ -25,6 +25,18 @@ export default function WaitingForSignalPanel({
 }) {
   const effectiveJourneyPlan = journeyPlan || observeFallbackJourneyPlan(stage);
   const currentStep = journeyCurrentStep(effectiveJourneyPlan, stage);
+  const actionSlot = currentStep ? (
+    <ObservePanelActions
+      action={action}
+      fallbackAction={fallbackAction}
+      onPrimaryClick={onPrimaryClick}
+      onFallbackClick={onFallbackClick}
+      onCheckAgain={onCheckAgain}
+      isChecking={isChecking}
+      journeyStep={currentStep}
+      singleActionFocus={singleActionFocus || Boolean(currentStep)}
+    />
+  ) : null;
 
   return (
     <Box
@@ -45,6 +57,7 @@ export default function WaitingForSignalPanel({
           chips={["observe", "waiting"]}
         />
         <ObserveJourneyProgress
+          actionSlot={actionSlot}
           journeyPlan={effectiveJourneyPlan}
           singleActionFocus={singleActionFocus}
           stage={stage}
@@ -63,16 +76,18 @@ export default function WaitingForSignalPanel({
             {signals?.traces || 0}
           </Typography>
         </Box>
-        <ObservePanelActions
-          action={action}
-          fallbackAction={fallbackAction}
-          onPrimaryClick={onPrimaryClick}
-          onFallbackClick={onFallbackClick}
-          onCheckAgain={onCheckAgain}
-          isChecking={isChecking}
-          journeyStep={currentStep}
-          singleActionFocus={singleActionFocus}
-        />
+        {currentStep ? null : (
+          <ObservePanelActions
+            action={action}
+            fallbackAction={fallbackAction}
+            onPrimaryClick={onPrimaryClick}
+            onFallbackClick={onFallbackClick}
+            onCheckAgain={onCheckAgain}
+            isChecking={isChecking}
+            journeyStep={currentStep}
+            singleActionFocus={singleActionFocus}
+          />
+        )}
       </Stack>
     </Box>
   );

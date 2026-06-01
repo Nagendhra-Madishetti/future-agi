@@ -52,7 +52,7 @@ describe("PathFocusPanel", () => {
     ).toBeVisible();
     expect(
       within(screen.getByTestId("path-focus-step-run_prompt_test")).getByText(
-        "Now",
+        "Start here",
       ),
     ).toBeVisible();
     expect(
@@ -113,14 +113,14 @@ describe("PathFocusPanel", () => {
     ).toBeVisible();
     expect(
       within(screen.getByTestId("path-focus-step-run_prompt_test")).getByText(
-        "Now",
+        "Start here",
       ),
     ).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Run from manifest.",
     );
     expect(
-      within(panel).getByRole("link", { name: "Run test" }),
+      within(panel).getByRole("link", { name: "Run manifest test" }),
     ).toHaveAttribute(
       "href",
       "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",
@@ -143,7 +143,7 @@ describe("PathFocusPanel", () => {
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Next: Save version",
     );
-    expect(within(panel).getByText("Setup sequence")).toBeVisible();
+    expect(within(panel).getByText("What happens next")).toBeVisible();
     expect(within(panel).getAllByText("Step 2 of 6").length).toBeGreaterThan(0);
     expect(screen.queryByTestId("path-focus-step-start_prompt")).toBeVisible();
     expect(
@@ -167,7 +167,7 @@ describe("PathFocusPanel", () => {
     );
   });
 
-  it("offers a replay link after the current destination tip was dismissed", () => {
+  it("keeps replay and fallback actions out of the current-step focus", () => {
     dismissDestinationTourAnchor({
       anchor: "prompt_run_test_button",
       identity: "usr-home",
@@ -204,12 +204,10 @@ describe("PathFocusPanel", () => {
     });
 
     const panel = screen.getByTestId(`path-focus-panel-${state.primaryPath}`);
+    expect(within(panel).queryByRole("link", { name: /show tip/i })).toBeNull();
     expect(
-      within(panel).getByRole("link", { name: /show tip/i }),
-    ).toHaveAttribute(
-      "href",
-      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test&tour_replay=1",
-    );
+      within(panel).queryByRole("link", { name: /start with observe/i }),
+    ).toBeNull();
   });
 
   it("guides the gateway path from key setup to first routed request", () => {
@@ -231,7 +229,7 @@ describe("PathFocusPanel", () => {
     expect(
       within(
         screen.getByTestId("path-focus-step-run_gateway_request"),
-      ).getByText("Now"),
+      ).getByText("Start here"),
     ).toBeVisible();
     expect(
       within(panel).getByRole("link", { name: "Send request" }),

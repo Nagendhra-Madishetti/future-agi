@@ -290,6 +290,8 @@ async function main() {
       await expectVisibleText(page, pathProfile.currentStepDescription, {
         exact: true,
       });
+      await expectVisibleText(page, "Start here", { exact: true });
+      await expectVisibleText(page, "What happens next", { exact: true });
       const getStartedVisible = await visibleActionExists(
         page,
         "Open Get Started",
@@ -455,16 +457,17 @@ async function main() {
 
     const homeCtaHref = await visibleLinkHrefByText(
       page,
-      "Connect observability",
+      "Create Observe project",
       { rootSelector: '[data-testid="observe-setup-panel"]' },
     );
     assert(
-      homeCtaHref === "/dashboard/observe?setup=true&source=onboarding",
+      homeCtaHref ===
+        "/dashboard/observe?setup=true&source=onboarding&tour_anchor=observe_create_project_button&journey_step=connect_observability",
       `Unexpected Home CTA href: ${homeCtaHref}`,
     );
     evidence.home_cta_href = homeCtaHref;
 
-    await clickVisibleText(page, "Connect observability", {
+    await clickVisibleText(page, "Create Observe project", {
       rootSelector: '[data-testid="observe-setup-panel"]',
     });
     await page.waitForFunction(

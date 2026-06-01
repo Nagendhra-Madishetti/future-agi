@@ -26,6 +26,18 @@ export default function FirstSignalPanel({
   const isImprovement = stage === "create_trace_evaluator";
   const effectiveJourneyPlan = journeyPlan || observeFallbackJourneyPlan(stage);
   const currentStep = journeyCurrentStep(effectiveJourneyPlan, stage);
+  const actionSlot = currentStep ? (
+    <ObservePanelActions
+      action={action}
+      fallbackAction={fallbackAction}
+      onPrimaryClick={onPrimaryClick}
+      onFallbackClick={onFallbackClick}
+      onCheckAgain={onCheckAgain}
+      isChecking={isChecking}
+      journeyStep={currentStep}
+      singleActionFocus={singleActionFocus || Boolean(currentStep)}
+    />
+  ) : null;
 
   return (
     <Box
@@ -54,6 +66,7 @@ export default function FirstSignalPanel({
           chips={["observe", isImprovement ? "improve" : "review"]}
         />
         <ObserveJourneyProgress
+          actionSlot={actionSlot}
           journeyPlan={effectiveJourneyPlan}
           singleActionFocus={singleActionFocus}
           stage={stage}
@@ -92,16 +105,18 @@ export default function FirstSignalPanel({
             </Typography>
           </Box>
         </Box>
-        <ObservePanelActions
-          action={action}
-          fallbackAction={fallbackAction}
-          onPrimaryClick={onPrimaryClick}
-          onFallbackClick={onFallbackClick}
-          onCheckAgain={onCheckAgain}
-          isChecking={isChecking}
-          journeyStep={currentStep}
-          singleActionFocus={singleActionFocus}
-        />
+        {currentStep ? null : (
+          <ObservePanelActions
+            action={action}
+            fallbackAction={fallbackAction}
+            onPrimaryClick={onPrimaryClick}
+            onFallbackClick={onFallbackClick}
+            onCheckAgain={onCheckAgain}
+            isChecking={isChecking}
+            journeyStep={currentStep}
+            singleActionFocus={singleActionFocus}
+          />
+        )}
       </Stack>
     </Box>
   );

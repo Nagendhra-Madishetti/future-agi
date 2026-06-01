@@ -44,19 +44,19 @@ export default function PathFocusPanel({
   const nextStep =
     currentIndex === null ? null : plan.steps[currentIndex + 1] || null;
   const visibleSteps = plan.steps;
-  const currentActionSlot =
-    singleActionFocus && currentStep ? (
-      <ObservePanelActions
-        action={action}
-        fallbackAction={fallbackAction}
-        onPrimaryClick={onPrimaryClick}
-        onFallbackClick={onFallbackClick}
-        onCheckAgain={onCheckAgain}
-        isChecking={isChecking}
-        journeyStep={currentStep}
-        singleActionFocus={singleActionFocus}
-      />
-    ) : null;
+  const currentActionSlot = currentStep ? (
+    <ObservePanelActions
+      action={action}
+      fallbackAction={fallbackAction}
+      onPrimaryClick={onPrimaryClick}
+      onFallbackClick={onFallbackClick}
+      onCheckAgain={onCheckAgain}
+      isChecking={isChecking}
+      journeyStep={currentStep}
+      singleActionFocus={singleActionFocus || Boolean(currentStep)}
+    />
+  ) : null;
+  const focusedGuide = singleActionFocus || Boolean(currentActionSlot);
 
   return (
     <Box
@@ -79,7 +79,7 @@ export default function PathFocusPanel({
           />
         ) : null}
 
-        {singleActionFocus ? (
+        {currentStep ? (
           <CurrentStepGuide
             actionSlot={currentActionSlot}
             label="Start here"
@@ -97,10 +97,8 @@ export default function PathFocusPanel({
           alignItems={{ xs: "flex-start", sm: "center" }}
           justifyContent="space-between"
         >
-          <Typography variant="subtitle2">
-            {singleActionFocus ? "Setup sequence" : "Setup checklist"}
-          </Typography>
-          {singleActionFocus && currentIndex !== null ? (
+          <Typography variant="subtitle2">What happens next</Typography>
+          {focusedGuide && currentIndex !== null ? (
             <Chip
               size="small"
               variant="outlined"
@@ -113,13 +111,13 @@ export default function PathFocusPanel({
           <JourneyStepList
             currentIndex={currentIndex}
             gridColumns={3}
-            singleActionFocus={singleActionFocus}
+            singleActionFocus={focusedGuide}
             steps={visibleSteps}
             testIdPrefix="path-focus-step"
           />
         ) : null}
 
-        {!singleActionFocus ? (
+        {!currentStep ? (
           <>
             <CurrentStepGuide
               nextStep={nextStep}

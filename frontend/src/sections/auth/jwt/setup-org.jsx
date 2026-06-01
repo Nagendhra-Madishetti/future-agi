@@ -12,7 +12,6 @@ import {
   Typography,
   TextField,
   IconButton,
-  Chip,
   styled,
   MobileStepper,
   Button,
@@ -55,17 +54,14 @@ const QUICK_START_ROLE = "AI Builder";
 
 const SETUP_SIDE_PANEL_STEPS = [
   {
-    icon: "mdi:cursor-default-click-outline",
     label: "Choose one setup task",
     description: "Pick the job this workspace should finish first.",
   },
   {
-    icon: "mdi:clipboard-check-outline",
     label: "Do the first action",
     description: "The workspace opens on the right screen with one clear step.",
   },
   {
-    icon: "mdi:database-eye-outline",
     label: "Use samples after setup starts",
     description:
       "Sample screens stay available, but they do not replace setup.",
@@ -275,7 +271,7 @@ const SetupOrgSidePanel = () => (
       </Stack>
 
       <Stack spacing={1.25}>
-        {SETUP_SIDE_PANEL_STEPS.map((step) => (
+        {SETUP_SIDE_PANEL_STEPS.map((step, index) => (
           <Stack
             key={step.label}
             direction="row"
@@ -302,7 +298,9 @@ const SetupOrgSidePanel = () => (
                 flexShrink: 0,
               }}
             >
-              <Iconify icon={step.icon} width={18} />
+              <Typography variant="subtitle2" color="inherit">
+                {index + 1}
+              </Typography>
             </Box>
             <Stack spacing={0.25}>
               <Typography variant="subtitle2">{step.label}</Typography>
@@ -596,7 +594,7 @@ const SetupOrganization = ({ getStarted = false }) => {
         fullWidth
         sx={{
           borderRadius: 0.5,
-          minHeight: { xs: 164, sm: 138 },
+          minHeight: { xs: 120, sm: 104 },
           height: "auto",
           alignItems: "flex-start",
           justifyContent: "flex-start",
@@ -628,17 +626,10 @@ const SetupOrganization = ({ getStarted = false }) => {
             sx={{ flexShrink: 0, mt: 0.25 }}
           />
         }
-        startIcon={
-          <Iconify
-            icon={option.icon}
-            width={18}
-            sx={{ flexShrink: 0, mt: 0.25 }}
-          />
-        }
       >
         <Stack
           component="span"
-          spacing={0.75}
+          spacing={0.65}
           sx={{ display: "flex", minWidth: 0, width: "100%" }}
         >
           <Stack
@@ -654,45 +645,6 @@ const SetupOrganization = ({ getStarted = false }) => {
               spacing={0.25}
               sx={{ display: "flex", minWidth: 0 }}
             >
-              <Stack
-                component="span"
-                direction="row"
-                spacing={0.75}
-                alignItems="center"
-                flexWrap="wrap"
-                sx={{ display: "flex" }}
-              >
-                <Chip
-                  component="span"
-                  size="small"
-                  label={option.surfaceLabel || option.goalLabel}
-                  sx={{
-                    color: option.featured
-                      ? "primary.contrastText"
-                      : "text.primary",
-                    borderColor: option.featured
-                      ? "rgba(255,255,255,0.48)"
-                      : "divider",
-                  }}
-                  variant="outlined"
-                />
-                {option.estimatedMinutes ? (
-                  <Chip
-                    component="span"
-                    size="small"
-                    label={`${option.estimatedMinutes} min`}
-                    sx={{
-                      color: option.featured
-                        ? "primary.contrastText"
-                        : "text.secondary",
-                      borderColor: option.featured
-                        ? "rgba(255,255,255,0.36)"
-                        : "divider",
-                    }}
-                    variant="outlined"
-                  />
-                ) : null}
-              </Stack>
               <Typography
                 component="span"
                 variant="subtitle2"
@@ -715,82 +667,30 @@ const SetupOrganization = ({ getStarted = false }) => {
               </Typography>
             </Stack>
             {option.featured ? (
-              <Chip
+              <Typography
                 component="span"
-                size="small"
-                label="Recommended"
                 sx={{
                   color: "primary.contrastText",
-                  borderColor: "rgba(255,255,255,0.48)",
+                  fontSize: 12,
+                  fontWeight: "fontWeightMedium",
+                  lineHeight: 1.4,
+                  opacity: 0.82,
                 }}
-                variant="outlined"
-              />
+              >
+                Recommended
+              </Typography>
             ) : null}
           </Stack>
-          <Box
+          <Typography
             component="span"
+            variant="body2"
             sx={{
-              display: "block",
-              width: "100%",
-              mt: 0.25,
+              color: option.featured ? "primary.contrastText" : "text.primary",
+              fontWeight: "fontWeightMedium",
             }}
           >
-            <Stack component="span" spacing={0.25} sx={{ display: "flex" }}>
-              <Typography
-                component="span"
-                variant="caption"
-                sx={{
-                  color: option.featured
-                    ? "primary.contrastText"
-                    : "text.secondary",
-                  opacity: option.featured ? 0.82 : 1,
-                  textTransform: "uppercase",
-                }}
-              >
-                You will start by
-              </Typography>
-              <Typography
-                component="span"
-                variant="body2"
-                sx={{
-                  color: option.featured
-                    ? "primary.contrastText"
-                    : "text.primary",
-                  fontWeight: "fontWeightMedium",
-                }}
-              >
-                {option.firstActionLabel}
-              </Typography>
-              {option.sequencePreview?.length ? (
-                <Stack
-                  component="span"
-                  direction="row"
-                  spacing={0.5}
-                  flexWrap="wrap"
-                  useFlexGap
-                  sx={{ display: "flex", pt: 0.25 }}
-                >
-                  {option.sequencePreview.map((step) => (
-                    <Chip
-                      key={step}
-                      component="span"
-                      size="small"
-                      label={step}
-                      variant="outlined"
-                      sx={{
-                        color: option.featured
-                          ? "primary.contrastText"
-                          : "text.secondary",
-                        borderColor: option.featured
-                          ? "rgba(255,255,255,0.36)"
-                          : "divider",
-                      }}
-                    />
-                  ))}
-                </Stack>
-              ) : null}
-            </Stack>
-          </Box>
+            First action: {option.firstActionLabel}
+          </Typography>
           <Typography
             component="span"
             variant="button"
@@ -800,7 +700,7 @@ const SetupOrganization = ({ getStarted = false }) => {
               mt: 0.25,
             }}
           >
-            Choose and start
+            Start this setup
           </Typography>
         </Stack>
       </ButtonComponent>
@@ -814,17 +714,6 @@ const SetupOrganization = ({ getStarted = false }) => {
 
     return (
       <Stack spacing={1.5}>
-        <Stack spacing={0.5}>
-          <Typography variant="body2" color="text.secondary">
-            The next screen saves this choice, opens the right product screen,
-            and points to the first action.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Sample data stays available after setup starts. Team invites can
-            wait.
-          </Typography>
-        </Stack>
-
         <Box
           data-testid="setup-org-product-quick-starts"
           sx={{
@@ -1220,8 +1109,8 @@ const SetupOrganization = ({ getStarted = false }) => {
                   maxWidth: 520,
                 }}
               >
-                Choose one real setup task. We will open the right screen and
-                point to the first action.
+                Pick one setup path. Home will show one current action, then the
+                next steps.
               </Typography>
             </Box>
 

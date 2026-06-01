@@ -198,7 +198,7 @@ async function main() {
     await expectVisibleText(page, "What do you want to set up first?");
     await expectVisibleText(
       page,
-      "Choose one real setup task. We will open the right screen and point to the first action.",
+      "Pick one setup path. Home will show one current action, then the next steps.",
     );
     if (SAMPLE_PREVIEW_GUARD) {
       const samplePreviewVisible = await isVisibleButtonText(
@@ -267,7 +267,7 @@ async function main() {
         `Start with ${QUICK_START.expectedActionText}`,
       );
       await expectVisibleText(page, "Start here", { exact: true });
-      await expectVisibleText(page, "Setup sequence", { exact: true });
+      await expectVisibleText(page, "What happens next", { exact: true });
       await expectVisibleText(page, "Step 1 of");
       await expectVisibleText(page, QUICK_START.expectedActionText, {
         exact: true,

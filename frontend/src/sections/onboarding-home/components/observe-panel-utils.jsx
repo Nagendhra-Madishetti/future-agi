@@ -27,7 +27,7 @@ const STATUS_COPY = {
     color: "success.main",
   },
   current: {
-    label: "Now",
+    label: "Start here",
     icon: "mdi:progress-clock",
     color: "primary.main",
   },
@@ -368,6 +368,7 @@ JourneyStepList.propTypes = {
 };
 
 export function ObserveJourneyProgress({
+  actionSlot,
   journeyPlan,
   singleActionFocus = false,
   stage,
@@ -380,6 +381,7 @@ export function ObserveJourneyProgress({
   const currentStep = journeyCurrentStep(journeyPlan, stage);
   const currentIndex = Math.max(steps.indexOf(currentStep), 0);
   const visibleSteps = steps;
+  const focusedGuide = singleActionFocus || Boolean(actionSlot);
 
   if (singleActionFocus && !showCurrentStepGuide && visibleSteps.length === 0) {
     return null;
@@ -389,6 +391,8 @@ export function ObserveJourneyProgress({
     <Stack spacing={1.25} data-testid="observe-journey-progress">
       {showCurrentStepGuide ? (
         <CurrentStepGuide
+          actionSlot={actionSlot}
+          label={focusedGuide ? "Start here" : "Current step"}
           nextStep={steps[currentIndex + 1]}
           step={currentStep}
           stage={stage}
@@ -402,10 +406,8 @@ export function ObserveJourneyProgress({
         alignItems={{ xs: "flex-start", sm: "center" }}
         justifyContent="space-between"
       >
-        <Typography variant="subtitle2">
-          {singleActionFocus ? "Setup sequence" : "Setup checklist"}
-        </Typography>
-        {singleActionFocus ? (
+        <Typography variant="subtitle2">What happens next</Typography>
+        {focusedGuide ? (
           <Chip
             size="small"
             variant="outlined"
@@ -416,7 +418,7 @@ export function ObserveJourneyProgress({
       {visibleSteps.length ? (
         <JourneyStepList
           currentIndex={currentIndex}
-          singleActionFocus={singleActionFocus}
+          singleActionFocus={focusedGuide}
           steps={visibleSteps}
           testIdPrefix="observe-journey-step"
         />
@@ -426,6 +428,7 @@ export function ObserveJourneyProgress({
 }
 
 ObserveJourneyProgress.propTypes = {
+  actionSlot: PropTypes.node,
   journeyPlan: PropTypes.object,
   singleActionFocus: PropTypes.bool,
   showCurrentStepGuide: PropTypes.bool,

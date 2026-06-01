@@ -673,7 +673,9 @@ export default function OnboardingHomeView() {
     ? setupQuickStartFirstStage(searchContext.quickStartPrimaryPath)
     : null;
   const showContextPanels =
-    !isFirstRunQuickStartFocus && !quickStartMismatchAction;
+    !isFirstRunQuickStartFocus &&
+    !quickStartMismatchAction &&
+    ["activated", "daily_review"].includes(renderedState?.stage);
   const hideSetupQuickStartFallback =
     isFirstRunQuickStartFocus &&
     !isSampleQuickStart &&
@@ -812,7 +814,7 @@ export default function OnboardingHomeView() {
             eyebrow: "First setup",
             title: selectedSetupQuickStart.buttonLabel,
             description: firstRunNextStepLabel
-              ? `${selectedSetupQuickStart.shortDescription} Start with ${firstRunCurrentStepLabel}; the next screen will guide you to ${firstRunNextStepLabel}.`
+              ? `${selectedSetupQuickStart.shortDescription} Start with ${firstRunCurrentStepLabel}. After that, we will show ${firstRunNextStepLabel}.`
               : `${selectedSetupQuickStart.shortDescription} Start with ${firstRunCurrentStepLabel}.`,
             surfaceLabel: selectedSetupQuickStart.surfaceLabel,
           }

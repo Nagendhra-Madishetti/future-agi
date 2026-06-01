@@ -330,7 +330,7 @@ async function main() {
     });
     await expectVisibleText(
       page,
-      "Choose one real setup task. We will open the right screen and point to the first action.",
+      "Pick one setup path. Home will show one current action, then the next steps.",
       { timeout: 90000 },
     );
     if (SAMPLE_GATE_ONLY) {
@@ -383,10 +383,10 @@ async function main() {
       });
       await expectVisibleText(
         page,
-        "Start with Create Observe project; the next screen will guide you to Send first trace.",
+        "Start with Create Observe project. After that, we will show Send first trace.",
         { timeout: 45000 },
       );
-      await expectVisibleText(page, "Setup sequence", {
+      await expectVisibleText(page, "What happens next", {
         exact: true,
         timeout: 45000,
       });

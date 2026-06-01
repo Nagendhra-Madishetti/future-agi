@@ -35,6 +35,18 @@ export default function ObserveSetupPanel({
       "Create the observe project and prepare the first trace.",
     tourAnchor: "observe_create_project_button",
   };
+  const actionSlot = (
+    <ObservePanelActions
+      action={action}
+      fallbackAction={fallbackAction}
+      onPrimaryClick={onPrimaryClick}
+      onFallbackClick={onFallbackClick}
+      onCheckAgain={onCheckAgain}
+      isChecking={isChecking}
+      journeyStep={actionStep}
+      singleActionFocus={singleActionFocus || Boolean(actionStep)}
+    />
+  );
 
   return (
     <Box
@@ -59,20 +71,9 @@ export default function ObserveSetupPanel({
             chips={effectiveJourneyPlan.chips || ["observe", "setup"]}
           />
         ) : null}
-        {singleActionFocus ? (
+        {actionStep ? (
           <CurrentStepGuide
-            actionSlot={
-              <ObservePanelActions
-                action={action}
-                fallbackAction={fallbackAction}
-                onPrimaryClick={onPrimaryClick}
-                onFallbackClick={onFallbackClick}
-                onCheckAgain={onCheckAgain}
-                isChecking={isChecking}
-                journeyStep={actionStep}
-                singleActionFocus={singleActionFocus}
-              />
-            }
+            actionSlot={actionSlot}
             label="Start here"
             nextStep={nextStep}
             step={actionStep}
@@ -83,11 +84,11 @@ export default function ObserveSetupPanel({
         ) : null}
         <ObserveJourneyProgress
           journeyPlan={effectiveJourneyPlan}
-          singleActionFocus={singleActionFocus}
-          showCurrentStepGuide={!singleActionFocus}
+          singleActionFocus={singleActionFocus || Boolean(actionStep)}
+          showCurrentStepGuide={false}
           stage={stage}
         />
-        {!singleActionFocus ? (
+        {!actionStep ? (
           <ObservePanelActions
             action={action}
             fallbackAction={fallbackAction}
