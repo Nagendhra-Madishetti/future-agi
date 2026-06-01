@@ -44,12 +44,18 @@ export default function SampleProjectPanel({
       ? "Ready to create"
       : readableToken(sampleProject.status);
   const isRealDataStep = activationStage === "connect_real_data";
+  const isSampleGoal = selectedGoal === "explore_sample_data";
+  const prioritizeRealSetup = isRealDataStep || !isSampleGoal;
   const title = isRealDataStep
     ? "Connect the same workflow to real data"
     : "Preview sample trace";
   const description = isRealDataStep
     ? "Use the sample trace as a reference, then connect real data so the workflow runs on your production traces."
-    : "Optional sample trace is ready if you want to inspect the product. Connect real data to finish setup.";
+    : "Sample data is ready for preview. It does not finish setup; connect real data to complete the workflow.";
+  const realSetupLabel =
+    activationStage === "waiting_for_first_trace_sample_available"
+      ? "Continue trace setup"
+      : "Connect real data";
   const openSampleTourAnchor =
     activationStage === "review_sample_signal" || isRealDataStep
       ? "sample_trace_link"
@@ -70,7 +76,7 @@ export default function SampleProjectPanel({
   ];
   const openSampleButton = (
     <Button
-      variant={isRealDataStep ? "outlined" : "contained"}
+      variant={prioritizeRealSetup ? "outlined" : "contained"}
       onClick={onOpenSample}
       disabled={!canOpen || isOpening}
       data-tour-anchor={openSampleTourAnchor}
@@ -82,7 +88,7 @@ export default function SampleProjectPanel({
   );
   const realSetupButton = (
     <Button
-      variant={isRealDataStep ? "contained" : "outlined"}
+      variant={prioritizeRealSetup ? "contained" : "outlined"}
       component={RouterLink}
       href={realSetupHref}
       onClick={onConnectRealData}
@@ -92,7 +98,7 @@ export default function SampleProjectPanel({
       startIcon={<Iconify icon="mdi:connection" width={18} />}
       sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
     >
-      Connect real data
+      {realSetupLabel}
     </Button>
   );
 
@@ -116,6 +122,7 @@ export default function SampleProjectPanel({
         >
           <Stack direction="row" spacing={0.75} alignItems="center">
             <Chip size="small" variant="outlined" label="Sample trace" />
+            <Chip size="small" variant="outlined" label="Preview only" />
             <Chip size="small" label={sampleProject.label || "Sample"} />
             <Chip size="small" variant="outlined" label={statusLabel} />
           </Stack>
@@ -168,8 +175,8 @@ export default function SampleProjectPanel({
         ) : null}
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          {isRealDataStep ? realSetupButton : openSampleButton}
-          {isRealDataStep ? openSampleButton : realSetupButton}
+          {prioritizeRealSetup ? realSetupButton : openSampleButton}
+          {prioritizeRealSetup ? openSampleButton : realSetupButton}
           <Button
             variant="text"
             color="inherit"

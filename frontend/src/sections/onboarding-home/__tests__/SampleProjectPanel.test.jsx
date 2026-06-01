@@ -35,6 +35,12 @@ describe("SampleProjectPanel", () => {
     expect(screen.getByText("Sample trace")).toBeVisible();
     expect(screen.getByText("Preview sample trace")).toBeVisible();
     expect(screen.getByTestId("sample-project-preview-points")).toBeVisible();
+    expect(screen.getByText("Preview only")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Sample data is ready for preview. It does not finish setup; connect real data to complete the workflow.",
+      ),
+    ).toBeVisible();
     expect(screen.getByText("Issue to review")).toBeVisible();
     expect(screen.getByText("Real setup")).toBeVisible();
     expect(
@@ -53,16 +59,38 @@ describe("SampleProjectPanel", () => {
       "sample_project_button",
     );
     expect(controls.slice(0, 2)).toEqual([
+      "Continue trace setup",
       "Open sample trace",
-      "Connect real data",
     ]);
     await userEvent.click(openSampleButton);
     await userEvent.click(
-      screen.getByRole("link", { name: /connect real data/i }),
+      screen.getByRole("link", { name: /continue trace setup/i }),
     );
 
     expect(onOpenSample).toHaveBeenCalledTimes(1);
     expect(onConnectRealData).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps sample preview primary only for the preview-only sample goal", () => {
+    renderWithRouter(
+      <SampleProjectPanel
+        sampleProject={sampleProject}
+        activationStage="review_sample_signal"
+        selectedGoal="explore_sample_data"
+        onOpenSample={vi.fn()}
+        onConnectRealData={vi.fn()}
+        onHideSample={vi.fn()}
+      />,
+    );
+
+    const controls = Array.from(
+      screen.getByTestId("sample-project-panel").querySelectorAll("a, button"),
+    ).map((control) => control.textContent);
+
+    expect(controls.slice(0, 2)).toEqual([
+      "Open sample trace",
+      "Connect real data",
+    ]);
   });
 
   it("prioritizes real setup after the sample trace is reviewed", () => {
