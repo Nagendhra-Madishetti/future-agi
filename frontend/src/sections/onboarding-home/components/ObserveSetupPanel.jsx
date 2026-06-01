@@ -17,48 +17,25 @@ import {
   getObserveSetupInstallCommand,
   persistObserveSetupIntent,
 } from "src/sections/projects/observeOnboardingRoute";
+import {
+  getObserveSetupPackageOptions,
+  normalizeObserveSetupLanguage,
+  normalizeObserveSetupProvider,
+} from "src/sections/projects/observeSetupCatalog";
 
-const OBSERVE_PACKAGE_OPTIONS = [
-  { id: "openai", label: "OpenAI", languages: ["python", "typescript"] },
-  { id: "anthropic", label: "Anthropic", languages: ["python", "typescript"] },
-  { id: "langchain", label: "LangChain", languages: ["python"] },
-  {
-    id: "openai_agents",
-    label: "OpenAI Agents",
-    languages: ["python"],
-  },
-  { id: "llamaindex", label: "LlamaIndex", languages: ["python"] },
-  { id: "bedrock", label: "Bedrock", languages: ["python"] },
-  { id: "mcp", label: "MCP", languages: ["python"] },
-];
+const OBSERVE_PACKAGE_OPTIONS = getObserveSetupPackageOptions();
 
 const LANGUAGE_OPTIONS = [
   { id: "python", label: "Python" },
   { id: "typescript", label: "TypeScript" },
 ];
 
-const PROVIDER_ALIASES = {
-  "llama-index": "llamaindex",
-  llama_index: "llamaindex",
-  "openai-agents": "openai_agents",
-  openaiagents: "openai_agents",
-};
-
-const normalizeSetupValue = (value) =>
-  typeof value === "string" ? value.trim().toLowerCase() : "";
-
-const normalizeProvider = (provider) => {
-  const normalizedValue = normalizeSetupValue(provider);
-  const canonicalValue = PROVIDER_ALIASES[normalizedValue] || normalizedValue;
-  return OBSERVE_PACKAGE_OPTIONS.some((option) => option.id === canonicalValue)
-    ? canonicalValue
-    : null;
-};
+const normalizeProvider = normalizeObserveSetupProvider;
 
 const normalizeLanguage = ({ language, provider }) => {
   const selectedPackage =
     OBSERVE_PACKAGE_OPTIONS.find((option) => option.id === provider) || null;
-  const normalizedLanguage = normalizeSetupValue(language);
+  const normalizedLanguage = normalizeObserveSetupLanguage(language);
   if (!selectedPackage) {
     return LANGUAGE_OPTIONS.some((option) => option.id === normalizedLanguage)
       ? normalizedLanguage

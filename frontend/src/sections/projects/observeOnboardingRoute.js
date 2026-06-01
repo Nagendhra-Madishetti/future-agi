@@ -1,4 +1,11 @@
 import { appendSetupQuickStartAttributionToHref } from "src/sections/auth/jwt/setup-org-quick-starts";
+import {
+  getObservePackageInstallCommand,
+  getObserveSetupPackageLabel as getCatalogObserveSetupPackageLabel,
+  getObserveSetupProviderLabel as getCatalogObserveSetupProviderLabel,
+  normalizeObserveSetupLanguage,
+  normalizeObserveSetupProvider,
+} from "./observeSetupCatalog";
 
 const DEFAULT_ARTIFACT_ID = "observe-onboarding";
 
@@ -23,57 +30,6 @@ export const OBSERVE_ONBOARDING_CREDENTIAL_STEPS = {
   DONE: "done",
 };
 
-const observeSetupProviderSet = new Set([
-  "anthropic",
-  "bedrock",
-  "langchain",
-  "llamaindex",
-  "mcp",
-  "openai",
-  "openai_agents",
-]);
-const observeSetupLanguageSet = new Set(["python", "typescript"]);
-const observeSetupProviderAliases = {
-  "llama-index": "llamaindex",
-  llama_index: "llamaindex",
-  "openai-agents": "openai_agents",
-  openaiagents: "openai_agents",
-};
-const observeSetupProviderLabels = {
-  anthropic: "Anthropic",
-  bedrock: "Bedrock",
-  langchain: "LangChain",
-  llamaindex: "LlamaIndex",
-  mcp: "MCP",
-  openai: "OpenAI",
-  openai_agents: "OpenAI Agents",
-};
-const observeSetupLanguageLabels = {
-  python: "Python",
-  typescript: "TypeScript",
-};
-const observeSetupInstallCommands = {
-  python: {
-    anthropic: "pip install traceAI-anthropic anthropic",
-    bedrock: "pip install traceAI-bedrock boto3",
-    langchain: "pip install traceAI-langchain langchain-openai",
-    llamaindex: "pip install traceAI-llamaindex llama-index",
-    mcp: "pip install traceAI-mcp traceAI-openai-agents openai-agents",
-    openai: "pip install traceAI-openai openai",
-    openai_agents: "pip install traceAI-openai-agents openai-agents",
-  },
-  typescript: {
-    anthropic:
-      "npm install @traceai/fi-core @traceai/anthropic @opentelemetry/instrumentation @anthropic-ai/sdk",
-    langchain:
-      "npm install @traceai/fi-core @traceai/langchain @opentelemetry/instrumentation",
-    mcp: "npm install @traceai/fi-core @traceai/mcp @opentelemetry/instrumentation",
-    openai:
-      "npm install @traceai/fi-core @traceai/openai @opentelemetry/instrumentation openai",
-    openai_agents:
-      "npm install @traceai/fi-core @traceai/openai-agents @opentelemetry/instrumentation",
-  },
-};
 const projectModeSet = new Set([
   OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR,
   OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
@@ -103,20 +59,9 @@ const compactMetadata = (value = {}) =>
     ),
   );
 
-const normalizeSetupValue = (value) =>
-  typeof value === "string" ? value.trim().toLowerCase() : "";
-
-const safeSetupProvider = (value) => {
-  const normalizedValue = normalizeSetupValue(value);
-  const canonicalValue =
-    observeSetupProviderAliases[normalizedValue] || normalizedValue;
-  return observeSetupProviderSet.has(canonicalValue) ? canonicalValue : null;
-};
-
+const safeSetupProvider = normalizeObserveSetupProvider;
 const safeSetupLanguage = (value) =>
-  observeSetupLanguageSet.has(normalizeSetupValue(value))
-    ? normalizeSetupValue(value)
-    : null;
+  normalizeObserveSetupLanguage(value) || null;
 
 const setupIntentFromParams = (params) => ({
   setupProvider: safeSetupProvider(
@@ -152,24 +97,12 @@ const toSearchParams = (search = "") =>
 export const getObserveSetupPackageLabel = ({
   setupLanguage,
   setupProvider,
-} = {}) => {
-  const providerLabel =
-    observeSetupProviderLabels[safeSetupProvider(setupProvider)];
-  if (!providerLabel) return "";
-  const languageLabel =
-    observeSetupLanguageLabels[safeSetupLanguage(setupLanguage)];
-  return [providerLabel, languageLabel].filter(Boolean).join(" ");
-};
+} = {}) => getCatalogObserveSetupPackageLabel({ setupLanguage, setupProvider });
 
 export const getObserveSetupInstallCommand = ({
   setupLanguage,
   setupProvider,
-} = {}) => {
-  const provider = safeSetupProvider(setupProvider);
-  const language = safeSetupLanguage(setupLanguage);
-  if (!provider || !language) return "";
-  return observeSetupInstallCommands[language]?.[provider] || "";
-};
+} = {}) => getObservePackageInstallCommand({ setupLanguage, setupProvider });
 
 export const getObserveFirstTraceBaselineId = (search = "") => {
   const value = toSearchParams(search).get("baseline_trace_id");
@@ -177,7 +110,7 @@ export const getObserveFirstTraceBaselineId = (search = "") => {
 };
 
 const getObserveSetupProviderLabel = (setupProvider) =>
-  observeSetupProviderLabels[safeSetupProvider(setupProvider)] || "";
+  getCatalogObserveSetupProviderLabel(setupProvider);
 
 export const normalizeObserveSetupIntent = ({
   setupLanguage,

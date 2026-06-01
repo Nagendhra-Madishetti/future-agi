@@ -35,6 +35,22 @@ import {
 } from "src/sections/develop/AddDatasetDrawer/AddDatasetStyle";
 import { persistObserveSetupIntent } from "src/sections/projects/observeOnboardingRoute";
 import {
+  OBSERVE_SETUP_LANGUAGE_VALUES as LANGUAGE_VALUES,
+  defaultObserveSampleRequestCode as defaultSampleRequestCode,
+  getObserveFallbackInstrumentDefinitions,
+  getObserveInstrumentInstallCommand,
+  getObserveRuntimeKeySetupCode as runtimeKeySetupCode,
+  getObserveTraceTroubleshooting as traceTroubleshootingForInstrument,
+  mergeObserveInstrumentDefinition as mergeInstrumentDefinition,
+  normalizeObserveInstrumentId as normalizeInstrumentId,
+  normalizeObserveSetupLanguage as normalizeSetupLanguage,
+  observeAvailableInstrumentLanguages as availableInstrumentLanguages,
+  observeFirstInstrumentLanguage as firstInstrumentLanguage,
+  observeInstrumentSortRank as instrumentSortRank,
+  observeInstrumentSupportsLanguage as instrumentSupportsLanguage,
+  observeLanguageDataKey as languageDataKey,
+} from "src/sections/projects/observeSetupCatalog";
+import {
   appendSetupQuickStartAttributionToHref,
   readPersistedSetupQuickStartAttribution,
 } from "src/sections/auth/jwt/setup-org-quick-starts";
@@ -45,26 +61,6 @@ const CODE_SECTION_ALIASES = {
 };
 
 const ONBOARDING_SOURCE_VALUES = new Set(["onboarding", "onboarding_email"]);
-const LANGUAGE_VALUES = new Set(["python", "typescript"]);
-
-const normalizeSetupValue = (value) =>
-  typeof value === "string"
-    ? value.trim().toLowerCase().replaceAll("-", "_")
-    : "";
-
-const normalizeSetupLanguage = (value) => {
-  const normalizedValue = normalizeSetupValue(value);
-  return LANGUAGE_VALUES.has(normalizedValue) ? normalizedValue : "";
-};
-
-const normalizeInstrumentId = (value) => {
-  const normalizedValue = normalizeSetupValue(value);
-  if (["llama_index", "llamaindex"].includes(normalizedValue)) {
-    return "llama_index";
-  }
-  if (normalizedValue === "openaiagents") return "openai_agents";
-  return normalizedValue;
-};
 
 const hasQuickStartAttribution = (attribution = {}) =>
   Boolean(attribution.quickStartId || attribution.quick_start_id);
@@ -138,383 +134,6 @@ const FIRST_TRACE_STEPS = [
     description: "Turn the reviewed trace into a repeatable evaluator.",
   },
 ];
-
-const SETUP_INSTRUMENT_PRIORITY = [
-  "openai",
-  "anthropic",
-  "langchain",
-  "openai_agents",
-  "llama_index",
-  "bedrock",
-  "mcp",
-];
-
-const INSTRUMENT_INSTALL_COMMANDS = {
-  python: {
-    anthropic: "pip install traceAI-anthropic anthropic",
-    bedrock: "pip install traceAI-bedrock boto3",
-    langchain: "pip install traceAI-langchain langchain-openai",
-    llama_index: "pip install traceAI-llamaindex llama-index",
-    mcp: "pip install traceAI-mcp traceAI-openai-agents openai-agents",
-    openai: "pip install traceAI-openai openai",
-    openai_agents: "pip install traceAI-openai-agents openai-agents",
-  },
-  typescript: {
-    anthropic:
-      "npm install @traceai/fi-core @traceai/anthropic @opentelemetry/instrumentation @anthropic-ai/sdk",
-    langchain:
-      "npm install @traceai/fi-core @traceai/langchain @opentelemetry/instrumentation",
-    mcp: "npm install @traceai/fi-core @traceai/mcp @opentelemetry/instrumentation",
-    openai:
-      "npm install @traceai/fi-core @traceai/openai @opentelemetry/instrumentation openai",
-    openai_agents:
-      "npm install @traceai/fi-core @traceai/openai-agents @opentelemetry/instrumentation",
-  },
-};
-
-const PROVIDER_RUNTIME_KEYS = {
-  anthropic: ["ANTHROPIC_API_KEY"],
-  bedrock: [
-    "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY",
-    "AWS_REGION",
-    "BEDROCK_MODEL_ID",
-  ],
-  langchain: ["OPENAI_API_KEY"],
-  llama_index: ["OPENAI_API_KEY"],
-  mcp: ["OPENAI_API_KEY", "MCP_SERVER_URL", "MCP_SERVER_TOKEN"],
-  openai: ["OPENAI_API_KEY"],
-  openai_agents: ["OPENAI_API_KEY"],
-};
-
-const runtimeKeySetupCode = (instrumentId, language = "bash") => {
-  const keys = PROVIDER_RUNTIME_KEYS[instrumentId] || [];
-  if (!keys.length) return "";
-  if (language === "python") {
-    return keys
-      .map((key) => `os.environ.setdefault("${key}", "...")`)
-      .join("\n");
-  }
-  if (language === "typescript") {
-    return keys.map((key) => `process.env.${key} = "...";`).join("\n");
-  }
-  return keys.map((key) => `export ${key}="..."`).join("\n");
-};
-
-const FALLBACK_INSTRUMENT_SNIPPETS = {
-  anthropic: {
-    name: "Anthropic",
-    Python: {
-      code: `from traceai_anthropic import AnthropicInstrumentor
-
-AnthropicInstrumentor().instrument(tracer_provider=trace_provider)`,
-      sample_request_code: `import os
-import anthropic
-
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-
-message = client.messages.create(
-    model="claude-sonnet-4-20250514",
-    max_tokens=256,
-    messages=[{"role": "user", "content": "Say hello in one sentence."}],
-)
-
-print(message.content)`,
-    },
-    TypeScript: {
-      code: `import { registerInstrumentations } from "@opentelemetry/instrumentation";
-import { AnthropicInstrumentation } from "@traceai/anthropic";
-
-const anthropicInstrumentation = new AnthropicInstrumentation({});
-
-registerInstrumentations({
-  instrumentations: [anthropicInstrumentation],
-  tracerProvider,
-});`,
-      sample_request_code: `import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-const message = await anthropic.messages.create({
-  model: "claude-sonnet-4-20250514",
-  max_tokens: 256,
-  messages: [{ role: "user", content: "Say hello in one sentence." }],
-});
-
-console.log(message.content);`,
-    },
-  },
-  bedrock: {
-    name: "Bedrock",
-    Python: {
-      code: `from traceai_bedrock import BedrockInstrumentor
-
-BedrockInstrumentor().instrument(tracer_provider=trace_provider)`,
-      sample_request_code: `import json
-import os
-import boto3
-
-client = boto3.client("bedrock-runtime", region_name=os.environ["AWS_REGION"])
-
-response = client.invoke_model(
-    modelId=os.environ["BEDROCK_MODEL_ID"],
-    body=json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 256,
-        "messages": [{"role": "user", "content": "Say hello in one sentence."}],
-    }),
-)
-
-print(response["body"].read().decode("utf-8"))`,
-    },
-  },
-  langchain: {
-    name: "LangChain",
-    Python: {
-      code: `from traceai_langchain import LangChainInstrumentor
-
-LangChainInstrumentor().instrument(tracer_provider=trace_provider)`,
-      sample_request_code: `from langchain_openai import ChatOpenAI
-
-llm = ChatOpenAI(model="gpt-4o-mini")
-response = llm.invoke("Say hello in one sentence.")
-
-print(response.content)`,
-    },
-  },
-  llama_index: {
-    name: "LlamaIndex",
-    Python: {
-      code: `from traceai_llamaindex import LlamaIndexInstrumentor
-
-LlamaIndexInstrumentor().instrument(tracer_provider=trace_provider)`,
-      sample_request_code: `from llama_index.core import Document, VectorStoreIndex
-
-index = VectorStoreIndex.from_documents([
-    Document(text="Future AGI helps teams observe, test, and improve AI systems.")
-])
-query_engine = index.as_query_engine()
-
-print(query_engine.query("What does Future AGI help teams do?"))`,
-    },
-  },
-  mcp: {
-    name: "MCP",
-    Python: {
-      code: `from traceai_mcp import MCPInstrumentor
-from traceai_openai_agents import OpenAIAgentsInstrumentor
-
-MCPInstrumentor().instrument(tracer_provider=trace_provider)
-OpenAIAgentsInstrumentor().instrument(tracer_provider=trace_provider)`,
-      sample_request_code: `import os
-from agents import Agent, Runner
-from agents.mcp import MCPServerStreamableHttp
-
-mcp_server = MCPServerStreamableHttp(
-    params={
-        "url": os.environ["MCP_SERVER_URL"],
-        "headers": {"Authorization": f"Bearer {os.environ['MCP_SERVER_TOKEN']}"},
-    },
-)
-
-agent = Agent(
-    name="MCP trace test",
-    instructions="Call a safe tool if one is available, then summarize the result.",
-    mcp_servers=[mcp_server],
-)
-
-result = Runner.run_sync(agent, "List one available tool.")
-print(result.final_output)`,
-    },
-  },
-  openai: {
-    name: "OpenAI",
-    Python: {
-      code: `from traceai_openai import OpenAIInstrumentor
-
-OpenAIInstrumentor().instrument(tracer_provider=trace_provider)`,
-      sample_request_code: `import os
-from openai import OpenAI
-
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-
-response = client.responses.create(
-    model="gpt-4o-mini",
-    input="Say hello in one sentence.",
-)
-
-print(response.output_text)`,
-    },
-    TypeScript: {
-      code: `import { registerInstrumentations } from "@opentelemetry/instrumentation";
-import { OpenAIInstrumentation } from "@traceai/openai";
-
-const openaiInstrumentation = new OpenAIInstrumentation({});
-
-registerInstrumentations({
-  instrumentations: [openaiInstrumentation],
-  tracerProvider,
-});`,
-      sample_request_code: `import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const response = await openai.responses.create({
-  model: "gpt-4o-mini",
-  input: "Say hello in one sentence.",
-});
-
-console.log(response.output_text);`,
-    },
-  },
-  openai_agents: {
-    name: "OpenAI Agents",
-    Python: {
-      code: `from traceai_openai_agents import OpenAIAgentsInstrumentor
-
-OpenAIAgentsInstrumentor().instrument(tracer_provider=trace_provider)`,
-      sample_request_code: `from agents import Agent, Runner
-
-agent = Agent(
-    name="Trace test",
-    instructions="Answer in one short sentence.",
-)
-
-result = Runner.run_sync(agent, "Say hello.")
-print(result.final_output)`,
-    },
-  },
-};
-
-const mergeInstrumentDefinition = (id, instrument = {}) => {
-  const fallback = FALLBACK_INSTRUMENT_SNIPPETS[id] || {};
-  return {
-    ...fallback,
-    ...instrument,
-    id,
-    name: instrument.name || fallback.name || id,
-    Python: {
-      ...(fallback.Python || {}),
-      ...(instrument.Python || {}),
-    },
-    TypeScript: {
-      ...(fallback.TypeScript || {}),
-      ...(instrument.TypeScript || {}),
-    },
-  };
-};
-
-const defaultSampleRequestCode = ({ instrumentName, language }) => {
-  const packageName = instrumentName || "your package";
-  if (language === "typescript") {
-    return `// Run one request in the code path that uses ${packageName}.
-// Keep Future AGI open; the trace appears after the request completes.
-await runYourExisting${packageName.replace(/[^A-Za-z0-9]/g, "") || "AI"}Request();`;
-  }
-  return `# Run one request in the code path that uses ${packageName}.
-# Keep Future AGI open; the trace appears after the request completes.
-run_your_existing_${
-    packageName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "") || "ai"
-  }_request()`;
-};
-
-const DEFAULT_TRACE_TROUBLESHOOTING = {
-  title: "If the trace does not arrive",
-  checks: [
-    "Confirm the Future AGI API key and secret are loaded in the process running the request.",
-    "Run the request after project registration and package setup.",
-    "Keep this page open, then use the first trace review step when the trace appears.",
-  ],
-};
-
-const TRACE_TROUBLESHOOTING_BY_INSTRUMENT = {
-  anthropic: {
-    title: "If the Anthropic trace does not arrive",
-    checks: [
-      "Confirm ANTHROPIC_API_KEY is loaded where the request runs.",
-      "Call AnthropicInstrumentor before creating the Anthropic client.",
-      "Run client.messages.create once, then keep this page open for trace detection.",
-    ],
-  },
-  bedrock: {
-    title: "If the Bedrock trace does not arrive",
-    checks: [
-      "Confirm AWS credentials, AWS_REGION, and BEDROCK_MODEL_ID are available.",
-      "Confirm the role can call bedrock:InvokeModel for the selected model.",
-      "Call BedrockInstrumentor before creating or using the bedrock-runtime client.",
-    ],
-  },
-  langchain: {
-    title: "If the LangChain trace does not arrive",
-    checks: [
-      "Confirm the model provider key, such as OPENAI_API_KEY, is loaded.",
-      "Call LangChainInstrumentor before creating ChatOpenAI or your chain.",
-      "Run llm.invoke or your chain once, then watch this page for the trace.",
-    ],
-  },
-  llama_index: {
-    title: "If the LlamaIndex trace does not arrive",
-    checks: [
-      "Confirm the LLM or embedding provider key, such as OPENAI_API_KEY, is loaded.",
-      "Call LlamaIndexInstrumentor before building the index or query engine.",
-      "Run query_engine.query once so a real retrieval or generation span is created.",
-    ],
-  },
-  mcp: {
-    title: "If the MCP trace does not arrive",
-    checks: [
-      "Confirm MCP_SERVER_URL and MCP_SERVER_TOKEN reach a server that lists tools.",
-      "Connect both OpenAI Agents and MCP before Runner.run starts.",
-      "Run one safe MCP tool call, then keep this page open for trace detection.",
-    ],
-  },
-  openai: {
-    title: "If the OpenAI trace does not arrive",
-    checks: [
-      "Confirm OPENAI_API_KEY is loaded where the request runs.",
-      "Call OpenAIInstrumentor before creating the OpenAI client.",
-      "Run responses.create once, then keep this page open for trace detection.",
-    ],
-  },
-  openai_agents: {
-    title: "If the OpenAI Agents trace does not arrive",
-    checks: [
-      "Confirm OPENAI_API_KEY is loaded where Runner.run executes.",
-      "Call OpenAIAgentsInstrumentor before constructing or running the agent.",
-      "Run Runner.run or Runner.run_sync once, then continue to trace review.",
-    ],
-  },
-};
-
-const languageDataKey = (language) =>
-  language === "typescript" ? "TypeScript" : "Python";
-
-const instrumentSupportsLanguage = (instrument, language) =>
-  Boolean(instrument?.[languageDataKey(language)]?.code);
-
-const availableInstrumentLanguages = (instrument) =>
-  ["python", "typescript"].filter((language) =>
-    instrumentSupportsLanguage(instrument, language),
-  );
-
-const firstInstrumentLanguage = (instrument) =>
-  availableInstrumentLanguages(instrument)[0] || "python";
-
-const instrumentSortRank = (id) => {
-  const index = SETUP_INSTRUMENT_PRIORITY.indexOf(id);
-  return index === -1 ? SETUP_INSTRUMENT_PRIORITY.length : index;
-};
-
-const traceTroubleshootingForInstrument = (instrumentId) =>
-  TRACE_TROUBLESHOOTING_BY_INSTRUMENT[instrumentId] ||
-  DEFAULT_TRACE_TROUBLESHOOTING;
 
 const VerificationAlert = ({ setupVerification }) => {
   if (!setupVerification) return null;
@@ -1169,8 +788,10 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
   };
 
   const instrumentOptions = useMemo(() => {
+    const fallbackInstrumentDefinitions =
+      getObserveFallbackInstrumentDefinitions();
     const mergedInstruments = new Map(
-      Object.keys(FALLBACK_INSTRUMENT_SNIPPETS).map((id) => [
+      Object.keys(fallbackInstrumentDefinitions).map((id) => [
         id,
         mergeInstrumentDefinition(id),
       ]),
@@ -1228,9 +849,10 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
       }. Choose another package or language.`,
   );
   const instrumentInstallCode =
-    INSTRUMENT_INSTALL_COMMANDS[selectedInstrumentLanguage]?.[
-      selectedInstrument?.id
-    ] || getCodeBySection("installationGuide");
+    getObserveInstrumentInstallCommand({
+      instrumentId: selectedInstrument?.id,
+      language: selectedInstrumentLanguage,
+    }) || getCodeBySection("installationGuide");
   const instrumentRuntimeKeyCode = runtimeKeySetupCode(
     selectedInstrument?.id,
     selectedInstrumentLanguage,
