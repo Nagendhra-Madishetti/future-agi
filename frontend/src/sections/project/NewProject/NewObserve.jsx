@@ -39,7 +39,25 @@ const CODE_SECTION_ALIASES = {
   projectAddCode: "project_add_code",
 };
 
+const ONBOARDING_SOURCE_VALUES = new Set(["onboarding", "onboarding_email"]);
 const LANGUAGE_VALUES = new Set(["python", "typescript"]);
+
+const normalizeSetupValue = (value) =>
+  typeof value === "string"
+    ? value.trim().toLowerCase().replaceAll("-", "_")
+    : "";
+
+const normalizeSetupLanguage = (value) => {
+  const normalizedValue = normalizeSetupValue(value);
+  return LANGUAGE_VALUES.has(normalizedValue) ? normalizedValue : "";
+};
+
+const normalizeInstrumentId = (value) => {
+  const normalizedValue = normalizeSetupValue(value);
+  if (normalizedValue === "llama_index") return "llamaindex";
+  if (normalizedValue === "openaiagents") return "openai_agents";
+  return normalizedValue;
+};
 
 const onboardingSetupReturnHref = ({ instrumentId, language } = {}) => {
   const params = new URLSearchParams({
@@ -324,7 +342,11 @@ const FirstTraceSetupGuide = ({
           data-testid="observe-first-trace-steps"
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(4, minmax(0, 1fr))",
+            },
             gap: 1,
           }}
         >
@@ -471,19 +493,19 @@ FirstTraceSetupGuide.propTypes = {
 const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
   const theme = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedLanguage =
-    searchParams.get("language") || searchParams.get("lang");
-  const initialLanguage = LANGUAGE_VALUES.has(requestedLanguage)
-    ? requestedLanguage
-    : "python";
+  const requestedLanguage = normalizeSetupLanguage(
+    searchParams.get("language") || searchParams.get("lang"),
+  );
+  const initialLanguage = requestedLanguage || "python";
   const [languageTab, setLanguageTab] = useState(initialLanguage);
   const credentialsCopied =
     searchParams.get("credential_step") === "done" &&
-    searchParams.get("source") === "onboarding";
-  const requestedInstrumentId =
+    ONBOARDING_SOURCE_VALUES.has(searchParams.get("source"));
+  const requestedInstrumentId = normalizeInstrumentId(
     searchParams.get("instrument") ||
-    searchParams.get("package") ||
-    searchParams.get("provider");
+      searchParams.get("package") ||
+      searchParams.get("provider"),
+  );
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(
     requestedInstrumentId || null,
   );
@@ -589,7 +611,7 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
       const nextParams = new URLSearchParams(searchParams);
       const isSetupRoute =
         nextParams.get("setup") === "true" ||
-        nextParams.get("source") === "onboarding" ||
+        ONBOARDING_SOURCE_VALUES.has(nextParams.get("source")) ||
         Boolean(nextParams.get("journey_step"));
       if (!isSetupRoute) return;
 

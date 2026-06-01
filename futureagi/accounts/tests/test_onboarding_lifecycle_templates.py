@@ -172,6 +172,10 @@ def test_observe_waiting_template_uses_credential_ready_context(
         **(send_log.metadata or {}),
         "observe_credentials_ready": True,
         "observe_credentials_ready_at": now.isoformat(),
+        "observe_setup_language": "typescript",
+        "observe_setup_language_label": "TypeScript",
+        "observe_setup_provider": "anthropic",
+        "observe_setup_provider_label": "Anthropic",
     }
     send_log.save(update_fields=["metadata", "updated_at"])
 
@@ -183,8 +187,9 @@ def test_observe_waiting_template_uses_credential_ready_context(
     )
 
     assert preview["context"]["observe_credentials_ready"] is True
-    assert "has credentials ready for the first observe trace" in preview["text"]
-    assert "Paste the copied values into your SDK" in preview["text"]
+    assert preview["context"]["observe_setup_package_label"] == ("Anthropic TypeScript")
+    assert "has Anthropic TypeScript setup credentials ready" in preview["text"]
+    assert "Paste the copied values into the Anthropic snippet" in preview["text"]
 
 
 def test_lifecycle_preview_command_writes_no_send_snapshot(tmp_path):
@@ -256,8 +261,7 @@ def test_lifecycle_preview_command_writes_no_send_snapshot(tmp_path):
     assert entry["campaign_key"] == "welcome_resume_goal"
     assert entry["subject"] == "Continue with your first observe project"
     assert entry["preheader"] == (
-        "Create the project that will receive your first trace "
-        "and show the first quality signal."
+        "Create the project that will receive your first trace and open trace review."
     )
     assert entry["html_sha256"] == sha256(html.encode("utf-8")).hexdigest()
     assert entry["text_sha256"] == sha256(text.encode("utf-8")).hexdigest()

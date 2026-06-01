@@ -213,8 +213,8 @@ const observeJourneyPlan = ({ currentStepIndex = 0 } = {}) => {
       id: "review_first_trace",
       stage: "review_first_trace",
       actionId: "review_first_trace",
-      label: "Review signal from manifest",
-      description: "Inspect the first signal and decide what to measure.",
+      label: "Review trace from manifest",
+      description: "Inspect the trace and decide what to measure.",
       href: "/dashboard/observe/observe-1/trace/trace-1",
       fallbackHref: "/dashboard/get-started",
       routeAvailable: true,
@@ -224,7 +224,7 @@ const observeJourneyPlan = ({ currentStepIndex = 0 } = {}) => {
       id: "create_trace_evaluator",
       stage: "create_trace_evaluator",
       actionId: "create_trace_evaluator",
-      label: "Create check from manifest",
+      label: "Create evaluator from manifest",
       description: "Convert the reviewed trace into repeatable coverage.",
       href: "/dashboard/observe/observe-1",
       fallbackHref: "/dashboard/get-started",
@@ -248,7 +248,7 @@ const observeJourneyPlan = ({ currentStepIndex = 0 } = {}) => {
     eyebrow: "Observe setup",
     title: "Connect your agent",
     description:
-      "Connect traces, review the first signal, then turn it into a check.",
+      "Connect traces, review the first trace, then create an evaluator.",
     chips: ["observe", "quality"],
     currentStepId: currentStep.id,
     currentStepIndex,
@@ -391,7 +391,7 @@ describe("OnboardingHomeView", () => {
     expect(within(panel).getByText("Connect your agent")).toBeVisible();
     expect(
       within(panel).getByText(
-        "Connect traces, review the first signal, then turn it into a check.",
+        "Connect traces, review the first trace, then create an evaluator.",
       ),
     ).toBeVisible();
     expect(within(panel).getByTestId("observe-journey-progress")).toBeVisible();
@@ -405,7 +405,7 @@ describe("OnboardingHomeView", () => {
     const setupUrl = new URL(
       within(panel)
         .getByRole("link", {
-          name: /create project from manifest/i,
+          name: /create observe project/i,
         })
         .getAttribute("href"),
       "https://futureagi.test",
@@ -452,7 +452,7 @@ describe("OnboardingHomeView", () => {
     );
     expect(within(panel).getByText("Projects: 1 · Traces: 0")).toBeVisible();
     expect(
-      within(panel).getByRole("link", { name: /send trace from manifest/i }),
+      within(panel).getByRole("link", { name: /send trace/i }),
     ).toHaveAttribute(
       "href",
       "/dashboard/observe/observe-1?tour_anchor=observe_send_trace_button&journey_step=send_first_trace",
@@ -540,9 +540,7 @@ describe("OnboardingHomeView", () => {
         "Continue with the latest recommended step below.",
       ),
     ).toBeVisible();
-    expect(
-      screen.getByRole("link", { name: /review first trace/i }),
-    ).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /review trace/i })).toHaveAttribute(
       "href",
       "/dashboard/observe/observe-1/trace/trace-1?tour_anchor=observe_trace_review_link&journey_step=review_first_trace",
     );
@@ -1979,7 +1977,7 @@ describe("OnboardingHomeView", () => {
     expect(within(panel).getByText("trace-1")).toBeVisible();
     expect(within(panel).getByText("Not reviewed")).toBeVisible();
     expect(
-      within(panel).getByRole("link", { name: /review first trace/i }),
+      within(panel).getByRole("link", { name: /review trace/i }),
     ).toHaveAttribute(
       "href",
       "/dashboard/observe/observe-1/trace/trace-1?tour_anchor=observe_trace_review_link&journey_step=review_first_trace",
@@ -2006,15 +2004,15 @@ describe("OnboardingHomeView", () => {
       "observe-journey-step-review_first_trace",
     );
     expect(
-      within(currentStep).getByText("Review signal from manifest"),
+      within(currentStep).getByText("Review trace from manifest"),
     ).toBeVisible();
     expect(within(currentStep).getByText("Current")).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
-      "Inspect the first signal and decide what to measure.",
+      "Inspect the trace and decide what to measure.",
     );
     expect(within(panel).getByText("trace-1")).toBeVisible();
     expect(
-      within(panel).getByRole("link", { name: /review signal from manifest/i }),
+      within(panel).getByRole("link", { name: /review trace/i }),
     ).toHaveAttribute(
       "href",
       "/dashboard/observe/observe-1/trace/trace-1?tour_anchor=observe_trace_review_link&journey_step=review_first_trace",
@@ -2110,7 +2108,7 @@ describe("OnboardingHomeView", () => {
       0,
     );
     expect(
-      within(panel).getByText("Prototype an agent with a quality check"),
+      within(panel).getByText("Prototype an agent with eval coverage"),
     ).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Add a runnable prompt with a model and sample input.",
@@ -2304,7 +2302,7 @@ describe("OnboardingHomeView", () => {
     expect(screen.getByText("Review the voice call")).toBeVisible();
     expect(
       screen.getByText(
-        "Inspect the call transcript and find the first quality signal.",
+        "Inspect the call transcript and identify the first improvement.",
       ),
     ).toBeVisible();
     expect(within(panel).getByText("Voice setup")).toBeVisible();

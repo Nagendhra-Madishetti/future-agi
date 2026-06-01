@@ -70,7 +70,7 @@ export default function WaitingForSignalPanel({
             p: 1.5,
           }}
         >
-          <Typography variant="subtitle2">Current signal</Typography>
+          <Typography variant="subtitle2">Trace status</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Projects: {signals?.observeProjects || 0} · Traces:{" "}
             {signals?.traces || 0}

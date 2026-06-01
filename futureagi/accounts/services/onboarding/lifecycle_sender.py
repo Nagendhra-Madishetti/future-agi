@@ -77,6 +77,10 @@ LIFECYCLE_SEND_CONTEXT_METADATA_KEYS = (
     "observe_credentials_ready",
     "observe_credentials_ready_at",
     "observe_credential_step",
+    "observe_setup_language",
+    "observe_setup_language_label",
+    "observe_setup_provider",
+    "observe_setup_provider_label",
 )
 RECEIPT_BACKED_SEND_METADATA_KEYS = (
     "source",
@@ -902,10 +906,7 @@ def _get_or_create_send_log(
                     defaults=defaults,
                 )
             )
-            if (
-                not created
-                and send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED
-            ):
+            if not created and send_log.status not in SUCCESS_SEND_STATUSES:
                 for key, value in defaults.items():
                     setattr(send_log, key, value)
                 send_log.save()

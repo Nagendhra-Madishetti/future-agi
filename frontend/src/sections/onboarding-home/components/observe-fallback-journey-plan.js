@@ -29,7 +29,7 @@ const OBSERVE_FALLBACK_STEPS = [
   {
     id: "create_trace_evaluator",
     stage: "create_trace_evaluator",
-    label: "Add quality check",
+    label: "Create evaluator",
     description: "Turn the reviewed trace into a repeatable evaluator.",
     tourAnchor: "observe_evaluator_button",
   },
@@ -53,7 +53,7 @@ export const observeFallbackJourneyPlan = (stage) => {
     eyebrow: "Connect your agent",
     title: "Connect your agent",
     description:
-      "Create the project, send one trace, review the first trace, then add a quality check.",
+      "Create the project, send one trace, review the trace, then create an evaluator.",
     chips: ["setup"],
     currentStepIndex,
     steps: OBSERVE_FALLBACK_STEPS.map((step, index) => ({

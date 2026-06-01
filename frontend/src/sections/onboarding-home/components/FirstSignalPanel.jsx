@@ -55,13 +55,13 @@ export default function FirstSignalPanel({
           eyebrow={isImprovement ? "First improvement" : "First trace"}
           title={
             isImprovement
-              ? "Turn the reviewed trace into a check"
+              ? "Turn the reviewed trace into an evaluator"
               : "First trace received"
           }
           description={
             isImprovement
-              ? "The first trace has been reviewed. Create a repeatable evaluator or quality check next."
-              : "Review it now to understand latency, cost, and quality context."
+              ? "The first trace has been reviewed. Create a repeatable evaluator next."
+              : "Review the trace to inspect inputs, outputs, latency, cost, and errors."
           }
           chips={["observe", isImprovement ? "improve" : "review"]}
         />

@@ -681,7 +681,7 @@ def test_evaluator_after_trace_review_activates(organization, workspace, user):
         "eyebrow": "First setup complete",
         "title": "Your first workflow is live",
         "description": (
-            "Review daily quality next and keep improving the workflow from real signals."
+            "Review daily quality next and keep improving the workflow from real traces."
         ),
     }
 

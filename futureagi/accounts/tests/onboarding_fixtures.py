@@ -109,7 +109,7 @@ def activation_state_payload(**overrides):
             {
                 "id": "observe",
                 "label": "Connect your agent",
-                "description": "Connect traces and inspect quality signals.",
+                "description": "Connect traces and inspect trace quality.",
                 "status": "selected",
                 "href": "/dashboard/home?path=observe",
                 "is_available": True,

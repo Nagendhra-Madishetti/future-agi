@@ -160,7 +160,7 @@ export default function TraceFullPage() {
       return {
         title: "First trace received",
         description:
-          "Review spans, latency, cost, and model inputs here. When this signal looks right, create an evaluator.",
+          "Review spans, latency, cost, inputs, outputs, and errors here. Next, create an evaluator from this trace.",
         primaryAction: {
           label: "Create evaluator",
           onClick: handleCreateEvaluator,

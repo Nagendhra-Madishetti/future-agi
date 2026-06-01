@@ -27,7 +27,7 @@ campaigns:
     template_version: "2026-05-27.1"
     campaign_group: welcome
     email_subject: Continue with your first observe project
-    email_preheader: Create the project that will receive your first trace and show the first quality signal.
+    email_preheader: Create the project that will receive your first trace and open trace review.
     primary_path: observe
     entry_stages:
       - connect_observability
@@ -468,7 +468,7 @@ campaigns:
     template_version: "2026-05-30.1"
     campaign_group: eval
     email_subject: Add the examples for your first eval
-    email_preheader: Start with one dataset or trace source so FutureAGI can measure a quality signal.
+    email_preheader: Start with one dataset or trace source so FutureAGI can measure the behavior.
     primary_path: evals
     entry_stages:
       - create_eval_dataset
@@ -677,8 +677,8 @@ campaigns:
     template_key: observe_waiting_for_first_trace_v1
     template_version: "2026-05-27.1"
     campaign_group: recovery
-    email_subject: Send one trace to see the quality signal
-    email_preheader: Once a real trace arrives, FutureAGI can show the first review action.
+    email_subject: Send one trace from your selected package
+    email_preheader: Once a real trace arrives, FutureAGI opens trace review and guides you to an eval.
     primary_path: observe
     entry_stages:
       - waiting_for_first_trace
@@ -722,7 +722,7 @@ campaigns:
     template_version: "2026-05-27.1"
     campaign_group: first_signal
     email_subject: Review your first AI trace
-    email_preheader: A real trace is ready, so review the signal and decide the next quality action.
+    email_preheader: A real trace is ready, so review latency, cost, inputs, and the next eval action.
     primary_path: observe
     entry_stages:
       - review_first_trace
@@ -743,7 +743,7 @@ campaigns:
     template_version: "2026-05-27.1"
     campaign_group: next_loop
     email_subject: Create one evaluator from the trace
-    email_preheader: Turn the reviewed trace into a repeatable quality check for future traffic.
+    email_preheader: Turn the reviewed trace into a repeatable evaluator for future traffic.
     primary_path: observe
     entry_stages:
       - create_trace_evaluator

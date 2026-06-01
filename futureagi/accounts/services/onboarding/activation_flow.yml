@@ -10,13 +10,13 @@ product_loop_steps:
     description: Run a focused check before shipping.
   observe:
     label: Observe
-    description: Inspect real quality signals.
+    description: Inspect real traces and outcomes.
   ship:
     label: Ship
     description: Move the workflow toward production.
   improve:
     label: Improve
-    description: Turn signal into a repeatable guardrail.
+    description: Turn findings into a repeatable guardrail.
 
 goals:
   monitor_production_ai_app:
@@ -94,7 +94,7 @@ paths:
     requires_permission: agent:write
   observe:
     label: Connect your agent
-    description: Connect traces and inspect quality signals.
+    description: Connect traces and inspect trace quality.
     first_action_id: create_observe_project
     requires_permission: observe:write
   gateway:
@@ -179,7 +179,7 @@ journeys:
     primary_path: observe
     eyebrow: Observe setup
     title: Connect your agent
-    description: Connect traces, review the first signal, then turn it into a check.
+    description: Connect traces, review the first trace, then create an evaluator.
     chips:
       - observe
       - quality
@@ -205,14 +205,14 @@ journeys:
         action_id: review_first_trace
         success_event: trace_reviewed
         tour_anchor: observe_trace_review_link
-        label: Review signal
-        description: Inspect latency, cost, and quality context.
+        label: Review first trace
+        description: Inspect inputs, outputs, latency, cost, and errors.
       - id: create_trace_evaluator
         stage: create_trace_evaluator
         action_id: create_trace_evaluator
         success_event: first_quality_loop_completed
         tour_anchor: observe_evaluator_button
-        label: Create check
+        label: Create evaluator
         description: Turn the reviewed trace into a repeatable evaluator.
   sample_first_run:
     primary_path: sample
@@ -246,7 +246,7 @@ journeys:
         tour_anchor: sample_connect_real_data_button
         lifecycle_policy: sample_only
         label: Connect real data
-        description: Move from sample data to one real signal.
+        description: Move from sample data to one real trace.
   prompt_first_run:
     primary_path: prompt
     eyebrow: Prompt setup
@@ -301,7 +301,7 @@ journeys:
   agent_first_run:
     primary_path: agent
     eyebrow: Agent setup
-    title: Prototype an agent with a quality check
+    title: Prototype an agent with eval coverage
     description: Create an agent, add one step, run a scenario, inspect the run, then save coverage.
     chips:
       - agent
@@ -334,7 +334,7 @@ journeys:
         success_event: agent_trace_reviewed
         tour_anchor: agent_trace_review_link
         label: Review run
-        description: Inspect the trace and find the first signal.
+        description: Inspect the run and identify the first improvement.
       - id: save_agent_eval
         stage: save_agent_eval
         action_id: save_agent_eval
@@ -422,7 +422,7 @@ journeys:
         success_event: eval_scorer_created
         tour_anchor: eval_scorer_button
         label: Add scorer
-        description: Define the quality signal to measure.
+        description: Define what the eval should measure.
       - id: run_eval
         stage: run_eval
         action_id: run_eval
@@ -466,7 +466,7 @@ journeys:
         success_event: voice_test_call_completed
         tour_anchor: voice_test_call_button
         label: Run call
-        description: Run a test call to collect a signal.
+        description: Run a test call so there is a transcript to review.
       - id: review_voice_call
         stage: review_voice_call
         action_id: review_voice_call
@@ -614,7 +614,7 @@ actions:
   open_prompt_metrics:
     kind: review
     title: Open prompt metrics
-    description: Review prompt quality signals and continue improving.
+    description: Review prompt metrics and continue improving.
     route_key: prompt_metrics
     cta_label: Open prompt metrics
     priority: 80
@@ -668,7 +668,7 @@ actions:
   review_agent_trace:
     kind: review
     title: Review what happened
-    description: Inspect the agent run and identify the first useful signal.
+    description: Inspect the agent run and identify the first improvement.
     route_key: agent_review_trace
     cta_label: Review run
     priority: 100
@@ -910,7 +910,7 @@ actions:
   review_voice_call:
     kind: review
     title: Review voice call
-    description: Review transcript, audio, latency, and interruption signals.
+    description: Review transcript, audio, latency, and interruptions.
     route_key: voice_review_call
     cta_label: Review call
     priority: 100
@@ -975,7 +975,7 @@ actions:
   review_first_trace:
     kind: review
     title: First trace received
-    description: Review it now to understand latency, cost, and quality context.
+    description: Review inputs, outputs, latency, cost, and errors.
     route_key: observe_trace_detail
     cta_label: Review trace
     priority: 100
@@ -986,7 +986,7 @@ actions:
   create_trace_evaluator:
     kind: improve
     title: Create an evaluator
-    description: Turn the reviewed trace into a repeatable quality check.
+    description: Turn the reviewed trace into a repeatable evaluator.
     route_key: observe_create_trace_evaluator
     cta_label: Create evaluator
     priority: 100
@@ -1007,7 +1007,7 @@ actions:
   open_observe_dashboard_fallback:
     kind: review
     title: Open observe dashboard
-    description: Review current observability signals.
+    description: Review current observability data.
     route_key: observe_dashboard
     cta_label: Open observe
     priority: 20
@@ -1025,10 +1025,10 @@ actions:
     fallback_route_key: observe_dashboard
   review_daily_quality:
     kind: daily_quality
-    title: Review today's quality signal
+    title: Review today's quality item
     description: Open the daily quality view and resolve the top item.
     route_key: daily_quality_home
-    cta_label: Review signal
+    cta_label: Review item
     priority: 100
     estimated_minutes: 4
     completion_event: daily_quality_item_reviewed
@@ -1149,7 +1149,7 @@ stages:
     copy:
       eyebrow: First setup complete
       title: Your first workflow is live
-      description: Review daily quality next and keep improving the workflow from real signals.
+      description: Review daily quality next and keep improving the workflow from real traces.
     progress:
       build: complete
       test: available
@@ -1164,8 +1164,8 @@ stages:
     home_mode: daily_quality
     copy:
       eyebrow: Daily quality
-      title: Review today's quality signal
-      description: Open the latest quality signal and keep the loop fresh.
+      title: Review today's quality item
+      description: Open the latest item and keep the loop fresh.
     progress:
       build: complete
       test: available
@@ -1219,7 +1219,7 @@ stages:
     copy:
       eyebrow: Waiting
       title: Waiting for real data
-      description: Use a sample signal while the first real trace is pending.
+      description: Use a sample trace while the first real trace is pending.
     progress:
       build: selected
       test: available
@@ -1236,7 +1236,7 @@ stages:
     copy:
       eyebrow: First trace
       title: First trace received
-      description: Review it now to understand latency, cost, and quality context.
+      description: Review the trace to inspect inputs, outputs, latency, cost, and errors.
     progress:
       build: selected
       test: available
@@ -1252,7 +1252,7 @@ stages:
     copy:
       eyebrow: Evaluator
       title: Create an evaluator
-      description: Turn the reviewed trace into a repeatable quality check.
+      description: Turn the reviewed trace into a repeatable evaluator.
     progress:
       build: selected
       test: available
@@ -1268,8 +1268,8 @@ stages:
     home_mode: first_run
     copy:
       eyebrow: Sample data
-      title: Review a sample signal
-      description: Inspect the sample signal while real workspace data is pending.
+      title: Review a sample trace
+      description: Inspect the sample trace while real workspace data is pending.
     recommended_action: open_sample_trace
     fallback_action: open_observe_setup_fallback
     next:
@@ -1460,21 +1460,21 @@ stages:
     requires_write: true
     copy:
       eyebrow: Agent quality
-      title: Create the first agent quality check
-      description: Create the check that keeps the agent behavior measurable.
+      title: Create the first agent eval
+      description: Create the eval that keeps the agent behavior measurable.
     next: []
   create_trace_dashboard:
     copy:
       eyebrow: Observe dashboard
       title: Create a trace dashboard
-      description: Group important trace signals into a dashboard.
+      description: Group important trace metrics into a dashboard.
     next:
       - activated
   create_trace_alert:
     copy:
       eyebrow: Observe alert
       title: Create a trace alert
-      description: Add an alert for the quality signal that matters most.
+      description: Add an alert for the trace metric that matters most.
     next:
       - activated
   configure_gateway_provider:
@@ -1601,7 +1601,7 @@ stages:
     copy:
       eyebrow: Voice test
       title: Run a test call
-      description: Run one call and listen for the first quality signal.
+      description: Run one call so there is a transcript to review.
     next:
       - review_voice_call
   review_voice_call:
@@ -1742,7 +1742,7 @@ stages:
     copy:
       eyebrow: Real data
       title: Connect real data
-      description: Move from sample data to one real production signal.
+      description: Move from sample data to one real production trace.
     recommended_action: create_observe_project
     next:
       - waiting_for_first_trace

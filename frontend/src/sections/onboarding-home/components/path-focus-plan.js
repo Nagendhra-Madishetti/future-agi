@@ -46,7 +46,7 @@ export const PATH_FOCUS_PLANS = {
   },
   agent: {
     eyebrow: "Agent setup",
-    title: "Prototype an agent with a quality check",
+    title: "Prototype an agent with eval coverage",
     description:
       "Create an agent, add one step, run a scenario, inspect the run, then save coverage.",
     chips: ["agent", "scenario"],
@@ -72,7 +72,7 @@ export const PATH_FOCUS_PLANS = {
       {
         stage: "review_agent_trace",
         label: "Review run",
-        description: "Inspect the trace and find the first signal.",
+        description: "Inspect the run and identify the first improvement.",
         tourAnchor: "agent_trace_review_link",
       },
       {
@@ -150,7 +150,7 @@ export const PATH_FOCUS_PLANS = {
       {
         stage: "add_eval_scorer",
         label: "Add scorer",
-        description: "Define the quality signal to measure.",
+        description: "Define what the eval should measure.",
         tourAnchor: "eval_scorer_button",
       },
       {
@@ -189,7 +189,7 @@ export const PATH_FOCUS_PLANS = {
       {
         stage: "run_voice_test_call",
         label: "Run call",
-        description: "Run a test call to collect a signal.",
+        description: "Run a test call so there is a transcript to review.",
         tourAnchor: "voice_test_call_button",
       },
       {

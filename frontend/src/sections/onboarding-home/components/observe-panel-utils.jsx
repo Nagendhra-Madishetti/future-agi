@@ -488,9 +488,7 @@ export function ObservePanelActions({
       (!singleActionFocus || REFRESHABLE_FOCUS_STAGES.has(journeyStep?.stage)),
   );
   const primaryLabel =
-    singleActionFocus && journeyStep?.label
-      ? journeyStep.label
-      : action?.ctaLabel || "Open";
+    action?.ctaLabel || (singleActionFocus && journeyStep?.label) || "Open";
 
   return (
     <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>

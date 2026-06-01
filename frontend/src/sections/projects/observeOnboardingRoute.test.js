@@ -83,6 +83,20 @@ describe("observeOnboardingRoute", () => {
     });
   });
 
+  it("reads package intent on observe project params from lifecycle email", () => {
+    expect(
+      getObserveOnboardingParams(
+        "?source=onboarding_email&onboarding=send-first-trace&provider=Anthropic&language=TypeScript",
+      ),
+    ).toEqual({
+      isOnboarding: true,
+      mode: OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE,
+      setupLanguage: "typescript",
+      setupProvider: "anthropic",
+      tourAnchor: null,
+    });
+  });
+
   it("reads observe setup onboarding route params", () => {
     expect(
       getObserveSetupOnboardingParams("?setup=true&source=onboarding"),
@@ -185,6 +199,20 @@ describe("observeOnboardingRoute", () => {
       mode: OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE,
       setupLanguage: null,
       setupProvider: null,
+      tourAnchor: null,
+    });
+  });
+
+  it("reads trace-review package intent from lifecycle email", () => {
+    expect(
+      getObserveTraceReviewOnboardingParams(
+        "?source=onboarding_email&onboarding=review-first-trace&provider=Anthropic&language=TypeScript",
+      ),
+    ).toEqual({
+      isOnboarding: true,
+      mode: OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE,
+      setupLanguage: "typescript",
+      setupProvider: "anthropic",
       tourAnchor: null,
     });
   });
@@ -363,8 +391,19 @@ describe("observeOnboardingRoute", () => {
       getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE),
     ).toMatchObject({
       currentStep: "Trace received",
+      description:
+        "Review this trace to inspect inputs, outputs, latency, cost, and errors. Next, create an evaluator from it.",
       primaryLabel: "Review trace",
       title: "First trace received",
+    });
+    expect(
+      getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.CREATE_EVALUATOR),
+    ).toMatchObject({
+      currentStep: "Evaluator",
+      description:
+        "Turn the reviewed trace into a repeatable evaluator for future runs.",
+      primaryLabel: "Create evaluator",
+      title: "Create an evaluator",
     });
     expect(
       getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SETUP_OBSERVE, {

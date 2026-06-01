@@ -195,6 +195,27 @@ describe("NewObserve onboarding setup", () => {
     ).toBeVisible();
   });
 
+  it("acknowledges copied credentials from lifecycle email links", () => {
+    mocks.useQuery.mockReturnValue({
+      data: codeBlockFixture,
+      error: null,
+      isLoading: false,
+      isSuccess: true,
+    });
+
+    renderWithRouter(<NewObserve showFirstTraceGuide />, {
+      route:
+        "/dashboard/observe?setup=true&source=onboarding_email&credential_step=done",
+    });
+
+    const guide = screen.getByTestId("observe-first-trace-guide");
+    expect(
+      within(guide).getByText(
+        "Credentials copied. Paste both values into the snippet, then run one request.",
+      ),
+    ).toBeVisible();
+  });
+
   it("shows package-specific instrumentation for the selected provider", async () => {
     mocks.useQuery.mockReturnValue({
       data: codeBlockWithInstrumentsFixture,
@@ -286,7 +307,7 @@ describe("NewObserve onboarding setup", () => {
 
     renderWithRouter(<NewObserve showFirstTraceGuide />, {
       route:
-        "/dashboard/observe?setup=true&source=onboarding&provider=anthropic&language=typescript",
+        "/dashboard/observe?setup=true&source=onboarding&provider=Anthropic&language=TypeScript",
     });
 
     const guide = screen.getByTestId("observe-first-trace-guide");

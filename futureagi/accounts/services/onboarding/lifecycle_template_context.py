@@ -53,6 +53,13 @@ def preheader_for_campaign(campaign):
     return lifecycle_email_copy_for_campaign(campaign)["preheader"]
 
 
+def observe_setup_package_label(metadata):
+    provider = metadata.get("observe_setup_provider_label")
+    language = metadata.get("observe_setup_language_label")
+    parts = [part for part in (provider, language) if part]
+    return " ".join(parts)
+
+
 def build_lifecycle_template_context(*, send_log, campaign, target_route, now=None):
     send_metadata = send_log.metadata or {}
     click_token = sign_lifecycle_token(send_log=send_log, kind="click", now=now)
@@ -101,6 +108,15 @@ def build_lifecycle_template_context(*, send_log, campaign, target_route, now=No
         ),
         "observe_credentials_ready_at": send_metadata.get(
             "observe_credentials_ready_at"
+        ),
+        "observe_setup_language": send_metadata.get("observe_setup_language"),
+        "observe_setup_language_label": send_metadata.get(
+            "observe_setup_language_label"
+        ),
+        "observe_setup_package_label": observe_setup_package_label(send_metadata),
+        "observe_setup_provider": send_metadata.get("observe_setup_provider"),
+        "observe_setup_provider_label": send_metadata.get(
+            "observe_setup_provider_label"
         ),
     }
 

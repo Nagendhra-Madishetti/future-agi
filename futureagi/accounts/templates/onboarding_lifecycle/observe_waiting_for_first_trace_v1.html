@@ -3,10 +3,15 @@
 {% block heading %}Send one real trace to continue setup{% endblock %}
 {% block body %}
   {% if observe_credentials_ready %}
-    <p style="margin:0 0 16px;">Hi {{ user_name }}, {{ workspace_name }} has credentials ready for the first observe trace.</p>
-    <p style="margin:0;">Paste the copied values into your SDK and send one trace so there is a concrete quality signal to review.</p>
+    {% if observe_setup_package_label %}
+      <p style="margin:0 0 16px;">Hi {{ user_name }}, {{ workspace_name }} has {{ observe_setup_package_label }} setup credentials ready.</p>
+      <p style="margin:0;">Paste the copied values into the {{ observe_setup_provider_label }} snippet, run one request, and FutureAGI will open the trace when it arrives.</p>
+    {% else %}
+      <p style="margin:0 0 16px;">Hi {{ user_name }}, {{ workspace_name }} has credentials ready for the first observe trace.</p>
+      <p style="margin:0;">Paste the copied values into the matching package snippet, run one request, and FutureAGI will open the trace when it arrives.</p>
+    {% endif %}
   {% else %}
     <p style="margin:0 0 16px;">Hi {{ user_name }}, {{ workspace_name }} has an observe project but no real trace yet.</p>
-    <p style="margin:0;">Send one trace so there is a concrete quality signal to review.</p>
+    <p style="margin:0;">Open setup, choose the package your app uses, send one trace, and FutureAGI will guide you from trace review to evaluator creation.</p>
   {% endif %}
 {% endblock %}

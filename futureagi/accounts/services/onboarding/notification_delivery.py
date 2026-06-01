@@ -78,6 +78,12 @@ def _product_onboarding_payload(send_log):
         send_log.recommended_action_id,
         send_log.campaign_group,
     )
+    metadata = send_log.metadata if isinstance(send_log.metadata, dict) else {}
+    setup_provider_key = _safe_text(metadata.get("observe_setup_provider"), limit=64)
+    setup_language_key = _safe_text(metadata.get("observe_setup_language"), limit=64)
+    setup_provider = _safe_text(metadata.get("observe_setup_provider_label"), limit=64)
+    setup_language = _safe_text(metadata.get("observe_setup_language_label"), limit=64)
+    setup_package = " ".join(part for part in (setup_provider, setup_language) if part)
     return {
         "type": "product_onboarding",
         "family": NotificationPreference.FAMILY_PRODUCT_ONBOARDING,
@@ -96,6 +102,11 @@ def _product_onboarding_payload(send_log):
             "action_label": _safe_text(action_label, fallback="Continue setup"),
             "primary_path": _safe_text(send_log.primary_path, limit=64),
             "activation_stage": _safe_text(send_log.activation_stage, limit=96),
+            "setup_provider": setup_provider_key,
+            "setup_provider_label": setup_provider,
+            "setup_language": setup_language_key,
+            "setup_language_label": setup_language,
+            "setup_package": setup_package,
         },
         "recommended_action": {
             "id": _safe_text(send_log.recommended_action_id, limit=96),
@@ -115,6 +126,9 @@ def _slack_payload(payload):
         action_label = summary.get("action_label")
         if action_label:
             text += f". Next step: {action_label}"
+        setup_package = summary.get("setup_package")
+        if setup_package:
+            text += f". Package: {setup_package}"
         route = payload.get("route_url")
         if route:
             text += f". Open: {route}"

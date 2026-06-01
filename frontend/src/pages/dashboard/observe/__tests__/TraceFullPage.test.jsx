@@ -146,7 +146,7 @@ describe("TraceFullPage", () => {
     expect(getByText("First trace received")).toBeVisible();
     expect(
       getByText(
-        "Review spans, latency, cost, and model inputs here. When this signal looks right, create an evaluator.",
+        "Review spans, latency, cost, inputs, outputs, and errors here. Next, create an evaluator from this trace.",
       ),
     ).toBeVisible();
 
@@ -192,7 +192,7 @@ describe("TraceFullPage", () => {
     expect(getByText("First trace received")).toBeVisible();
     expect(
       getByText(
-        "Review spans, latency, cost, and model inputs here. When this signal looks right, create an evaluator.",
+        "Review spans, latency, cost, inputs, outputs, and errors here. Next, create an evaluator from this trace.",
       ),
     ).toBeVisible();
   });

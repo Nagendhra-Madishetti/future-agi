@@ -232,10 +232,29 @@ def test_observe_first_trace_wait_window_starts_after_credentials_return(
         metadata={
             "route_mode": "setup-observe",
             "credential_step": "done",
+            "setup_language": "typescript",
+            "setup_provider": "anthropic",
             "setup": True,
         },
         idempotency_key="observe:credentials:ready",
         occurred_at=now - timedelta(minutes=30),
+    )
+    record_event(
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        event_name="onboarding_observe_route_focus_viewed",
+        source="observe_setup_onboarding",
+        product_path="observe",
+        activation_stage="connect_observability",
+        metadata={
+            "route_mode": "setup-observe",
+            "setup_language": "python",
+            "setup_provider": "openai",
+            "setup": True,
+        },
+        idempotency_key="observe:latest:setup:intent",
+        occurred_at=now - timedelta(minutes=10),
     )
     flags = _flags()
     activation_state = _activation_state(user, organization, workspace, flags=flags)
@@ -261,6 +280,12 @@ def test_observe_first_trace_wait_window_starts_after_credentials_return(
         credentials_ready.occurred_at.isoformat()
     )
     assert decision.metadata["observe_credential_step"] == "done"
+    assert decision.metadata["observe_setup_language"] == "python"
+    assert decision.metadata["observe_setup_language_label"] == "Python"
+    assert decision.metadata["observe_setup_provider"] == "openai"
+    assert decision.metadata["observe_setup_provider_label"] == "OpenAI"
+    assert "provider=openai" in decision.target_url
+    assert "language=python" in decision.target_url
 
 
 @pytest.mark.django_db

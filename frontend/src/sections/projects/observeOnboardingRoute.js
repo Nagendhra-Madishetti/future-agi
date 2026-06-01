@@ -11,6 +11,7 @@ export const OBSERVE_ONBOARDING_MODES = {
 
 export const OBSERVE_ONBOARDING_SOURCES = {
   ONBOARDING: "onboarding",
+  ONBOARDING_EMAIL: "onboarding_email",
   SAMPLE_TRACE_REVIEW: "sample_trace_review",
 };
 
@@ -103,6 +104,7 @@ export const getObserveOnboardingParams = (search = "") => {
   const journeyMode = journeyStepMode[params.get("journey_step")] || null;
   const isOnboarding =
     params.get("source") === OBSERVE_ONBOARDING_SOURCES.ONBOARDING ||
+    params.get("source") === OBSERVE_ONBOARDING_SOURCES.ONBOARDING_EMAIL ||
     Boolean(journeyMode);
   const rawMode = params.get("onboarding");
   const mode = projectModeSet.has(rawMode)
@@ -158,6 +160,7 @@ export const getObserveTraceReviewOnboardingParams = (search = "") => {
   const journeyMode = journeyStepMode[params.get("journey_step")] || null;
   const isOnboarding =
     params.get("source") === OBSERVE_ONBOARDING_SOURCES.ONBOARDING ||
+    params.get("source") === OBSERVE_ONBOARDING_SOURCES.ONBOARDING_EMAIL ||
     journeyMode === OBSERVE_ONBOARDING_MODES.REVIEW_FIRST_TRACE;
   const rawMode = params.get("onboarding");
   const mode =
@@ -260,7 +263,7 @@ export const getObserveOnboardingCopy = (
     return {
       currentStep: "Evaluator",
       description:
-        "Turn the reviewed trace into a repeatable quality check for future runs.",
+        "Turn the reviewed trace into a repeatable evaluator for future runs.",
       primaryLabel: "Create evaluator",
       secondaryLabel: "Refresh traces",
       steps: [
@@ -276,7 +279,7 @@ export const getObserveOnboardingCopy = (
     return {
       currentStep: "Trace received",
       description:
-        "Review this trace to understand latency, cost, and quality context. Next, create an eval from it.",
+        "Review this trace to inspect inputs, outputs, latency, cost, and errors. Next, create an evaluator from it.",
       primaryLabel: "Review trace",
       secondaryLabel: "Refresh traces",
       steps: [

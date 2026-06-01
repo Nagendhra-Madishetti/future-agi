@@ -79,6 +79,41 @@ def test_valid_click_marks_clicked_and_redirects(client, organization, workspace
 
 
 @pytest.mark.django_db
+def test_observe_click_preserves_package_deep_link(
+    client,
+    organization,
+    workspace,
+    user,
+):
+    route = (
+        "/dashboard/observe/project-1/llm-tracing?"
+        "source=onboarding&onboarding=send-first-trace&selectedTab=trace"
+        "&provider=anthropic&language=typescript"
+    )
+    send_log = _sent_log(
+        user,
+        organization,
+        workspace,
+        campaign_key="observe_waiting_for_first_trace",
+    )
+    send_log.activation_stage = "waiting_for_first_trace"
+    send_log.target_route = route
+    send_log.save(update_fields=["activation_stage", "target_route", "updated_at"])
+    token = sign_lifecycle_token(send_log=send_log, kind="click")
+
+    response = client.get(f"/accounts/onboarding/lifecycle/click/?token={token}")
+
+    assert response.status_code == 302
+    params = parse_qs(urlsplit(response["Location"]).query)
+    assert params["source"] == ["onboarding_email"]
+    assert params["onboarding"] == ["send-first-trace"]
+    assert params["selectedTab"] == ["trace"]
+    assert params["provider"] == ["anthropic"]
+    assert params["language"] == ["typescript"]
+    assert params["target_route"] == [route]
+
+
+@pytest.mark.django_db
 def test_stale_click_redirects_to_current_home(client, organization, workspace, user):
     send_log = _sent_log(user, organization, workspace)
     record_event(

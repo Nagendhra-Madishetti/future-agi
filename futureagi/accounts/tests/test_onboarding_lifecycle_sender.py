@@ -400,7 +400,13 @@ def test_product_onboarding_external_payload_uses_safe_campaign_copy():
         activation_stage="connect_observability",
         recommended_action_id="create_observe_project",
         target_success_event="observe_project_created",
-        metadata={"api_token": "secret-value"},
+        metadata={
+            "api_token": "secret-value",
+            "observe_setup_language": "typescript",
+            "observe_setup_language_label": "TypeScript",
+            "observe_setup_provider": "anthropic",
+            "observe_setup_provider_label": "Anthropic",
+        },
     )
 
     payload = _product_onboarding_payload(send_log)
@@ -411,7 +417,11 @@ def test_product_onboarding_external_payload_uses_safe_campaign_copy():
     assert payload["family"] == NotificationPreference.FAMILY_PRODUCT_ONBOARDING
     assert payload["summary"]["title"] == "Continue with your first observe project"
     assert payload["summary"]["action_label"] == "Create Observe project"
+    assert payload["summary"]["setup_provider"] == "anthropic"
+    assert payload["summary"]["setup_language"] == "typescript"
+    assert payload["summary"]["setup_package"] == "Anthropic TypeScript"
     assert "Create Observe project" in slack_text
+    assert "Package: Anthropic TypeScript" in slack_text
     assert "secret-value" not in payload_text
     assert "secret-value" not in slack_text
 
@@ -650,6 +660,34 @@ def test_queue_carries_observe_credentials_ready_context(
             "observe_credentials_ready": True,
             "observe_credentials_ready_at": now.isoformat(),
             "observe_credential_step": "done",
+            "observe_setup_language": "typescript",
+            "observe_setup_language_label": "TypeScript",
+            "observe_setup_provider": "anthropic",
+            "observe_setup_provider_label": "Anthropic",
+        },
+    )
+    stale_send_log = OnboardingLifecycleSendLog.no_workspace_objects.create(
+        evaluation_log=log,
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        campaign_key=campaign["campaign_key"],
+        campaign_group=campaign["campaign_group"],
+        template_key=campaign["template_key"],
+        template_version=campaign["template_version"],
+        primary_path="observe",
+        activation_stage="waiting_for_first_trace",
+        recommended_action_id=campaign["target_action_id"],
+        target_success_event=campaign["target_success_event"],
+        target_route="/dashboard/observe/project-1/llm-tracing?source=onboarding",
+        status=OnboardingLifecycleSendLog.STATUS_SUPPRESSED,
+        suppression_reason="not_in_send_cohort",
+        queued_at=now - timedelta(minutes=5),
+        metadata={
+            "observe_setup_language": "python",
+            "observe_setup_language_label": "Python",
+            "observe_setup_provider": "openai",
+            "observe_setup_provider_label": "OpenAI",
         },
     )
 
@@ -659,10 +697,16 @@ def test_queue_carries_observe_credentials_ready_context(
     ):
         send_log = queue_onboarding_lifecycle_email(log, now=now)
 
+    assert send_log.id == stale_send_log.id
     assert send_log.status == OnboardingLifecycleSendLog.STATUS_QUEUED
+    assert send_log.suppression_reason is None
     assert send_log.metadata["observe_credentials_ready"] is True
     assert send_log.metadata["observe_credentials_ready_at"] == now.isoformat()
     assert send_log.metadata["observe_credential_step"] == "done"
+    assert send_log.metadata["observe_setup_language"] == "typescript"
+    assert send_log.metadata["observe_setup_language_label"] == "TypeScript"
+    assert send_log.metadata["observe_setup_provider"] == "anthropic"
+    assert send_log.metadata["observe_setup_provider_label"] == "Anthropic"
 
 
 @pytest.mark.django_db

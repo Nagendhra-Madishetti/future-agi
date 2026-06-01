@@ -12,7 +12,7 @@ export const ONBOARDING_PRODUCT_LOOP_STEPS = [
   {
     id: "observe",
     label: "Observe",
-    description: "Inspect real quality signals.",
+    description: "Inspect real traces and outcomes.",
   },
   {
     id: "ship",
@@ -22,7 +22,7 @@ export const ONBOARDING_PRODUCT_LOOP_STEPS = [
   {
     id: "improve",
     label: "Improve",
-    description: "Turn signal into a repeatable guardrail.",
+    description: "Turn findings into a repeatable guardrail.",
   },
 ];
 
@@ -153,7 +153,7 @@ export const ONBOARDING_STAGE_COPY = {
   prompt_next_loop: {
     eyebrow: "Prompt setup",
     title: "Continue prompt setup",
-    description: "Turn the comparison into the next reusable quality check.",
+    description: "Turn the comparison into the next reusable eval.",
   },
   create_agent: {
     eyebrow: "Agent",
@@ -182,8 +182,8 @@ export const ONBOARDING_STAGE_COPY = {
   },
   agent_create_eval: {
     eyebrow: "Agent quality",
-    title: "Create the first agent quality check",
-    description: "Create the check that keeps the agent behavior measurable.",
+    title: "Create the first agent eval",
+    description: "Create the eval that keeps the agent behavior measurable.",
   },
   configure_gateway_provider: {
     eyebrow: "Gateway",
@@ -224,7 +224,7 @@ export const ONBOARDING_STAGE_COPY = {
   add_eval_scorer: {
     eyebrow: "Eval scorer",
     title: "Add the eval scorer",
-    description: "Define the quality signal before running the first eval.",
+    description: "Define what the eval should measure before running it.",
   },
   run_eval: {
     eyebrow: "Eval run",
@@ -256,7 +256,7 @@ export const ONBOARDING_STAGE_COPY = {
     eyebrow: "Voice call",
     title: "Review the voice call",
     description:
-      "Inspect the call transcript and find the first quality signal.",
+      "Inspect the call transcript and identify the first improvement.",
   },
   add_voice_success_criteria: {
     eyebrow: "Voice criteria",
@@ -283,35 +283,35 @@ export const ONBOARDING_STAGE_COPY = {
   waiting_for_first_trace_sample_available: {
     eyebrow: "Waiting",
     title: "Waiting for real data",
-    description: "Use a sample signal while the first real trace is pending.",
+    description: "Use a sample trace while the first real trace is pending.",
   },
   review_first_trace: {
     eyebrow: "First trace",
     title: "First trace received",
     description:
-      "Review it now to understand latency, cost, and quality context.",
+      "Review the trace to inspect inputs, outputs, latency, cost, and errors.",
   },
   create_trace_evaluator: {
     eyebrow: "Evaluator",
     title: "Create an evaluator",
-    description: "Turn the reviewed trace into a repeatable quality check.",
+    description: "Turn the reviewed trace into a repeatable evaluator.",
   },
   activated: {
     eyebrow: "First setup complete",
     title: "Your first workflow is live",
     description:
-      "Review daily quality next and keep improving the workflow from real signals.",
+      "Review daily quality next and keep improving the workflow from real traces.",
   },
   daily_review: {
     eyebrow: "Daily quality",
-    title: "Review today's quality signal",
-    description: "Open the latest quality signal and keep the loop fresh.",
+    title: "Review today's quality item",
+    description: "Open the latest item and keep the loop fresh.",
   },
   review_sample_signal: {
     eyebrow: "Sample data",
-    title: "Review a sample signal",
+    title: "Review a sample trace",
     description:
-      "Inspect the sample signal while real workspace data is pending.",
+      "Inspect the sample trace while real workspace data is pending.",
   },
 };
 

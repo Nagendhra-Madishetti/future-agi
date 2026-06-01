@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass
 from datetime import timedelta
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.utils import timezone
 
@@ -27,6 +27,23 @@ from tracer.models.trace import Trace
 OBSERVE_CREDENTIAL_READY_EVENT = "onboarding_observe_route_focus_viewed"
 OBSERVE_CREDENTIAL_READY_ROUTE_MODE = "setup-observe"
 OBSERVE_CREDENTIAL_READY_STEP = "done"
+OBSERVE_SETUP_PROVIDER_LABELS = {
+    "anthropic": "Anthropic",
+    "bedrock": "Bedrock",
+    "langchain": "LangChain",
+    "llamaindex": "LlamaIndex",
+    "mcp": "MCP",
+    "openai": "OpenAI",
+    "openai_agents": "OpenAI Agents",
+}
+OBSERVE_SETUP_LANGUAGE_LABELS = {
+    "python": "Python",
+    "typescript": "TypeScript",
+}
+OBSERVE_SETUP_PROVIDER_ALIASES = {
+    "llama_index": "llamaindex",
+    "openaiagents": "openai_agents",
+}
 
 
 @dataclass(frozen=True)
@@ -182,6 +199,62 @@ def _latest_observe_credentials_ready_event(organization, workspace):
         .order_by("-occurred_at", "-created_at")
         .first()
     )
+
+
+def _latest_observe_setup_intent_event(organization, workspace):
+    events = OnboardingActivationEvent.no_workspace_objects.filter(
+        organization=organization,
+        workspace=workspace,
+        event_name=OBSERVE_CREDENTIAL_READY_EVENT,
+        product_path="observe",
+        is_sample=False,
+    ).order_by("-occurred_at", "-created_at")[:30]
+    for event in events:
+        if _observe_setup_intent_metadata(event):
+            return event
+    return None
+
+
+def _safe_setup_value(value):
+    if not isinstance(value, str):
+        return None
+    value = value.strip().lower().replace("-", "_")
+    return value or None
+
+
+def _safe_observe_setup_provider(value):
+    value = _safe_setup_value(value)
+    value = OBSERVE_SETUP_PROVIDER_ALIASES.get(value, value)
+    return value if value in OBSERVE_SETUP_PROVIDER_LABELS else None
+
+
+def _safe_observe_setup_language(value):
+    value = _safe_setup_value(value)
+    return value if value in OBSERVE_SETUP_LANGUAGE_LABELS else None
+
+
+def _observe_setup_intent_metadata(event):
+    metadata = event.metadata if isinstance(event.metadata, dict) else {}
+    provider = _safe_observe_setup_provider(
+        metadata.get("setup_provider")
+        or metadata.get("provider")
+        or metadata.get("package")
+        or metadata.get("instrument")
+    )
+    language = _safe_observe_setup_language(
+        metadata.get("setup_language")
+        or metadata.get("language")
+        or metadata.get("lang")
+    )
+
+    intent = {}
+    if provider:
+        intent["observe_setup_provider"] = provider
+        intent["observe_setup_provider_label"] = OBSERVE_SETUP_PROVIDER_LABELS[provider]
+    if language:
+        intent["observe_setup_language"] = language
+        intent["observe_setup_language_label"] = OBSERVE_SETUP_LANGUAGE_LABELS[language]
+    return intent
 
 
 def _observe_ready_for_first_trace_at(activation_state, organization, workspace):
@@ -766,6 +839,32 @@ def _url_with_campaign_params(url, campaign):
     return f"{url}{separator}{params}"
 
 
+def _url_with_observe_setup_intent(url, metadata):
+    url = _safe_internal_url(url)
+    if not url:
+        return None
+    params = {}
+    if metadata.get("observe_setup_provider"):
+        params["provider"] = metadata["observe_setup_provider"]
+    if metadata.get("observe_setup_language"):
+        params["language"] = metadata["observe_setup_language"]
+    if not params:
+        return url
+
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.update(params)
+    return urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            urlencode(query),
+            parts.fragment,
+        )
+    )
+
+
 def _observe_credentials_ready_metadata(
     organization,
     workspace,
@@ -784,16 +883,31 @@ def _observe_credentials_ready_metadata(
         "waiting_for_first_trace_sample_available",
     }:
         return {}
-    event = _latest_observe_credentials_ready_event(organization, workspace)
-    if not event:
-        return {}
     project_created_at = _first_observe_created_at(activation_state, workspace)
-    if project_created_at and event.occurred_at < project_created_at:
-        return {}
+    credentials_event = _latest_observe_credentials_ready_event(organization, workspace)
+    intent_event = _latest_observe_setup_intent_event(organization, workspace)
+
+    def event_applies(event):
+        return bool(event) and (
+            not project_created_at or event.occurred_at >= project_created_at
+        )
+
+    intent = (
+        _observe_setup_intent_metadata(intent_event)
+        if event_applies(intent_event)
+        else {}
+    )
+    if not intent and event_applies(credentials_event):
+        intent = _observe_setup_intent_metadata(credentials_event)
+
+    if not event_applies(credentials_event):
+        return intent
+
     return {
         "observe_credentials_ready": True,
-        "observe_credentials_ready_at": event.occurred_at.isoformat(),
+        "observe_credentials_ready_at": credentials_event.occurred_at.isoformat(),
         "observe_credential_step": OBSERVE_CREDENTIAL_READY_STEP,
+        **intent,
     }
 
 
@@ -964,7 +1078,14 @@ def evaluate_lifecycle_decision(
         if started_at and campaign
         else None
     )
+    observe_metadata = _observe_credentials_ready_metadata(
+        organization,
+        workspace,
+        activation_state,
+        campaign,
+    )
     target_url = _target_url(activation_state, campaign)
+    target_url = _url_with_observe_setup_intent(target_url, observe_metadata)
     reason, details = apply_lifecycle_suppressions(
         user=user,
         organization=organization,
@@ -990,14 +1111,7 @@ def evaluate_lifecycle_decision(
         "source": source,
         "send_enabled": bool(flags.get("onboarding_lifecycle_send_enabled")),
     }
-    metadata.update(
-        _observe_credentials_ready_metadata(
-            organization,
-            workspace,
-            activation_state,
-            campaign,
-        )
-    )
+    metadata.update(observe_metadata)
     digest_preview = build_lifecycle_digest_preview(
         organization=organization,
         workspace=workspace,

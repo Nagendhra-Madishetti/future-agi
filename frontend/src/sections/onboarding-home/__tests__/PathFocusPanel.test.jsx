@@ -120,7 +120,7 @@ describe("PathFocusPanel", () => {
       "Run from manifest.",
     );
     expect(
-      within(panel).getByRole("link", { name: "Run manifest test" }),
+      within(panel).getByRole("link", { name: "Run test" }),
     ).toHaveAttribute(
       "href",
       "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_run_test_button&journey_step=run_prompt_test",

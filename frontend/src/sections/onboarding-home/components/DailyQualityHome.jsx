@@ -183,7 +183,7 @@ export default function DailyQualityHome({
         >
           {dailyQuality?.mode === "permission_limited"
             ? "A workspace admin needs to unlock the next quality setup action."
-            : "No new quality signal needs review right now."}
+            : "No new quality item needs review right now."}
         </Alert>
       )}
 
