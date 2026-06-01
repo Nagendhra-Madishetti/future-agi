@@ -60,7 +60,7 @@ describe("setup org product-loop quick starts", () => {
       buttonLabel: "Connect your agent",
       featured: true,
       firstActionLabel: "Create Observe project",
-      pathPreview: "Send first trace, review first trace, add quality check.",
+      pathPreview: "Send first trace, review first trace, create evaluator.",
       primaryPath: "observe",
     });
     expect(observeQuickStart.sample).toBeUndefined();

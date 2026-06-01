@@ -55,8 +55,8 @@ const QUICK_START_ROLE = "AI Builder";
 
 const SETUP_SIDE_PANEL_STEPS = [
   {
-    label: "Choose a workflow",
-    description: "Start with the area you already recognize.",
+    label: "Choose a setup task",
+    description: "Start with the product area you want to use first.",
   },
   {
     label: "Complete step 1",
@@ -265,8 +265,8 @@ const SetupOrgSidePanel = () => (
         </Typography>
         <Typography variant="h4">One step at a time</Typography>
         <Typography variant="body1" color="text.secondary">
-          Choose the workflow that matches your work. After each real setup
-          action, Home moves you to the next step.
+          Choose the product area you want to set up first. After each real
+          setup action, Home moves you to the next step.
         </Typography>
       </Stack>
 
@@ -1195,8 +1195,8 @@ const SetupOrganization = ({ getStarted = false }) => {
                   maxWidth: 520,
                 }}
               >
-                Choose one workflow. We will open step 1, then Home will keep
-                showing the next setup action.
+                Choose what you want to set up first. We will open step 1, then
+                Home will keep showing the next setup action.
               </Typography>
             </Box>
 

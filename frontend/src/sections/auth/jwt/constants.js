@@ -49,7 +49,7 @@ export const GOALS_LIST = [
     label: "Connect your agent",
     aliases: ["Monitor LLMs and Agents", "Analyze System Health"],
     description:
-      "Connect traces and review latency, cost, failures, and quality signals.",
+      "Connect traces, review latency, cost, failures, and create an evaluator.",
   },
   {
     id: "improve_prompts",

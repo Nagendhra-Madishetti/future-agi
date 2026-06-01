@@ -40,14 +40,15 @@ export const SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS = [
     goal: "monitor_production_ai_app",
     surfaceLabel: "Observe",
     buttonLabel: "Connect your agent",
-    shortDescription: "Send traces from your AI app and review quality.",
+    shortDescription:
+      "Send traces from your AI app and turn one trace into an evaluator.",
     firstActionLabel: "Create Observe project",
-    pathPreview: "Send first trace, review first trace, add quality check.",
+    pathPreview: "Send first trace, review first trace, create evaluator.",
     sequencePreview: [
       "Create project",
       "Send trace",
       "Review trace",
-      "Add quality check",
+      "Create evaluator",
     ],
     featured: true,
     icon: "mdi:connection",
