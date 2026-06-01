@@ -59,6 +59,11 @@ const decision = ({ family: familyId, channel, allowed, reason = null }) => ({
 function settingsResult(overrides = {}) {
   return {
     families: [
+      family({
+        id: "product_onboarding",
+        label: "Product onboarding",
+        description: "First action, path recovery, and activation nudges.",
+      }),
       family({ id: "daily_quality_digest" }),
       family({
         id: "usage_budget",
@@ -73,6 +78,28 @@ function settingsResult(overrides = {}) {
     channels: [],
     preferences: [],
     decisions: [
+      decision({
+        family: "product_onboarding",
+        channel: "email",
+        allowed: true,
+      }),
+      decision({
+        family: "product_onboarding",
+        channel: "in_app",
+        allowed: true,
+      }),
+      decision({
+        family: "product_onboarding",
+        channel: "slack",
+        allowed: false,
+        reason: "channel_not_enabled",
+      }),
+      decision({
+        family: "product_onboarding",
+        channel: "webhook",
+        allowed: false,
+        reason: "channel_not_enabled",
+      }),
       decision({
         family: "daily_quality_digest",
         channel: "email",
@@ -169,6 +196,58 @@ describe("NotificationSettingsPage", () => {
           {
             scope: "user_workspace",
             family: "daily_quality_digest",
+            channel: "slack",
+            enabled: true,
+          },
+        ],
+      },
+    );
+  });
+
+  it("lets users opt product onboarding into Slack after a workspace channel exists", async () => {
+    const user = userEvent.setup();
+    mockGet.mockResolvedValue({
+      data: {
+        result: settingsResult({
+          channels: [
+            {
+              id: "slack-channel-1",
+              type: "slack_webhook",
+              display_name: "Setup Slack",
+              target_identifier: "Slack webhook",
+              is_active: true,
+            },
+          ],
+        }),
+      },
+    });
+
+    const { default: NotificationSettingsPage } = await import(
+      "../NotificationSettingsPage"
+    );
+    renderWithQuery(<NotificationSettingsPage />);
+
+    const productOnboarding = await screen.findByTestId(
+      "notification-family-product_onboarding",
+    );
+
+    expect(within(productOnboarding).getByText("Slack")).toBeInTheDocument();
+    expect(within(productOnboarding).getByText("Opt-in")).toBeInTheDocument();
+
+    await user.click(
+      within(productOnboarding).getByRole("checkbox", {
+        name: "Product onboarding Slack",
+      }),
+    );
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+    expect(mockPatch).toHaveBeenCalledWith(
+      "/accounts/notification-preferences/",
+      {
+        preferences: [
+          {
+            scope: "user_workspace",
+            family: "product_onboarding",
             channel: "slack",
             enabled: true,
           },

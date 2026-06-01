@@ -55,6 +55,7 @@ const EXTERNAL_CHANNEL_TYPES = {
 };
 
 const EXTERNAL_CHANNEL_FAMILIES = new Set([
+  "product_onboarding",
   "daily_quality_digest",
   "usage_budget",
   "gateway_alert",
@@ -494,7 +495,8 @@ export default function NotificationSettingsPage() {
               <Box>
                 <Typography variant="subtitle1">Workspace channels</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Add opt-in Slack or webhook routing for operational alerts.
+                  Add opt-in Slack or webhook routing for onboarding nudges and
+                  operational alerts.
                 </Typography>
               </Box>
               {!canManageWorkspace && (

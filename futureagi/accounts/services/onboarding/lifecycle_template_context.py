@@ -69,7 +69,7 @@ def build_lifecycle_template_context(*, send_log, campaign, target_route, now=No
         or getattr(send_log.user, "email", "")
     )
     workspace_name = getattr(send_log.workspace, "name", "") or "your workspace"
-    action_label = campaign.get("email_cta_label") or _label_from_action(
+    action_label = campaign.get("email_cta_label") or lifecycle_action_label(
         send_log.recommended_action_id,
         send_log.campaign_group,
     )
@@ -125,7 +125,7 @@ def render_lifecycle_email_preview(*, send_log, campaign, target_route, now=None
     }
 
 
-def _label_from_action(action_id, campaign_group):
+def lifecycle_action_label(action_id, campaign_group):
     labels = {
         "choose_onboarding_goal": "Choose setup path",
         "create_observe_project": "Connect observability",

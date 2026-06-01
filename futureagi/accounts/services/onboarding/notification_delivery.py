@@ -15,6 +15,12 @@ from accounts.services.onboarding.lifecycle_send_policy import (
     external_lifecycle_delivery_campaign_groups,
     external_lifecycle_delivery_channels,
 )
+from accounts.services.onboarding.lifecycle_template_context import (
+    lifecycle_action_label,
+)
+from accounts.services.onboarding.lifecycle_template_contract import (
+    lifecycle_email_copy_for_campaign,
+)
 from accounts.services.onboarding.notification_preferences import (
     notification_channel_delivery_config,
     notification_channels_for_delivery,
@@ -24,6 +30,13 @@ from accounts.services.onboarding.notification_preferences import (
 from accounts.services.onboarding.notification_registry import family_for_campaign_group
 
 EXTERNAL_DELIVERY_TIMEOUT_SECONDS = 5
+
+
+def _safe_text(value, *, fallback="", limit=180):
+    if not isinstance(value, str):
+        value = fallback
+    value = " ".join(str(value or fallback).split())
+    return value[:limit]
 
 
 def _daily_quality_payload(send_log):
@@ -58,7 +71,55 @@ def _daily_quality_payload(send_log):
     }
 
 
+def _product_onboarding_payload(send_log):
+    campaign = getattr(send_log.evaluation_log, "registry_snapshot", None) or {}
+    email_copy = lifecycle_email_copy_for_campaign(campaign)
+    action_label = lifecycle_action_label(
+        send_log.recommended_action_id,
+        send_log.campaign_group,
+    )
+    return {
+        "type": "product_onboarding",
+        "family": NotificationPreference.FAMILY_PRODUCT_ONBOARDING,
+        "campaign_key": send_log.campaign_key,
+        "campaign_group": send_log.campaign_group,
+        "template_key": send_log.template_key,
+        "workspace_id": str(send_log.workspace_id) if send_log.workspace_id else None,
+        "source": {
+            "type": "onboarding_lifecycle",
+            "id": str(send_log.id),
+            "evaluation_log_id": str(send_log.evaluation_log_id),
+        },
+        "route_url": send_log.target_route,
+        "summary": {
+            "title": _safe_text(email_copy["subject"]),
+            "action_label": _safe_text(action_label, fallback="Continue setup"),
+            "primary_path": _safe_text(send_log.primary_path, limit=64),
+            "activation_stage": _safe_text(send_log.activation_stage, limit=96),
+        },
+        "recommended_action": {
+            "id": _safe_text(send_log.recommended_action_id, limit=96),
+            "label": _safe_text(action_label, fallback="Continue setup"),
+            "target_success_event": _safe_text(
+                send_log.target_success_event,
+                limit=96,
+            ),
+        },
+    }
+
+
 def _slack_payload(payload):
+    if payload["type"] == "product_onboarding":
+        summary = payload["summary"]
+        text = f"FutureAGI setup: {summary['title']}"
+        action_label = summary.get("action_label")
+        if action_label:
+            text += f". Next step: {action_label}"
+        route = payload.get("route_url")
+        if route:
+            text += f". Open: {route}"
+        return {"text": text}
+
     count = payload["summary"]["action_count"]
     overdue = payload["summary"]["overdue_count"]
     route = payload["route_url"]
@@ -121,12 +182,13 @@ def _delivery_log(
     error=None,
     metadata=None,
 ):
+    family = family_for_campaign_group(send_log.campaign_group)
     channel_suffix = f":{channel_record.id}" if channel_record else ""
     return record_notification_delivery(
         organization=send_log.organization,
         workspace=send_log.workspace,
         user=send_log.user,
-        family=NotificationPreference.FAMILY_DAILY_QUALITY_DIGEST,
+        family=family,
         source_type="onboarding_lifecycle",
         source_id=str(send_log.id),
         channel=channel,
@@ -159,9 +221,12 @@ def deliver_onboarding_lifecycle_external_channels(send_log, *, now=None):
     if send_log.campaign_group not in external_lifecycle_delivery_campaign_groups():
         return []
     family = family_for_campaign_group(send_log.campaign_group)
-    if family != NotificationPreference.FAMILY_DAILY_QUALITY_DIGEST:
-        return []
-    payload = _daily_quality_payload(send_log)
+    if family == NotificationPreference.FAMILY_DAILY_QUALITY_DIGEST:
+        payload = _daily_quality_payload(send_log)
+    elif family == NotificationPreference.FAMILY_PRODUCT_ONBOARDING:
+        payload = _product_onboarding_payload(send_log)
+    else:
+        payload = None
     if not payload:
         return []
 
@@ -178,7 +243,7 @@ def deliver_onboarding_lifecycle_external_channels(send_log, *, now=None):
             organization=send_log.organization,
             workspace=send_log.workspace,
             user=send_log.user,
-            family=NotificationPreference.FAMILY_DAILY_QUALITY_DIGEST,
+            family=family,
             channel=delivery_channel,
             now=now,
         )

@@ -74,4 +74,14 @@ external_delivery:
     - slack
     - webhook
   campaign_groups:
+    - welcome
+    - recovery
+    - sample
+    - first_signal
+    - prompt
+    - agent
+    - gateway
+    - eval
+    - voice
+    - next_loop
     - activation_success

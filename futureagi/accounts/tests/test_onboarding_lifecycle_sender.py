@@ -40,6 +40,10 @@ from accounts.services.onboarding.lifecycle_sender import (
     send_limited_onboarding_lifecycle_batch,
     send_onboarding_lifecycle_email,
 )
+from accounts.services.onboarding.notification_delivery import (
+    _product_onboarding_payload,
+    _slack_payload,
+)
 from accounts.services.onboarding.notification_preferences import (
     notification_preference_decision,
     upsert_notification_channel,
@@ -328,6 +332,88 @@ def _queued_daily_quality_send_log(user, organization, workspace, *, now):
             **_approval_metadata(campaign["campaign_key"]),
         },
     )
+
+
+def _queued_product_onboarding_send_log(user, organization, workspace, *, now):
+    campaign = lifecycle_campaign_by_key("welcome_resume_goal")
+    evaluation_log = OnboardingLifecycleEvaluationLog.no_workspace_objects.create(
+        run_id=uuid.uuid4(),
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        campaign_key=campaign["campaign_key"],
+        campaign_group=campaign["campaign_group"],
+        template_key=campaign["template_key"],
+        template_version=campaign["template_version"],
+        activation_stage=campaign["entry_stages"][0],
+        primary_path="observe",
+        recommendation_id=campaign["target_action_id"],
+        target_action_id=campaign["target_action_id"],
+        target_success_event=campaign["target_success_event"],
+        target_url="/dashboard/observe?setup=true&source=onboarding",
+        status=OnboardingLifecycleEvaluationLog.STATUS_ELIGIBLE,
+        eligible_at=now - timedelta(minutes=15),
+        evaluated_at=now - timedelta(minutes=1),
+        registry_snapshot=campaign,
+        metadata={"source": "test"},
+    )
+    return OnboardingLifecycleSendLog.no_workspace_objects.create(
+        evaluation_log=evaluation_log,
+        user=user,
+        organization=organization,
+        workspace=workspace,
+        campaign_key=campaign["campaign_key"],
+        campaign_group=campaign["campaign_group"],
+        template_key=campaign["template_key"],
+        template_version=campaign["template_version"],
+        primary_path="observe",
+        activation_stage=campaign["entry_stages"][0],
+        recommended_action_id=campaign["target_action_id"],
+        target_success_event=campaign["target_success_event"],
+        target_route="/dashboard/observe?setup=true&source=onboarding",
+        status=OnboardingLifecycleSendLog.STATUS_QUEUED,
+        queued_at=now,
+        metadata={
+            "debug_notes": "Sensitive onboarding context must not leak.",
+            "api_token": "secret-value",
+            **_approval_metadata(campaign["campaign_key"]),
+        },
+    )
+
+
+def test_product_onboarding_external_payload_uses_safe_campaign_copy():
+    send_log = SimpleNamespace(
+        id=uuid.uuid4(),
+        evaluation_log_id=uuid.uuid4(),
+        evaluation_log=SimpleNamespace(
+            registry_snapshot={
+                "email_subject": "Continue with your first observe project",
+                "email_preheader": "Create the project for your first trace.",
+            },
+        ),
+        workspace_id=uuid.uuid4(),
+        campaign_key="welcome_resume_goal",
+        campaign_group="welcome",
+        template_key="welcome_resume_goal_v1",
+        target_route="/dashboard/observe?setup=true&source=onboarding",
+        primary_path="observe",
+        activation_stage="connect_observability",
+        recommended_action_id="create_observe_project",
+        target_success_event="observe_project_created",
+        metadata={"api_token": "secret-value"},
+    )
+
+    payload = _product_onboarding_payload(send_log)
+    slack_payload = _slack_payload(payload)
+
+    payload_text = str(payload)
+    slack_text = slack_payload["text"]
+    assert payload["family"] == NotificationPreference.FAMILY_PRODUCT_ONBOARDING
+    assert payload["summary"]["title"] == "Continue with your first observe project"
+    assert payload["summary"]["action_label"] == "Connect observability"
+    assert "Connect observability" in slack_text
+    assert "secret-value" not in payload_text
+    assert "secret-value" not in slack_text
 
 
 def _sent_send_log_for_campaign(
@@ -931,6 +1017,63 @@ def test_daily_quality_digest_delivers_slack_when_channel_enabled(
 
 
 @pytest.mark.django_db
+def test_product_onboarding_delivers_slack_when_channel_enabled(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    send_log = _queued_product_onboarding_send_log(
+        user,
+        organization,
+        workspace,
+        now=now,
+    )
+    upsert_notification_channel(
+        organization=organization,
+        workspace=workspace,
+        actor=user,
+        type=NotificationChannel.TYPE_SLACK_WEBHOOK,
+        display_name="Setup Slack",
+        config={"webhook_url": "https://hooks.slack.com/services/T000/B000/secret"},
+        is_active=True,
+    )
+    upsert_notification_preference(
+        organization=organization,
+        workspace=workspace,
+        user=user,
+        actor=user,
+        scope="user_workspace",
+        family=NotificationPreference.FAMILY_PRODUCT_ONBOARDING,
+        channel=NotificationPreference.CHANNEL_SLACK,
+        enabled=True,
+    )
+
+    with (
+        patch("accounts.services.onboarding.lifecycle_sender.email_helper"),
+        patch(
+            "accounts.services.onboarding.notification_delivery.requests.post"
+        ) as post,
+    ):
+        post.return_value.raise_for_status.return_value = None
+        sent_log = send_onboarding_lifecycle_email(send_log, now=now)
+
+    assert sent_log.status == OnboardingLifecycleSendLog.STATUS_SENT
+    post.assert_called_once()
+    payload_text = str(post.call_args.kwargs["json"])
+    assert "Continue with your first observe project" in payload_text
+    assert "Connect observability" in payload_text
+    assert "Sensitive onboarding context" not in payload_text
+    assert "secret-value" not in payload_text
+    assert NotificationDeliveryLog.no_workspace_objects.filter(
+        source_id=str(send_log.id),
+        family=NotificationPreference.FAMILY_PRODUCT_ONBOARDING,
+        channel=NotificationPreference.CHANNEL_SLACK,
+        status=NotificationDeliveryLog.STATUS_SENT,
+    ).exists()
+
+
+@pytest.mark.django_db
 def test_daily_quality_digest_delivers_webhook_when_channel_enabled(
     organization,
     workspace,
@@ -982,6 +1125,48 @@ def test_daily_quality_digest_delivers_webhook_when_channel_enabled(
         source_id=str(send_log.id),
         channel=NotificationPreference.CHANNEL_WEBHOOK,
         status=NotificationDeliveryLog.STATUS_SENT,
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_product_onboarding_suppresses_slack_without_channel_preference(
+    organization,
+    workspace,
+    user,
+):
+    now = timezone.now()
+    send_log = _queued_product_onboarding_send_log(
+        user,
+        organization,
+        workspace,
+        now=now,
+    )
+    upsert_notification_channel(
+        organization=organization,
+        workspace=workspace,
+        actor=user,
+        type=NotificationChannel.TYPE_SLACK_WEBHOOK,
+        display_name="Setup Slack",
+        config={"webhook_url": "https://hooks.slack.com/services/T000/B000/secret"},
+        is_active=True,
+    )
+
+    with (
+        patch("accounts.services.onboarding.lifecycle_sender.email_helper"),
+        patch(
+            "accounts.services.onboarding.notification_delivery.requests.post"
+        ) as post,
+    ):
+        sent_log = send_onboarding_lifecycle_email(send_log, now=now)
+
+    assert sent_log.status == OnboardingLifecycleSendLog.STATUS_SENT
+    post.assert_not_called()
+    assert NotificationDeliveryLog.no_workspace_objects.filter(
+        source_id=str(send_log.id),
+        family=NotificationPreference.FAMILY_PRODUCT_ONBOARDING,
+        channel=NotificationPreference.CHANNEL_SLACK,
+        status=NotificationDeliveryLog.STATUS_SUPPRESSED,
+        suppressed_reason="channel_not_enabled",
     ).exists()
 
 
