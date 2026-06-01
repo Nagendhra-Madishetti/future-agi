@@ -164,6 +164,8 @@ def test_observe_setup_route_focus_records_event(auth_client, workspace, user):
             "metadata": {
                 "route_mode": "setup-observe",
                 "setup": True,
+                "setup_language": "python",
+                "setup_provider": "anthropic",
             },
             "idempotency_key": "observe:setup:focus",
         },
@@ -185,6 +187,8 @@ def test_observe_setup_route_focus_records_event(auth_client, workspace, user):
         "project_id": None,
         "route_mode": "setup-observe",
         "setup": True,
+        "setup_language": "python",
+        "setup_provider": "anthropic",
     }
 
 

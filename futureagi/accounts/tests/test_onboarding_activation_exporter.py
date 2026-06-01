@@ -277,7 +277,8 @@ def test_activation_export_payload_sanitizes_lifecycle_route_evidence(paid_decis
             "target_url": (
                 "/dashboard/observe/project-1/llm-tracing?"
                 "source=onboarding&onboarding=send-first-trace&"
-                "campaign_key=first_trace_recovery&target_event=trace_received"
+                "campaign_key=first_trace_recovery&target_event=trace_received&"
+                "provider=anthropic&language=typescript&selectedTab=trace"
             ),
         },
     }
@@ -325,7 +326,8 @@ def test_activation_export_payload_sanitizes_lifecycle_route_evidence(paid_decis
         "target_route": (
             "/dashboard/observe/project-1/llm-tracing?"
             "source=onboarding&onboarding=send-first-trace&"
-            "campaign_key=first_trace_recovery&target_event=trace_received"
+            "campaign_key=first_trace_recovery&target_event=trace_received&"
+            "provider=anthropic&language=typescript&selectedTab=trace"
         ),
     }
     for unsafe_route in unsafe_routes:

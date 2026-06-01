@@ -4,7 +4,7 @@ import uuid
 from collections import Counter
 from dataclasses import dataclass
 from datetime import timedelta
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -175,16 +175,25 @@ def _internal_route(route):
 def _with_lifecycle_campaign_params(route, campaign):
     if not _internal_route(route):
         return None
-    params = {
-        "source": "onboarding_email",
-        "campaign_key": (campaign or {}).get("campaign_key"),
-        "target_event": (campaign or {}).get("target_success_event"),
-    }
-    query = urlencode({key: value for key, value in params.items() if value})
-    if not query:
-        return route
-    separator = "&" if "?" in route else "?"
-    return f"{route}{separator}{query}"
+    parts = urlsplit(route)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.update(
+        {
+            "source": "onboarding_email",
+            "campaign_key": (campaign or {}).get("campaign_key"),
+            "target_event": (campaign or {}).get("target_success_event"),
+        }
+    )
+    safe_query = urlencode({key: value for key, value in query.items() if value})
+    return urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            safe_query,
+            parts.fragment,
+        )
+    )
 
 
 def _receipt_lifecycle_target_url(evaluation_log, campaign):

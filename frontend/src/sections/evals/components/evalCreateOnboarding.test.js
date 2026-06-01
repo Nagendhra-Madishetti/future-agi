@@ -395,6 +395,52 @@ describe("evalCreateOnboarding", () => {
     });
   });
 
+  it("keeps observe package context in trace-project eval source summaries", () => {
+    expect(
+      getEvalOnboardingSourceSummary({
+        isOnboarding: true,
+        setupLanguage: "python",
+        setupProvider: "anthropic",
+        sourceId: "project-1",
+        sourceType: "trace_project",
+        step: EVAL_CREATE_ONBOARDING_STEPS.DATA,
+      }),
+    ).toEqual({
+      description:
+        "Use this Anthropic Python trace project to add a scorer next.",
+      label: "Anthropic Python trace project selected",
+    });
+
+    expect(
+      getEvalOnboardingSourceSummary({
+        isOnboarding: true,
+        setupLanguage: "typescript",
+        setupProvider: "openai",
+        sourceId: "project-1",
+        sourceType: "trace_project",
+        step: EVAL_CREATE_ONBOARDING_STEPS.SCORER,
+      }),
+    ).toEqual({
+      description:
+        "Starter scorer is ready for OpenAI TypeScript traces. Edit it or save to run this source.",
+      label: "OpenAI TypeScript trace project ready",
+    });
+
+    expect(
+      getEvalOnboardingSourceSummary({
+        isOnboarding: true,
+        setupLanguage: "python",
+        setupProvider: "llama_index",
+        sourceId: "project-1",
+        sourceType: "trace_project",
+        step: EVAL_CREATE_ONBOARDING_STEPS.RUN,
+      }),
+    ).toEqual({
+      description: "Run the saved scorer on LlamaIndex Python traces.",
+      label: "LlamaIndex Python trace project ready",
+    });
+  });
+
   it("builds an OSS-safe starter scorer for the scorer step", () => {
     const starter = getEvalStarterScorer({
       sourceId: "project-1",

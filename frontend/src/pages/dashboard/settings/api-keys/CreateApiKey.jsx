@@ -43,14 +43,6 @@ const CreateApiKey = ({
     }
   }, [normalizedInitialKeyName, open]);
 
-  const handleClose = () => {
-    setKeyName("");
-    setShowKeys(false);
-    setCopiedKeys({ apiKey: false, secretKey: false });
-    reset();
-    onClose();
-  };
-
   const handleCopyCredential = (credentialType, credentialValue) => {
     copyToClipboard(credentialValue);
     setCopiedKeys((previousCopiedKeys) => ({
@@ -87,6 +79,7 @@ const CreateApiKey = ({
     : {};
   const hasCopiedBothKeys = copiedKeys.apiKey && copiedKeys.secretKey;
   const requiresCopiedKeys = Boolean(completionHref) && isSecretKey;
+  const canCloseDialog = !completionHref || hasCopiedBothKeys;
   const isCompletionDisabled =
     !keyName || (requiresCopiedKeys && !hasCopiedBothKeys);
 
@@ -97,6 +90,24 @@ const CreateApiKey = ({
     maskedApiKey: keyResult.masked_api_key || keyResult.maskedApiKey || "",
     maskedSecretKey:
       keyResult.masked_secret_key || keyResult.maskedSecretKey || "",
+  };
+
+  const handleClose = () => {
+    if (!canCloseDialog) {
+      enqueueSnackbar(
+        isSecretKey
+          ? "Copy both keys before returning to trace setup."
+          : "Create the key to continue trace setup.",
+        { variant: "info" },
+      );
+      return;
+    }
+
+    setKeyName("");
+    setShowKeys(false);
+    setCopiedKeys({ apiKey: false, secretKey: false });
+    reset();
+    onClose();
   };
 
   return (
@@ -126,7 +137,7 @@ const CreateApiKey = ({
             <Typography color="text.primary" fontWeight={700} fontSize="18px">
               {isSecretKey ? "Key’s Generated" : "Key Name"}
             </Typography>
-            <IconButton onClick={handleClose}>
+            <IconButton onClick={handleClose} disabled={!canCloseDialog}>
               <Iconify icon="mdi:close" />
             </IconButton>
           </Box>
@@ -249,7 +260,12 @@ const CreateApiKey = ({
         </DialogContent>
         <ShowComponent condition={!isSecretKey}>
           <DialogActions sx={{ padding: 0, marginTop: 4 }}>
-            <Button variant="outlined" onClick={handleClose} size="small">
+            <Button
+              variant="outlined"
+              onClick={handleClose}
+              size="small"
+              disabled={!canCloseDialog}
+            >
               Cancel
             </Button>
             <LoadingButton
@@ -272,6 +288,7 @@ const CreateApiKey = ({
               fullWidth
               onClick={handleClose}
               size="small"
+              disabled={!canCloseDialog}
             >
               Cancel
             </Button>

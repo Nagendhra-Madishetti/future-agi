@@ -212,6 +212,19 @@ const OBSERVE_SETUP_PROVIDER_ALIASES = {
   openaiagents: "openai_agents",
 };
 const OBSERVE_SETUP_LANGUAGES = new Set(["python", "typescript"]);
+const OBSERVE_SETUP_PROVIDER_LABELS = {
+  anthropic: "Anthropic",
+  bedrock: "Bedrock",
+  langchain: "LangChain",
+  llamaindex: "LlamaIndex",
+  mcp: "MCP",
+  openai: "OpenAI",
+  openai_agents: "OpenAI Agents",
+};
+const OBSERVE_SETUP_LANGUAGE_LABELS = {
+  python: "Python",
+  typescript: "TypeScript",
+};
 
 const compactMetadata = (metadata = {}) =>
   Object.fromEntries(
@@ -333,6 +346,14 @@ const setupIntentMetadata = (options = {}) => {
   };
 };
 
+const observeSetupPackageLabel = ({ setupLanguage, setupProvider } = {}) => {
+  const providerLabel =
+    OBSERVE_SETUP_PROVIDER_LABELS[normalizeObserveSetupProvider(setupProvider)];
+  const languageLabel =
+    OBSERVE_SETUP_LANGUAGE_LABELS[normalizeObserveSetupLanguage(setupLanguage)];
+  return [providerLabel, languageLabel].filter(Boolean).join(" ");
+};
+
 export const getEvalDetailTabFromSearch = (search = "") => {
   const tab = toSearchParams(search).get("tab");
   return EVAL_DETAIL_TABS.has(tab) ? tab : "details";
@@ -428,6 +449,8 @@ export const getEvalCreateInitialSourceTab = ({
 
 export const getEvalOnboardingSourceSummary = ({
   isOnboarding,
+  setupLanguage,
+  setupProvider,
   sourceId,
   sourceType,
   step,
@@ -436,24 +459,38 @@ export const getEvalOnboardingSourceSummary = ({
     return null;
   }
 
+  const setupPackageLabel =
+    sourceType === "trace_project"
+      ? observeSetupPackageLabel({ setupLanguage, setupProvider })
+      : "";
+  const sourceLabel = SOURCE_TYPE_LABELS[sourceType] || "Source";
+  const summaryLabel = setupPackageLabel
+    ? `${setupPackageLabel} trace project`
+    : sourceLabel;
+
   if (step === EVAL_CREATE_ONBOARDING_STEPS.DATA) {
     return {
-      description: "Use this source to add a scorer next.",
-      label: `${SOURCE_TYPE_LABELS[sourceType] || "Source"} selected`,
+      description: setupPackageLabel
+        ? `Use this ${setupPackageLabel} trace project to add a scorer next.`
+        : "Use this source to add a scorer next.",
+      label: `${summaryLabel} selected`,
     };
   }
 
   if (step === EVAL_CREATE_ONBOARDING_STEPS.SCORER) {
     return {
-      description:
-        "Starter scorer is ready. Edit it or save to run this source.",
-      label: `${SOURCE_TYPE_LABELS[sourceType] || "Source"} ready`,
+      description: setupPackageLabel
+        ? `Starter scorer is ready for ${setupPackageLabel} traces. Edit it or save to run this source.`
+        : "Starter scorer is ready. Edit it or save to run this source.",
+      label: `${summaryLabel} ready`,
     };
   }
 
   return {
-    description: "Run the saved scorer on this source.",
-    label: `${SOURCE_TYPE_LABELS[sourceType] || "Source"} ready`,
+    description: setupPackageLabel
+      ? `Run the saved scorer on ${setupPackageLabel} traces.`
+      : "Run the saved scorer on this source.",
+    label: `${summaryLabel} ready`,
   };
 };
 

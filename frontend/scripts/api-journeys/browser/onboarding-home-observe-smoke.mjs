@@ -757,7 +757,7 @@ async function main() {
       });
       await expectVisibleText(
         page,
-        `3. Instrument ${SETUP_PACKAGE.providerLabel}`,
+        `3. Connect ${SETUP_PACKAGE.providerLabel}`,
         { exact: true },
       );
       await expectVisibleText(

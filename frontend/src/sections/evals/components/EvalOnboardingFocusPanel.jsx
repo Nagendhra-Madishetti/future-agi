@@ -41,7 +41,7 @@ export default function EvalOnboardingFocusPanel({
     >
       <Stack spacing={0.75}>
         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-          <Chip size="small" label="Eval onboarding" />
+          <Chip size="small" label="Eval setup" />
           {currentStep ? (
             <Chip size="small" variant="outlined" label={currentStep} />
           ) : null}

@@ -267,6 +267,22 @@ describe("post-login routing", () => {
     expect(incompleteDashboard.shouldReplace).toBe(true);
   });
 
+  it("does not let safe return targets bypass incomplete setup", () => {
+    const destination = resolve({
+      returnTo: "/dashboard/observe?project=1",
+      user: {
+        ...baseUser,
+        onboarding_completed: false,
+      },
+      activationState: state("observeNoSetup"),
+    });
+
+    expect(destination.href).toBe(paths.auth.jwt.setup_org);
+    expect(destination.reason).toBe("onboarding_incomplete");
+    expect(destination.usedReturnTo).toBe(false);
+    expect(destination.shouldClearReturnTo).toBe(true);
+  });
+
   it("skips setup for incomplete users when the workspace is already activated", () => {
     const incompleteActivated = resolve({
       currentPath: paths.auth.jwt.setup_org,
@@ -298,6 +314,22 @@ describe("post-login routing", () => {
       `${paths.dashboard.home}?mode=daily-quality`,
     );
     expect(incompleteDaily.reason).toBe("daily_quality_home");
+
+    const incompleteActivatedReturnTo = resolve({
+      currentPath: paths.auth.jwt.setup_org,
+      returnTo: "/dashboard/observe?project=1",
+      user: {
+        ...baseUser,
+        onboarding_completed: false,
+      },
+      activationState: state("observeFirstLoopComplete"),
+    });
+
+    expect(incompleteActivatedReturnTo.href).toBe(
+      "/dashboard/observe?project=1",
+    );
+    expect(incompleteActivatedReturnTo.reason).toBe("safe_return_to");
+    expect(incompleteActivatedReturnTo.usedReturnTo).toBe(true);
   });
 
   it("does not skip setup for incomplete users when rollout flags are off", () => {

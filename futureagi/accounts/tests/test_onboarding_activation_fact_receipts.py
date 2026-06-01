@@ -168,7 +168,8 @@ def test_activation_fact_receipt_metadata_sanitizes_lifecycle_route():
                 "target_route": (
                     "/dashboard/observe/project-1/llm-tracing?"
                     "source=onboarding&onboarding=send-first-trace&"
-                    "campaign_key=first_trace_recovery&target_event=trace_received"
+                    "campaign_key=first_trace_recovery&target_event=trace_received&"
+                    "provider=anthropic&language=typescript&selectedTab=trace"
                 ),
             },
         }
@@ -195,7 +196,8 @@ def test_activation_fact_receipt_metadata_sanitizes_lifecycle_route():
     assert internal["lifecycle_target_route"] == (
         "/dashboard/observe/project-1/llm-tracing?"
         "source=onboarding&onboarding=send-first-trace&"
-        "campaign_key=first_trace_recovery&target_event=trace_received"
+        "campaign_key=first_trace_recovery&target_event=trace_received&"
+        "provider=anthropic&language=typescript&selectedTab=trace"
     )
     assert internal["lifecycle_send_enabled"] is True
     assert internal["lifecycle_dry_run_only"] is False

@@ -225,7 +225,7 @@ export default function ObserveSetupPanel({
     return {
       ...action,
       ctaLabel: `Open ${setupLabel} setup`,
-      description: `Open setup with ${setupLabel} install, instrumentation, smoke-test code, and trace checks.`,
+      description: `Open setup with ${setupLabel} install, package setup code, a ready-to-run request, and trace checks.`,
       href: hrefWithObservePackage(action.href, {
         language: selectedLanguage,
         provider: selectedProvider,

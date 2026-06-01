@@ -34,6 +34,10 @@ import {
   TabWrapper,
 } from "src/sections/develop/AddDatasetDrawer/AddDatasetStyle";
 import { persistObserveSetupIntent } from "src/sections/projects/observeOnboardingRoute";
+import {
+  appendSetupQuickStartAttributionToHref,
+  readPersistedSetupQuickStartAttribution,
+} from "src/sections/auth/jwt/setup-org-quick-starts";
 
 const CODE_SECTION_ALIASES = {
   installationGuide: "installation_guide",
@@ -62,7 +66,14 @@ const normalizeInstrumentId = (value) => {
   return normalizedValue;
 };
 
-const onboardingSetupReturnHref = ({ instrumentId, language } = {}) => {
+const hasQuickStartAttribution = (attribution = {}) =>
+  Boolean(attribution.quickStartId || attribution.quick_start_id);
+
+const onboardingSetupReturnHref = ({
+  instrumentId,
+  language,
+  quickStartAttribution,
+} = {}) => {
   const params = new URLSearchParams({
     setup: "true",
     source: "onboarding",
@@ -72,16 +83,30 @@ const onboardingSetupReturnHref = ({ instrumentId, language } = {}) => {
   if (instrumentId && LANGUAGE_VALUES.has(language)) {
     params.set("language", language);
   }
-  return `/dashboard/observe?${params.toString()}`;
+  const attribution = hasQuickStartAttribution(quickStartAttribution)
+    ? quickStartAttribution
+    : readPersistedSetupQuickStartAttribution();
+  return appendSetupQuickStartAttributionToHref(
+    `/dashboard/observe?${params.toString()}`,
+    attribution,
+  );
 };
 
-const apiKeysOnboardingHref = ({ instrumentId, language } = {}) => {
+const apiKeysOnboardingHref = ({
+  instrumentId,
+  language,
+  quickStartAttribution,
+} = {}) => {
   const params = new URLSearchParams({
     source: "onboarding",
     target: "observe_first_trace",
     action: "create",
     key_name: "Observe first trace",
-    return_to: onboardingSetupReturnHref({ instrumentId, language }),
+    return_to: onboardingSetupReturnHref({
+      instrumentId,
+      language,
+      quickStartAttribution,
+    }),
   });
   return `${paths.dashboard.settings.apiKeys}?${params.toString()}`;
 };
@@ -95,14 +120,12 @@ const FIRST_TRACE_STEPS = [
   {
     id: "setup",
     label: "Paste setup",
-    description:
-      "Install tracing, load Future AGI keys, and register the project.",
+    description: "Install the package, load keys, and register the project.",
   },
   {
     id: "run",
     label: "Run package request",
-    description:
-      "Use your app request or the package-specific smoke test below.",
+    description: "Use your app request or the ready-to-run request below.",
   },
   {
     id: "review",
@@ -150,7 +173,7 @@ const FALLBACK_INSTRUMENT_SNIPPETS = {
     Python: {
       code: `from traceai_anthropic import AnthropicInstrumentor
 
-AnthropicInstrumentor().instrument()`,
+AnthropicInstrumentor().instrument(tracer_provider=trace_provider)`,
       sample_request_code: `import os
 import anthropic
 
@@ -168,8 +191,11 @@ print(message.content)`,
       code: `import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { AnthropicInstrumentation } from "@traceai/anthropic";
 
+const anthropicInstrumentation = new AnthropicInstrumentation({});
+
 registerInstrumentations({
-  instrumentations: [new AnthropicInstrumentation({})],
+  instrumentations: [anthropicInstrumentation],
+  tracerProvider,
 });`,
       sample_request_code: `import Anthropic from "@anthropic-ai/sdk";
 
@@ -191,7 +217,7 @@ console.log(message.content);`,
     Python: {
       code: `from traceai_bedrock import BedrockInstrumentor
 
-BedrockInstrumentor().instrument()`,
+BedrockInstrumentor().instrument(tracer_provider=trace_provider)`,
       sample_request_code: `import json
 import os
 import boto3
@@ -215,7 +241,7 @@ print(response["body"].read().decode("utf-8"))`,
     Python: {
       code: `from traceai_langchain import LangChainInstrumentor
 
-LangChainInstrumentor().instrument()`,
+LangChainInstrumentor().instrument(tracer_provider=trace_provider)`,
       sample_request_code: `from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(model="gpt-4o-mini")
@@ -229,7 +255,7 @@ print(response.content)`,
     Python: {
       code: `from traceai_llamaindex import LlamaIndexInstrumentor
 
-LlamaIndexInstrumentor().instrument()`,
+LlamaIndexInstrumentor().instrument(tracer_provider=trace_provider)`,
       sample_request_code: `from llama_index.core import Document, VectorStoreIndex
 
 index = VectorStoreIndex.from_documents([
@@ -246,8 +272,8 @@ print(query_engine.query("What does Future AGI help teams do?"))`,
       code: `from traceai_mcp import MCPInstrumentor
 from traceai_openai_agents import OpenAIAgentsInstrumentor
 
-MCPInstrumentor().instrument()
-OpenAIAgentsInstrumentor().instrument()`,
+MCPInstrumentor().instrument(tracer_provider=trace_provider)
+OpenAIAgentsInstrumentor().instrument(tracer_provider=trace_provider)`,
       sample_request_code: `import os
 from agents import Agent, Runner
 from agents.mcp import MCPServerStreamableHttp
@@ -260,7 +286,7 @@ mcp_server = MCPServerStreamableHttp(
 )
 
 agent = Agent(
-    name="MCP smoke test",
+    name="MCP trace test",
     instructions="Call a safe tool if one is available, then summarize the result.",
     mcp_servers=[mcp_server],
 )
@@ -274,7 +300,7 @@ print(result.final_output)`,
     Python: {
       code: `from traceai_openai import OpenAIInstrumentor
 
-OpenAIInstrumentor().instrument()`,
+OpenAIInstrumentor().instrument(tracer_provider=trace_provider)`,
       sample_request_code: `import os
 from openai import OpenAI
 
@@ -291,8 +317,11 @@ print(response.output_text)`,
       code: `import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { OpenAIInstrumentation } from "@traceai/openai";
 
+const openaiInstrumentation = new OpenAIInstrumentation({});
+
 registerInstrumentations({
-  instrumentations: [new OpenAIInstrumentation({})],
+  instrumentations: [openaiInstrumentation],
+  tracerProvider,
 });`,
       sample_request_code: `import OpenAI from "openai";
 
@@ -313,11 +342,11 @@ console.log(response.output_text);`,
     Python: {
       code: `from traceai_openai_agents import OpenAIAgentsInstrumentor
 
-OpenAIAgentsInstrumentor().instrument()`,
+OpenAIAgentsInstrumentor().instrument(tracer_provider=trace_provider)`,
       sample_request_code: `from agents import Agent, Runner
 
 agent = Agent(
-    name="Smoke test",
+    name="Trace test",
     instructions="Answer in one short sentence.",
 )
 
@@ -366,7 +395,7 @@ const DEFAULT_TRACE_TROUBLESHOOTING = {
   title: "If the trace does not arrive",
   checks: [
     "Confirm the Future AGI API key and secret are loaded in the process running the request.",
-    "Run the request after project registration and package instrumentation.",
+    "Run the request after project registration and package setup.",
     "Keep this page open, then use the first trace review step when the trace appears.",
   ],
 };
@@ -408,7 +437,7 @@ const TRACE_TROUBLESHOOTING_BY_INSTRUMENT = {
     title: "If the MCP trace does not arrive",
     checks: [
       "Confirm MCP_SERVER_URL and MCP_SERVER_TOKEN reach a server that lists tools.",
-      "Instrument both OpenAI Agents and MCP before Runner.run starts.",
+      "Connect both OpenAI Agents and MCP before Runner.run starts.",
       "Run one safe MCP tool call, then keep this page open for trace detection.",
     ],
   },
@@ -749,14 +778,14 @@ const FirstTraceSetupGuide = ({
           </Stack>
           <Stack spacing={1} sx={{ minWidth: 0 }}>
             <Typography variant="subtitle2">
-              3. Instrument {selectedInstrumentLabel}
+              3. Connect {selectedInstrumentLabel}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Add this before importing or creating the client, then run one
+              Paste this before importing or creating the client, then run one
               request in your app.
             </Typography>
             <InstructionCodeCopy
-              ariaLabel="Copy package instrumentation"
+              ariaLabel="Copy package setup code"
               text={instrumentCode}
               language={selectedInstrumentLanguage}
             />
@@ -766,12 +795,12 @@ const FirstTraceSetupGuide = ({
               4. Run one {selectedInstrumentLabel} request
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Use this smoke test if you do not have a local request ready. The
-              next screen waits for the trace, opens it, then points you to
-              evaluator setup.
+              Use this ready-to-run request if you do not have a local request
+              ready. The next screen waits for the trace, opens it, then points
+              you to evaluator setup.
             </Typography>
             <InstructionCodeCopy
-              ariaLabel="Copy package smoke test"
+              ariaLabel="Copy package request"
               text={instrumentSampleRequestCode}
               language={selectedInstrumentLanguage}
             />
@@ -851,6 +880,14 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
     searchParams.get("instrument") ||
       searchParams.get("package") ||
       searchParams.get("provider"),
+  );
+  const quickStartAttribution = useMemo(
+    () => ({
+      quickStartGoal: searchParams.get("quick_start_goal"),
+      quickStartId: searchParams.get("quick_start_id"),
+      quickStartPrimaryPath: searchParams.get("quick_start_primary_path"),
+    }),
+    [searchParams],
   );
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(
     requestedInstrumentId || null,
@@ -967,6 +1004,7 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
   const apiKeysHref = apiKeysOnboardingHref({
     instrumentId: selectedInstrument?.id,
     language: selectedInstrumentLanguage,
+    quickStartAttribution,
   });
   const firstTraceTabOptions = tabOptions.map((tab) => ({
     ...tab,
@@ -1167,14 +1205,14 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
                 />
               </Box>
 
-              {/* Telemetry Section with its own tab control */}
+              {/* Project registration section with its own tab control */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 <InstructionTitle
-                  title="Setup Telemetry"
-                  description="Register your application to send traces to this project. The code should be added BEFORE any code execution."
+                  title="Register project"
+                  description="Register your application before the package call so traces are sent to this project."
                 />
 
-                {/* Separate tab selector for telemetry */}
+                {/* Separate tab selector for project registration */}
                 <TabWrapper sx={tabWrapperStyles}>
                   <CustomTabs
                     textColor="primary"
@@ -1201,18 +1239,18 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
                 </TabWrapper>
 
                 <InstructionCodeCopy
-                  ariaLabel="Copy telemetry setup"
+                  ariaLabel="Copy project registration"
                   text={getCodeBySection("projectAddCode")}
                   language={languageTab}
                   // onCopy={() => trackEvent(Events.setupTelemetryCopied)}
                 />
               </Box>
 
-              {/* Instruments Section */}
+              {/* Package setup section */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 <InstructionTitle
-                  title="Setup Instrumentation"
-                  description="Add tracing instrumentation to give you observability into your application."
+                  title="Connect package calls"
+                  description="Connect the package that makes AI calls so Future AGI can trace the request."
                 />
 
                 <ObserveInstruments

@@ -43,7 +43,7 @@ describe("EvalOnboardingFocusPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Eval onboarding")).toBeVisible();
+    expect(screen.getByText("Eval setup")).toBeVisible();
     expect(screen.getByText("Add the eval scorer")).toBeVisible();
     expect(
       screen.getByText("Save one scorer so this source can be evaluated."),

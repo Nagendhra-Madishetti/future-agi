@@ -137,19 +137,7 @@ export function resolvePostLoginDestination({
   activationStateError,
 } = {}) {
   const fallbackHref = fallbackDestination || paths.dashboard.home;
-
-  if (isSafePostLoginReturnTo(returnTo)) {
-    return makeDestination({
-      href: returnTo,
-      reason: "safe_return_to",
-      currentPath,
-      returnTo,
-      usedReturnTo: true,
-      fallbackDestination: fallbackHref,
-      activationState,
-      activationStateError,
-    });
-  }
+  const safeReturnTo = isSafePostLoginReturnTo(returnTo);
 
   if (user?.requires_org_setup) {
     return makeDestination({
@@ -170,6 +158,19 @@ export function resolvePostLoginDestination({
       !activationStateError &&
       isActivatedWorkspaceState(activationState)
     ) {
+      if (safeReturnTo) {
+        return makeDestination({
+          href: returnTo,
+          reason: "safe_return_to",
+          currentPath,
+          returnTo,
+          usedReturnTo: true,
+          fallbackDestination: fallbackHref,
+          activationState,
+          activationStateError,
+        });
+      }
+
       const href =
         flags?.onboarding_daily_quality_home === true
           ? `${paths.dashboard.home}?mode=daily-quality`
@@ -200,6 +201,19 @@ export function resolvePostLoginDestination({
       activationState,
       activationStateError,
       shouldReplace: !routesMatch(currentPath, href),
+    });
+  }
+
+  if (safeReturnTo) {
+    return makeDestination({
+      href: returnTo,
+      reason: "safe_return_to",
+      currentPath,
+      returnTo,
+      usedReturnTo: true,
+      fallbackDestination: fallbackHref,
+      activationState,
+      activationStateError,
     });
   }
 

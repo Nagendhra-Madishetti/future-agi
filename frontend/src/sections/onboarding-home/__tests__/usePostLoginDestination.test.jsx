@@ -143,6 +143,60 @@ describe("usePostLoginDestination", () => {
     expect(result.current.reason).toBe("safe_return_to");
   });
 
+  it("checks activation before honoring a safe return target for incomplete users", async () => {
+    fetchActivationState.mockResolvedValueOnce(state("observeNoSetup"));
+
+    const { result } = renderWithQueryClient(() =>
+      usePostLoginDestination({
+        currentPath: paths.dashboard.falconAI,
+        returnTo: "/dashboard/observe?project=1",
+        user: {
+          ...baseUser,
+          onboarding_completed: false,
+        },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+
+    expect(fetchActivationState).toHaveBeenCalledWith({
+      source: "post_login",
+      mode: "post_login",
+    });
+    expect(result.current.destination.href).toBe(paths.auth.jwt.setup_org);
+    expect(result.current.reason).toBe("onboarding_incomplete");
+    expect(result.current.destination.usedReturnTo).toBe(false);
+  });
+
+  it("honors safe return targets for incomplete users after workspace activation", async () => {
+    fetchActivationState.mockResolvedValueOnce(
+      state("observeFirstLoopComplete"),
+    );
+
+    const { result } = renderWithQueryClient(() =>
+      usePostLoginDestination({
+        currentPath: paths.auth.jwt.setup_org,
+        returnTo: "/dashboard/observe?project=1",
+        user: {
+          ...baseUser,
+          onboarding_completed: false,
+        },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+
+    expect(fetchActivationState).toHaveBeenCalledWith({
+      source: "post_login",
+      mode: "post_login",
+    });
+    expect(result.current.destination.href).toBe(
+      "/dashboard/observe?project=1",
+    );
+    expect(result.current.reason).toBe("safe_return_to");
+    expect(result.current.destination.usedReturnTo).toBe(true);
+  });
+
   it("does not preserve legacy fallback return targets", async () => {
     fetchActivationState.mockResolvedValueOnce(state("observeNoSetup"));
 

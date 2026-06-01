@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import {
   renderWithRouter,
@@ -8,6 +8,7 @@ import {
 } from "src/utils/test-utils";
 
 import NewObserve from "./NewObserve";
+import { persistSetupQuickStartAttribution } from "src/sections/auth/jwt/setup-org-quick-starts";
 
 const mocks = vi.hoisted(() => ({
   useQuery: vi.fn(),
@@ -49,7 +50,7 @@ vi.mock("./InstructionCodeCopy", () => ({
 }));
 
 vi.mock("./ObserveInstuments", () => ({
-  default: () => <div>Instrumentation options</div>,
+  default: () => <div>Package options</div>,
 }));
 
 const codeBlockFixture = {
@@ -136,6 +137,10 @@ const returnToFromApiKeyHref = (href) =>
   new URLSearchParams(href.split("?")[1]).get("return_to");
 
 describe("NewObserve onboarding setup", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
   it("renders a compact first-trace guide before the full setup reference", () => {
     mocks.useQuery.mockReturnValue({
       data: codeBlockFixture,
@@ -192,18 +197,18 @@ describe("NewObserve onboarding setup", () => {
       within(guide).getByLabelText("Copy project registration"),
     ).toBeVisible();
     expect(
-      within(guide).getByLabelText("Copy package instrumentation"),
-    ).toBeVisible();
+      within(guide).getByLabelText("Copy package setup code"),
+    ).toHaveTextContent(
+      "OpenAIInstrumentor().instrument(tracer_provider=trace_provider)",
+    );
     expect(
-      within(guide).getByLabelText("Copy package smoke test"),
+      within(guide).getByLabelText("Copy package request"),
     ).toHaveTextContent("client.responses.create");
     expect(
       within(guide).getByTestId("observe-setup-verification"),
     ).toHaveTextContent("Checking for your first trace");
     expect(screen.queryByText("Full setup reference")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Instrumentation options"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Package options")).not.toBeInTheDocument();
   });
 
   it("uses built-in package snippets when the code-block response omits the requested package", () => {
@@ -227,14 +232,51 @@ describe("NewObserve onboarding setup", () => {
       within(guide).getByText("pip install traceAI-anthropic anthropic"),
     ).toBeVisible();
     expect(
-      within(guide).getByLabelText("Copy package instrumentation"),
-    ).toHaveTextContent("AnthropicInstrumentor");
+      within(guide).getByLabelText("Copy package setup code"),
+    ).toHaveTextContent(
+      "AnthropicInstrumentor().instrument(tracer_provider=trace_provider)",
+    );
     expect(
-      within(guide).getByLabelText("Copy package smoke test"),
+      within(guide).getByLabelText("Copy package request"),
     ).toHaveTextContent("client.messages.create");
     expect(
       screen.queryByText(/requested package is not available/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps quick-start attribution through API key creation", () => {
+    persistSetupQuickStartAttribution({
+      quickStartGoal: "monitor_production_ai_app",
+      quickStartId: "observe",
+      quickStartPrimaryPath: "observe",
+    });
+    mocks.useQuery.mockReturnValue({
+      data: codeBlockFixture,
+      error: null,
+      isLoading: false,
+      isSuccess: true,
+    });
+
+    renderWithRouter(<NewObserve showFirstTraceGuide />, {
+      route:
+        "/dashboard/observe?setup=true&source=onboarding&provider=anthropic&language=python",
+    });
+
+    const guide = screen.getByTestId("observe-first-trace-guide");
+    const returnTo = returnToFromApiKeyHref(
+      within(guide)
+        .getByRole("link", { name: /Create API key/i })
+        .getAttribute("href"),
+    );
+    const returnParams = new URLSearchParams(returnTo.split("?")[1]);
+
+    expect(returnParams.get("provider")).toBe("anthropic");
+    expect(returnParams.get("language")).toBe("python");
+    expect(returnParams.get("quick_start_goal")).toBe(
+      "monitor_production_ai_app",
+    );
+    expect(returnParams.get("quick_start_id")).toBe("observe");
+    expect(returnParams.get("quick_start_primary_path")).toBe("observe");
   });
 
   it("acknowledges copied credentials after returning from key creation", () => {

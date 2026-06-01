@@ -98,10 +98,11 @@ export function usePostLoginDestination({
     currentPath: resolvedCurrentPath,
     fallbackDestination,
   });
+  const safeReturnTo = isSafePostLoginReturnTo(returnTo);
   const canResolvePostLogin =
     hasOrganizationRole &&
     !user?.requires_org_setup &&
-    !isSafePostLoginReturnTo(returnTo) &&
+    (!safeReturnTo || shouldCheckActivationForIncompleteUser) &&
     (shouldCheckActivationForIncompleteUser || !shouldPreserveCurrentRoute);
 
   const requiredFlagsEnabled = hasRequiredFlags(flags);

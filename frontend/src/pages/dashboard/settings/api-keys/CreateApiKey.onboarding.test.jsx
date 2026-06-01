@@ -89,15 +89,19 @@ describe("CreateApiKey onboarding defaults", () => {
   });
 
   it("returns to trace setup after onboarding key creation", async () => {
+    const onClose = vi.fn();
+
     render(
       <CreateApiKey
         completionHref="/dashboard/observe?setup=true&source=onboarding"
         initialKeyName="Observe first trace"
-        onClose={vi.fn()}
+        onClose={onClose}
         open
         refreshGrid={vi.fn()}
       />,
     );
+
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeDisabled();
 
     await userEvent.click(screen.getByRole("button", { name: /next/i }));
 
@@ -112,6 +116,7 @@ describe("CreateApiKey onboarding defaults", () => {
     expect(
       screen.getByText("Copy both keys before returning to trace setup."),
     ).toBeVisible();
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeDisabled();
 
     await userEvent.click(
       screen.getByRole("button", { name: /copy api key/i }),
@@ -129,5 +134,9 @@ describe("CreateApiKey onboarding defaults", () => {
         screen.getByRole("link", { name: /back to trace setup/i }),
       ).not.toHaveAttribute("aria-disabled", "true");
     });
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

@@ -448,6 +448,50 @@ def test_receipt_sourced_lifecycle_logs_enter_dry_run_send_batch(
 
 @pytest.mark.django_db
 @override_settings(ONBOARDING_FEATURE_FLAGS=_lifecycle_send_flags())
+def test_receipt_sourced_lifecycle_preserves_package_route_context(
+    organization,
+    workspace,
+    user,
+):
+    _receipt(
+        organization,
+        workspace,
+        user,
+        metadata={
+            "source": "activation_fact_receiver",
+            "lifecycle_send_enabled": True,
+            "lifecycle_dry_run_only": False,
+            "lifecycle_target_route": (
+                "/dashboard/observe/project-1/llm-tracing?"
+                "source=onboarding&onboarding=send-first-trace"
+                "&provider=anthropic&language=typescript"
+            ),
+            "lifecycle_target_action_id": "send_first_trace",
+            "lifecycle_target_success_event": "trace_received",
+        },
+    )
+    import_activation_fact_lifecycle_evaluations(limit=10)
+    _allow_user_for_lifecycle_send(user)
+
+    result = send_limited_onboarding_lifecycle_batch(
+        cohort="internal",
+        limit=10,
+        dry_run=True,
+    )
+
+    assert result.evaluated == 1
+    assert result.status_counts == {"would_send": 1}
+    assert result.candidates[0]["target_route"] == (
+        "/dashboard/observe/project-1/llm-tracing?"
+        "source=onboarding_email&onboarding=send-first-trace"
+        "&provider=anthropic&language=typescript"
+        "&campaign_key=observe_waiting_for_first_trace"
+        "&target_event=trace_received"
+    )
+
+
+@pytest.mark.django_db
+@override_settings(ONBOARDING_FEATURE_FLAGS=_lifecycle_send_flags())
 def test_receipt_sourced_lifecycle_dry_run_suppresses_unsafe_routes(
     organization,
     workspace,
