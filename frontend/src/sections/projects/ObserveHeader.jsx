@@ -60,6 +60,7 @@ const ObserveHeader = ({
   filterSpan,
   selectedTab,
   filterSession,
+  filterUsers,
   refreshData,
   resetFilters,
 }) => {
@@ -219,10 +220,17 @@ const ObserveHeader = ({
     mutationFn: () => {
       let url;
       let filters;
+      const extraParams = {};
 
       if (text === "Sessions") {
         url = endpoints.project.projectSessionListExport;
         filters = filterSession;
+      } else if (text === "Users") {
+        // Users export rides the existing list endpoint with ?export=true.
+        // The backend (UsersView.get) branches on this flag and streams CSV.
+        url = endpoints.project.getUsersList();
+        filters = filterUsers;
+        extraParams.export = true;
       } else if (selectedTab === "spans") {
         url = endpoints.project.getSpansForObserveExport;
         filters = filterSpan;
@@ -236,6 +244,7 @@ const ObserveHeader = ({
         params: {
           project_id: observeId,
           filters: JSON.stringify(filters || []),
+          ...extraParams,
         },
       });
     },
@@ -244,11 +253,13 @@ const ObserveHeader = ({
       const fileSuffix =
         text === "Sessions"
           ? "sessions"
-          : selectedTab === "trace"
-            ? "traces"
-            : selectedTab === "spans"
-              ? "spans"
-              : "data";
+          : text === "Users"
+            ? "users"
+            : selectedTab === "trace"
+              ? "traces"
+              : selectedTab === "spans"
+                ? "spans"
+                : "data";
 
       enqueueSnackbar(
         `${fileSuffix.charAt(0).toUpperCase() + fileSuffix.slice(1)} downloaded successfully`,
@@ -666,6 +677,7 @@ ObserveHeader.propTypes = {
   filterSpan: PropTypes.array,
   selectedTab: PropTypes.string,
   filterSession: PropTypes.array,
+  filterUsers: PropTypes.array,
   refreshData: PropTypes.func,
   resetFilters: PropTypes.func,
 };

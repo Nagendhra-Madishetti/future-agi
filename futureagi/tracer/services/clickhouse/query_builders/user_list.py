@@ -132,10 +132,13 @@ class UserListQueryBuilder(BaseQueryBuilder):
         span_extra = f"AND {span_where}" if span_where else ""
         final_filter = f"WHERE {output_where}" if output_where else ""
         order_by = self._order_by()
-        pagination = (
-            "LIMIT %(limit)s OFFSET %(offset)s"
-            if self.limit is not None and self.offset is not None
-            else ""
+        paginated = self.limit is not None and self.offset is not None
+        pagination = "LIMIT %(limit)s OFFSET %(offset)s" if paginated else ""
+        # The total_count window is only needed for the paginated list view's
+        # total_pages calc. For unpaginated exports it forces CH to materialize
+        # a worktable for nothing — emit a constant 0 instead.
+        total_count_select = (
+            "count() OVER() AS total_count" if paginated else "0 AS total_count"
         )
 
         query = f"""
@@ -275,7 +278,7 @@ class UserListQueryBuilder(BaseQueryBuilder):
         counted_rows AS (
             SELECT
                 *,
-                count() OVER() AS total_count
+                {total_count_select}
             FROM final_rows
             {final_filter}
         )
@@ -325,7 +328,11 @@ class UserListQueryBuilder(BaseQueryBuilder):
             if direction not in ("ASC", "DESC"):
                 direction = "DESC"
             parts.append(f"{column} {direction} NULLS LAST")
-        return f"ORDER BY {', '.join(parts)}" if parts else "ORDER BY last_active DESC NULLS LAST"
+        return (
+            f"ORDER BY {', '.join(parts)}"
+            if parts
+            else "ORDER BY last_active DESC NULLS LAST"
+        )
 
     @staticmethod
     def _is_date_filter(item: Dict[str, Any]) -> bool:
@@ -373,13 +380,25 @@ class UserListQueryBuilder(BaseQueryBuilder):
 
         params[prefix] = value
         if op == "contains":
-            return f"positionCaseInsensitive(toString({column}), toString(%({prefix})s)) > 0", params
+            return (
+                f"positionCaseInsensitive(toString({column}), toString(%({prefix})s)) > 0",
+                params,
+            )
         if op == "not_contains":
-            return f"positionCaseInsensitive(toString({column}), toString(%({prefix})s)) = 0", params
+            return (
+                f"positionCaseInsensitive(toString({column}), toString(%({prefix})s)) = 0",
+                params,
+            )
         if op == "starts_with":
-            return f"startsWith(lower(toString({column})), lower(toString(%({prefix})s)))", params
+            return (
+                f"startsWith(lower(toString({column})), lower(toString(%({prefix})s)))",
+                params,
+            )
         if op == "ends_with":
-            return f"endsWith(lower(toString({column})), lower(toString(%({prefix})s)))", params
+            return (
+                f"endsWith(lower(toString({column})), lower(toString(%({prefix})s)))",
+                params,
+            )
 
         operator_map = {
             "equals": "=",
