@@ -77,7 +77,15 @@ export default function PathFocusPanel({
             description={plan.description}
             chips={plan.chips}
           />
-        ) : null}
+        ) : (
+          <Stack spacing={0.25}>
+            <Typography variant="subtitle2">Setup checklist</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Complete the highlighted task first. The list below shows what
+              comes next.
+            </Typography>
+          </Stack>
+        )}
 
         {currentStep ? (
           <CurrentStepGuide

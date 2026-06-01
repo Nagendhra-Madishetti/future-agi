@@ -285,7 +285,7 @@ const EMAIL_CONTEXT_RECOVERY_COPY = {
     description: "Continue with the latest recommended step below.",
   },
   stage_changed: {
-    title: "Your onboarding step changed",
+    title: "Your setup step changed",
     description: "Continue with the latest recommended step below.",
   },
   target_complete: {
@@ -782,15 +782,22 @@ export default function OnboardingHomeView() {
     );
   }
 
+  const firstRunPlanPath = quickStartPathMismatch
+    ? searchContext.quickStartPrimaryPath
+    : renderedState.primaryPath;
+  const firstRunPlanStage =
+    quickStartPathMismatch && quickStartFallbackStage
+      ? quickStartFallbackStage
+      : renderedState.stage;
   const firstRunJourneyPlan =
     isFirstRunQuickStartFocus && !isSampleQuickStart
-      ? renderedState.journeyPlan ||
-        (renderedState.primaryPath === "observe"
-          ? observeFallbackJourneyPlan(renderedState.stage)
-          : PATH_FOCUS_PLANS[renderedState.primaryPath])
+      ? (!quickStartPathMismatch && renderedState.journeyPlan) ||
+        (firstRunPlanPath === "observe"
+          ? observeFallbackJourneyPlan(firstRunPlanStage)
+          : PATH_FOCUS_PLANS[firstRunPlanPath])
       : null;
   const firstRunCurrentStep = firstRunJourneyPlan
-    ? journeyCurrentStep(firstRunJourneyPlan, renderedState.stage)
+    ? journeyCurrentStep(firstRunJourneyPlan, firstRunPlanStage)
     : null;
   const firstRunCurrentStepLabel =
     firstRunCurrentStep?.label || "the highlighted action";
@@ -812,10 +819,10 @@ export default function OnboardingHomeView() {
           }
         : {
             eyebrow: "First setup",
-            title: selectedSetupQuickStart.buttonLabel,
+            title: `${selectedSetupQuickStart.surfaceLabel}: ${selectedSetupQuickStart.buttonLabel}`,
             description: firstRunNextStepLabel
-              ? `${selectedSetupQuickStart.shortDescription} You chose this during signup. Start with ${firstRunCurrentStepLabel}. After that, we will show ${firstRunNextStepLabel}.`
-              : `${selectedSetupQuickStart.shortDescription} You chose this during signup. Start with ${firstRunCurrentStepLabel}.`,
+              ? `${selectedSetupQuickStart.shortDescription} Start with ${firstRunCurrentStepLabel}. After that, this checklist shows ${firstRunNextStepLabel}.`
+              : `${selectedSetupQuickStart.shortDescription} Start with ${firstRunCurrentStepLabel}.`,
             surfaceLabel: selectedSetupQuickStart.surfaceLabel,
           }
       : quickStartMismatchAction
@@ -1230,7 +1237,9 @@ export default function OnboardingHomeView() {
               <Chip size="small" color="success" label="Activated" />
             ) : null}
           </Stack>
-          <Typography variant="h3">{copy.title}</Typography>
+          <Typography component="h3" variant="h4" sx={{ lineHeight: 1.15 }}>
+            {copy.title}
+          </Typography>
           <Typography variant="body1" color="text.secondary" maxWidth={760}>
             {copy.description}
           </Typography>
@@ -1260,12 +1269,12 @@ export default function OnboardingHomeView() {
               sx={{ borderRadius: 1, mt: 1, maxWidth: 760 }}
             >
               <Typography variant="subtitle2" component="div">
-                Complete the highlighted action first
+                Do this task first
               </Typography>
               <Typography variant="body2" sx={{ mt: 0.25 }}>
-                After progress is detected, this checklist moves to the next
-                step. Sample data stays available later and does not count as
-                workspace setup.
+                Click the highlighted button. When FutureAGI detects progress,
+                this page moves to the next task. Sample data stays as preview
+                only.
               </Typography>
             </Alert>
           ) : null}

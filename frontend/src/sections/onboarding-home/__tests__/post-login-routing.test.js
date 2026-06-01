@@ -236,7 +236,7 @@ describe("post-login routing", () => {
     expect(destination.reason).toBe("activation_feature_disabled");
   });
 
-  it("keeps org setup and incomplete onboarding branches unchanged", () => {
+  it("keeps org setup and incomplete onboarding on setup without activated workspace evidence", () => {
     expect(
       resolve({
         user: {
@@ -265,6 +265,54 @@ describe("post-login routing", () => {
     });
     expect(incompleteDashboard.href).toBe(paths.auth.jwt.setup_org);
     expect(incompleteDashboard.shouldReplace).toBe(true);
+  });
+
+  it("skips setup for incomplete users when the workspace is already activated", () => {
+    const incompleteActivated = resolve({
+      currentPath: paths.auth.jwt.setup_org,
+      user: {
+        ...baseUser,
+        onboarding_completed: false,
+      },
+      activationState: state("observeFirstLoopComplete"),
+    });
+
+    expect(incompleteActivated.href).toBe(paths.dashboard.home);
+    expect(incompleteActivated.reason).toBe("workspace_setup_complete");
+    expect(incompleteActivated.shouldReplace).toBe(true);
+
+    const incompleteDaily = resolve({
+      currentPath: paths.auth.jwt.setup_org,
+      flags: {
+        ...flagsOn,
+        onboarding_daily_quality_home: true,
+      },
+      user: {
+        ...baseUser,
+        onboarding_completed: false,
+      },
+      activationState: state("observeFirstLoopComplete"),
+    });
+
+    expect(incompleteDaily.href).toBe(
+      `${paths.dashboard.home}?mode=daily-quality`,
+    );
+    expect(incompleteDaily.reason).toBe("daily_quality_home");
+  });
+
+  it("does not skip setup for incomplete users when rollout flags are off", () => {
+    const destination = resolve({
+      currentPath: paths.auth.jwt.setup_org,
+      flags: flagsOff,
+      user: {
+        ...baseUser,
+        onboarding_completed: false,
+      },
+      activationState: state("observeFirstLoopComplete"),
+    });
+
+    expect(destination.href).toBe(paths.auth.jwt.setup_org);
+    expect(destination.reason).toBe("onboarding_incomplete");
   });
 
   it("routes completed users away from setup-org", () => {

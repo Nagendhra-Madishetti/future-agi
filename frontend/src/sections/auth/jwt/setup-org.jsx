@@ -54,17 +54,17 @@ const QUICK_START_ROLE = "AI Builder";
 
 const SETUP_SIDE_PANEL_STEPS = [
   {
-    label: "Choose the first product job",
-    description: "Pick the closest path for this workspace to complete.",
+    label: "Pick a product area",
+    description: "Choose Tracing, Prompts, Agents, Gateway, or Evals.",
   },
   {
-    label: "Finish one highlighted action",
-    description: "The next screen opens with one action selected first.",
+    label: "Open the first task",
+    description: "We open the exact screen for the first action.",
   },
   {
-    label: "Keep samples separate",
+    label: "Move through the path",
     description:
-      "Sample screens stay available later, but they do not replace setup.",
+      "When progress is detected, the checklist advances to the next task.",
   },
 ];
 
@@ -263,10 +263,10 @@ const SetupOrgSidePanel = () => (
         <Typography variant="overline" color="text.secondary">
           First setup
         </Typography>
-        <Typography variant="h4">One choice, then one action</Typography>
+        <Typography variant="h4">Choose the product path first</Typography>
         <Typography variant="body1" color="text.secondary">
-          Choose the product job you want to finish first. We will save it and
-          open a checklist with the first action highlighted.
+          Pick the area that matches what you want to do in the app. The next
+          page shows one highlighted task to finish first.
         </Typography>
       </Stack>
 
@@ -594,7 +594,7 @@ const SetupOrganization = ({ getStarted = false }) => {
         fullWidth
         sx={{
           borderRadius: 0.5,
-          minHeight: { xs: 176, sm: 164 },
+          minHeight: { xs: 156, sm: 142 },
           height: "auto",
           alignItems: "flex-start",
           justifyContent: "flex-start",
@@ -686,7 +686,6 @@ const SetupOrganization = ({ getStarted = false }) => {
                       ? "primary.contrastText"
                       : "text.secondary",
                     lineHeight: 1.25,
-                    mt: 0.25,
                   }}
                 >
                   {option.shortDescription}
@@ -717,7 +716,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                 fontWeight: "fontWeightMedium",
               }}
             >
-              First action: {option.firstActionLabel}
+              First task: {option.firstActionLabel}
             </Typography>
             {option.sequencePreview?.length ? (
               <Stack
@@ -764,7 +763,7 @@ const SetupOrganization = ({ getStarted = false }) => {
                 mt: 0.25,
               }}
             >
-              Start with {option.firstActionLabel}
+              Open {option.surfaceLabel} setup
             </Typography>
           </Stack>
         </Stack>
@@ -803,8 +802,8 @@ const SetupOrganization = ({ getStarted = false }) => {
           <Stack direction="row" spacing={1} alignItems="flex-start">
             <Iconify icon="mdi:database-eye-outline" width={20} />
             <Typography variant="body2" color="text.secondary">
-              Sample screens are available after setup starts. They are only for
-              preview and do not count as this workspace setup.
+              Sample screens stay available after you start. They are preview
+              only and do not count as this workspace setup.
             </Typography>
           </Stack>
         </Box>
@@ -1174,8 +1173,8 @@ const SetupOrganization = ({ getStarted = false }) => {
                   maxWidth: 520,
                 }}
               >
-                Pick the closest product job. We will save it and open a
-                checklist with the first action highlighted.
+                Choose the product area you want to use now. We will open the
+                first task for that path and keep sample data as preview only.
               </Typography>
             </Box>
 

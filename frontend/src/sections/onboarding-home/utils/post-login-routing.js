@@ -93,6 +93,11 @@ const isPermissionLimitedHome = (activationState) =>
 
 const isHomeEligibleStage = (stage) => POST_LOGIN_HOME_STAGES.includes(stage);
 
+const isActivatedWorkspaceState = (activationState) =>
+  activationState?.isActivated === true ||
+  activationState?.stage === "activated" ||
+  activationState?.stage === "daily_review";
+
 const getFallbackHref = ({ activationState, fallbackDestination }) =>
   activationState?.fallbackAction?.href ||
   activationState?.fallback_action?.href ||
@@ -159,6 +164,30 @@ export function resolvePostLoginDestination({
   }
 
   if (!user?.onboarding_completed) {
+    if (
+      user?.organization_role &&
+      hasRequiredFlags(flags) &&
+      !activationStateError &&
+      isActivatedWorkspaceState(activationState)
+    ) {
+      const href =
+        flags?.onboarding_daily_quality_home === true
+          ? `${paths.dashboard.home}?mode=daily-quality`
+          : paths.dashboard.home;
+      return makeDestination({
+        href,
+        reason:
+          flags?.onboarding_daily_quality_home === true
+            ? "daily_quality_home"
+            : "workspace_setup_complete",
+        currentPath,
+        returnTo,
+        fallbackDestination: fallbackHref,
+        activationState,
+        activationStateError,
+      });
+    }
+
     const href = routesMatch(currentPath, paths.auth.jwt.setup_org)
       ? currentPath
       : paths.auth.jwt.setup_org;

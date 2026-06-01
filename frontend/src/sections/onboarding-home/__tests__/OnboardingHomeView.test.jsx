@@ -522,9 +522,7 @@ describe("OnboardingHomeView", () => {
 
     const alert = screen.getByTestId("lifecycle-email-context-alert");
     expect(alert).toBeVisible();
-    expect(
-      within(alert).getByText("Your onboarding step changed"),
-    ).toBeVisible();
+    expect(within(alert).getByText("Your setup step changed")).toBeVisible();
     expect(
       within(alert).getByText(
         "Continue with the latest recommended step below.",
@@ -1103,7 +1101,7 @@ describe("OnboardingHomeView", () => {
       expect(
         screen.getByRole("heading", {
           level: 3,
-          name: quickStartOption.buttonLabel,
+          name: `${quickStartOption.surfaceLabel}: ${quickStartOption.buttonLabel}`,
         }),
       ).toBeVisible();
       expect(
@@ -1195,7 +1193,7 @@ describe("OnboardingHomeView", () => {
     expect(
       screen.getByRole("heading", {
         level: 3,
-        name: "Connect your agent",
+        name: "Tracing: Connect your agent",
       }),
     ).toBeVisible();
     const panel = screen.getByTestId("observe-setup-panel");
@@ -1257,7 +1255,7 @@ describe("OnboardingHomeView", () => {
     expect(
       screen.getByRole("heading", {
         level: 3,
-        name: "Test prompts or agent prompts",
+        name: "Prompts: Test prompts or agent prompts",
       }),
     ).toBeVisible();
     const panel = screen.getByTestId("path-focus-panel-prompt");
@@ -2135,7 +2133,7 @@ describe("OnboardingHomeView", () => {
     expect(
       screen.getByRole("heading", {
         level: 3,
-        name: "Set up gateway",
+        name: "Gateway: Set up gateway",
       }),
     ).toBeVisible();
     expect(within(panel).getByText("What happens next")).toBeVisible();

@@ -91,15 +91,18 @@ export function usePostLoginDestination({
     [flagOverrides, flagVersion],
   );
 
+  const hasOrganizationRole = Boolean(user?.organization_role);
+  const shouldCheckActivationForIncompleteUser =
+    hasOrganizationRole && !user?.onboarding_completed;
+  const shouldPreserveCurrentRoute = shouldPreserveCurrentDashboardRoute({
+    currentPath: resolvedCurrentPath,
+    fallbackDestination,
+  });
   const canResolvePostLogin =
-    Boolean(user?.organization_role) &&
-    Boolean(user?.onboarding_completed) &&
+    hasOrganizationRole &&
     !user?.requires_org_setup &&
     !isSafePostLoginReturnTo(returnTo) &&
-    !shouldPreserveCurrentDashboardRoute({
-      currentPath: resolvedCurrentPath,
-      fallbackDestination,
-    });
+    (shouldCheckActivationForIncompleteUser || !shouldPreserveCurrentRoute);
 
   const requiredFlagsEnabled = hasRequiredFlags(flags);
   const shouldFetchActivationState =

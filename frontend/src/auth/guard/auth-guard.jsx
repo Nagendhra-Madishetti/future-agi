@@ -258,16 +258,21 @@ function Container({ children }) {
       return;
     }
 
-    // Onboarding not finished: keep every authenticated entry point on setup.
+    // Onboarding not finished: keep users on setup unless the workspace has
+    // already completed first setup.
     if (!user?.onboarding_completed) {
       if (isSetupCompletionHandoff(currentPath)) {
         localStorage.removeItem("redirectUrl");
         return;
       }
+      if (isPostLoginDestinationResolving) return;
 
       const targetRoute =
         postLoginDestination?.href || paths.auth.jwt.setup_org;
-      trackPostLoginDecision("onboarding_incomplete", targetRoute);
+      trackPostLoginDecision(
+        postLoginDestination?.reason || "onboarding_incomplete",
+        targetRoute,
+      );
       trackPostLoginDestination(postLoginDestination, targetRoute);
       if (postLoginDestination?.shouldClearReturnTo) {
         localStorage.removeItem("redirectUrl");

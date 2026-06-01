@@ -29,6 +29,7 @@ const SAMPLE_QUICK_START_METADATA = {
 const QUICK_STARTS = {
   observe: {
     buttonText: "Connect your agent",
+    expectedTitleText: "Tracing: Connect your agent",
     expectedActionText: "Create Observe project",
     expectedAttribution: {
       quick_start_goal: "monitor_production_ai_app",
@@ -50,6 +51,7 @@ const QUICK_STARTS = {
   },
   prompt: {
     buttonText: "Test prompts or agent prompts",
+    expectedTitleText: "Prompts: Test prompts or agent prompts",
     expectedActionText: "Create prompt",
     expectedAttribution: {
       quick_start_goal: "improve_prompts",
@@ -61,6 +63,7 @@ const QUICK_STARTS = {
   },
   agent: {
     buttonText: "Prototype agent",
+    expectedTitleText: "Agents: Prototype agent",
     expectedActionText: "Create agent",
     expectedAttribution: {
       quick_start_goal: "build_ai_agent",
@@ -72,6 +75,7 @@ const QUICK_STARTS = {
   },
   gateway: {
     buttonText: "Set up gateway",
+    expectedTitleText: "Gateway: Set up gateway",
     expectedActionText: "Add provider",
     expectedAttribution: {
       quick_start_goal: "control_model_traffic",
@@ -83,6 +87,7 @@ const QUICK_STARTS = {
   },
   evals: {
     buttonText: "Test AI using simulation",
+    expectedTitleText: "Evals / simulation: Test AI using simulation",
     expectedActionText: "Create dataset",
     expectedAttribution: {
       quick_start_goal: "evaluate_quality",
@@ -198,7 +203,7 @@ async function main() {
     await expectVisibleText(page, "What do you want to set up first?");
     await expectVisibleText(
       page,
-      "Pick the closest product job. We will save it and open a checklist with the first action highlighted.",
+      "Choose the product area you want to use now. We will open the first task for that path and keep sample data as preview only.",
     );
     if (SAMPLE_PREVIEW_GUARD) {
       const samplePreviewVisible = await isVisibleButtonText(
@@ -211,7 +216,7 @@ async function main() {
       );
       await expectVisibleText(
         page,
-        "Sample screens are available after setup starts.",
+        "Sample screens stay available after you start.",
       );
     }
     const quickStartInitiallyVisible = await isVisibleButtonText(
@@ -259,7 +264,7 @@ async function main() {
       await expectVisibleText(page, "Sample trace review");
       await expectVisibleText(page, "Connect your app", { exact: true });
     } else {
-      await expectVisibleText(page, QUICK_START.buttonText, {
+      await expectVisibleText(page, QUICK_START.expectedTitleText, {
         exact: true,
       });
       await expectVisibleText(

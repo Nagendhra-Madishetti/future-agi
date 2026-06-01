@@ -181,7 +181,61 @@ describe("usePostLoginDestination", () => {
     expect(result.current.reason).toBe("direct_dashboard_route");
   });
 
-  it("routes incomplete onboarding users back to setup without activation state", () => {
+  it("checks activation state before routing incomplete users back to setup", async () => {
+    fetchActivationState.mockResolvedValueOnce(state("observeNoSetup"));
+
+    const { result } = renderWithQueryClient(() =>
+      usePostLoginDestination({
+        currentPath: paths.dashboard.home,
+        user: {
+          ...baseUser,
+          onboarding_completed: false,
+        },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+
+    expect(fetchActivationState).toHaveBeenCalledWith({
+      source: "post_login",
+      mode: "post_login",
+    });
+    expect(result.current.destination.href).toBe(paths.auth.jwt.setup_org);
+    expect(result.current.reason).toBe("onboarding_incomplete");
+    expect(result.current.destination.shouldReplace).toBe(true);
+  });
+
+  it("routes incomplete users to home when their workspace is already activated", async () => {
+    fetchActivationState.mockResolvedValueOnce(
+      state("observeFirstLoopComplete"),
+    );
+
+    const { result } = renderWithQueryClient(() =>
+      usePostLoginDestination({
+        currentPath: paths.auth.jwt.setup_org,
+        user: {
+          ...baseUser,
+          onboarding_completed: false,
+        },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isResolving).toBe(false));
+
+    expect(fetchActivationState).toHaveBeenCalledWith({
+      source: "post_login",
+      mode: "post_login",
+    });
+    expect(result.current.destination.href).toBe(paths.dashboard.home);
+    expect(result.current.reason).toBe("workspace_setup_complete");
+  });
+
+  it("keeps incomplete users on setup without fetching when rollout flags are off", () => {
+    setFlags({
+      ...flagsOn,
+      onboarding_release_0_internal: false,
+    });
+
     const { result } = renderWithQueryClient(() =>
       usePostLoginDestination({
         currentPath: paths.dashboard.home,
@@ -195,7 +249,6 @@ describe("usePostLoginDestination", () => {
     expect(fetchActivationState).not.toHaveBeenCalled();
     expect(result.current.destination.href).toBe(paths.auth.jwt.setup_org);
     expect(result.current.reason).toBe("onboarding_incomplete");
-    expect(result.current.destination.shouldReplace).toBe(true);
   });
 
   it("falls back when activation state fails", async () => {

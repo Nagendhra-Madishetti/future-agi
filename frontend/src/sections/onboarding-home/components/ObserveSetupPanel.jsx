@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import {
   CurrentStepGuide,
   ObserveJourneyProgress,
@@ -70,7 +71,15 @@ export default function ObserveSetupPanel({
             }
             chips={effectiveJourneyPlan.chips || ["observe", "setup"]}
           />
-        ) : null}
+        ) : (
+          <Stack spacing={0.25}>
+            <Typography variant="subtitle2">Setup checklist</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Complete the highlighted task first. The list below shows what
+              comes next.
+            </Typography>
+          </Stack>
+        )}
         {actionStep ? (
           <CurrentStepGuide
             actionSlot={actionSlot}
