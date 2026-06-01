@@ -6,6 +6,10 @@ import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Iconify from "src/components/iconify";
+import {
+  isPromptSecondVersionJourneyStep,
+  PROMPT_ONBOARDING_MODES,
+} from "./promptOnboardingRoute";
 
 const FOCUS_COPY = {
   "create-prompt": {
@@ -71,6 +75,8 @@ export default function PromptOnboardingFocusPanel({
   compareNeedsSecondVersion = false,
   currentTab,
   isRunDisabled = false,
+  isSaveDisabled = false,
+  journeyStep,
   mode,
   onCreateSecondVersion,
   onOpenEvaluation,
@@ -83,6 +89,7 @@ export default function PromptOnboardingFocusPanel({
   tourAnchor,
 }) {
   const isCompareMode = mode === "compare";
+  const isSecondVersionJourney = isPromptSecondVersionJourneyStep(journeyStep);
   const baseCopy = resolveFocusCopy({ mode, source });
   const copy =
     isCompareMode && compareNeedsSecondVersion
@@ -94,7 +101,26 @@ export default function PromptOnboardingFocusPanel({
           steps: ["Baseline", "Second run", "Second version"],
           targetTab: "Playground",
         }
-      : baseCopy;
+      : isSecondVersionJourney && mode === PROMPT_ONBOARDING_MODES.RUN_TEST
+        ? {
+            title: "Run the second version",
+            description:
+              "Use the same example so the comparison shows the effect of the edit.",
+            stepNumber: 4,
+            steps: ["Edited prompt", "Second run", "Ready to save"],
+            targetTab: "Playground",
+          }
+        : isSecondVersionJourney &&
+            mode === PROMPT_ONBOARDING_MODES.SAVE_VERSION
+          ? {
+              title: "Save the second version",
+              description:
+                "Commit the edited version so you can compare it against the baseline.",
+              stepNumber: 4,
+              steps: ["Second run", "Version note", "Ready to compare"],
+              targetTab: "Playground",
+            }
+          : baseCopy;
 
   if (!copy) {
     return null;
@@ -109,15 +135,16 @@ export default function PromptOnboardingFocusPanel({
   const primaryAction = (() => {
     if (isRunMode && isOnTargetTab) {
       return {
-        label: "Run Prompt",
+        label: isSecondVersionJourney ? "Run second version" : "Run Prompt",
         onClick: onRunPrompt,
         disabled: isRunDisabled,
       };
     }
     if (isSaveMode) {
       return {
-        label: "Save version",
+        label: isSecondVersionJourney ? "Save second version" : "Save version",
         onClick: onOpenSaveVersion,
+        disabled: isSaveDisabled,
       };
     }
     if (isCompareMode && compareNeedsSecondVersion) {
@@ -226,6 +253,8 @@ PromptOnboardingFocusPanel.propTypes = {
   compareNeedsSecondVersion: PropTypes.bool,
   currentTab: PropTypes.string,
   isRunDisabled: PropTypes.bool,
+  isSaveDisabled: PropTypes.bool,
+  journeyStep: PropTypes.string,
   mode: PropTypes.string,
   onCreateSecondVersion: PropTypes.func,
   onOpenEvaluation: PropTypes.func,

@@ -210,6 +210,24 @@ describe("promptOnboardingRoute", () => {
     );
     expect(
       buildPromptEditorHref({
+        journeyStep: PROMPT_ONBOARDING_JOURNEY_STEPS.CREATE_SECOND_VERSION,
+        promptId: "prompt-1",
+        mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
+      }),
+    ).toBe(
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=run-test&tour_anchor=prompt_create_second_version_button&journey_step=create_second_prompt_version",
+    );
+    expect(
+      buildPromptEditorHref({
+        journeyStep: PROMPT_ONBOARDING_JOURNEY_STEPS.CREATE_SECOND_VERSION,
+        promptId: "prompt-1",
+        mode: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+      }),
+    ).toBe(
+      "/dashboard/workbench/create/prompt-1?source=onboarding&onboarding=save-version&tour_anchor=prompt_create_second_version_button&journey_step=create_second_prompt_version",
+    );
+    expect(
+      buildPromptEditorHref({
         promptId: "prompt-1",
         mode: PROMPT_ONBOARDING_MODES.ADD_FAILURE,
       }),
@@ -414,6 +432,8 @@ describe("promptOnboardingRoute", () => {
     expect(
       buildPromptComparisonCompletedPayload({
         promptId: "prompt-1",
+        search:
+          "?quick_start_goal=improve_prompts&quick_start_id=prompt&quick_start_primary_path=prompt",
         versions: ["v1", "v2"],
       }),
     ).toEqual({
@@ -426,6 +446,9 @@ describe("promptOnboardingRoute", () => {
         template_id: "prompt-1",
         version_count: 2,
       },
+      quickStartGoal: "improve_prompts",
+      quickStartId: "prompt",
+      quickStartPrimaryPath: "prompt",
       idempotencyKey:
         "prompt_onboarding:prompt_comparison_completed:prompt-1:v1-v2",
     });
@@ -494,10 +517,39 @@ describe("promptOnboardingRoute", () => {
     });
   });
 
+  it("builds a safe prompt comparable-version payload", () => {
+    expect(
+      buildPromptVersionCreatedPayload({
+        isComparableVersion: true,
+        promptId: "prompt-1",
+        search:
+          "?quick_start_goal=improve_prompts&quick_start_id=prompt&quick_start_primary_path=prompt",
+        version: { version: "v2" },
+      }),
+    ).toEqual({
+      eventName: "prompt_comparable_version_created",
+      primaryPath: "prompt",
+      stage: "create_second_prompt_version",
+      source: "prompt_template",
+      metadata: {
+        step: "create_second_prompt_version",
+        template_id: "prompt-1",
+        version: "v2",
+      },
+      quickStartGoal: "improve_prompts",
+      quickStartId: "prompt",
+      quickStartPrimaryPath: "prompt",
+      idempotencyKey:
+        "prompt_onboarding:prompt_comparable_version_created:prompt-1:v2",
+    });
+  });
+
   it("builds a safe prompt first quality loop completion payload", () => {
     expect(
       buildPromptFirstQualityLoopCompletedPayload({
         promptId: "prompt-1",
+        search:
+          "?quick_start_goal=improve_prompts&quick_start_id=prompt&quick_start_primary_path=prompt",
       }),
     ).toEqual({
       eventName: "first_quality_loop_completed",
@@ -508,6 +560,9 @@ describe("promptOnboardingRoute", () => {
         step: PROMPT_ONBOARDING_MODES.METRICS,
         template_id: "prompt-1",
       },
+      quickStartGoal: "improve_prompts",
+      quickStartId: "prompt",
+      quickStartPrimaryPath: "prompt",
       idempotencyKey: "prompt_onboarding:first_quality_loop_completed:prompt-1",
     });
   });

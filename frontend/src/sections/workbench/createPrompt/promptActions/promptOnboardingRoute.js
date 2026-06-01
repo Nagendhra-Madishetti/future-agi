@@ -56,12 +56,10 @@ const PROMPT_ONBOARDING_MODE_DESTINATIONS = {
 
 const PROMPT_ONBOARDING_JOURNEY_STEP_DESTINATIONS = {
   [PROMPT_ONBOARDING_JOURNEY_STEPS.CREATE_SECOND_VERSION]: {
-    mode: PROMPT_ONBOARDING_MODES.COMPARE,
     journeyStep: PROMPT_ONBOARDING_JOURNEY_STEPS.CREATE_SECOND_VERSION,
     tourAnchor: "prompt_create_second_version_button",
   },
   [PROMPT_ONBOARDING_JOURNEY_STEPS.COMPARE_VERSIONS]: {
-    mode: PROMPT_ONBOARDING_MODES.COMPARE,
     journeyStep: PROMPT_ONBOARDING_JOURNEY_STEPS.COMPARE_VERSIONS,
     tourAnchor: "prompt_compare_versions_button",
   },
@@ -106,7 +104,7 @@ export const getPromptOnboardingRouteParams = (search = "") => {
   const mode = VALID_PROMPT_ONBOARDING_MODES.has(rawMode)
     ? rawMode
     : journeyMode || null;
-  const action = params.get("action") || journeyMode || null;
+  const action = params.get("action") || mode || journeyMode || null;
 
   return {
     action,
@@ -130,6 +128,9 @@ export const getSelectedPromptVersionsFromSearch = (search = "") => {
     return [];
   }
 };
+
+export const isPromptSecondVersionJourneyStep = (journeyStep) =>
+  journeyStep === PROMPT_ONBOARDING_JOURNEY_STEPS.CREATE_SECOND_VERSION;
 
 export const buildPromptEditorHref = ({
   journeyStep,
@@ -335,6 +336,7 @@ export const buildPromptTestRunCompletedPayload = ({
 };
 
 export const buildPromptVersionCreatedPayload = ({
+  isComparableVersion = false,
   promptId,
   search,
   version,
@@ -342,24 +344,28 @@ export const buildPromptVersionCreatedPayload = ({
   const safePromptId = safeKeyPart(promptId, "prompt");
   const versionKey = promptVersionKey(version);
   const safeVersion = safeKeyPart(versionKey, "version");
+  const eventName = isComparableVersion
+    ? "prompt_comparable_version_created"
+    : "prompt_version_created";
+  const stage = isComparableVersion
+    ? PROMPT_ONBOARDING_JOURNEY_STEPS.CREATE_SECOND_VERSION
+    : "save_prompt_version";
+  const step = isComparableVersion
+    ? PROMPT_ONBOARDING_JOURNEY_STEPS.CREATE_SECOND_VERSION
+    : PROMPT_ONBOARDING_MODES.SAVE_VERSION;
 
   return {
-    eventName: "prompt_version_created",
+    eventName,
     primaryPath: "prompt",
-    stage: "save_prompt_version",
+    stage,
     source: "prompt_template",
     metadata: {
-      step: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
+      step,
       template_id: promptId,
       version: versionKey,
     },
     ...setupQuickStartPayloadFromSearch(search),
-    idempotencyKey: [
-      "prompt_onboarding",
-      "prompt_version_created",
-      safePromptId,
-      safeVersion,
-    ]
+    idempotencyKey: ["prompt_onboarding", eventName, safePromptId, safeVersion]
       .filter(Boolean)
       .join(":"),
   };
@@ -367,6 +373,7 @@ export const buildPromptVersionCreatedPayload = ({
 
 export const buildPromptComparisonCompletedPayload = ({
   promptId,
+  search,
   versions = [],
 } = {}) => {
   const safePromptId = safeKeyPart(promptId, "prompt");
@@ -384,6 +391,7 @@ export const buildPromptComparisonCompletedPayload = ({
       template_id: promptId,
       version_count: versions.length,
     },
+    ...setupQuickStartPayloadFromSearch(search),
     idempotencyKey: [
       "prompt_onboarding",
       "prompt_comparison_completed",
@@ -397,6 +405,7 @@ export const buildPromptComparisonCompletedPayload = ({
 
 export const buildPromptFirstQualityLoopCompletedPayload = ({
   promptId,
+  search,
 } = {}) => {
   const safePromptId = safeKeyPart(promptId, "prompt");
 
@@ -409,6 +418,7 @@ export const buildPromptFirstQualityLoopCompletedPayload = ({
       step: PROMPT_ONBOARDING_MODES.METRICS,
       template_id: promptId,
     },
+    ...setupQuickStartPayloadFromSearch(search),
     idempotencyKey: [
       "prompt_onboarding",
       "first_quality_loop_completed",

@@ -63,6 +63,7 @@ const MetricsTabs = () => {
       await completePromptLoop.mutateAsync(
         buildPromptFirstQualityLoopCompletedPayload({
           promptId: id,
+          search: searchParams,
         }),
       );
       const routeAttribution = Object.fromEntries(searchParams);

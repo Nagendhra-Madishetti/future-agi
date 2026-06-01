@@ -1,5 +1,6 @@
 import { LoadingButton } from "@mui/lab";
 import {
+  Alert,
   Box,
   Dialog,
   DialogActions,
@@ -36,6 +37,9 @@ const SaveAndCommit = ({ open, onClose, onCommitted, data, promptName }) => {
     defaultValues: { message: "" },
   });
   const message = watch("message");
+  const versionName =
+    data?.version || data?.templateVersion || data?.template_version;
+  const hasCommitTarget = Boolean(versionName);
 
   const handleOnClose = () => {
     reset();
@@ -46,10 +50,16 @@ const SaveAndCommit = ({ open, onClose, onCommitted, data, promptName }) => {
     message: message,
     set_default: data?.isDefault,
     is_draft: data?.isDraft,
-    version_name: data?.version,
+    version_name: versionName,
   };
 
   const onSubmit = () => {
+    if (!hasCommitTarget) {
+      enqueueSnackbar("Select a draft version before committing.", {
+        variant: "warning",
+      });
+      return;
+    }
     const newPayload = { ...payload };
     newPayload.set_default = true;
     setMessageType("saveCommit");
@@ -58,6 +68,12 @@ const SaveAndCommit = ({ open, onClose, onCommitted, data, promptName }) => {
   };
 
   const commitOnly = () => {
+    if (!hasCommitTarget) {
+      enqueueSnackbar("Select a draft version before committing.", {
+        variant: "warning",
+      });
+      return;
+    }
     const newPayload = { ...payload };
     setMessageType("commitOnly");
     // @ts-ignore
@@ -119,6 +135,11 @@ const SaveAndCommit = ({ open, onClose, onCommitted, data, promptName }) => {
       </DialogTitle>
       <Box component={"form"} onSubmit={handleSubmit(onSubmit)}>
         <DialogContent>
+          {!hasCommitTarget ? (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Create or select a draft version before saving.
+            </Alert>
+          ) : null}
           <Box
             sx={{
               display: "flex",
@@ -164,7 +185,7 @@ const SaveAndCommit = ({ open, onClose, onCommitted, data, promptName }) => {
         <DialogActions sx={{ pt: "32px" }}>
           <LoadingButton
             sx={{ px: "16px", color: "text.disabled" }}
-            disabled={!isDirty || isPending}
+            disabled={!isDirty || isPending || !hasCommitTarget}
             loading={isPending}
             variant="outlined"
             type="button"
@@ -178,7 +199,7 @@ const SaveAndCommit = ({ open, onClose, onCommitted, data, promptName }) => {
             variant="contained"
             color="primary"
             type="submit"
-            disabled={!isDirty}
+            disabled={!isDirty || !hasCommitTarget}
           >
             Commit and set as a default version
           </LoadingButton>

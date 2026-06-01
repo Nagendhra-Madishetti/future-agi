@@ -63,6 +63,7 @@ import {
   buildPromptEditorHref,
   countCommittedPromptVersions,
   getPromptOnboardingRouteParams,
+  isPromptSecondVersionJourneyStep,
   PROMPT_ONBOARDING_JOURNEY_STEPS,
   PROMPT_ONBOARDING_MODES,
   resolvePromptPostSaveJourneyStep,
@@ -358,8 +359,6 @@ const PromptActions = () => {
     [searchParams],
   );
   const onboardingMode = promptOnboardingParams.mode;
-  const promptOnboardingBlocker =
-    onboardingMode === PROMPT_ONBOARDING_MODES.METRICS ? null : buttonTooltip;
   const onboardingJourneyStep = promptOnboardingParams.journeyStep;
   const onboardingSource = promptOnboardingParams.isOnboarding
     ? "onboarding"
@@ -383,6 +382,21 @@ const PromptActions = () => {
       }),
     [onboardingMode, onboardingSource, selectedVersions],
   );
+  const promptSaveTargetVersion =
+    promptSaveCommitTarget?.version ||
+    promptSaveCommitTarget?.templateVersion ||
+    promptSaveCommitTarget?.template_version ||
+    promptSaveCommitTarget?.id;
+  const isPromptSaveBlocked =
+    onboardingSource === "onboarding" &&
+    onboardingMode === PROMPT_ONBOARDING_MODES.SAVE_VERSION &&
+    !promptSaveTargetVersion;
+  const promptOnboardingBlocker =
+    onboardingMode === PROMPT_ONBOARDING_MODES.METRICS
+      ? null
+      : isPromptSaveBlocked
+        ? "Create or select a draft version first"
+        : buttonTooltip;
   const postSaveJourneyStep = resolvePromptPostSaveJourneyStep({
     baseVersion,
     commitTarget: promptSaveCommitTarget,
@@ -418,6 +432,9 @@ const PromptActions = () => {
 
     navigate(
       buildPromptEditorHref({
+        journeyStep: isPromptSecondVersionJourneyStep(onboardingJourneyStep)
+          ? PROMPT_ONBOARDING_JOURNEY_STEPS.CREATE_SECOND_VERSION
+          : undefined,
         promptId: id,
         mode: PROMPT_ONBOARDING_MODES.SAVE_VERSION,
         search: searchParams,
@@ -436,6 +453,7 @@ const PromptActions = () => {
     recordActivationEvent,
     searchParams,
     selectedVersions,
+    onboardingJourneyStep,
   ]);
 
   const handlePromptVersionCommitted = useCallback(() => {
@@ -455,6 +473,9 @@ const PromptActions = () => {
     refetch();
 
     const payload = buildPromptVersionCreatedPayload({
+      isComparableVersion:
+        postSaveJourneyStep ===
+        PROMPT_ONBOARDING_JOURNEY_STEPS.COMPARE_VERSIONS,
       promptId: id,
       search: searchParams,
       version: promptSaveCommitTarget,
@@ -498,6 +519,7 @@ const PromptActions = () => {
     if (id) {
       navigate(
         buildPromptEditorHref({
+          journeyStep: PROMPT_ONBOARDING_JOURNEY_STEPS.CREATE_SECOND_VERSION,
           promptId: id,
           mode: PROMPT_ONBOARDING_MODES.RUN_TEST,
           search: searchParams,
@@ -543,6 +565,12 @@ const PromptActions = () => {
   const handleOpenEvaluation = () => setCurrentTab("Evaluation");
   const handleOpenMetrics = () => setCurrentTab("Metrics");
   const handleOpenSaveVersion = () => {
+    if (isPromptSaveBlocked) {
+      enqueueSnackbar("Create or select a draft version before saving.", {
+        variant: "warning",
+      });
+      return;
+    }
     setCurrentTab("Playground");
     setSaveCommitOpen(true);
   };
@@ -893,6 +921,8 @@ const PromptActions = () => {
         compareNeedsSecondVersion={compareNeedsSecondVersion}
         currentTab={currentTab}
         isRunDisabled={isRunPromptDisabled}
+        isSaveDisabled={isPromptSaveBlocked}
+        journeyStep={onboardingJourneyStep}
         mode={onboardingMode}
         onCreateSecondVersion={handleCreateSecondVersion}
         onOpenEvaluation={handleOpenEvaluation}

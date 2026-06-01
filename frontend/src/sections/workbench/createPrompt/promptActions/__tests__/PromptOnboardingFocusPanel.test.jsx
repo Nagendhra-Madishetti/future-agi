@@ -100,6 +100,61 @@ describe("PromptOnboardingFocusPanel", () => {
     ).toBeNull();
   });
 
+  it("keeps second-version guidance while the user runs and saves the edit", async () => {
+    const onRunPrompt = vi.fn();
+    const onOpenSaveVersion = vi.fn();
+
+    const { rerender } = render(
+      <PromptOnboardingFocusPanel
+        currentTab="Playground"
+        journeyStep="create_second_prompt_version"
+        mode="run-test"
+        onRunPrompt={onRunPrompt}
+      />,
+    );
+
+    expect(screen.getByText("Run the second version")).toBeVisible();
+    expect(screen.getByText("Step 4 of 6")).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /run second version/i }),
+    );
+
+    expect(onRunPrompt).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <PromptOnboardingFocusPanel
+        currentTab="Playground"
+        journeyStep="create_second_prompt_version"
+        mode="save-version"
+        onOpenSaveVersion={onOpenSaveVersion}
+      />,
+    );
+
+    expect(screen.getByText("Save the second version")).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /save second version/i }),
+    );
+
+    expect(onOpenSaveVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks save-version guidance when no draft target is available", () => {
+    render(
+      <PromptOnboardingFocusPanel
+        currentTab="Playground"
+        isSaveDisabled
+        mode="save-version"
+      />,
+    );
+
+    expect(screen.getByText("Save the prompt baseline")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /save version/i }),
+    ).toBeDisabled();
+  });
+
   it("shows the onboarding source default prompt guidance", () => {
     render(
       <PromptOnboardingFocusPanel

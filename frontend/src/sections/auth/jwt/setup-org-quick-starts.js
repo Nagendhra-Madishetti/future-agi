@@ -61,10 +61,18 @@ export const SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS = [
     goal: "improve_prompts",
     surfaceLabel: "Prompts",
     buttonLabel: "Test prompts or agent prompts",
-    shortDescription: "Create a prompt, run a test, and compare versions.",
+    shortDescription:
+      "Create a prompt, run it, save two versions, and compare the result.",
     firstActionLabel: "Create prompt",
-    pathPreview: "Run test, save version, compare versions, improve.",
-    sequencePreview: ["Create prompt", "Run test", "Save version", "Compare"],
+    pathPreview:
+      "Create prompt, run test, save baseline, create second version, compare.",
+    sequencePreview: [
+      "Create prompt",
+      "Run test",
+      "Save baseline",
+      "Create second version",
+      "Compare",
+    ],
     icon: "mdi:message-processing-outline",
   }),
   quickStart("build_or_prototype_agent", {

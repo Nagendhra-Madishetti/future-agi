@@ -146,6 +146,7 @@ const VersionHistoryChild = ({ onClose }) => {
       recordActivationEvent?.(
         buildPromptComparisonCompletedPayload({
           promptId: id,
+          search: searchParams,
           versions: comparedVersions,
         }),
       );

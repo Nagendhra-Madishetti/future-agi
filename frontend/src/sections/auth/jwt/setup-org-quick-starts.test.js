@@ -74,6 +74,26 @@ describe("setup org product-loop quick starts", () => {
     expect(observeQuickStart.sample).toBeUndefined();
   });
 
+  it("shows the full prompt versioning loop before comparison", () => {
+    const promptQuickStart = SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.find(
+      (option) => option.id === "prompt",
+    );
+
+    expect(promptQuickStart).toMatchObject({
+      buttonLabel: "Test prompts or agent prompts",
+      firstActionLabel: "Create prompt",
+      pathPreview:
+        "Create prompt, run test, save baseline, create second version, compare.",
+      sequencePreview: [
+        "Create prompt",
+        "Run test",
+        "Save baseline",
+        "Create second version",
+        "Compare",
+      ],
+    });
+  });
+
   it("gives every first setup path a visible sequence preview", () => {
     const firstSetupQuickStarts = SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.filter(
       isSetupOrgFirstSetupQuickStart,

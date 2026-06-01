@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import SaveAndCommit from "./SaveAndCommit";
+import { enqueueSnackbar } from "notistack";
 
 const mockOnClose = vi.fn();
 const mockOnCommitted = vi.fn();
@@ -41,7 +42,13 @@ import axios from "src/utils/axios";
 
 const theme = createTheme();
 
-const renderDialog = () => {
+const defaultVersionData = {
+  isDefault: false,
+  isDraft: true,
+  version: "v1",
+};
+
+const renderDialog = ({ data = defaultVersionData } = {}) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: 0 } },
   });
@@ -58,11 +65,7 @@ const renderDialog = () => {
                   open
                   onClose={mockOnClose}
                   onCommitted={mockOnCommitted}
-                  data={{
-                    isDefault: false,
-                    isDraft: true,
-                    version: "v1",
-                  }}
+                  data={data}
                   promptName="Support prompt"
                 />
               }
@@ -100,5 +103,28 @@ describe("SaveAndCommit", () => {
         version_name: "v1",
       },
     );
+  });
+
+  it("does not commit when no draft version target is available", async () => {
+    renderDialog({ data: null });
+
+    expect(
+      screen.getByText("Create or select a draft version before saving."),
+    ).toBeVisible();
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Enter a commit message for this version..."),
+      "Baseline version",
+    );
+
+    expect(screen.getByRole("button", { name: /^commit$/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", {
+        name: /commit and set as a default version/i,
+      }),
+    ).toBeDisabled();
+
+    expect(axios.post).not.toHaveBeenCalled();
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 });
