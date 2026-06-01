@@ -10,9 +10,16 @@ from datetime import datetime
 import structlog
 from django.db import transaction
 
-from tracer.models.observation_span import EndUser, EvalLogger, ObservationSpan
+from tracer.models.observation_span import EvalLogger, ObservationSpan
 from tracer.models.trace import Trace
-from tracer.models.trace_session import TraceSession
+from tracer.services.clickhouse.v2.curated_writer import (
+    CuratedEndUser,
+    CuratedSession,
+)
+from tracer.services.clickhouse.v2.deterministic_id import (
+    deterministic_end_user_id,
+    deterministic_trace_session_id,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -90,43 +97,43 @@ def upsert_langfuse_trace(
 
         trace_id = str(trace.id)
 
-        # EndUser
+        # EndUser — CH-derived-dimensions P3b flip: NO PG ``EndUser.get_or_create``.
+        # Compute the DETERMINISTIC end_user_id; Langfuse always uses
+        # ``user_id_type="custom"`` (and ``user_id_hash=""``) — that EXACT hardcode
+        # must feed the deterministic id so a net-new Langfuse user matches the
+        # historical remap (§11.1). The id is stamped onto every span below; the
+        # curated row goes to CH only.
         user_id_str = assembled_trace.get("userId")
-        end_user = None
+        end_user_id = None
+        ch_end_user = None
         if user_id_str:
-            try:
-                end_user, _ = EndUser.no_workspace_objects.get_or_create(
-                    project_id=project_id,
-                    organization=org,
-                    user_id=user_id_str,
-                    user_id_type="custom",
-                    defaults={"workspace": workspace, "user_id_hash": ""},
-                )
-            except Exception:
-                logger.warning(
-                    "langfuse_upsert_end_user_failed",
-                    user_id=user_id_str,
-                    exc_info=True,
-                )
+            end_user_id = deterministic_end_user_id(
+                project_id, org_id, user_id_str, "custom"
+            )
+            ch_end_user = CuratedEndUser(
+                project_id=project_id,
+                end_user_id=end_user_id,
+                organization_id=org_id,
+                user_id=str(user_id_str),
+                user_id_type="custom",
+                user_id_hash="",
+            )
 
-        # TraceSession
+        # TraceSession — P3b flip: NO PG ``TraceSession.get_or_create``. STAMP the
+        # DETERMINISTIC trace_session_id onto ``trace.session_id`` (db_constraint=
+        # False, no PG row needed); the curated row goes to CH only.
         session_id = assembled_trace.get("sessionId")
-        session = None
+        ch_session = None
         if session_id:
-            try:
-                session, _ = TraceSession.no_workspace_objects.get_or_create(
-                    project_id=project_id,
-                    name=session_id,
-                )
-                if trace.session_id != session.id:
-                    trace.session = session
-                    trace.save(update_fields=["session"])
-            except Exception:
-                logger.warning(
-                    "langfuse_upsert_session_failed",
-                    session_id=session_id,
-                    exc_info=True,
-                )
+            session_uuid = deterministic_trace_session_id(project_id, session_id)
+            if trace.session_id != session_uuid:
+                trace.session_id = session_uuid
+                trace.save(update_fields=["session"])
+            ch_session = CuratedSession(
+                project_id=project_id,
+                trace_session_id=session_uuid,
+                external_session_id=session_id,
+            )
 
         # Transform observations
         obs_dicts = transformer.transform_observations(
@@ -177,8 +184,8 @@ def upsert_langfuse_trace(
             obs_data.pop("trace_id", None)
             obs_data.pop("project_id", None)
 
-            if end_user:
-                obs_data["end_user"] = end_user
+            if end_user_id is not None:
+                obs_data["end_user_id"] = end_user_id
 
             ObservationSpan.no_workspace_objects.update_or_create(
                 id=obs_id,
@@ -243,8 +250,8 @@ def upsert_langfuse_trace(
                 "metadata": trace_data.get("metadata", {}),
             },
         }
-        if end_user:
-            root_defaults["end_user"] = end_user
+        if end_user_id is not None:
+            root_defaults["end_user_id"] = end_user_id
 
         ObservationSpan.no_workspace_objects.update_or_create(
             id=root_span_id,
@@ -316,19 +323,22 @@ def upsert_langfuse_trace(
 
     transaction.on_commit(lambda tid=str(trace.id): mirror_traces_to_clickhouse([tid]))
 
-    # CH25 (P3a): mirror the curated EndUser / TraceSession resolved above into
-    # CH `end_users` / `trace_sessions` — alongside (NOT replacing) the PG
-    # get_or_create, which stays the id source until P3b. One mirror per upsert
-    # (Langfuse is one trace per call); post-commit + best-effort.
-    if end_user is not None or session is not None:
+    # CH25 (P3b flip): mirror the curated EndUser / TraceSession into CH
+    # `end_users` / `trace_sessions`, keyed by the DETERMINISTIC ids stamped above.
+    # The PG get_or_create is GONE — pass the CuratedEndUser/CuratedSession built
+    # from the curated fields. One mirror per upsert (Langfuse is one trace per
+    # call); post-commit + best-effort.
+    if ch_end_user is not None or ch_session is not None:
         from tracer.services.clickhouse.v2.curated_writer import (
             mirror_curated_dimensions_to_clickhouse,
         )
 
         transaction.on_commit(
-            lambda eu=end_user, s=session: mirror_curated_dimensions_to_clickhouse(
-                [eu] if eu is not None else None,
-                [s] if s is not None else None,
+            lambda eu=ch_end_user, s=ch_session: (
+                mirror_curated_dimensions_to_clickhouse(
+                    [eu] if eu is not None else None,
+                    [s] if s is not None else None,
+                )
             )
         )
 

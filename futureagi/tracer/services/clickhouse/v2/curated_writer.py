@@ -1,6 +1,5 @@
-"""curated_writer — app-level dual-write of PG ``tracer_enduser`` /
-``trace_session`` rows into the CH curated dimensions ``end_users`` /
-``trace_sessions``.
+"""curated_writer — app-level dual-write of the CURATED dimensions ``end_users``
+/ ``trace_sessions`` into ClickHouse.
 
 Sibling of ``trace_writer`` and the EXACT same pattern, applied to the two
 CURATED dimensions of the CH-derived-dimensions migration (DESIGN §4 / §5).
@@ -8,13 +7,22 @@ In the legacy world these reached ClickHouse via PeerDB CDC (``tracer_enduser``
 / ``trace_session`` landing tables → ``enduser_dict`` / ``trace_session_dict``);
 v2 removes CDC, so the curated entity needs a CH-native feed. The one-time
 history is loaded by ``ch25_backfill_curated_dimensions``; this module keeps it
-fresh by mirroring every ingest-time PG ``get_or_create`` into the RMTs.
+fresh on the ingest hot path.
 
-P3a IDENTITY — STRAIGHT MIRROR, NO RE-KEY. ``end_user_id`` / ``trace_session_id``
-are the PG-minted ``id`` verbatim (the random uuid4 already denormalized onto
-every span). The deterministic UUIDv5 re-keying (DESIGN §3 / §3.1) is P3b. This
-module ONLY adds the dual-write; it does NOT touch the PG ``get_or_create`` (that
-stays as the id source until P3b) and changes NO read path (P3c).
+TWO ENTRY POINTS, ONE COLUMN CONTRACT.
+
+  • ``mirror_curated_dimensions_to_clickhouse`` (LIVE ingest, P3b flip): the
+    ingest paths NO LONGER hold a PG ``EndUser`` / ``TraceSession`` object — the
+    hot-path ``get_or_create`` is gone (DESIGN §8: PG write removed last). So this
+    takes the already-computed DETERMINISTIC id (``deterministic_id.py``, DESIGN
+    §3) plus the curated fields the collector already has on the span, and keys the
+    CH row by that id. NO PG object, NO PG round-trip.
+  • ``end_user_to_row`` / ``trace_session_to_row`` (HISTORICAL backfill): map a PG
+    model INSTANCE → CH row. ``ch25_backfill_curated_dimensions`` imports these +
+    ``_*_COLUMNS`` so the historical load and the live write share ONE column
+    order / coercion definition. The backfill keeps the PG id verbatim (a straight
+    mirror of legacy rows); the live path re-keys to the deterministic id. Both
+    emit the same ``_*_COLUMNS`` tuple — the row-shape contract is in one place.
 
 Design (mirrors ``trace_writer`` 1:1):
   • Post-commit. Callers schedule via ``transaction.on_commit`` so CH never
@@ -24,11 +32,10 @@ Design (mirrors ``trace_writer`` 1:1):
     failure (including the row mapping) is logged and swallowed; the periodic
     backfill re-run reconciles any gap. PG remains the system of record.
   • Idempotent + versioned. Both targets are ReplacingMergeTree(version) keyed
-    on the entity id; ``version`` picks the merge winner. Callers pass the
-    already-fetched/created PG objects (one row per identity), so no PG re-read
-    is needed — curated entities are create-once within the ingest transaction,
-    so the in-hand object IS the committed state (re-reading would re-add the
-    very hot-path PG round-trip this migration is removing).
+    on the entity id; ``version`` picks the merge winner. The live path passes the
+    curated fields already on the span (one row per identity in the batch) so no PG
+    read is needed — there is no PG entity row to read post-flip, and the
+    deterministic id makes the CH row self-keying.
   • Flag-gated. Shares ``dual_write_enabled()`` with ``trace_writer`` — same
     migration gate (the CDC chain being dropped is what turns both on).
 
@@ -44,7 +51,9 @@ from __future__ import annotations
 
 import json
 import threading
+import uuid
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -80,6 +89,43 @@ _TRACE_SESSION_COLUMNS: tuple[str, ...] = (
     "version",
     "is_deleted",
 )
+
+
+@dataclass(frozen=True)
+class CuratedEndUser:
+    """The curated ``end_users`` fields the LIVE ingest path has on the span
+    after the P3b flip — no PG ``EndUser`` object exists anymore.
+
+    ``end_user_id`` is the DETERMINISTIC id (``deterministic_end_user_id``); the
+    rest are the SDK-sourced curated fields already parsed off the span (same
+    values the dropped ``get_or_create`` would have stored). ``user_id_type`` is
+    the normalized value (``get_user_id_type``), kept None on absence (Nullable
+    column) — IMPORTANT: it must be the SAME normalized value fed to
+    ``deterministic_end_user_id`` so the row's key matches its id.
+    """
+
+    project_id: uuid.UUID
+    end_user_id: uuid.UUID
+    organization_id: Any
+    user_id: str
+    user_id_type: str | None = None
+    user_id_hash: str | None = None
+    metadata: Any = None
+
+
+@dataclass(frozen=True)
+class CuratedSession:
+    """The curated ``trace_sessions`` fields the LIVE ingest path has on the span
+    after the P3b flip — no PG ``TraceSession`` object exists anymore.
+
+    ``trace_session_id`` is the DETERMINISTIC id (``deterministic_trace_session_id``);
+    ``external_session_id`` is the session name the id was computed from.
+    """
+
+    project_id: uuid.UUID
+    trace_session_id: uuid.UUID
+    external_session_id: str
+
 
 _client = None
 _client_lock = threading.Lock()
@@ -198,18 +244,68 @@ def trace_session_to_row(s, *, version_from_updated_at: bool = False) -> list[An
     ]
 
 
+def _curated_end_user_to_row(eu: CuratedEndUser) -> list[Any]:
+    """Map a live-ingest ``CuratedEndUser`` (deterministic id + curated fields) to
+    a CH ``end_users`` row (column order ``_END_USER_COLUMNS``).
+
+    Same column contract + coercions as ``end_user_to_row`` (the backfill mapper),
+    but keyed by the DETERMINISTIC ``end_user_id`` instead of a PG ``id``.
+    ``first_seen`` has no PG source post-flip → ``now()`` (the entity's first
+    observed activity in this stream); ``version`` = ``now()`` so a later live
+    mirror always wins and a backfill re-run (``updated_at``-versioned) can never
+    clobber it — the same latest-wins invariant the backfill mapper documents.
+    """
+    now = datetime.now(UTC)
+    return [
+        str(eu.project_id),
+        str(eu.end_user_id),  # DETERMINISTIC id (not a PG id)
+        str(eu.organization_id),
+        eu.user_id or "",
+        eu.user_id_type,  # Nullable — keep None as-is (normalized value)
+        eu.user_id_hash or "",  # non-null String → '' on NULL
+        _metadata_to_text(eu.metadata),
+        now,  # first_seen
+        now,  # version
+        0,  # is_deleted — a freshly-ingested entity is never soft-deleted
+    ]
+
+
+def _curated_session_to_row(s: CuratedSession) -> list[Any]:
+    """Map a live-ingest ``CuratedSession`` (deterministic id + external id) to a
+    CH ``trace_sessions`` row (column order ``_TRACE_SESSION_COLUMNS``).
+
+    Same column contract as ``trace_session_to_row`` (the backfill mapper), keyed
+    by the DETERMINISTIC ``trace_session_id``. ``first_seen`` / ``version`` =
+    ``now()`` (see ``_curated_end_user_to_row``).
+    """
+    now = datetime.now(UTC)
+    return [
+        str(s.project_id),
+        str(s.trace_session_id),  # DETERMINISTIC id (not a PG id)
+        s.external_session_id or "",  # external_session_id = session name
+        now,  # first_seen
+        now,  # version
+        0,  # is_deleted
+    ]
+
+
 def mirror_curated_dimensions_to_clickhouse(
-    end_users: Iterable[Any] | None = None,
-    sessions: Iterable[Any] | None = None,
+    end_users: Iterable[CuratedEndUser] | None = None,
+    sessions: Iterable[CuratedSession] | None = None,
 ) -> None:
-    """Upsert the given PG ``EndUser`` / ``TraceSession`` objects into CH
-    ``end_users`` / ``trace_sessions`` (one batched insert each).
+    """Upsert the given live-ingest curated dimensions into CH ``end_users`` /
+    ``trace_sessions`` (one batched insert each), keyed by their DETERMINISTIC id.
+
+    P3b flip: the ingest paths no longer hold a PG ``EndUser`` / ``TraceSession``
+    object (the hot-path ``get_or_create`` is gone). Callers pass ``CuratedEndUser``
+    / ``CuratedSession`` carrying the deterministic id (``deterministic_id.py``) +
+    the curated fields already on the span. This keys the CH row by the
+    deterministic id so it lines up with the ``end_user_id`` / ``trace_session_id``
+    the flip also stamps onto the span/trace.
 
     Best-effort: never raises and never blocks — wrap the whole body (mapping
     included) so a CH outage or a malformed row can NEVER break or slow PG
-    ingestion. Call inside ``transaction.on_commit`` from the ingest creators,
-    passing the objects already fetched/created by the existing PG
-    ``get_or_create`` (P3a keeps that as the id source — do NOT remove it).
+    ingestion. Call inside ``transaction.on_commit`` from the ingest creators.
     """
     if not dual_write_enabled():
         return
@@ -222,10 +318,10 @@ def mirror_curated_dimensions_to_clickhouse(
     try:
         client = _get_client()
         if eu_list:
-            rows = [end_user_to_row(eu) for eu in eu_list]
+            rows = [_curated_end_user_to_row(eu) for eu in eu_list]
             client.insert("end_users", rows, column_names=list(_END_USER_COLUMNS))
         if s_list:
-            rows = [trace_session_to_row(s) for s in s_list]
+            rows = [_curated_session_to_row(s) for s in s_list]
             client.insert(
                 "trace_sessions", rows, column_names=list(_TRACE_SESSION_COLUMNS)
             )

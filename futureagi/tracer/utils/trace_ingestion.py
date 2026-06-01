@@ -16,9 +16,16 @@ from model_hub.models.prompt_label import PromptLabel
 from model_hub.models.run_prompt import PromptVersion
 from tfc.temporal import temporal_activity
 from tfc.utils.payload_storage import payload_storage
-from tracer.models.observation_span import EndUser, ObservationSpan, Trace
+from tracer.models.observation_span import ObservationSpan, Trace
 from tracer.models.project import Project
-from tracer.models.trace_session import TraceSession
+from tracer.services.clickhouse.v2.curated_writer import (
+    CuratedEndUser,
+    CuratedSession,
+)
+from tracer.services.clickhouse.v2.deterministic_id import (
+    deterministic_end_user_id,
+    deterministic_trace_session_id,
+)
 from tracer.tasks.trace_scanner import scan_traces_task
 from tracer.utils.adapters import normalize_span_attributes
 from tracer.utils.otel import bulk_convert_otel_spans_to_observation_spans
@@ -188,147 +195,95 @@ def _fetch_or_create_traces(
     return existing_traces
 
 
-def _fetch_or_create_sessions(
+def _resolve_session_ids(
     parsed_data_list: list[dict[str, Any]],
-) -> dict[tuple, TraceSession]:
+) -> tuple[dict[tuple, "uuid.UUID"], list[CuratedSession]]:
+    """Compute the DETERMINISTIC ``trace_session_id`` for each session in the batch
+    (CH-derived-dimensions P3b flip — NO PG ``TraceSession`` create).
+
+    Returns ``({(session_name, project_id): trace_session_id}, [CuratedSession])``:
+    the id map drives the ``trace.session_id`` column stamp (``db_constraint=False``
+    so no PG row is needed), and the ``CuratedSession`` list is the CH
+    ``trace_sessions`` dual-write payload (keyed by the same deterministic id).
     """
-    Fetches existing sessions or creates new ones, returning all relevant sessions.
-    """
-    session_keys = {
-        (d["session_name"], d["project"].id)
-        for d in parsed_data_list
-        if d.get("session_name") and d.get("project")
-    }
-    if not session_keys:
-        return {}
-
-    session_names = {key[0] for key in session_keys}
-    project_ids = {key[1] for key in session_keys}
-
-    existing_sessions = {
-        (s.name, s.project_id): s
-        for s in TraceSession.objects.filter(
-            name__in=session_names, project_id__in=project_ids
-        )
-    }
-
-    unique_new_sessions = {}
+    session_id_map: dict[tuple, uuid.UUID] = {}
+    curated: list[CuratedSession] = []
 
     for d in parsed_data_list:
         session_name = d.get("session_name")
         project = d.get("project")
-        if session_name and project:
-            key = (session_name, project.id)
-
-            if key in existing_sessions:
-                continue
-            if key in unique_new_sessions:
-                continue
-
-            unique_new_sessions[key] = TraceSession(
-                name=session_name,
-                project=project,
+        if not (session_name and project):
+            continue
+        key = (session_name, project.id)
+        if key in session_id_map:
+            continue
+        ts_id = deterministic_trace_session_id(project.id, session_name)
+        session_id_map[key] = ts_id
+        curated.append(
+            CuratedSession(
+                project_id=project.id,
+                trace_session_id=ts_id,
+                external_session_id=session_name,
             )
-
-    if unique_new_sessions:
-        TraceSession.objects.bulk_create(
-            list(unique_new_sessions.values()), ignore_conflicts=True
         )
 
-        return {
-            (s.name, s.project_id): s
-            for s in TraceSession.objects.filter(
-                name__in=session_names, project_id__in=project_ids
-            )
-        }
-
-    return existing_sessions
+    return session_id_map, curated
 
 
-def _fetch_or_create_end_users(
+def _resolve_end_user_ids(
     parsed_data_list: list[dict[str, Any]], organization_id: str
-) -> dict[tuple, EndUser]:
-    """
-    Fetches existing end users or creates new ones.
+) -> tuple[dict[tuple, "uuid.UUID"], list[CuratedEndUser]]:
+    """Compute the DETERMINISTIC ``end_user_id`` for each end user in the batch
+    (CH-derived-dimensions P3b flip — NO PG ``EndUser`` create).
 
-    Supports:
-    - Profile fields (display_name, email, avatar_url)
-    - Analytics tracking (first_seen, last_seen)
-    - Flexible attributes from span data
+    The key matches ``_link_end_user``'s lookup key
+    ``(user_id, org_id, project_id, user_id_type)`` (all str-coerced except
+    ``user_id_type``, which stays the normalized value / None). Returns
+    ``({key: end_user_id}, [CuratedEndUser])``: the id map drives the span's
+    ``end_user_id`` column stamp (``db_constraint=False``), the ``CuratedEndUser``
+    list is the CH ``end_users`` dual-write payload (keyed by the same id).
+
+    ``user_id_type`` MUST be the SAME normalized value fed to
+    ``deterministic_end_user_id`` (§11.1a: None → '' sentinel) so the curated row's
+    key matches its id and the read-side remap.
     """
-    end_user_keys = set()
-    end_user_data = {}  # Store full user data for creation
+    end_user_id_map: dict[tuple, uuid.UUID] = {}
+    curated: list[CuratedEndUser] = []
 
     for d in parsed_data_list:
         end_user = d.get("end_user")
-        if end_user and end_user.get("user_id"):
-            key = (
-                str(end_user["user_id"]),
-                str(organization_id),
-                str(end_user["project"].id),
-                end_user.get("user_id_type"),
-            )
-            end_user_keys.add(key)
-
-            if key not in end_user_data:
-                end_user_data[key] = {
-                    "end_user": end_user,
-                }
-
-    if not end_user_keys:
-        return {}
-
-    user_ids = {k[0] for k in end_user_keys}
-    project_ids = {k[2] for k in end_user_keys}
-
-    existing_end_users = {
-        (eu.user_id, str(eu.organization_id), str(eu.project_id), eu.user_id_type): eu
-        for eu in EndUser.objects.filter(
-            user_id__in=user_ids,
-            organization_id=organization_id,
-            project_id__in=project_ids,
+        if not (end_user and end_user.get("user_id")):
+            continue
+        project = end_user["project"]
+        user_id_type = end_user.get("user_id_type")
+        key = (
+            str(end_user["user_id"]),
+            str(organization_id),
+            str(project.id),
+            user_id_type,
         )
-    }
-
-    unique_new_end_users = {}
-    users_to_update = []
-
-    for key, data in end_user_data.items():
-        end_user = data["end_user"]
-
-        if key in existing_end_users:
-            existing_user = existing_end_users[key]
-            users_to_update.append(existing_user)
-        elif key not in unique_new_end_users:
-            unique_new_end_users[key] = EndUser(
-                user_id=str(end_user["user_id"]),
+        if key in end_user_id_map:
+            continue
+        eu_id = deterministic_end_user_id(
+            project.id,
+            organization_id,
+            end_user["user_id"],
+            user_id_type,
+        )
+        end_user_id_map[key] = eu_id
+        curated.append(
+            CuratedEndUser(
+                project_id=project.id,
+                end_user_id=eu_id,
                 organization_id=organization_id,
-                project=end_user["project"],
-                user_id_type=end_user.get("user_id_type"),
+                user_id=str(end_user["user_id"]),
+                user_id_type=user_id_type,
                 user_id_hash=end_user.get("user_id_hash"),
                 metadata=end_user.get("metadata", {}),
             )
-
-    if unique_new_end_users:
-        EndUser.objects.bulk_create(
-            list(unique_new_end_users.values()), ignore_conflicts=True
         )
-        # Re-fetch all users to get IDs of newly created ones
-        return {
-            (
-                eu.user_id,
-                str(eu.organization_id),
-                str(eu.project_id),
-                eu.user_id_type,
-            ): eu
-            for eu in EndUser.objects.filter(
-                user_id__in=user_ids,
-                organization_id=organization_id,
-                project_id__in=project_ids,
-            )
-        }
 
-    return existing_end_users
+    return end_user_id_map, curated
 
 
 def _fetch_prompt_versions(
@@ -452,8 +407,16 @@ def _parse_otel_request(request_data: dict[str, Any]) -> list[dict[str, Any]]:
     return otel_data_list
 
 
-def _link_end_user(observation_span_data, parsed_data, all_end_users, organization_id):
-    """Links the correct EndUser object to the observation span data."""
+def _link_end_user(
+    observation_span_data, parsed_data, all_end_user_ids, organization_id
+):
+    """Stamp the DETERMINISTIC ``end_user_id`` onto the span's FK COLUMN.
+
+    P3b flip: no PG ``EndUser`` object — ``all_end_user_ids`` maps the lookup key
+    to the deterministic id (``_resolve_end_user_ids``). The column is
+    ``db_constraint=False``, so the bare id needs no PG row; it carries to the CH
+    span via the ``s.end_user_id`` materialization.
+    """
     if not (parsed_data.get("end_user") and parsed_data["end_user"].get("user_id")):
         return
 
@@ -464,8 +427,8 @@ def _link_end_user(observation_span_data, parsed_data, all_end_users, organizati
         str(parsed_data["project"].id),
         end_user_info.get("user_id_type"),
     )
-    if end_user_key in all_end_users:
-        observation_span_data["end_user"] = all_end_users[end_user_key]
+    if end_user_key in all_end_user_ids:
+        observation_span_data["end_user_id"] = all_end_user_ids[end_user_key]
     else:
         logger.warning(f"End user not found for key: {end_user_key}. Skipping link.")
 
@@ -514,9 +477,16 @@ def _link_prompt_version(
 
 
 def _prepare_trace_update_data(
-    traces_to_update, parsed_data, observation_span_data, all_sessions
+    traces_to_update, parsed_data, observation_span_data, all_session_ids
 ):
-    """Prepares the dictionary used to bulk update Trace objects later."""
+    """Prepares the dictionary used to bulk update Trace objects later.
+
+    P3b flip: the session is stamped as the DETERMINISTIC ``session_id`` (a bare
+    UUID under the ATTNAME key) — NOT a PG ``TraceSession`` object. ``setattr(trace,
+    "session_id", uuid)`` is valid (assigning a bare UUID to the ``.session``
+    descriptor would raise); ``_bulk_update_traces`` maps the attname back to the
+    field name ``"session"`` for ``bulk_update``.
+    """
     trace_id_str = parsed_data.get("trace")
     parent_span_id = observation_span_data.get("parent_span_id")
 
@@ -530,15 +500,15 @@ def _prepare_trace_update_data(
         session_name = parsed_data["session_name"]
         project_id = parsed_data["project"].id
         session_key = (session_name, project_id)
-        if session_key in all_sessions:
-            traces_to_update[trace_id_str]["session"] = all_sessions[session_key]
+        if session_key in all_session_ids:
+            traces_to_update[trace_id_str]["session_id"] = all_session_ids[session_key]
 
 
 def _prepare_observation_spans_and_trace_updates(
     parsed_data_list: list[dict[str, Any]],
     all_traces: dict[uuid.UUID, Trace],
-    all_sessions: dict[tuple, TraceSession],
-    all_end_users: dict[tuple, EndUser],
+    all_session_ids: dict[tuple, "uuid.UUID"],
+    all_end_user_ids: dict[tuple, "uuid.UUID"],
     all_prompt_versions: dict[tuple, PromptVersion],
     organization_id: str,
 ) -> (list[ObservationSpan], dict[str, dict[str, Any]]):
@@ -565,7 +535,7 @@ def _prepare_observation_spans_and_trace_updates(
             del observation_span_data["trace_id"]
 
         _link_end_user(
-            observation_span_data, parsed_data, all_end_users, organization_id
+            observation_span_data, parsed_data, all_end_user_ids, organization_id
         )
         _link_prompt_version(
             observation_span_data, parsed_data, all_prompt_versions, organization_id
@@ -575,7 +545,7 @@ def _prepare_observation_spans_and_trace_updates(
 
         # Prepare data for the eventual bulk update of Trace objects
         _prepare_trace_update_data(
-            traces_to_update, parsed_data, observation_span_data, all_sessions
+            traces_to_update, parsed_data, observation_span_data, all_session_ids
         )
 
     return spans_to_create, traces_to_update
@@ -600,7 +570,15 @@ def _bulk_insert_observation_spans(spans_to_create: list[ObservationSpan]):
 def _bulk_update_traces(
     traces_to_update: dict[str, dict[str, Any]], all_traces: dict[uuid.UUID, Trace]
 ):
-    """Bulk updates trace fields like input, output, and session."""
+    """Bulk updates trace fields like input, output, and session.
+
+    ``session`` is staged under its ATTNAME ``session_id`` (a bare deterministic
+    UUID; see ``_prepare_trace_update_data``). ``setattr`` uses that attname, but
+    ``bulk_update``'s ``update_fields`` needs the FIELD NAME — so map
+    ``session_id`` → ``session`` for the update-field set.
+    """
+    # attname (used for setattr) → model field name (used by bulk_update).
+    _UPDATE_FIELD_NAMES = {"session_id": "session"}
     traces_to_bulk_update = []
     update_fields = set()
 
@@ -611,7 +589,7 @@ def _bulk_update_traces(
             if trace:
                 for field, value in updates.items():
                     setattr(trace, field, value)
-                    update_fields.add(field)
+                    update_fields.add(_UPDATE_FIELD_NAMES.get(field, field))
                 traces_to_bulk_update.append(trace)
         except (ValueError, TypeError):
             continue
@@ -741,15 +719,20 @@ def bulk_create_observation_span_task(
             if not parsed_data_list:
                 return
 
-            # 2. Fetch or create all related objects in bulk
+            # 2. Fetch or create all related objects in bulk. Traces still get a PG
+            # row (trace_writer re-reads it). EndUser / TraceSession do NOT — the
+            # P3b flip computes their DETERMINISTIC ids (no PG create) and the
+            # curated rows go to CH only.
             all_traces = _fetch_or_create_traces(parsed_data_list)
 
-            # Create end users first so we can associate them with sessions
-            all_end_users = _fetch_or_create_end_users(
+            # Resolve deterministic end-user / session ids (id map drives the
+            # column stamp; the CuratedEndUser/CuratedSession lists are the CH
+            # dual-write payload).
+            all_end_user_ids, ch_end_users = _resolve_end_user_ids(
                 parsed_data_list, organization_id
             )
 
-            all_sessions = _fetch_or_create_sessions(parsed_data_list)
+            all_session_ids, ch_sessions = _resolve_session_ids(parsed_data_list)
 
             all_prompt_versions = _fetch_prompt_versions(
                 parsed_data_list, organization_id
@@ -762,8 +745,8 @@ def bulk_create_observation_span_task(
             ) = _prepare_observation_spans_and_trace_updates(
                 parsed_data_list,
                 all_traces,
-                all_sessions,
-                all_end_users,
+                all_session_ids,
+                all_end_user_ids,
                 all_prompt_versions,
                 organization_id,
             )
@@ -787,21 +770,19 @@ def bulk_create_observation_span_task(
                     lambda ids=_ch_trace_ids: mirror_traces_to_clickhouse(ids)
                 )
 
-            # CH25 (P3a): mirror this batch's curated EndUser / TraceSession rows
-            # into CH `end_users` / `trace_sessions` — alongside (NOT replacing)
-            # the PG get_or_create above, which stays the id source until P3b.
-            # `all_end_users`/`all_sessions` are already one-per-identity dicts, so
-            # this is one batched insert each; post-commit + best-effort so a CH
-            # hiccup never breaks or slows ingestion.
-            if all_end_users or all_sessions:
+            # CH25 (P3b flip): mirror this batch's curated EndUser / TraceSession
+            # rows into CH `end_users` / `trace_sessions`, keyed by the DETERMINISTIC
+            # ids stamped above. The PG get_or_create is GONE — `ch_end_users` /
+            # `ch_sessions` are one-per-identity CuratedEndUser/CuratedSession lists
+            # (the curated fields off the span), so this is one batched insert each;
+            # post-commit + best-effort so a CH hiccup never breaks or slows ingestion.
+            if ch_end_users or ch_sessions:
                 from tracer.services.clickhouse.v2.curated_writer import (
                     mirror_curated_dimensions_to_clickhouse,
                 )
 
-                _ch_endusers = list(all_end_users.values())
-                _ch_sessions = list(all_sessions.values())
                 transaction.on_commit(
-                    lambda eus=_ch_endusers, ss=_ch_sessions: (
+                    lambda eus=ch_end_users, ss=ch_sessions: (
                         mirror_curated_dimensions_to_clickhouse(eus, ss)
                     )
                 )

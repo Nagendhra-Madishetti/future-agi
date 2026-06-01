@@ -8,14 +8,20 @@ CH-write path by design; CHSpanReader cannot be applied here.
 """
 
 import structlog
-from django.db import IntegrityError, transaction
+from django.db import transaction
 
 from model_hub.models.prompt_label import PromptLabel
 from model_hub.models.run_prompt import PromptVersion
-from tracer.models.observation_span import EndUser, ObservationSpan
-from tracer.models.project import Project
+from tracer.models.observation_span import ObservationSpan
 from tracer.models.trace import Trace
-from tracer.models.trace_session import TraceSession
+from tracer.services.clickhouse.v2.curated_writer import (
+    CuratedEndUser,
+    CuratedSession,
+)
+from tracer.services.clickhouse.v2.deterministic_id import (
+    deterministic_end_user_id,
+    deterministic_trace_session_id,
+)
 from tracer.utils.helper import get_default_project_session_config
 from tracer.utils.otel import convert_otel_span_to_observation_span
 
@@ -59,35 +65,38 @@ def create_single_otel_span(data, organization_id, user_id, workspace_id=None):
     val = parsed_data["observation_span"]
     val["trace"] = trace
 
+    # CH-derived-dimensions P3b flip: NO PG ``EndUser.get_or_create`` (the hot-path
+    # round-trip is removed; DESIGN §8 drops the PG write last). Instead STAMP the
+    # DETERMINISTIC end_user_id (DESIGN §3) into the span's FK COLUMN. The column is
+    # ``db_constraint=False`` (migration 0080), so a bare id needs no PG ``EndUser``
+    # row; it carries to the CH span via the ``s.end_user_id`` materialization.
+    # ``user_id_type`` is the normalized value (``get_user_id_type``) — the SAME
+    # value fed to ``deterministic_end_user_id`` and to the CH ``end_users`` row, so
+    # the row's key matches its id and the §11.1a NULL→'' sentinel lines up with the
+    # committed read-side remap.
+    _ch_end_user = None
     if parsed_data.get("end_user"):
         end_user_data = parsed_data["end_user"]
-        defaults_fields = ["user_id_type", "user_id_hash", "metadata"]
-        defaults = {key: end_user_data.get(key) for key in defaults_fields}
-        defaults["metadata"] = defaults.get("metadata", {})
         if (
             end_user_data.get("user_id") is not None
             and parsed_data["project"].trace_type == "observe"
         ):
-            try:
-                with transaction.atomic():
-                    # Try to get or create the EndUser
-                    end_user, created = EndUser.objects.get_or_create(
-                        user_id=end_user_data["user_id"],
-                        organization_id=organization_id,
-                        project=trace.project,
-                        user_id_type=end_user_data.get("user_id_type"),
-                        defaults=defaults,
-                    )
-            except IntegrityError:
-                # Another thread/process created the record first
-                end_user = EndUser.objects.get(
-                    user_id=end_user_data["user_id"],
-                    organization_id=organization_id,
-                    project=parsed_data["project"],
-                    user_id_type=end_user_data.get("user_id_type"),
-                )
-
-            val["end_user"] = end_user
+            eu_id = deterministic_end_user_id(
+                parsed_data["project"].id,
+                organization_id,
+                end_user_data["user_id"],
+                end_user_data.get("user_id_type"),
+            )
+            val["end_user_id"] = eu_id
+            _ch_end_user = CuratedEndUser(
+                project_id=parsed_data["project"].id,
+                end_user_id=eu_id,
+                organization_id=organization_id,
+                user_id=str(end_user_data["user_id"]),
+                user_id_type=end_user_data.get("user_id_type"),
+                user_id_hash=end_user_data.get("user_id_hash"),
+                metadata=end_user_data.get("metadata", {}),
+            )
 
     if (
         parsed_data["prompt_details"] is not None
@@ -148,36 +157,32 @@ def create_single_otel_span(data, organization_id, user_id, workspace_id=None):
             trace.output = output_val
     trace.save()
 
-    trace_session = None
+    # CH-derived-dimensions P3b flip: NO PG ``TraceSession.get/create``. STAMP the
+    # DETERMINISTIC trace_session_id (DESIGN §3) onto ``trace.session_id`` (the
+    # COLUMN). ``Trace.session`` is ``db_constraint=False`` (migration 0082), so a
+    # bare id needs no PG ``trace_session`` row; it carries to the CH span via the
+    # ``t.session_id`` materialization join AND to CH ``traces.session_id`` via
+    # ``trace_writer``. The first-session-seeds-the-project's-session_config side
+    # effect is preserved, but now idempotently (no PG row to signal "created"):
+    # seed only when the project still has no config — fires once per project, then
+    # the truthy config skips it.
+    _ch_session = None
     if parsed_data["session_name"] is not None:
-        try:
-            trace_session = TraceSession.objects.get(
-                name=parsed_data["session_name"], project=observation_span.project
-            )
-            trace.session = trace_session
-            trace.save()
-        except TraceSession.DoesNotExist:
-            try:
-                project = Project.objects.get(id=observation_span.project.id)
-                trace_session = TraceSession.objects.create(
-                    name=parsed_data["session_name"],
-                    project=project,
-                )
-                trace.session = trace_session
-                project.session_config = get_default_project_session_config()
-                project.save()
-                trace.save()
-            except Exception as e:
-                logger.exception(f"{e}")
-                raise Exception(  # noqa: B904
-                    "Error creating trace session while creating observation span from otel"
-                )
+        ts_id = deterministic_trace_session_id(
+            observation_span.project.id, parsed_data["session_name"]
+        )
+        trace.session_id = ts_id
+        trace.save()
+        _ch_session = CuratedSession(
+            project_id=observation_span.project.id,
+            trace_session_id=ts_id,
+            external_session_id=parsed_data["session_name"],
+        )
 
-        except Exception as e:
-            logger.exception(f"{e}")
-            raise Exception(  # noqa: B904
-                "Error creating trace while creating observation span from otel"
-            )
+        project = observation_span.project
+        if not project.session_config:
+            project.session_config = get_default_project_session_config()
+            project.save(update_fields=["session_config"])
 
     # CH25: mirror the trace into the CH `traces` table (the app-level
     # replacement for the removed PeerDB CDC path that fed trace_dict). Gate on
@@ -193,17 +198,13 @@ def create_single_otel_span(data, organization_id, user_id, workspace_id=None):
             lambda tid=str(trace.id): mirror_traces_to_clickhouse([tid])
         )
 
-        # CH25 (P3a): mirror the curated EndUser / TraceSession resolved above
-        # (val["end_user"] set ~L90, trace.session set ~L157/166) into CH
-        # `end_users` / `trace_sessions` — alongside (NOT replacing) the PG
-        # get_or_create, which stays the id source until P3b. Gated on the ROOT
-        # span like the trace mirror so it fires ~once per trace, not per span;
-        # post-commit + best-effort so a CH hiccup never breaks ingestion.
-        # Reference the locally-resolved objects (val["end_user"], trace_session)
-        # — NOT trace.session, whose FK descriptor would lazy-fetch a PG row when
-        # session_name was absent (the hot-path round-trip this migration avoids).
-        _ch_end_user = val.get("end_user")
-        _ch_session = trace_session
+        # CH25 (P3b flip): mirror the curated EndUser / TraceSession into CH
+        # `end_users` / `trace_sessions`, keyed by the DETERMINISTIC id stamped
+        # above (_ch_end_user ~L80, _ch_session ~L165). The PG get_or_create is
+        # GONE, so we pass the curated fields directly — no PG object, no PG read.
+        # Gated on the ROOT span like the trace mirror so it fires ~once per trace,
+        # not per span; post-commit + best-effort so a CH hiccup never breaks
+        # ingestion.
         if _ch_end_user is not None or _ch_session is not None:
             from tracer.services.clickhouse.v2.curated_writer import (
                 mirror_curated_dimensions_to_clickhouse,
