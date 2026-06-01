@@ -3,42 +3,17 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Iconify from "src/components/iconify";
 import {
   CurrentStepGuide,
+  JourneyStepList,
   ObservePanelActions,
   ObservePanelHeader,
 } from "./observe-panel-utils";
 import { PATH_FOCUS_PLANS } from "./path-focus-plan";
 
-const STATUS_COPY = {
-  complete: {
-    label: "Done",
-    icon: "mdi:check-circle",
-    color: "success.main",
-  },
-  current: {
-    label: "Now",
-    icon: "mdi:progress-clock",
-    color: "primary.main",
-  },
-  queued: {
-    label: "Next",
-    icon: "mdi:circle-outline",
-    color: "text.disabled",
-  },
-};
-
 const activeStepIndex = (steps, stage) => {
   const index = steps.findIndex((step) => step.stage === stage);
   return index >= 0 ? index : null;
-};
-
-const stepStatus = ({ index, activeIndex }) => {
-  if (activeIndex === null) return "queued";
-  if (index < activeIndex) return "complete";
-  if (index === activeIndex) return "current";
-  return "queued";
 };
 
 export default function PathFocusPanel({
@@ -66,7 +41,22 @@ export default function PathFocusPanel({
       ? null
       : Math.min(Math.max(derivedCurrentIndex, 0), plan.steps.length - 1);
   const currentStep = currentIndex === null ? null : plan.steps[currentIndex];
+  const nextStep =
+    currentIndex === null ? null : plan.steps[currentIndex + 1] || null;
   const visibleSteps = plan.steps;
+  const currentActionSlot =
+    singleActionFocus && currentStep ? (
+      <ObservePanelActions
+        action={action}
+        fallbackAction={fallbackAction}
+        onPrimaryClick={onPrimaryClick}
+        onFallbackClick={onFallbackClick}
+        onCheckAgain={onCheckAgain}
+        isChecking={isChecking}
+        journeyStep={currentStep}
+        singleActionFocus={singleActionFocus}
+      />
+    ) : null;
 
   return (
     <Box
@@ -91,23 +81,13 @@ export default function PathFocusPanel({
 
         {singleActionFocus ? (
           <CurrentStepGuide
+            actionSlot={currentActionSlot}
+            label="Start here"
+            nextStep={nextStep}
             step={currentStep}
             stage={stage}
             stepNumber={currentIndex === null ? undefined : currentIndex + 1}
             totalSteps={plan.steps.length}
-          />
-        ) : null}
-
-        {singleActionFocus ? (
-          <ObservePanelActions
-            action={action}
-            fallbackAction={fallbackAction}
-            onPrimaryClick={onPrimaryClick}
-            onFallbackClick={onFallbackClick}
-            onCheckAgain={onCheckAgain}
-            isChecking={isChecking}
-            journeyStep={currentStep}
-            singleActionFocus={singleActionFocus}
           />
         ) : null}
 
@@ -130,85 +110,22 @@ export default function PathFocusPanel({
         </Stack>
 
         {visibleSteps.length ? (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, minmax(0, 1fr))",
-                lg: `repeat(${Math.min(visibleSteps.length, 3)}, minmax(0, 1fr))`,
-              },
-              gap: 1,
-            }}
-          >
-            {visibleSteps.map((step) => {
-              const originalIndex = plan.steps.indexOf(step);
-              const status =
-                step.status ||
-                stepStatus({ index: originalIndex, activeIndex: currentIndex });
-              const statusCopy = STATUS_COPY[status] || STATUS_COPY.queued;
-              const statusLabel =
-                singleActionFocus && status === "current"
-                  ? "Current"
-                  : singleActionFocus && status === "queued"
-                    ? `Step ${originalIndex + 1}`
-                    : statusCopy.label;
-
-              return (
-                <Box
-                  key={step.stage}
-                  data-testid={`path-focus-step-${step.stage}`}
-                  sx={{
-                    border: "1px solid",
-                    borderColor:
-                      status === "current"
-                        ? "primary.main"
-                        : status === "complete"
-                          ? "success.main"
-                          : "divider",
-                    borderRadius: 1,
-                    p: 1.25,
-                    minHeight: 112,
-                    bgcolor: status === "current" ? "action.hover" : "inherit",
-                  }}
-                >
-                  <Stack spacing={0.75}>
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      spacing={1}
-                    >
-                      <Stack direction="row" alignItems="center" spacing={0.75}>
-                        <Iconify
-                          icon={statusCopy.icon}
-                          width={18}
-                          sx={{ color: statusCopy.color, flexShrink: 0 }}
-                        />
-                        <Typography variant="subtitle2">
-                          {step.label}
-                        </Typography>
-                      </Stack>
-                      <Chip
-                        size="small"
-                        label={statusLabel}
-                        color={status === "complete" ? "success" : "default"}
-                        variant={status === "complete" ? "filled" : "outlined"}
-                      />
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      {step.description}
-                    </Typography>
-                  </Stack>
-                </Box>
-              );
-            })}
-          </Box>
+          <JourneyStepList
+            currentIndex={currentIndex}
+            gridColumns={3}
+            singleActionFocus={singleActionFocus}
+            steps={visibleSteps}
+            testIdPrefix="path-focus-step"
+          />
         ) : null}
 
         {!singleActionFocus ? (
           <>
-            <CurrentStepGuide step={currentStep} stage={stage} />
+            <CurrentStepGuide
+              nextStep={nextStep}
+              step={currentStep}
+              stage={stage}
+            />
 
             <ObservePanelActions
               action={action}

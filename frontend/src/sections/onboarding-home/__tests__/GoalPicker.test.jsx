@@ -20,7 +20,9 @@ describe("GoalPicker", () => {
       />,
     );
 
-    await userEvent.click(screen.getByLabelText("Test and improve prompts"));
+    await userEvent.click(
+      screen.getByLabelText("Test prompts or agent prompts"),
+    );
     expect(onSelectGoal).toHaveBeenCalledWith(
       expect.objectContaining({ goal: "test_and_improve_prompts" }),
     );
@@ -56,7 +58,7 @@ describe("GoalPicker", () => {
     );
 
     expect(screen.getByText("path unavailable")).toBeVisible();
-    expect(screen.getByLabelText("Monitor a production AI app")).toBeDisabled();
+    expect(screen.getByLabelText("Connect your agent")).toBeDisabled();
     expect(onSelectGoal).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
   });
@@ -73,6 +75,6 @@ describe("GoalPicker", () => {
     );
 
     expect(screen.getByText("Goal could not be saved")).toBeVisible();
-    expect(screen.getByLabelText("Monitor a production AI app")).toBeChecked();
+    expect(screen.getByLabelText("Connect your agent")).toBeChecked();
   });
 });

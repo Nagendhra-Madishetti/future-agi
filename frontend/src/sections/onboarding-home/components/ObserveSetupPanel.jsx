@@ -26,6 +26,7 @@ export default function ObserveSetupPanel({
   const currentStep = journeyCurrentStep(effectiveJourneyPlan, stage);
   const steps = effectiveJourneyPlan?.steps || [];
   const currentStepIndex = Math.max(steps.indexOf(currentStep), 0);
+  const nextStep = steps[currentStepIndex + 1] || null;
   const actionStep = currentStep || {
     stage,
     label: action?.title || "Connect observability",
@@ -60,22 +61,24 @@ export default function ObserveSetupPanel({
         ) : null}
         {singleActionFocus ? (
           <CurrentStepGuide
+            actionSlot={
+              <ObservePanelActions
+                action={action}
+                fallbackAction={fallbackAction}
+                onPrimaryClick={onPrimaryClick}
+                onFallbackClick={onFallbackClick}
+                onCheckAgain={onCheckAgain}
+                isChecking={isChecking}
+                journeyStep={actionStep}
+                singleActionFocus={singleActionFocus}
+              />
+            }
+            label="Start here"
+            nextStep={nextStep}
             step={actionStep}
             stage={stage}
             stepNumber={currentStepIndex + 1}
             totalSteps={steps.length || 1}
-          />
-        ) : null}
-        {singleActionFocus ? (
-          <ObservePanelActions
-            action={action}
-            fallbackAction={fallbackAction}
-            onPrimaryClick={onPrimaryClick}
-            onFallbackClick={onFallbackClick}
-            onCheckAgain={onCheckAgain}
-            isChecking={isChecking}
-            journeyStep={actionStep}
-            singleActionFocus={singleActionFocus}
           />
         ) : null}
         <ObserveJourneyProgress

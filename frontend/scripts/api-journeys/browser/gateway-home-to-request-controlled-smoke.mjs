@@ -89,9 +89,9 @@ async function main() {
     await waitForVisibleText(page, "Set up gateway", { exact: true });
     await waitForVisibleText(
       page,
-      "Follow this setup sequence. Start with Send request.",
+      "Start with Send request; the next screen will guide you to Review log.",
     );
-    await waitForVisibleText(page, "Current step", { exact: true });
+    await waitForVisibleText(page, "Start here", { exact: true });
     await waitForVisibleText(page, "Step 3 of 6", { exact: true });
     await waitForVisibleText(page, "Send request", { exact: true });
     await waitForVisibleText(page, "Setup sequence", { exact: true });

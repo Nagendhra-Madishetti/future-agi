@@ -383,7 +383,7 @@ async function main() {
       });
       await expectVisibleText(
         page,
-        "Follow this setup sequence. Start with Create Observe project.",
+        "Start with Create Observe project; the next screen will guide you to Send first trace.",
         { timeout: 45000 },
       );
       await expectVisibleText(page, "Setup sequence", {

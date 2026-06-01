@@ -112,7 +112,7 @@ async function main() {
       });
       await waitForVisibleText(
         page,
-        "Follow this setup sequence. Start with Create prompt.",
+        "Start with Create prompt; the next screen will guide you to Run test.",
       );
       await waitForVisibleText(page, "Step 1 of 6", { exact: true });
       await waitForVisibleText(page, "Setup sequence", { exact: true });

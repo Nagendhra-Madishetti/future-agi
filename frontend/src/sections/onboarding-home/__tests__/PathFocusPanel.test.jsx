@@ -140,6 +140,9 @@ describe("PathFocusPanel", () => {
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Run one focused example before saving.",
     );
+    expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
+      "Next: Save version",
+    );
     expect(within(panel).getByText("Setup sequence")).toBeVisible();
     expect(within(panel).getAllByText("Step 2 of 6").length).toBeGreaterThan(0);
     expect(screen.queryByTestId("path-focus-step-start_prompt")).toBeVisible();
@@ -149,7 +152,7 @@ describe("PathFocusPanel", () => {
     expect(
       within(
         screen.getByTestId("path-focus-step-save_prompt_version"),
-      ).getByText("Step 3"),
+      ).getByText("Next"),
     ).toBeVisible();
     expect(
       within(panel).queryByRole("link", { name: /open workbench/i }),

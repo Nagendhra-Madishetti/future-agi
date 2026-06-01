@@ -14,7 +14,7 @@ describe("PathCardGrid", () => {
     const onPathClick = vi.fn();
     render(<PathCardGrid paths={pathsFixture()} onPathClick={onPathClick} />);
 
-    expect(screen.getByText("Monitor a production AI app")).toBeVisible();
+    expect(screen.getByText("Connect your agent")).toBeVisible();
     expect(screen.getByRole("button", { name: /current/i })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: /focus/i }));
 

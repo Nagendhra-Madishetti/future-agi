@@ -812,8 +812,8 @@ export default function OnboardingHomeView() {
             eyebrow: "First setup",
             title: selectedSetupQuickStart.buttonLabel,
             description: firstRunNextStepLabel
-              ? `Follow this setup sequence. Start with ${firstRunCurrentStepLabel}. Next: ${firstRunNextStepLabel}.`
-              : `Follow this setup sequence. Start with ${firstRunCurrentStepLabel}.`,
+              ? `${selectedSetupQuickStart.shortDescription} Start with ${firstRunCurrentStepLabel}; the next screen will guide you to ${firstRunNextStepLabel}.`
+              : `${selectedSetupQuickStart.shortDescription} Start with ${firstRunCurrentStepLabel}.`,
             surfaceLabel: selectedSetupQuickStart.surfaceLabel,
           }
       : quickStartMismatchAction

@@ -1103,11 +1103,12 @@ describe("OnboardingHomeView", () => {
         }),
       ).toBeVisible();
       expect(
-        screen.getByText(
-          new RegExp(
-            `Follow this setup sequence\\. Start with ${primaryLabel}\\.`,
-          ),
-        ),
+        screen.getByText(new RegExp(`Start with ${primaryLabel}`)),
+      ).toBeVisible();
+      expect(
+        screen.getByText(quickStartOption.shortDescription, {
+          exact: false,
+        }),
       ).toBeVisible();
       expect(
         screen.queryByTestId("setup-quick-start-handoff-alert"),
@@ -2165,7 +2166,7 @@ describe("OnboardingHomeView", () => {
     expect(
       within(
         screen.getByTestId("path-focus-step-run_gateway_request"),
-      ).getByText("Current"),
+      ).getByText("Start here"),
     ).toBeVisible();
     expect(screen.queryByText("gateway")).toBeNull();
   });

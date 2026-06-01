@@ -89,9 +89,9 @@ async function main() {
     });
     await waitForVisibleText(
       page,
-      "Follow this setup sequence. Start with Create dataset.",
+      "Start with Create dataset; the next screen will guide you to Add scorer.",
     );
-    await waitForVisibleText(page, "Current step", { exact: true });
+    await waitForVisibleText(page, "Start here", { exact: true });
     await waitForVisibleText(page, "Step 1 of 5", { exact: true });
     await waitForVisibleText(page, "Create dataset", { exact: true });
     await waitForVisibleText(page, "Setup sequence", { exact: true });
