@@ -27,6 +27,7 @@ import ErrorStatusChip from "./ErrorStatusChip";
 import ErrorSeverityBadge from "./ErrorSeverityBadge";
 import ErrorTrendSparkline from "./ErrorTrendSparkline";
 import { useErrorFeedList } from "src/api/errorFeed/error-feed";
+import { voiceDemoRow } from "../voiceDemoCluster";
 import { useErrorFeedApiParams, useErrorFeedStore } from "../store";
 import PropTypes from "prop-types";
 
@@ -131,7 +132,7 @@ const COLUMNS = [
   { id: "severity", label: "Severity", sortable: true, width: 100 },
   { id: "status", label: "Status", sortable: false, width: 118 },
   { id: "traceCount", label: "Events", sortable: true, width: 85 },
-  { id: "usersAffected", label: "Users", sortable: true, width: 75 },
+  { id: "usersAffected", label: "Users", sortable: false, width: 75 },
   { id: "fixLayer", label: "Fix Layer", sortable: false, width: 120 },
   { id: "trends", label: "Trend (14d)", sortable: false, width: 130 },
   { id: "lastSeen", label: "Last seen", sortable: true, width: 120 },
@@ -260,9 +261,6 @@ export default function ErrorFeedTable({ selected, onSelect, onSelectAll }) {
   const apiParams = useErrorFeedApiParams();
   const { data, isLoading } = useErrorFeedList(apiParams);
 
-  const rows = useMemo(() => data?.data ?? [], [data]);
-  const totalCount = data?.total ?? 0;
-
   const isFiltered = useErrorFeedStore(
     (s) =>
       !!(
@@ -274,6 +272,16 @@ export default function ErrorFeedTable({ selected, onSelect, onSelectAll }) {
         s.selectedErrorType
       ),
   );
+
+  // Prepend the synthetic voice-calls demo cluster so voice has its own
+  // row in the table (BE doesn't tag modality yet). Only show it on the
+  // first page and when not filtered, so it doesn't fight pagination.
+  const rows = useMemo(() => {
+    const base = data?.data ?? [];
+    if (page === 0 && !isFiltered) return [voiceDemoRow, ...base];
+    return base;
+  }, [data, page, isFiltered]);
+  const totalCount = data?.total ?? 0;
 
   const handleRowClick = useCallback(
     (clusterId) => {

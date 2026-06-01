@@ -23,15 +23,14 @@ import { paths } from "src/routes/paths";
 import { useSnackbar } from "src/components/snackbar";
 import {
   useCreateLinearIssue,
-  useErrorFeedDeepAnalysis,
   useErrorFeedSidebar,
   useLinearTeams,
-  useRunDeepAnalysis,
   useUpdateErrorFeedIssue,
 } from "src/api/errorFeed/error-feed";
 import { useOrgMembers } from "src/api/annotation-queues/annotation-queues";
 import { useAuthContext } from "src/auth/hooks";
 import { useErrorFeedStore } from "../store";
+import { isVoiceDemoCluster } from "../voiceDemoCluster";
 import PropTypes from "prop-types";
 
 const humanizeTime = (iso) => {
@@ -828,17 +827,22 @@ CoOccurringList.propTypes = { issues: PropTypes.array.isRequired };
 
 // ── Integrations ──────────────────────────────────────────────────────────────
 
-function LinearTeamPicker({ open, onClose, clusterId }) {
+function LinearTeamPicker({ open, onClose, clusterId, traceId }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const { enqueueSnackbar } = useSnackbar();
-  const { data: linearData } = useLinearTeams({ enabled: open });
+  const { user } = useAuthContext();
+  const {
+    data: linearData,
+    isLoading: teamsLoading,
+    isError: teamsError,
+  } = useLinearTeams(user?.organization?.id, { enabled: open });
   const createIssue = useCreateLinearIssue();
   const teams = linearData?.teams ?? [];
 
   const handleCreate = (teamId) => {
     createIssue.mutate(
-      { clusterId, teamId },
+      { clusterId, teamId, traceId },
       {
         onSuccess: (res) => {
           const result = res?.data?.result;
@@ -852,10 +856,11 @@ function LinearTeamPicker({ open, onClose, clusterId }) {
           }
           onClose();
         },
-        onError: () => {
-          enqueueSnackbar("Failed to create Linear issue", {
-            variant: "error",
-          });
+        onError: (err) => {
+          const message =
+            err?.response?.data?.result ||
+            "Failed to create Linear issue";
+          enqueueSnackbar(message, { variant: "error" });
         },
       },
     );
@@ -906,7 +911,13 @@ function LinearTeamPicker({ open, onClose, clusterId }) {
       <DialogContent sx={{ px: 2.5, pb: 2.5, pt: 0 }}>
         {teams.length === 0 ? (
           <Typography fontSize="12px" color="text.disabled" sx={{ py: 2 }}>
-            {linearData ? "No teams found." : "Loading teams..."}
+            {teamsLoading
+              ? "Loading teams…"
+              : teamsError
+                ? "Couldn't reach Linear. Check the integration in Settings and try again."
+                : linearData?.connected === false
+                  ? "Linear isn't connected for this workspace. Connect it in Settings > Integrations."
+                  : "No teams found in your Linear workspace."}
           </Typography>
         ) : (
           <Stack gap={0.75} sx={{ mt: 1 }}>
@@ -974,6 +985,7 @@ LinearTeamPicker.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   clusterId: PropTypes.string.isRequired,
+  traceId: PropTypes.string,
 };
 
 function ConnectorRow({ icon, color, name, subtitle, action, onAction }) {
@@ -1060,21 +1072,31 @@ ConnectorRow.propTypes = {
   onAction: PropTypes.func,
 };
 
-function Integrations({ clusterId, externalIssueUrl, externalIssueId }) {
+function Integrations({
+  clusterId,
+  traceId,
+  externalIssueUrl,
+  externalIssueId,
+}) {
   const navigate = useNavigate();
-  const { data: linearData } = useLinearTeams();
+  const { user } = useAuthContext();
+  const {
+    data: linearData,
+    isLoading: linearLoading,
+    isError: linearError,
+  } = useLinearTeams(user?.organization?.id);
   const linearConnected = linearData?.connected === true;
   const [teamPickerOpen, setTeamPickerOpen] = useState(false);
 
   const linked = !!externalIssueUrl;
 
   const handleLinearAction = () => {
-    if (!linearConnected) {
-      navigate(paths.dashboard.settings.integrations);
-      return;
-    }
     if (linked) {
       window.open(externalIssueUrl, "_blank");
+      return;
+    }
+    if (!linearConnected) {
+      navigate(paths.dashboard.settings.integrations);
       return;
     }
     setTeamPickerOpen(true);
@@ -1082,14 +1104,20 @@ function Integrations({ clusterId, externalIssueUrl, externalIssueId }) {
 
   const linearSubtitle = linked
     ? externalIssueId
-    : linearConnected
-      ? "Connected"
-      : "Not connected";
-  const linearAction = linearConnected
-    ? linked
-      ? `View ${externalIssueId ?? "issue"}`
-      : "Create issue"
-    : "Connect";
+    : linearLoading
+      ? "Checking…"
+      : linearError
+        ? "Connection unreachable"
+        : linearConnected
+          ? "Connected"
+          : "Not connected";
+  const linearAction = linked
+    ? `View ${externalIssueId ?? "issue"}`
+    : linearLoading
+      ? null
+      : linearConnected
+        ? "Create issue"
+        : "Connect";
 
   return (
     <>
@@ -1109,6 +1137,7 @@ function Integrations({ clusterId, externalIssueUrl, externalIssueId }) {
           open={teamPickerOpen}
           onClose={() => setTeamPickerOpen(false)}
           clusterId={clusterId}
+          traceId={traceId}
         />
       )}
     </>
@@ -1116,199 +1145,9 @@ function Integrations({ clusterId, externalIssueUrl, externalIssueId }) {
 }
 Integrations.propTypes = {
   clusterId: PropTypes.string,
+  traceId: PropTypes.string,
   externalIssueUrl: PropTypes.string,
   externalIssueId: PropTypes.string,
-};
-
-// ── Deep Analysis Button ──────────────────────────────────────────────────────
-//
-// State machine driven entirely by backend:
-//   - GET /root-cause/ returns status: idle | running | done | failed
-//   - POST /deep-analysis/ dispatches a run (or no-ops if cached and not forced)
-//   - Running state survives navigation because it's derived from
-//     Trace.error_analysis_status on the server, not client memory.
-function DeepAnalysisButton({ clusterId, traceId }) {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
-  const { enqueueSnackbar } = useSnackbar();
-
-  const { data: deepAnalysis, isLoading } = useErrorFeedDeepAnalysis(
-    clusterId,
-    traceId,
-  );
-  const runMutation = useRunDeepAnalysis();
-
-  const status = deepAnalysis?.status ?? "idle";
-  const isDispatching = runMutation.isPending;
-  const isRunning = status === "running" || isDispatching;
-
-  const dispatch = (force) => {
-    if (!traceId) return;
-    runMutation.mutate(
-      { clusterId, traceId, force },
-      {
-        onSuccess: (res) => {
-          const newStatus = res?.data?.result?.status;
-          if (newStatus === "running") {
-            enqueueSnackbar(
-              "Deep analysis started — takes about a minute. You can keep browsing; it'll show up here when ready.",
-              { variant: "info", autoHideDuration: 6000 },
-            );
-          } else if (newStatus === "done") {
-            // Cached result; frontend will scroll on its own via the
-            // effect in OverviewTab that watches the done state.
-            enqueueSnackbar("Showing existing analysis results.", {
-              variant: "success",
-              autoHideDuration: 3000,
-            });
-          }
-        },
-        onError: () => {
-          enqueueSnackbar("Failed to start deep analysis. Please try again.", {
-            variant: "error",
-          });
-        },
-      },
-    );
-  };
-
-  // No trace selected yet (e.g. cluster has zero traces) — show disabled button
-  if (!traceId) {
-    return (
-      <Button
-        variant="contained"
-        fullWidth
-        disabled
-        startIcon={<Iconify icon="mdi:magnify-expand" width={14} />}
-        sx={{
-          height: 34,
-          fontSize: "12px",
-          fontWeight: 600,
-          borderRadius: "7px",
-          textTransform: "none",
-        }}
-      >
-        Run Deep Analysis
-      </Button>
-    );
-  }
-
-  // Initial query still loading — neutral placeholder
-  if (isLoading && !deepAnalysis) {
-    return (
-      <Box
-        sx={{
-          height: 34,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: "7px",
-        }}
-      >
-        <CircularProgress size={12} thickness={5} />
-      </Box>
-    );
-  }
-
-  if (isRunning) {
-    return (
-      <Box
-        sx={{
-          height: 34,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 1,
-          border: "1px solid",
-          borderColor: "primary.main",
-          borderRadius: "7px",
-          bgcolor: (t) => alpha(t.palette.primary.main, 0.06),
-        }}
-      >
-        <CircularProgress size={12} thickness={5} />
-        <Typography fontSize="12px" fontWeight={600} color="primary.main">
-          Running analysis…
-        </Typography>
-      </Box>
-    );
-  }
-
-  if (status === "done") {
-    return (
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Stack direction="row" alignItems="center" gap={0.5}>
-          <Iconify
-            icon="mdi:check-circle"
-            width={13}
-            sx={{ color: "#5ACE6D" }}
-          />
-          <Typography fontSize="11px" fontWeight={600} color="text.secondary">
-            Analysis complete
-          </Typography>
-        </Stack>
-        <Button
-          size="small"
-          variant="contained"
-          startIcon={<Iconify icon="mdi:refresh" width={10} />}
-          onClick={() => dispatch(true)}
-          disabled={isDispatching}
-          sx={{
-            height: 22,
-            fontSize: "10px",
-            fontWeight: 600,
-            px: 1,
-            borderRadius: "6px",
-            textTransform: "none",
-            bgcolor: isDark ? "#fff" : "#111",
-            color: isDark ? "#111" : "#fff",
-            boxShadow: "none",
-            "&:hover": {
-              bgcolor: isDark ? "#e8e8e8" : "#333",
-              boxShadow: "none",
-            },
-          }}
-        >
-          Re-run
-        </Button>
-      </Stack>
-    );
-  }
-
-  // idle or failed
-  const label =
-    status === "failed" ? "Retry Deep Analysis" : "Run Deep Analysis";
-  return (
-    <Button
-      variant="contained"
-      fullWidth
-      startIcon={<Iconify icon="mdi:magnify-expand" width={14} />}
-      onClick={() => dispatch(false)}
-      disabled={isDispatching}
-      sx={{
-        height: 34,
-        fontSize: "12px",
-        fontWeight: 600,
-        borderRadius: "7px",
-        textTransform: "none",
-        bgcolor: isDark ? "#fff" : "#111",
-        color: isDark ? "#111" : "#fff",
-        boxShadow: "none",
-        "&:hover": {
-          bgcolor: isDark ? "#e8e8e8" : "#333",
-          boxShadow: "none",
-        },
-      }}
-    >
-      {label}
-    </Button>
-  );
-}
-
-DeepAnalysisButton.propTypes = {
-  clusterId: PropTypes.string,
-  traceId: PropTypes.string,
 };
 
 // Backend returns `"llm_judge" | "deterministic"` — EvalRow expects
@@ -1342,14 +1181,22 @@ export default function ErrorMetadataPanel({ error }) {
   const selectedTraceId = useErrorFeedStore(
     (s) => s.selectedTraceIdByCluster[error?.clusterId] ?? null,
   );
+  // The synthetic voice demo cluster isn't on the backend — skip the
+  // sidebar fetch so it doesn't 404 with a "cluster not found" toast.
   const { data: sidebar, isLoading: isSidebarLoading } = useErrorFeedSidebar(
     error?.clusterId,
     selectedTraceId,
+    { enabled: !isVoiceDemoCluster(error?.clusterId) },
   );
   const sidebarPending = isSidebarLoading && !sidebar;
-  // Effective trace id (what the backend actually used) — hand to the
-  // deep-analysis button so Re-run hits the same trace.
-  const effectiveTraceId = sidebar?.aiMetadata?.traceId ?? null;
+  // OverviewTab keys its deep-analysis query off `selectedTraceId` (with a
+  // `representativeTraces[0]` fallback inside the tab). The button has to
+  // use the same source or the two end up reading different cache entries:
+  // OverviewTab shows the done content, button keeps polling a different
+  // trace and stays stuck on loading. Prefer the store; fall back to the
+  // sidebar's resolved trace only while the store hasn't been backfilled.
+  const effectiveTraceId =
+    selectedTraceId ?? sidebar?.aiMetadata?.traceId ?? null;
 
   if (!error) return null;
 
@@ -1482,14 +1329,6 @@ export default function ErrorMetadataPanel({ error }) {
           </Box>
         </Section>
 
-        {/* ── Deep Analysis ── */}
-        <Section title="Deep Analysis">
-          <DeepAnalysisButton
-            clusterId={error.clusterId}
-            traceId={effectiveTraceId}
-          />
-        </Section>
-
         {/* ── Timeline ── */}
         <Section title="Timeline">
           <Stack gap={0.5}>
@@ -1518,13 +1357,15 @@ export default function ErrorMetadataPanel({ error }) {
           <Stack gap={0.5}>
             <MetaRow
               label="Model"
-              value={error.model}
+              value={sidebar?.aiMetadata?.model ?? error.model}
               icon="mdi:brain"
               monospace
             />
             <MetaRow
               label="Version"
-              value={error.modelVersion}
+              value={
+                sidebar?.aiMetadata?.modelVersion ?? error.modelVersion
+              }
               icon="mdi:tag-outline"
               monospace
             />
@@ -1544,19 +1385,21 @@ export default function ErrorMetadataPanel({ error }) {
             )}
             <MetaRow
               label="Project"
-              value={error.project}
+              value={sidebar?.aiMetadata?.project ?? error.project}
               icon="mdi:folder-outline"
             />
-            {error.evalScore != null && (
+            {(sidebar?.aiMetadata?.evalScore ?? error.evalScore) != null && (
               <MetaRow
                 label="Eval score"
-                value={`${error.evalScore.toFixed(2)} / 1.00`}
+                value={`${(
+                  sidebar?.aiMetadata?.evalScore ?? error.evalScore
+                ).toFixed(2)} / 1.00`}
                 icon="mdi:chart-line"
               />
             )}
             <MetaRow
               label="Trace ID"
-              value={error.traceId}
+              value={sidebar?.aiMetadata?.traceId ?? error.traceId}
               icon="mdi:sitemap-outline"
               monospace
             />
@@ -1568,15 +1411,18 @@ export default function ErrorMetadataPanel({ error }) {
           <Section title="Evaluations">
             <Stack gap={0.75}>
               {Array.from({ length: 3 }).map((_, i) => (
-                <Stack
-                  key={i}
-                  direction="row"
-                  alignItems="center"
-                  gap={0.75}
-                >
-                  <Skeleton width={90} height={12} sx={{ borderRadius: "3px" }} />
+                <Stack key={i} direction="row" alignItems="center" gap={0.75}>
+                  <Skeleton
+                    width={90}
+                    height={12}
+                    sx={{ borderRadius: "3px" }}
+                  />
                   <Box sx={{ flex: 1 }} />
-                  <Skeleton width={36} height={12} sx={{ borderRadius: "3px" }} />
+                  <Skeleton
+                    width={36}
+                    height={12}
+                    sx={{ borderRadius: "3px" }}
+                  />
                 </Stack>
               ))}
             </Stack>
@@ -1605,15 +1451,18 @@ export default function ErrorMetadataPanel({ error }) {
           <Section title="Co-occurring Issues">
             <Stack gap={0.75}>
               {Array.from({ length: 3 }).map((_, i) => (
-                <Stack
-                  key={i}
-                  direction="row"
-                  alignItems="center"
-                  gap={0.75}
-                >
-                  <Skeleton width="65%" height={12} sx={{ borderRadius: "3px" }} />
+                <Stack key={i} direction="row" alignItems="center" gap={0.75}>
+                  <Skeleton
+                    width="65%"
+                    height={12}
+                    sx={{ borderRadius: "3px" }}
+                  />
                   <Box sx={{ flex: 1 }} />
-                  <Skeleton width={28} height={12} sx={{ borderRadius: "3px" }} />
+                  <Skeleton
+                    width={28}
+                    height={12}
+                    sx={{ borderRadius: "3px" }}
+                  />
                 </Stack>
               ))}
             </Stack>
@@ -1657,6 +1506,7 @@ export default function ErrorMetadataPanel({ error }) {
           </Typography>
           <Integrations
             clusterId={error?.clusterId}
+            traceId={effectiveTraceId}
             externalIssueUrl={error?.externalIssueUrl}
             externalIssueId={error?.externalIssueId}
           />
