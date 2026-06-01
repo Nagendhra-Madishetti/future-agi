@@ -133,6 +133,9 @@ export const ONBOARDING_EVENT_LABELS = {
   trace_received: "Trace received",
   trace_reviewed: "Trace reviewed",
   voice_agent_created: "Voice agent connected",
+  voice_call_monitor_opened: "Voice call monitor opened",
+  voice_call_reviewed: "Voice call reviewed",
+  voice_success_criteria_added: "Voice success criteria added",
   voice_test_call_completed: "Voice test call completed",
 };
 

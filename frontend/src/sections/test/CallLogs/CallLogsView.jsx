@@ -21,6 +21,7 @@ import {
   voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "../onboardingVoiceRouteEvents";
+import TestOnboardingFocusPanel from "../TestOnboardingFocusPanel";
 
 const CallLogsView = () => {
   const { testId } = useParams();
@@ -84,6 +85,7 @@ const CallLogsView = () => {
     () => data?.pages.flatMap((page) => page.data.results),
     [data],
   );
+  const testRunsHref = `/dashboard/simulate/test/${testId}/runs${location.search || ""}`;
 
   const scrollContainer = useScrollEnd(() => {
     if (isPending || isFetchingNextPage) return;
@@ -100,6 +102,24 @@ const CallLogsView = () => {
         height: "100%",
       }}
     >
+      <TestOnboardingFocusPanel
+        currentStep="Monitor calls"
+        description="Use call logs to keep watching transcripts, recordings, interruptions, and saved criteria after the first setup."
+        eyebrow="Voice setup"
+        hidden={!isMonitorCallsMode}
+        primaryAction={{
+          label: callLogs?.length ? "Run another test call" : "Run test call",
+          onClick: () => navigate(testRunsHref),
+        }}
+        singleActionFocus
+        steps={[
+          { label: "Test call", complete: true },
+          { label: "Review call", complete: true },
+          { label: "Success criteria", complete: true },
+          { label: "Monitor calls", complete: Boolean(callLogs?.length) },
+        ]}
+        title="Monitor voice calls"
+      />
       <CallLogsHeader searchText={searchText} setSearchText={setSearchText} />
       <ShowComponent
         condition={
@@ -107,15 +127,19 @@ const CallLogsView = () => {
         }
       >
         <EmptyLayout
-          title="No Call Logs Found"
-          description="Get started by running a test"
+          title={
+            isMonitorCallsMode ? "No voice call logs yet" : "No Call Logs Found"
+          }
+          description={
+            isMonitorCallsMode
+              ? "Run a test call to start monitoring transcripts, recordings, and criteria results."
+              : "Get started by running a test"
+          }
           action={
             <Button
               variant="contained"
               onClick={() => {
-                navigate(
-                  `/dashboard/simulate/test/${testId}/runs${location.search || ""}`,
-                );
+                navigate(testRunsHref);
               }}
               sx={{
                 bgcolor: "primary.main",

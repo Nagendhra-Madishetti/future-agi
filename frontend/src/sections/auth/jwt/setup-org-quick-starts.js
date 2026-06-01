@@ -135,14 +135,17 @@ export const SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS = [
     goal: "connect_voice_ai_agent",
     surfaceLabel: "Voice",
     buttonLabel: "Connect a voice AI agent",
-    shortDescription: "Run a test call and review the transcript.",
+    shortDescription:
+      "Create a voice agent, run a test call, review the transcript, add success criteria, and monitor calls.",
     firstActionLabel: "Create voice agent",
-    pathPreview: "Run call, review call, add success criteria.",
+    pathPreview:
+      "Create voice agent, run call, review call, add success criteria, monitor calls.",
     sequencePreview: [
       "Create voice agent",
       "Run call",
       "Review call",
       "Add criteria",
+      "Monitor calls",
     ],
     icon: "mdi:phone-in-talk-outline",
   }),

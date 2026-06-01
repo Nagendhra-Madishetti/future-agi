@@ -46,6 +46,7 @@ import {
   voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "src/sections/test/onboardingVoiceRouteEvents";
+import TestOnboardingFocusPanel from "src/sections/test/TestOnboardingFocusPanel";
 
 const CreateNewAgentDefinitionView = () => {
   const { role } = useAuthContext();
@@ -362,6 +363,22 @@ const CreateNewAgentDefinitionView = () => {
   }, [reset]);
 
   const isLastStep = currentStep === stepFields.length - 1;
+  const voiceStepLabel =
+    ["Details", "Connection", "Behavior"][currentStep] || "Create";
+  const voicePrimaryAction = isLastStep
+    ? {
+        label: isSubmitting ? "Creating voice agent" : "Create voice agent",
+        onClick: handleSubmit(onSubmit),
+        disabled:
+          isSubmitting ||
+          !RolePermission.SIMULATION_AGENT[PERMISSIONS.CREATE][role],
+      }
+    : {
+        label: "Continue",
+        onClick: handleNext,
+        disabled: !canProceed,
+      };
+
   return (
     <>
       <Box sx={{ backgroundColor: "background.paper" }}>
@@ -388,11 +405,13 @@ const CreateNewAgentDefinitionView = () => {
               }}
               sx={{ cursor: "pointer" }}
             >
-              All Agent Definitions
+              {isVoiceCreateMode ? "Voice agents" : "All Agent Definitions"}
             </Typography>
             <SvgColor src="/assets/icons/custom/lucide--chevron-right.svg" />
             <Typography typography="m3" fontWeight="fontWeightMedium">
-              Create new agent definition
+              {isVoiceCreateMode
+                ? "Create voice agent"
+                : "Create new agent definition"}
             </Typography>
           </Box>
         </Box>
@@ -421,6 +440,22 @@ const CreateNewAgentDefinitionView = () => {
           >
             {/* StepsTracker */}
             <Box p={2}>
+              <TestOnboardingFocusPanel
+                currentStep={voiceStepLabel}
+                description="Create one voice agent, then we will take you directly into a test call and transcript review."
+                eyebrow="Voice setup"
+                hidden={!isVoiceCreateMode}
+                primaryAction={voicePrimaryAction}
+                singleActionFocus
+                steps={[
+                  { label: "Voice agent", complete: false },
+                  { label: "Test call", complete: false },
+                  { label: "Review call", complete: false },
+                  { label: "Success criteria", complete: false },
+                  { label: "Monitor calls", complete: false },
+                ]}
+                title="Create the voice agent"
+              />
               <StepsTracker />
             </Box>
 
@@ -540,7 +575,9 @@ const CreateNewAgentDefinitionView = () => {
                     borderColor: "action.selected",
                   }}
                 >
-                  Create agent definition
+                  {isVoiceCreateMode
+                    ? "Create voice agent"
+                    : "Create agent definition"}
                 </LoadingButton>
               )}
             </Box>

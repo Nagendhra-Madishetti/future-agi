@@ -62,6 +62,7 @@ import {
   voiceSetupQuickStartAttributionFromSearch,
   VOICE_ONBOARDING_MODES,
 } from "src/sections/test/onboardingVoiceRouteEvents";
+import TestOnboardingFocusPanel from "src/sections/test/TestOnboardingFocusPanel";
 
 const steps = [
   {
@@ -86,8 +87,36 @@ const steps = [
   },
 ];
 
-const StepCircle = styled(Box)(({ theme, active, completed }) => {
+const voiceTestCallSteps = [
+  {
+    number: 1,
+    label: "Name test call",
+    icon: "/icons/runTest/ic_settings.svg",
+  },
+  {
+    number: 2,
+    label: "Choose scenario",
+    icon: "/icons/runTest/ic_workflow.svg",
+  },
+  {
+    number: 3,
+    label: "Confirm review path",
+    icon: "/icons/runTest/ic_shield.svg",
+  },
+  {
+    number: 4,
+    label: "Review setup",
+    icon: "/icons/runTest/ic_summary.svg",
+  },
+];
+
+const StepCircle = styled(Box, {
+  shouldForwardProp: (prop) => prop !== "active" && prop !== "completed",
+})(({ theme, active, completed }) => {
   const isDark = theme.palette.mode === "dark";
+  const successColor = theme.palette.green?.[500] || theme.palette.success.main;
+  const primaryLight =
+    theme.palette.primary.lighter || theme.palette.primary.light;
   return {
     width: 36,
     height: 36,
@@ -100,17 +129,17 @@ const StepCircle = styled(Box)(({ theme, active, completed }) => {
       : active
         ? isDark
           ? theme.palette.background.neutral
-          : theme.palette.primary.lighter
+          : primaryLight
         : theme.palette.background.paper,
     border: `1px solid ${
       completed
-        ? theme.palette.green["500"]
+        ? successColor
         : active
           ? theme.palette.primary.main
           : theme.palette.text.disabled
     }`,
     color: completed
-      ? theme.palette.green["500"]
+      ? successColor
       : active
         ? theme.palette.primary.main
         : theme.palette.text.disabled,
@@ -121,32 +150,36 @@ const StepCircle = styled(Box)(({ theme, active, completed }) => {
   };
 });
 
-const StyledStepConnector = styled(StepConnector)(({ theme }) => ({
-  [`&.${stepConnectorClasses.alternativeLabel}`]: {
-    top: 19,
-    left: "calc(-50% + 17px)",
-    right: "calc(50% + 14px)",
-  },
-  [`&.${stepConnectorClasses.active}`]: {
-    [`& .${stepConnectorClasses.line}`]: {
-      backgroundColor: theme.palette.green[500], // green for active
+const StyledStepConnector = styled(StepConnector)(({ theme }) => {
+  const successColor = theme.palette.green?.[500] || theme.palette.success.main;
+
+  return {
+    [`&.${stepConnectorClasses.alternativeLabel}`]: {
+      top: 19,
+      left: "calc(-50% + 17px)",
+      right: "calc(50% + 14px)",
     },
-  },
-  [`&.${stepConnectorClasses.completed}`]: {
-    [`& .${stepConnectorClasses.line}`]: {
-      backgroundColor: theme.palette.green[500], // green for completed
+    [`&.${stepConnectorClasses.active}`]: {
+      [`& .${stepConnectorClasses.line}`]: {
+        backgroundColor: successColor,
+      },
     },
-  },
-  [`& .${stepConnectorClasses.line}`]: {
-    height: 2,
-    border: 0,
-    backgroundColor: theme.palette.divider,
-    borderRadius: 1,
-    ...theme.applyStyles("dark", {
+    [`&.${stepConnectorClasses.completed}`]: {
+      [`& .${stepConnectorClasses.line}`]: {
+        backgroundColor: successColor,
+      },
+    },
+    [`& .${stepConnectorClasses.line}`]: {
+      height: 2,
+      border: 0,
       backgroundColor: theme.palette.divider,
-    }),
-  },
-}));
+      borderRadius: 1,
+      ...theme.applyStyles("dark", {
+        backgroundColor: theme.palette.divider,
+      }),
+    },
+  };
+});
 
 const CreateRunTestPage = ({
   open,
@@ -160,6 +193,16 @@ const CreateRunTestPage = ({
   const [activeStep, setActiveStep] = useState(0);
   const [completed, setCompleted] = React.useState({});
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const voiceParams = useMemo(
+    () => getVoiceOnboardingParams(location.search),
+    [location.search],
+  );
+  const voiceQuickStartAttribution = useMemo(
+    () => voiceSetupQuickStartAttributionFromSearch(location.search),
+    [location.search],
+  );
 
   const totalSteps = () => {
     return steps.length;
@@ -186,6 +229,20 @@ const CreateRunTestPage = ({
     failOnError: true,
     agentType: null,
   });
+  const isVoiceCreateTestCallMode =
+    voiceParams.mode === VOICE_ONBOARDING_MODES.CREATE_TEST_CALL &&
+    (formData.agentType === AGENT_TYPES.VOICE ||
+      initialAgentType === AGENT_TYPES.VOICE);
+  const visibleSteps = isVoiceCreateTestCallMode ? voiceTestCallSteps : steps;
+  const currentVoiceStepLabel =
+    visibleSteps[activeStep]?.label || "Create test call";
+  const voiceFocusSteps = [
+    { label: "Voice agent", complete: Boolean(formData.agentDefinitionId) },
+    { label: "Name test call", complete: activeStep > 0 },
+    { label: "Scenario", complete: activeStep > 1 },
+    { label: "Review path", complete: activeStep > 2 },
+    { label: "Success criteria", complete: false },
+  ];
 
   // Add evaluation configuration state
   const [evaluationsConfig, setEvaluationsConfig] = useState([]);
@@ -208,7 +265,10 @@ const CreateRunTestPage = ({
     if (open) {
       setActiveStep(0);
       setFormData({
-        testName: "",
+        testName:
+          voiceParams.mode === VOICE_ONBOARDING_MODES.CREATE_TEST_CALL
+            ? "First voice test call"
+            : "",
         description: "",
         selectedScenarios: [],
         selectedEvaluations: [],
@@ -225,7 +285,7 @@ const CreateRunTestPage = ({
       setEditingEvalId(null);
       setCompleted({});
     }
-  }, [initialAgentDefinitionId, initialAgentType, open]);
+  }, [initialAgentDefinitionId, initialAgentType, open, voiceParams.mode]);
 
   // Scenarios state
   const [scenarioSearch, setScenarioSearch] = useState("");
@@ -273,17 +333,6 @@ const CreateRunTestPage = ({
 
   // Since search is done server-side, we don't need to filter locally
   const filteredScenarios = scenarios;
-
-  const navigate = useNavigate();
-  const location = useLocation();
-  const voiceParams = useMemo(
-    () => getVoiceOnboardingParams(location.search),
-    [location.search],
-  );
-  const voiceQuickStartAttribution = useMemo(
-    () => voiceSetupQuickStartAttributionFromSearch(location.search),
-    [location.search],
-  );
 
   const {
     agentDefinitions,
@@ -496,6 +545,7 @@ const CreateRunTestPage = ({
     // }
     if (
       activeStep === 2 &&
+      !isVoiceCreateTestCallMode &&
       (!evaluationsConfig || evaluationsConfig.length === 0)
     ) {
       enqueueSnackbar("Please add at least one evaluation", {
@@ -618,6 +668,7 @@ const CreateRunTestPage = ({
       // case 2:
       //   return formData?.selectedAgent !== "";
       case 2:
+        if (isVoiceCreateTestCallMode) return true;
         return evaluationsConfig?.length > 0;
       case 3:
         return true;
@@ -636,8 +687,10 @@ const CreateRunTestPage = ({
       case 1:
         return formData?.selectedScenarios?.length > 0;
       case 2:
+        if (isVoiceCreateTestCallMode) return true;
         return formData?.selectedAgent !== "";
       case 3:
+        if (isVoiceCreateTestCallMode) return true;
         return evaluationsConfig?.length > 0;
       case 4:
         return true;
@@ -874,7 +927,9 @@ const CreateRunTestPage = ({
               align="center"
               sx={{ mb: 1 }}
             >
-              Add simulation details
+              {isVoiceCreateTestCallMode
+                ? "Name the voice test call"
+                : "Add simulation details"}
             </Typography>
             <Box
               display="flex"
@@ -889,7 +944,9 @@ const CreateRunTestPage = ({
                 align="center"
                 sx={{ color: "text.primary" }}
               >
-                Set up basic details to create your simulation
+                {isVoiceCreateTestCallMode
+                  ? "Use the selected voice agent and keep this first test call small."
+                  : "Set up basic details to create your simulation"}
               </Typography>
             </Box>
 
@@ -903,10 +960,18 @@ const CreateRunTestPage = ({
             >
               <TextField
                 required
-                label={"Simulation name"}
+                label={
+                  isVoiceCreateTestCallMode
+                    ? "Test call name"
+                    : "Simulation name"
+                }
                 fullWidth
                 size="small"
-                placeholder="Enter a name for your simulation run (eg: Sales agent performance test)"
+                placeholder={
+                  isVoiceCreateTestCallMode
+                    ? "First voice test call"
+                    : "Enter a name for your simulation run (eg: Sales agent performance test)"
+                }
                 value={formData.testName}
                 onChange={(e) =>
                   setFormData({ ...formData, testName: e.target.value })
@@ -925,9 +990,17 @@ const CreateRunTestPage = ({
                 }}
               >
                 <FormSearchSelectFieldState
-                  label={"Choose Agent definition"}
+                  label={
+                    isVoiceCreateTestCallMode
+                      ? "Voice agent"
+                      : "Choose Agent definition"
+                  }
                   fullWidth
-                  placeholder={"Choose your agent that you want to test"}
+                  placeholder={
+                    isVoiceCreateTestCallMode
+                      ? "Choose the voice agent to test"
+                      : "Choose your agent that you want to test"
+                  }
                   value={formData.agentDefinitionId}
                   size="small"
                   options={
@@ -968,11 +1041,19 @@ const CreateRunTestPage = ({
                       agentDefinitionVersionId: "",
                     }))
                   }
-                  emptyMessage={"You have not created any agent definition"}
+                  emptyMessage={
+                    isVoiceCreateTestCallMode
+                      ? "You have not created a voice agent"
+                      : "You have not created any agent definition"
+                  }
                   handleCreateLabel={() =>
                     router.push("/dashboard/simulate/agent-definitions")
                   }
-                  createLabel={"Define new agent"}
+                  createLabel={
+                    isVoiceCreateTestCallMode
+                      ? "Create voice agent"
+                      : "Define new agent"
+                  }
                   required
                   onScrollEnd={fetchNextPage}
                   isFetchingNextPage={fetchNextAgentDefs}
@@ -1157,7 +1238,9 @@ const CreateRunTestPage = ({
                             "&:hover": {
                               borderColor: "primary.lighter",
                               bgcolor: alpha(
-                                theme.palette.primary["lighter"],
+                                theme.palette.primary.lighter ||
+                                  theme.palette.primary.light ||
+                                  theme.palette.primary.main,
                                 0.12,
                               ),
                             },
@@ -1431,6 +1514,55 @@ const CreateRunTestPage = ({
       //   );
 
       case 2: // Select Evaluations
+        if (isVoiceCreateTestCallMode) {
+          return (
+            <Box>
+              <Typography
+                typography="m3"
+                fontWeight="fontWeightMedium"
+                align="center"
+                sx={{ mb: 1 }}
+              >
+                Confirm the review path
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                align="center"
+                sx={{ mb: 4, color: "text.primary" }}
+              >
+                First create and run the test call. After the call finishes, we
+                will open the transcript review and then guide you to add
+                success criteria.
+              </Typography>
+              <Paper
+                sx={{
+                  p: 3,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  maxWidth: 760,
+                  mx: "auto",
+                }}
+              >
+                <Stack spacing={1.5}>
+                  <Typography variant="subtitle2">
+                    Next after this setup
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Chip label="Run test call" size="small" color="success" />
+                    <Chip label="Review transcript" size="small" />
+                    <Chip label="Add success criteria" size="small" />
+                    <Chip label="Monitor calls" size="small" />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    Success criteria belongs after transcript review, so the
+                    criterion is based on a real call instead of a guess.
+                  </Typography>
+                </Stack>
+              </Paper>
+            </Box>
+          );
+        }
         return (
           <Box>
             <Typography
@@ -1439,7 +1571,9 @@ const CreateRunTestPage = ({
               align="center"
               sx={{ mb: 1 }}
             >
-              Select evaluations
+              {isVoiceCreateTestCallMode
+                ? "Add success criteria"
+                : "Select evaluations"}
             </Typography>
             <Box
               display="flex"
@@ -1454,8 +1588,9 @@ const CreateRunTestPage = ({
                 align="center"
                 sx={{ color: "text.primary" }}
               >
-                Apply evaluation metrics on your agents to measure its
-                performance
+                {isVoiceCreateTestCallMode
+                  ? "Add one criterion so the finished call has a clear pass/fail signal."
+                  : "Apply evaluation metrics on your agents to measure its performance"}
               </Typography>
               {/* <Link
                 href="https://docs.futureagi.com/docs/simulation/run-tests"
@@ -1502,8 +1637,9 @@ const CreateRunTestPage = ({
                   p: 1,
                 }}
               >
-                Selected evaluations will be created and linked to this
-                simulation run.
+                {isVoiceCreateTestCallMode
+                  ? "Success criteria will be created and linked to this test call."
+                  : "Selected evaluations will be created and linked to this simulation run."}
               </Typography>
             </Box>
             <Box
@@ -1567,7 +1703,9 @@ const CreateRunTestPage = ({
                   color="text.secondary"
                   sx={{ mb: 2 }}
                 >
-                  No evaluations added yet
+                  {isVoiceCreateTestCallMode
+                    ? "No success criteria added yet"
+                    : "No evaluations added yet"}
                 </Typography>
                 <Button
                   variant="contained"
@@ -1584,7 +1722,9 @@ const CreateRunTestPage = ({
                     },
                   }}
                 >
-                  Add Evaluations
+                  {isVoiceCreateTestCallMode
+                    ? "Add success criteria"
+                    : "Add Evaluations"}
                 </Button>
               </Box>
             ) : (
@@ -1600,7 +1740,9 @@ const CreateRunTestPage = ({
                     }}
                   >
                     <Typography variant="subtitle2">
-                      Selected Evaluations ({evaluationsConfig.length})
+                      {isVoiceCreateTestCallMode
+                        ? `Success Criteria (${evaluationsConfig.length})`
+                        : `Selected Evaluations (${evaluationsConfig.length})`}
                     </Typography>
                     <Button
                       variant="outlined"
@@ -1616,7 +1758,9 @@ const CreateRunTestPage = ({
                         />
                       }
                     >
-                      Add More
+                      {isVoiceCreateTestCallMode
+                        ? "Add another criterion"
+                        : "Add More"}
                     </Button>
                   </Box>
 
@@ -1809,7 +1953,7 @@ const CreateRunTestPage = ({
               align="center"
               sx={{ mb: 1 }}
             >
-              Summary
+              {isVoiceCreateTestCallMode ? "Review test call setup" : "Summary"}
             </Typography>
             <Typography
               variant="body2"
@@ -1817,7 +1961,9 @@ const CreateRunTestPage = ({
               align="center"
               sx={{ mb: 4, color: "text.primary" }}
             >
-              Review your simulation configuration before creating it
+              {isVoiceCreateTestCallMode
+                ? "Review the voice agent and scenario before creating the test call. Success criteria comes after transcript review."
+                : "Review your simulation configuration before creating it"}
             </Typography>
 
             <Box sx={{ maxWidth: 800, mx: "auto" }}>
@@ -1836,13 +1982,17 @@ const CreateRunTestPage = ({
                     sx={{ mr: 2, width: 24 }}
                   />
                   <Typography typography="m3" fontWeight={"fontWeightBold"}>
-                    Test Configuration
+                    {isVoiceCreateTestCallMode
+                      ? "Test Call Configuration"
+                      : "Test Configuration"}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <Box>
                     <Typography variant="subtitle2" color="text.secondary">
-                      Test Name
+                      {isVoiceCreateTestCallMode
+                        ? "Test Call Name"
+                        : "Test Name"}
                     </Typography>
                     <Typography typography="s1" fontWeight={"fontWeightMedium"}>
                       {formData.testName}
@@ -1850,7 +2000,9 @@ const CreateRunTestPage = ({
                   </Box>
                   <Box>
                     <Typography variant="subtitle2" color="text.secondary">
-                      Agent Definition
+                      {isVoiceCreateTestCallMode
+                        ? "Voice Agent"
+                        : "Agent Definition"}
                     </Typography>
                     <Typography typography="s1" fontWeight={500}>
                       {
@@ -2016,94 +2168,132 @@ const CreateRunTestPage = ({
                     sx={{ mr: 2, width: 24 }}
                   />
                   <Typography typography="m3" fontWeight={"fontWeightBold"}>
-                    Selected Evaluations
+                    {isVoiceCreateTestCallMode
+                      ? "Next Steps"
+                      : "Selected Evaluations"}
                   </Typography>
                 </Box>
                 <Box sx={{ pl: 4 }}>
-                  <Typography typography="s1" fontWeight={500} sx={{ mb: 2 }}>
-                    {evaluationsConfig.length} evaluation(s) selected
-                  </Typography>
-                  <Box
-                    sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
-                  >
-                    {evaluationsConfig.map((evalItem) => (
+                  {isVoiceCreateTestCallMode ? (
+                    <Stack spacing={1.5}>
+                      <Typography typography="s1" fontWeight={500}>
+                        After this test call is created, run it and review the
+                        transcript before adding success criteria.
+                      </Typography>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        flexWrap="wrap"
+                        useFlexGap
+                      >
+                        <Chip
+                          label="Run test call"
+                          size="small"
+                          color="success"
+                        />
+                        <Chip label="Review transcript" size="small" />
+                        <Chip label="Add success criteria" size="small" />
+                        <Chip label="Monitor calls" size="small" />
+                      </Stack>
+                    </Stack>
+                  ) : (
+                    <>
+                      <Typography
+                        typography="s1"
+                        fontWeight={500}
+                        sx={{ mb: 2 }}
+                      >
+                        {`${evaluationsConfig.length} evaluation(s) selected`}
+                      </Typography>
                       <Box
-                        key={evalItem.id}
                         sx={{
-                          p: 1.5,
-                          backgroundColor: "background.default",
-                          borderRadius: 1,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1.5,
                         }}
                       >
-                        <Typography variant="subtitle2" fontWeight={500}>
-                          {evalItem.name}
-                        </Typography>
-                        {evalItem.description && (
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mt: 0.5 }}
+                        {evaluationsConfig.map((evalItem) => (
+                          <Box
+                            key={evalItem.id}
+                            sx={{
+                              p: 1.5,
+                              backgroundColor: "background.default",
+                              borderRadius: 1,
+                            }}
                           >
-                            {evalItem.description}
-                          </Typography>
-                        )}
-                        <Box
-                          sx={{
-                            mt: 1,
-                            display: "flex",
-                            gap: 1,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <ShowComponent condition={!!evalItem?.groupName}>
-                            <Chip
-                              label={`Group name - ${evalItem?.groupName}.`}
-                              size="small"
-                              sx={{
-                                height: "24px",
-                                backgroundColor: "background.neutral",
-                                borderColor: "divider",
-                                fontSize: "11px",
-                                borderRadius: "2px",
-                                paddingX: "12px",
-                                lineHeight: "16px",
-                                fontWeight: 400,
-                                color: "text.primary",
-                                "& .MuiChip-label": {
-                                  padding: 0,
-                                },
-                                ".MuiChip-icon ": {
-                                  marginRight: "6px",
-                                },
-                                "&:hover": {
-                                  backgroundColor: "background.neutral",
-                                  borderColor: "divider",
-                                },
-                              }}
-                              icon={
-                                <SvgColor
-                                  src="/assets/icons/ic_dashed_square.svg"
-                                  sx={{ width: 16, height: 16, mr: 1 }}
-                                  style={{ color: theme.palette.text.primary }}
-                                />
-                              }
-                            />
-                          </ShowComponent>
-                          {evalItem.config?.mapping &&
-                            Object.entries(evalItem.config.mapping).map(
-                              ([key, value]) => (
-                                <Chip
-                                  key={key}
-                                  label={`${key}: ${value}`}
-                                  size="small"
-                                  variant="outlined"
-                                />
-                              ),
+                            <Typography variant="subtitle2" fontWeight={500}>
+                              {evalItem.name}
+                            </Typography>
+                            {evalItem.description && (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 0.5 }}
+                              >
+                                {evalItem.description}
+                              </Typography>
                             )}
-                        </Box>
+                            <Box
+                              sx={{
+                                mt: 1,
+                                display: "flex",
+                                gap: 1,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <ShowComponent condition={!!evalItem?.groupName}>
+                                <Chip
+                                  label={`Group name - ${evalItem?.groupName}.`}
+                                  size="small"
+                                  sx={{
+                                    height: "24px",
+                                    backgroundColor: "background.neutral",
+                                    borderColor: "divider",
+                                    fontSize: "11px",
+                                    borderRadius: "2px",
+                                    paddingX: "12px",
+                                    lineHeight: "16px",
+                                    fontWeight: 400,
+                                    color: "text.primary",
+                                    "& .MuiChip-label": {
+                                      padding: 0,
+                                    },
+                                    ".MuiChip-icon ": {
+                                      marginRight: "6px",
+                                    },
+                                    "&:hover": {
+                                      backgroundColor: "background.neutral",
+                                      borderColor: "divider",
+                                    },
+                                  }}
+                                  icon={
+                                    <SvgColor
+                                      src="/assets/icons/ic_dashed_square.svg"
+                                      sx={{ width: 16, height: 16, mr: 1 }}
+                                      style={{
+                                        color: theme.palette.text.primary,
+                                      }}
+                                    />
+                                  }
+                                />
+                              </ShowComponent>
+                              {evalItem.config?.mapping &&
+                                Object.entries(evalItem.config.mapping).map(
+                                  ([key, value]) => (
+                                    <Chip
+                                      key={key}
+                                      label={`${key}: ${value}`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                  ),
+                                )}
+                            </Box>
+                          </Box>
+                        ))}
                       </Box>
-                    ))}
-                  </Box>
+                    </>
+                  )}
                 </Box>
               </Paper>
             </Box>
@@ -2143,15 +2333,18 @@ const CreateRunTestPage = ({
                 typography="m2"
                 fontWeight={"fontWeightSemiBold"}
               >
-                Run Simulation
+                {isVoiceCreateTestCallMode
+                  ? "Create voice test call"
+                  : "Run Simulation"}
               </Typography>
               <Typography
                 typography="s1"
                 color="text.secondary"
                 fontWeight={"fontWeightRegular"}
               >
-                Create and manage comprehensive tests for your AI agents with
-                scenarios, evaluations, and automated runs.
+                {isVoiceCreateTestCallMode
+                  ? "Create one safe test call. After it finishes, review the transcript and add success criteria."
+                  : "Create and manage comprehensive tests for your AI agents with scenarios, evaluations, and automated runs."}
               </Typography>
             </Box>
 
@@ -2187,6 +2380,30 @@ const CreateRunTestPage = ({
                 pb: 0,
               }}
             >
+              <TestOnboardingFocusPanel
+                currentStep={currentVoiceStepLabel}
+                description="Keep this setup focused: use the selected voice agent, choose one scenario, create the test call, then review the transcript."
+                eyebrow="Voice setup"
+                hidden={!isVoiceCreateTestCallMode}
+                primaryAction={{
+                  label:
+                    activeStep === visibleSteps.length - 1
+                      ? "Create test call"
+                      : "Continue",
+                  onClick:
+                    activeStep === visibleSteps.length - 1
+                      ? handleSubmit
+                      : handleNextStep,
+                  disabled:
+                    activeStep === visibleSteps.length - 1
+                      ? createTestMutation.isPending
+                      : !canProceed(),
+                }}
+                singleActionFocus
+                steps={voiceFocusSteps}
+                title="Create the first voice test call"
+                tourAnchor={voiceParams.tourAnchor}
+              />
               {/* Step Indicator */}
               <Stepper
                 nonLinear
@@ -2194,7 +2411,7 @@ const CreateRunTestPage = ({
                 activeStep={activeStep}
                 connector={<StyledStepConnector />}
               >
-                {steps.map((step, index) => (
+                {visibleSteps.map((step, index) => (
                   <Step key={step.number} completed={completed[index]}>
                     <Box
                       display={"flex"}
@@ -2312,7 +2529,7 @@ const CreateRunTestPage = ({
                 </Button>
 
                 <Box sx={{ display: "flex", gap: 2 }}>
-                  {activeStep === steps.length - 1 ? (
+                  {activeStep === visibleSteps.length - 1 ? (
                     <Button
                       variant="contained"
                       onClick={handleSubmit}
@@ -2330,7 +2547,9 @@ const CreateRunTestPage = ({
                         />
                       }
                     >
-                      {"Run Simulation"}
+                      {isVoiceCreateTestCallMode
+                        ? "Create test call"
+                        : "Run Simulation"}
                     </Button>
                   ) : (
                     <Button

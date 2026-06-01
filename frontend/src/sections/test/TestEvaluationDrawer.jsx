@@ -287,7 +287,7 @@ const TestEvaluationDrawer = ({ executionIds, onSuccessOfAdditionOfEvals }) => {
           }
           onboardingEyebrow={isSuccessCriteriaMode ? "Voice setup" : undefined}
           onboardingRunLabel={
-            isSuccessCriteriaMode ? "Run success criteria" : undefined
+            isSuccessCriteriaMode ? "Check criteria" : undefined
           }
           onboardingSecondaryAddLabel={
             isSuccessCriteriaMode ? "Add another criterion" : undefined

@@ -134,6 +134,26 @@ describe("setup org product-loop quick starts", () => {
     });
   });
 
+  it("shows the full voice test-call loop through monitoring", () => {
+    const voiceQuickStart = SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.find(
+      (option) => option.id === "voice",
+    );
+
+    expect(voiceQuickStart).toMatchObject({
+      buttonLabel: "Connect a voice AI agent",
+      firstActionLabel: "Create voice agent",
+      pathPreview:
+        "Create voice agent, run call, review call, add success criteria, monitor calls.",
+      sequencePreview: [
+        "Create voice agent",
+        "Run call",
+        "Review call",
+        "Add criteria",
+        "Monitor calls",
+      ],
+    });
+  });
+
   it("gives every first setup path a visible sequence preview", () => {
     const firstSetupQuickStarts = SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.filter(
       isSetupOrgFirstSetupQuickStart,
