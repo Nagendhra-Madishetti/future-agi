@@ -168,10 +168,13 @@ describe("NewObserve onboarding setup", () => {
     expect(
       within(guide).getByText("Connect OpenAI, then send one trace"),
     ).toBeVisible();
-    expect(within(guide).getByText("Pick package")).toBeVisible();
-    expect(within(guide).getByText("Paste setup")).toBeVisible();
-    expect(within(guide).getByText("Run package request")).toBeVisible();
-    expect(within(guide).getByText("Review and add evaluator")).toBeVisible();
+    expect(
+      within(guide).getByTestId("observe-package-specific-code-alert"),
+    ).toHaveTextContent("OpenAI Python code selected");
+    expect(within(guide).getByText("Pick SDK package")).toBeVisible();
+    expect(within(guide).getByText("Create keys")).toBeVisible();
+    expect(within(guide).getByText("Run one request")).toBeVisible();
+    expect(within(guide).getByText("Review and create eval")).toBeVisible();
     expect(
       within(guide).getByText("pip install traceAI-openai openai"),
     ).toBeVisible();
@@ -183,6 +186,15 @@ describe("NewObserve onboarding setup", () => {
         "Create a Future AGI API key and secret key before running the snippet.",
       ),
     ).toBeVisible();
+    expect(
+      within(guide).getByLabelText("Copy OpenAI runtime keys"),
+    ).toHaveTextContent('export OPENAI_API_KEY="..."');
+    expect(
+      within(guide).getByLabelText("Copy complete package setup"),
+    ).toHaveTextContent('os.environ.setdefault("OPENAI_API_KEY", "...")');
+    expect(
+      within(guide).getByLabelText("Copy complete package setup"),
+    ).toHaveTextContent("OpenAIInstrumentor");
     const apiKeysLink = within(guide).getByRole("link", {
       name: /Create API key/i,
     });
@@ -376,6 +388,12 @@ describe("NewObserve onboarding setup", () => {
     expect(
       within(guide).getByText("If the Anthropic trace does not arrive"),
     ).toBeVisible();
+    expect(
+      within(guide).getByLabelText("Copy Anthropic runtime keys"),
+    ).toHaveTextContent('export ANTHROPIC_API_KEY="..."');
+    expect(
+      within(guide).getByLabelText("Copy complete package setup"),
+    ).toHaveTextContent('os.environ.setdefault("ANTHROPIC_API_KEY", "...")');
     expect(
       within(guide).getByText(
         "Confirm ANTHROPIC_API_KEY is loaded where the request runs.",

@@ -391,8 +391,8 @@ describe("observeOnboardingRoute", () => {
       getObserveOnboardingCopy(OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE),
     ).toMatchObject({
       currentStep: "First trace",
-      primaryLabel: "Open setup",
-      secondaryLabel: "Refresh traces",
+      primaryLabel: "Refresh traces",
+      secondaryLabel: "Open setup",
       title: "Send the first trace",
     });
     expect(
@@ -449,7 +449,7 @@ describe("observeOnboardingRoute", () => {
     ).toMatchObject({
       currentStep: "Anthropic setup",
       description:
-        "Use the Anthropic TypeScript setup below, run one request, and keep this page open while we wait for the trace.",
+        "Use the Anthropic TypeScript setup below, run one request, and keep this page open while we wait for the trace. After review, the next step is evaluator setup.",
       primaryLabel: "Open Anthropic setup",
       title: "Connect Anthropic TypeScript",
     });
@@ -462,8 +462,9 @@ describe("observeOnboardingRoute", () => {
     ).toMatchObject({
       currentStep: "Anthropic trace",
       description:
-        "Keep this page open, run one Anthropic TypeScript request from your app, and we will open the trace when it appears.",
-      primaryLabel: "Open Anthropic setup",
+        "Keep this page open, run one Anthropic TypeScript request from your app, and we will open the trace when it appears. After review, Home will show evaluator setup.",
+      primaryLabel: "Refresh Anthropic traces",
+      secondaryLabel: "Open Anthropic setup",
       title: "Send the first trace",
     });
 
@@ -475,7 +476,7 @@ describe("observeOnboardingRoute", () => {
       }),
     ).toMatchObject({
       description:
-        "Paste both copied values into the Anthropic TypeScript setup snippet, then run one request.",
+        "Paste both copied values into the Anthropic TypeScript setup snippet, then run one request. After the trace arrives, review it and create an evaluator.",
       primaryLabel: "Run Anthropic request",
     });
   });

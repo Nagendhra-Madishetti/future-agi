@@ -87,11 +87,26 @@ vi.mock("./ObserveTabs", () => ({
 }));
 
 vi.mock("./ObserveOnboardingFocusPanel", () => ({
-  default: ({ currentStep, description, primaryAction, title }) => (
+  default: ({
+    currentStep,
+    description,
+    primaryAction,
+    secondaryAction,
+    title,
+  }) => (
     <div data-testid="observe-focus">
       <div>{currentStep}</div>
       <div>{title}</div>
       <div>{description}</div>
+      {secondaryAction ? (
+        <button
+          disabled={secondaryAction.disabled}
+          onClick={secondaryAction.onClick}
+          type="button"
+        >
+          {secondaryAction.label}
+        </button>
+      ) : null}
       {primaryAction ? (
         <button
           disabled={primaryAction.disabled}
@@ -245,6 +260,9 @@ describe("ObservePage onboarding first-trace handoff", () => {
     expect(screen.getByTestId("observe-focus")).toHaveTextContent(
       "run one Anthropic Python request",
     );
+    expect(
+      screen.getByRole("button", { name: /refresh anthropic traces/i }),
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: /open anthropic setup/i }),
     ).toBeEnabled();

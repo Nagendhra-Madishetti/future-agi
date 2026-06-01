@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
@@ -48,23 +49,28 @@ const normalizeProvider = (provider) => {
   const canonicalValue = PROVIDER_ALIASES[normalizedValue] || normalizedValue;
   return OBSERVE_PACKAGE_OPTIONS.some((option) => option.id === canonicalValue)
     ? canonicalValue
-    : "openai";
+    : null;
 };
 
 const normalizeLanguage = ({ language, provider }) => {
   const selectedPackage =
-    OBSERVE_PACKAGE_OPTIONS.find((option) => option.id === provider) ||
-    OBSERVE_PACKAGE_OPTIONS[0];
+    OBSERVE_PACKAGE_OPTIONS.find((option) => option.id === provider) || null;
   const normalizedLanguage = normalizeSetupValue(language);
+  if (!selectedPackage) {
+    return LANGUAGE_OPTIONS.some((option) => option.id === normalizedLanguage)
+      ? normalizedLanguage
+      : "python";
+  }
   return selectedPackage.languages.includes(normalizedLanguage)
     ? normalizedLanguage
     : selectedPackage.languages[0];
 };
 
 const packageSetupLabel = ({ language, provider }) => {
-  const selectedPackage =
-    OBSERVE_PACKAGE_OPTIONS.find((option) => option.id === provider) ||
-    OBSERVE_PACKAGE_OPTIONS[0];
+  const selectedPackage = OBSERVE_PACKAGE_OPTIONS.find(
+    (option) => option.id === provider,
+  );
+  if (!selectedPackage) return "";
   const languageLabel =
     LANGUAGE_OPTIONS.find((option) => option.id === language)?.label ||
     "Python";
@@ -92,8 +98,7 @@ function ObservePackagePicker({
   provider,
 }) {
   const selectedPackage =
-    OBSERVE_PACKAGE_OPTIONS.find((option) => option.id === provider) ||
-    OBSERVE_PACKAGE_OPTIONS[0];
+    OBSERVE_PACKAGE_OPTIONS.find((option) => option.id === provider) || null;
 
   return (
     <Box
@@ -108,13 +113,18 @@ function ObservePackagePicker({
       <Stack spacing={1}>
         <Stack spacing={0.25}>
           <Typography variant="subtitle2">
-            Which package does your app use?
+            Which package sends model calls?
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            The setup page will open with matching install, request, and trace
-            checks.
+            This decides the install command, package setup code, request
+            example, and trace checks on the setup page.
           </Typography>
         </Stack>
+        {!provider ? (
+          <Alert severity="info" sx={{ borderRadius: 1 }}>
+            Select the SDK package before opening setup.
+          </Alert>
+        ) : null}
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           {OBSERVE_PACKAGE_OPTIONS.map((option) => (
             <Button
@@ -136,7 +146,9 @@ function ObservePackagePicker({
         </Stack>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           {LANGUAGE_OPTIONS.map((option) => {
-            const isDisabled = !selectedPackage.languages.includes(option.id);
+            const isDisabled = selectedPackage
+              ? !selectedPackage.languages.includes(option.id)
+              : false;
             return (
               <Button
                 key={option.id}
@@ -161,7 +173,7 @@ ObservePackagePicker.propTypes = {
   language: PropTypes.string.isRequired,
   onLanguageChange: PropTypes.func.isRequired,
   onProviderChange: PropTypes.func.isRequired,
-  provider: PropTypes.string.isRequired,
+  provider: PropTypes.string,
 };
 
 export default function ObserveSetupPanel({
@@ -198,7 +210,7 @@ export default function ObserveSetupPanel({
     label: action?.title || "Connect your agent",
     description:
       action?.description ||
-      "Choose your package, create an Observe project, and send one trace.",
+      "Choose the package your app uses, create an Observe project, and send one trace.",
     tourAnchor: "observe_create_project_button",
   };
   const shouldShowPackagePicker = stage === "connect_observability";
@@ -218,6 +230,19 @@ export default function ObserveSetupPanel({
 
   const packageAwareAction = useMemo(() => {
     if (!shouldShowPackagePicker || !action?.href) return action;
+    if (!selectedProvider) {
+      return {
+        ...action,
+        blocked: true,
+        blockedReason: "package_required",
+        ctaLabel: "Choose package to continue",
+        description:
+          "Select the SDK package your app uses before opening setup.",
+        href: null,
+        routeAvailable: false,
+        title: "Choose SDK package",
+      };
+    }
     const setupLabel = packageSetupLabel({
       language: selectedLanguage,
       provider: selectedProvider,

@@ -370,7 +370,7 @@ describe("OnboardingHomeView", () => {
     );
   });
 
-  it("renders backend observe journey progress on the setup panel", () => {
+  it("renders backend observe journey progress on the setup panel", async () => {
     mocks.useActivationState.mockReturnValue({
       state: {
         ...normalizedFixture("observeNoSetup"),
@@ -402,6 +402,14 @@ describe("OnboardingHomeView", () => {
     expect(within(currentStep).getByText("Current")).toBeVisible();
     expect(within(panel).getByTestId("current-step-guide")).toHaveTextContent(
       "Create the observe project and prepare the first trace.",
+    );
+    expect(
+      within(panel).getByRole("button", {
+        name: /choose package to continue/i,
+      }),
+    ).toBeDisabled();
+    await userEvent.click(
+      within(panel).getByRole("button", { name: "OpenAI" }),
     );
     const setupUrl = new URL(
       within(panel)
@@ -446,7 +454,7 @@ describe("OnboardingHomeView", () => {
     ).toBeVisible();
     expect(
       within(panel).getByText(
-        "The Observe project exists. Keep this page open, run one Anthropic Python request, and we will open the trace when it appears.",
+        "The Observe project exists. Keep this page open, run one Anthropic Python request, and we will open the trace when it appears. After review, Home will show evaluator setup.",
       ),
     ).toBeVisible();
     expect(
@@ -610,7 +618,7 @@ describe("OnboardingHomeView", () => {
     );
   });
 
-  it("renders the observe setup panel for the observe MVP path", () => {
+  it("renders the observe setup panel for the observe MVP path", async () => {
     mocks.useActivationState.mockReturnValue({
       state: normalizedFixture("observeNoSetup"),
       isLoading: false,
@@ -627,6 +635,14 @@ describe("OnboardingHomeView", () => {
     expect(screen.getAllByText("Connect your agent").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Step 1 of 4").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Open package setup").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("Select the SDK package before opening setup."),
+    ).toBeVisible();
+    await userEvent.click(
+      within(screen.getByTestId("observe-setup-panel")).getByRole("button", {
+        name: "OpenAI",
+      }),
+    );
     expect(
       screen.getByRole("link", { name: /open openai python setup/i }),
     ).toBeVisible();
@@ -1205,6 +1221,16 @@ describe("OnboardingHomeView", () => {
       );
       expect(within(panel).getByText("Later steps")).toBeVisible();
       expect(within(panel).queryByText("Show full path")).toBeNull();
+      if (quickStartPrimaryPath === "observe") {
+        expect(
+          within(panel).getByRole("button", {
+            name: /choose package to continue/i,
+          }),
+        ).toBeDisabled();
+        await userEvent.click(
+          within(panel).getByRole("button", { name: "OpenAI" }),
+        );
+      }
       const primaryLinkName =
         quickStartPrimaryPath === "observe"
           ? /open openai python setup/i

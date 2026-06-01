@@ -709,12 +709,8 @@ const ObservePage = React.memo(() => {
     if (
       observeOnboardingParams.mode === OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE
     ) {
-      navigate(
-        buildObserveSetupHref({
-          setupLanguage: observeOnboardingParams.setupLanguage,
-          setupProvider: observeOnboardingParams.setupProvider,
-        }),
-      );
+      refreshOnboardingFirstTrace();
+      refreshObserveData?.();
       return;
     }
     refreshObserveData?.();
@@ -725,6 +721,7 @@ const ObservePage = React.memo(() => {
     observeOnboardingParams.mode,
     observeOnboardingParams.setupLanguage,
     observeOnboardingParams.setupProvider,
+    refreshOnboardingFirstTrace,
     refreshObserveData,
   ]);
 
@@ -744,13 +741,19 @@ const ObservePage = React.memo(() => {
     if (
       observeOnboardingParams.mode === OBSERVE_ONBOARDING_MODES.SEND_FIRST_TRACE
     ) {
-      refreshOnboardingFirstTrace();
-      refreshObserveData?.();
+      navigate(
+        buildObserveSetupHref({
+          setupLanguage: observeOnboardingParams.setupLanguage,
+          setupProvider: observeOnboardingParams.setupProvider,
+        }),
+      );
     }
   }, [
     firstTraceReviewTarget,
+    navigate,
+    observeOnboardingParams.setupLanguage,
+    observeOnboardingParams.setupProvider,
     observeOnboardingParams.mode,
-    refreshOnboardingFirstTrace,
     refreshObserveData,
   ]);
 

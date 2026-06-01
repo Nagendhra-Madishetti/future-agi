@@ -114,23 +114,23 @@ const apiKeysOnboardingHref = ({
 const FIRST_TRACE_STEPS = [
   {
     id: "package",
-    label: "Pick package",
-    description: "Choose the library that creates the model call.",
+    label: "Pick SDK package",
+    description: "Choose the package that makes the model call in your app.",
   },
   {
     id: "setup",
-    label: "Paste setup",
-    description: "Install the package, load keys, and register the project.",
+    label: "Create keys",
+    description: "Create Future AGI keys and keep your provider key loaded.",
   },
   {
     id: "run",
-    label: "Run package request",
-    description: "Use your app request or the ready-to-run request below.",
+    label: "Run one request",
+    description: "Paste the package code and run one request from that SDK.",
   },
   {
     id: "review",
-    label: "Review and add evaluator",
-    description: "We open the trace, then guide you to create an evaluator.",
+    label: "Review and create eval",
+    description: "We open the trace, then guide you to evaluator setup.",
   },
 ];
 
@@ -165,6 +165,35 @@ const INSTRUMENT_INSTALL_COMMANDS = {
     openai_agents:
       "npm install @traceai/fi-core @traceai/openai-agents @opentelemetry/instrumentation",
   },
+};
+
+const PROVIDER_RUNTIME_KEYS = {
+  anthropic: ["ANTHROPIC_API_KEY"],
+  bedrock: [
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_REGION",
+    "BEDROCK_MODEL_ID",
+  ],
+  langchain: ["OPENAI_API_KEY"],
+  llama_index: ["OPENAI_API_KEY"],
+  mcp: ["OPENAI_API_KEY", "MCP_SERVER_URL", "MCP_SERVER_TOKEN"],
+  openai: ["OPENAI_API_KEY"],
+  openai_agents: ["OPENAI_API_KEY"],
+};
+
+const runtimeKeySetupCode = (instrumentId, language = "bash") => {
+  const keys = PROVIDER_RUNTIME_KEYS[instrumentId] || [];
+  if (!keys.length) return "";
+  if (language === "python") {
+    return keys
+      .map((key) => `os.environ.setdefault("${key}", "...")`)
+      .join("\n");
+  }
+  if (language === "typescript") {
+    return keys.map((key) => `process.env.${key} = "...";`).join("\n");
+  }
+  return keys.map((key) => `export ${key}="..."`).join("\n");
 };
 
 const FALLBACK_INSTRUMENT_SNIPPETS = {
@@ -531,9 +560,11 @@ VerificationAlert.propTypes = {
 
 const FirstTraceSetupGuide = ({
   credentialsCopied,
+  completeSetupCode,
   getCodeBySection,
   instrumentCode,
   instrumentInstallCode,
+  instrumentRuntimeKeyCode,
   instrumentSampleRequestCode,
   instrumentOptions,
   apiKeysHref,
@@ -618,6 +649,24 @@ const FirstTraceSetupGuide = ({
             </CustomTabs>
           </TabWrapper>
         </Stack>
+
+        <Alert
+          severity="info"
+          icon={<Iconify icon="mdi:code-tags" width={20} />}
+          data-testid="observe-package-specific-code-alert"
+          sx={{ alignItems: "flex-start" }}
+        >
+          <Stack spacing={0.25}>
+            <Typography variant="subtitle2">
+              {selectedInstrumentLabel} {selectedLanguageLabel} code selected
+            </Typography>
+            <Typography variant="body2">
+              The install, package setup, request, and trace checks below are
+              for {selectedInstrumentLabel}. Switch the package if your model
+              call uses another SDK.
+            </Typography>
+          </Stack>
+        </Alert>
 
         {instrumentOptions.length ? (
           <Stack spacing={1}>
@@ -713,6 +762,23 @@ const FirstTraceSetupGuide = ({
           ))}
         </Box>
 
+        <Stack spacing={1} sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2">
+            Copy complete {selectedInstrumentLabel} {selectedLanguageLabel}{" "}
+            example
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Use this as a scratch file or adapt the same blocks into your app.
+            It includes Future AGI keys, provider keys, project registration,
+            package setup, and one request.
+          </Typography>
+          <InstructionCodeCopy
+            ariaLabel="Copy complete package setup"
+            text={completeSetupCode}
+            language={selectedInstrumentLanguage}
+          />
+        </Stack>
+
         <Box
           sx={{
             display: "grid",
@@ -739,7 +805,7 @@ const FirstTraceSetupGuide = ({
               justifyContent="space-between"
             >
               <Typography variant="subtitle2">
-                2. Load keys and register project
+                2. Load Future AGI and provider keys
               </Typography>
               <Button
                 size="small"
@@ -770,6 +836,19 @@ const FirstTraceSetupGuide = ({
               text={getCodeBySection("keys")}
               language={languageTab}
             />
+            {instrumentRuntimeKeyCode ? (
+              <>
+                <Typography variant="caption" color="text.secondary">
+                  Also load the {selectedInstrumentLabel} runtime key in the
+                  same shell or process that runs the request.
+                </Typography>
+                <InstructionCodeCopy
+                  ariaLabel={`Copy ${selectedInstrumentLabel} runtime keys`}
+                  text={instrumentRuntimeKeyCode}
+                  language="bash"
+                />
+              </>
+            ) : null}
             <InstructionCodeCopy
               ariaLabel="Copy project registration"
               text={getCodeBySection("projectAddCode")}
@@ -796,8 +875,9 @@ const FirstTraceSetupGuide = ({
             </Typography>
             <Typography variant="caption" color="text.secondary">
               Use this ready-to-run request if you do not have a local request
-              ready. The next screen waits for the trace, opens it, then points
-              you to evaluator setup.
+              ready. Keep this page open after it runs; Future AGI waits for the
+              trace, opens review when it arrives, then points you to evaluator
+              setup.
             </Typography>
             <InstructionCodeCopy
               ariaLabel="Copy package request"
@@ -834,10 +914,12 @@ const FirstTraceSetupGuide = ({
 };
 
 FirstTraceSetupGuide.propTypes = {
+  completeSetupCode: PropTypes.string.isRequired,
   credentialsCopied: PropTypes.bool,
   getCodeBySection: PropTypes.func.isRequired,
   instrumentCode: PropTypes.string.isRequired,
   instrumentInstallCode: PropTypes.string.isRequired,
+  instrumentRuntimeKeyCode: PropTypes.string,
   instrumentSampleRequestCode: PropTypes.string.isRequired,
   instrumentOptions: PropTypes.arrayOf(
     PropTypes.shape({
@@ -986,20 +1068,36 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
   const selectedInstrumentLanguageKey = languageDataKey(
     selectedInstrumentLanguage,
   );
+  const selectedInstrumentCode =
+    selectedInstrument?.[selectedInstrumentLanguageKey]?.code;
   const instrumentCode = cleanCode(
-    selectedInstrument?.[selectedInstrumentLanguageKey]?.code ||
-      getCodeBySection("projectAddCode"),
+    selectedInstrumentCode ||
+      `Package setup code is not available for ${selectedInstrument?.name || "this package"} in ${
+        selectedInstrumentLanguage === "typescript" ? "TypeScript" : "Python"
+      }. Choose another package or language.`,
   );
   const instrumentInstallCode =
     INSTRUMENT_INSTALL_COMMANDS[selectedInstrumentLanguage]?.[
       selectedInstrument?.id
     ] || getCodeBySection("installationGuide");
+  const instrumentRuntimeKeyCode = runtimeKeySetupCode(selectedInstrument?.id);
   const instrumentSampleRequestCode = cleanCode(
     selectedInstrument?.[selectedInstrumentLanguageKey]?.sample_request_code ||
       defaultSampleRequestCode({
         instrumentName: selectedInstrument?.name,
         language: selectedInstrumentLanguage,
       }),
+  );
+  const completeSetupCode = cleanCode(
+    [
+      getCodeBySection("keys"),
+      runtimeKeySetupCode(selectedInstrument?.id, selectedInstrumentLanguage),
+      getCodeBySection("projectAddCode"),
+      instrumentCode,
+      instrumentSampleRequestCode,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
   );
   const apiKeysHref = apiKeysOnboardingHref({
     instrumentId: selectedInstrument?.id,
@@ -1122,10 +1220,12 @@ const NewObserve = ({ setupVerification, showFirstTraceGuide = false }) => {
         <>
           {showFirstTraceGuide ? (
             <FirstTraceSetupGuide
+              completeSetupCode={completeSetupCode}
               credentialsCopied={credentialsCopied}
               getCodeBySection={getCodeBySection}
               instrumentCode={instrumentCode}
               instrumentInstallCode={instrumentInstallCode}
+              instrumentRuntimeKeyCode={instrumentRuntimeKeyCode}
               instrumentSampleRequestCode={instrumentSampleRequestCode}
               instrumentOptions={instrumentOptions}
               apiKeysHref={apiKeysHref}

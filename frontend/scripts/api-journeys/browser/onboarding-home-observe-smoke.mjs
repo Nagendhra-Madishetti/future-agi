@@ -674,17 +674,28 @@ async function main() {
       const firstTraceStepActions = await visibleActionTexts(page, {
         rootSelector: '[data-testid="observe-onboarding-focus"]',
       });
+      const refreshTraceLabel = EXISTING_TRACE
+        ? "Refresh traces"
+        : `Refresh ${SETUP_PACKAGE.providerLabel} traces`;
       assert(
-        firstTraceStepActions.includes("Refresh traces"),
+        firstTraceStepActions.includes(refreshTraceLabel),
         `Expected refresh action to remain available. Actions: ${firstTraceStepActions.join(
           ", ",
         )}`,
       );
+      if (!EXISTING_TRACE) {
+        assert(
+          firstTraceStepActions.includes(
+            `Open ${SETUP_PACKAGE.providerLabel} setup`,
+          ),
+          `Expected setup escape hatch to remain available. Actions: ${firstTraceStepActions.join(
+            ", ",
+          )}`,
+        );
+      }
       assert(
         firstTraceStepActions.at(-1) ===
-          (EXISTING_TRACE
-            ? "Review trace"
-            : `Open ${SETUP_PACKAGE.providerLabel} setup`),
+          (EXISTING_TRACE ? "Review trace" : refreshTraceLabel),
         `Unexpected first-trace primary action. Actions: ${firstTraceStepActions.join(
           ", ",
         )}`,
@@ -752,7 +763,7 @@ async function main() {
           exact: true,
         },
       );
-      await expectVisibleText(page, "2. Load keys and register project", {
+      await expectVisibleText(page, "2. Load Future AGI and provider keys", {
         exact: true,
       });
       await expectVisibleText(
@@ -767,7 +778,7 @@ async function main() {
           exact: true,
         },
       );
-      await expectVisibleText(page, "Review and add evaluator", {
+      await expectVisibleText(page, "Review and create eval", {
         exact: true,
       });
       await expectVisibleText(page, SETUP_PACKAGE.install);

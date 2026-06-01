@@ -48,7 +48,7 @@ const ProjectFtux = ({
         <Box sx={{ height: "10px" }} />
         <Typography fontSize="20px" fontWeight={700} color="text.primary">
           {showObserveOnboarding
-            ? "Send your first trace"
+            ? "Connect your agent"
             : `Welcome to ${isObserve ? "Observe" : "Prototype"}`}
         </Typography>
         <Box sx={{ height: "5px" }} />
@@ -59,7 +59,7 @@ const ProjectFtux = ({
           maxWidth={620}
         >
           {showObserveOnboarding
-            ? "Choose your package, paste the matching setup, then run one request. We will open the trace when it appears."
+            ? "Choose the package your app uses, paste the matching setup, then run one request. We will wait for the trace and move you to evaluator setup after review."
             : "Create a project to experiment on your model"}
         </Typography>
         <Box sx={{ height: "20px" }} />
