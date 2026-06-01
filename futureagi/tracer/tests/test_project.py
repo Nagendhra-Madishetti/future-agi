@@ -759,6 +759,30 @@ class TestProjectSDKCodeAPI:
             "responses.create"
             in data["instruments"]["openai"]["TypeScript"]["sample_request_code"]
         )
+        assert (
+            "ChatOpenAI"
+            in data["instruments"]["langchain"]["Python"]["sample_request_code"]
+        )
+        assert (
+            "Runner.run_sync"
+            in data["instruments"]["openai_agents"]["Python"]["sample_request_code"]
+        )
+        assert (
+            "VectorStoreIndex.from_documents"
+            in data["instruments"]["llama_index"]["Python"]["sample_request_code"]
+        )
+        assert (
+            "client.invoke_model"
+            in data["instruments"]["bedrock"]["Python"]["sample_request_code"]
+        )
+        assert (
+            "MCPServerStreamableHttp"
+            in data["instruments"]["mcp"]["Python"]["sample_request_code"]
+        )
+        assert (
+            "instrument(tracer_provider=trace_provider))"
+            not in data["instruments"]["bedrock"]["Python"]["code"]
+        )
 
     def test_get_sdk_code_invalid_type(self, auth_client):
         """Get SDK code with invalid type fails."""

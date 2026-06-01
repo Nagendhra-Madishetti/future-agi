@@ -84,6 +84,14 @@ INSTRUMENTORS = {
 
 LangChainInstrumentor().instrument(tracer_provider=trace_provider)
 """,
+            "sample_request_code": """from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model="gpt-4.1-mini")
+
+response = llm.invoke("Say hello in one sentence.")
+
+print(response.content)
+""",
         },
     },
     "openai": {
@@ -202,6 +210,39 @@ from traceai_mcp import MCPInstrumentor
 OpenAIAgentsInstrumentor().instrument(tracer_provider=trace_provider)
 MCPInstrumentor().instrument(tracer_provider=trace_provider)
 """,
+            "sample_request_code": """import asyncio
+import os
+
+from agents import Agent, Runner
+from agents.mcp import MCPServerStreamableHttp
+from agents.model_settings import ModelSettings
+
+
+async def main():
+    async with MCPServerStreamableHttp(
+        name="App MCP server",
+        params={
+            "url": os.environ["MCP_SERVER_URL"],
+            "headers": {"Authorization": f"Bearer {os.environ['MCP_SERVER_TOKEN']}"},
+            "timeout": 10,
+        },
+        cache_tools_list=True,
+    ) as server:
+        agent = Agent(
+            name="MCP smoke test",
+            instructions="Use one safe MCP tool and summarize the result.",
+            mcp_servers=[server],
+            model_settings=ModelSettings(tool_choice="required"),
+        )
+        result = await Runner.run(
+            agent,
+            "Call one safe MCP tool and summarize the result.",
+        )
+        print(result.final_output)
+
+
+asyncio.run(main())
+""",
         },
     },
     "bedrock": {
@@ -211,7 +252,35 @@ MCPInstrumentor().instrument(tracer_provider=trace_provider)
             "github": "https://github.com/future-agi/traceAI/tree/main/python/frameworks/bedrock",
             "code": """from traceai_bedrock import BedrockInstrumentor
 
-BedrockInstrumentor().instrument(tracer_provider=trace_provider))
+BedrockInstrumentor().instrument(tracer_provider=trace_provider)
+""",
+            "sample_request_code": """import json
+import os
+
+import boto3
+
+client = boto3.client(
+    "bedrock-runtime",
+    region_name=os.getenv("AWS_REGION", "us-east-1"),
+)
+
+response = client.invoke_model(
+    modelId=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
+    contentType="application/json",
+    accept="application/json",
+    body=json.dumps(
+        {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 256,
+            "messages": [
+                {"role": "user", "content": "Say hello in one sentence."}
+            ],
+        }
+    ),
+)
+
+payload = json.loads(response["body"].read())
+print(payload["content"][0]["text"])
 """,
         },
     },
@@ -290,6 +359,19 @@ LiteLLMInstrumentor().instrument(tracer_provider=trace_provider)
 
 LlamaIndexInstrumentor().instrument(tracer_provider=trace_provider)
 """,
+            "sample_request_code": """from llama_index.core import Document, VectorStoreIndex
+
+documents = [
+    Document(text="Future AGI helps teams observe, evaluate, and improve AI apps.")
+]
+
+index = VectorStoreIndex.from_documents(documents)
+query_engine = index.as_query_engine()
+
+response = query_engine.query("What does Future AGI help teams do?")
+
+print(response)
+""",
         },
     },
     "mistral_ai": {
@@ -355,6 +437,17 @@ OpenAIInstrumentor().instrument(tracer_provider=trace_provider)
             "code": """from traceai_openai_agents import OpenAIAgentsInstrumentor
 
 OpenAIAgentsInstrumentor().instrument(tracer_provider=trace_provider)
+""",
+            "sample_request_code": """from agents import Agent, Runner
+
+agent = Agent(
+    name="First trace agent",
+    instructions="Answer in one sentence.",
+)
+
+result = Runner.run_sync(agent, "Say hello in one sentence.")
+
+print(result.final_output)
 """,
         },
     },

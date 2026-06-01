@@ -82,6 +82,34 @@ const codeBlockWithInstrumentsFixture = {
         sample_request_code: "anthropic ts smoke",
       },
     },
+    bedrock: {
+      name: "Bedrock",
+      Python: {
+        code: "from traceai_bedrock import BedrockInstrumentor",
+        sample_request_code: "bedrock python smoke",
+      },
+    },
+    langchain: {
+      name: "LangChain",
+      Python: {
+        code: "from traceai_langchain import LangChainInstrumentor",
+        sample_request_code: "langchain python smoke",
+      },
+    },
+    llama_index: {
+      name: "LlamaIndex",
+      Python: {
+        code: "from traceai_llamaindex import LlamaIndexInstrumentor",
+        sample_request_code: "llama python smoke",
+      },
+    },
+    mcp: {
+      name: "MCP",
+      Python: {
+        code: "from traceai_mcp import MCPInstrumentor",
+        sample_request_code: "mcp python smoke",
+      },
+    },
     openai: {
       name: "OpenAI",
       Python: {
@@ -91,6 +119,13 @@ const codeBlockWithInstrumentsFixture = {
       TypeScript: {
         code: 'import { OpenAIInstrumentation } from "@traceai/openai";',
         sample_request_code: "openai ts smoke",
+      },
+    },
+    openai_agents: {
+      name: "OpenAI Agents",
+      Python: {
+        code: "from traceai_openai_agents import OpenAIAgentsInstrumentor",
+        sample_request_code: "openai agents python smoke",
       },
     },
   },
@@ -336,4 +371,65 @@ describe("NewObserve onboarding setup", () => {
       ),
     ).toBeVisible();
   });
+
+  it.each([
+    {
+      provider: "langchain",
+      title: "LangChain",
+      install: "pip install traceAI-langchain langchain-openai",
+      smoke: "langchain python smoke",
+    },
+    {
+      provider: "openai_agents",
+      title: "OpenAI Agents",
+      install: "pip install traceAI-openai-agents openai-agents",
+      smoke: "openai agents python smoke",
+    },
+    {
+      provider: "llamaindex",
+      title: "LlamaIndex",
+      install: "pip install traceAI-llamaindex llama-index",
+      smoke: "llama python smoke",
+    },
+    {
+      provider: "bedrock",
+      title: "Bedrock",
+      install: "pip install traceAI-bedrock boto3",
+      smoke: "bedrock python smoke",
+    },
+    {
+      provider: "mcp",
+      title: "MCP",
+      install: "pip install traceAI-mcp traceAI-openai-agents openai-agents",
+      smoke: "mcp python smoke",
+    },
+  ])(
+    "shows package-specific Python smoke setup for $title",
+    ({ install, provider, smoke, title }) => {
+      mocks.useQuery.mockReturnValue({
+        data: codeBlockWithInstrumentsFixture,
+        error: null,
+        isLoading: false,
+        isSuccess: true,
+      });
+
+      renderWithRouter(<NewObserve showFirstTraceGuide />, {
+        route: `/dashboard/observe?setup=true&source=onboarding&provider=${provider}&language=typescript`,
+      });
+
+      const guide = screen.getByTestId("observe-first-trace-guide");
+      expect(within(guide).getByText(`1. Install ${title}`)).toBeVisible();
+      expect(within(guide).getByText(install)).toBeVisible();
+      expect(
+        within(guide).getByText(`4. Run one ${title} request`),
+      ).toBeVisible();
+      expect(within(guide).getByText(smoke)).toBeVisible();
+      expect(
+        within(guide).getByRole("tab", { name: /typescript/i }),
+      ).toBeDisabled();
+      expect(new URLSearchParams(window.location.search).get("language")).toBe(
+        "python",
+      );
+    },
+  );
 });

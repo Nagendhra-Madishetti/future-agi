@@ -54,7 +54,9 @@ const normalizeSetupLanguage = (value) => {
 
 const normalizeInstrumentId = (value) => {
   const normalizedValue = normalizeSetupValue(value);
-  if (normalizedValue === "llama_index") return "llamaindex";
+  if (["llama_index", "llamaindex"].includes(normalizedValue)) {
+    return "llama_index";
+  }
   if (normalizedValue === "openaiagents") return "openai_agents";
   return normalizedValue;
 };
@@ -113,7 +115,7 @@ const SETUP_INSTRUMENT_PRIORITY = [
   "anthropic",
   "langchain",
   "openai_agents",
-  "llamaindex",
+  "llama_index",
   "bedrock",
   "mcp",
 ];
@@ -121,11 +123,12 @@ const SETUP_INSTRUMENT_PRIORITY = [
 const INSTRUMENT_INSTALL_COMMANDS = {
   python: {
     anthropic: "pip install traceAI-anthropic anthropic",
-    bedrock: "pip install traceAI-bedrock",
-    langchain: "pip install traceAI-langchain",
-    mcp: "pip install traceAI-mcp",
+    bedrock: "pip install traceAI-bedrock boto3",
+    langchain: "pip install traceAI-langchain langchain-openai",
+    llama_index: "pip install traceAI-llamaindex llama-index",
+    mcp: "pip install traceAI-mcp traceAI-openai-agents openai-agents",
     openai: "pip install traceAI-openai openai",
-    openai_agents: "pip install traceAI-openai-agents",
+    openai_agents: "pip install traceAI-openai-agents openai-agents",
   },
   typescript: {
     anthropic:
