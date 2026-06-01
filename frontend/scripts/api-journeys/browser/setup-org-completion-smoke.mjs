@@ -98,6 +98,19 @@ const QUICK_STARTS = {
     activationState: pathFocusActivationState,
     primaryPath: "evals",
   },
+  voice: {
+    buttonText: "Connect voice agent",
+    expectedTitleText: "Connect voice agent",
+    expectedActionText: "Create agent",
+    expectedAttribution: {
+      quick_start_goal: "connect_voice_ai_agent",
+      quick_start_id: "voice",
+      quick_start_primary_path: "voice",
+    },
+    expectedGoal: "connect_voice_ai_agent",
+    activationState: pathFocusActivationState,
+    primaryPath: "voice",
+  },
 };
 
 const REQUESTED_QUICK_START = QUICK_STARTS[QUICK_START_KEY];
@@ -200,10 +213,10 @@ async function main() {
     await page.goto(`${APP_BASE}/auth/jwt/setup-org?step=0`, {
       waitUntil: "domcontentloaded",
     });
-    await expectVisibleText(page, "Choose your first workflow");
+    await expectVisibleText(page, "What are you setting up today?");
     await expectVisibleText(
       page,
-      "Pick the workflow closest to your current work. We will open the first action and keep the rest of the steps visible.",
+      "Pick one setup. We will save this choice, open the right screen, and highlight the first action. Sample screens stay preview-only.",
     );
     if (SAMPLE_PREVIEW_GUARD) {
       const samplePreviewVisible = await isVisibleButtonText(
@@ -216,7 +229,7 @@ async function main() {
       );
       await expectVisibleText(
         page,
-        "Sample data remains available after you start.",
+        "Sample screens are still available after setup starts.",
       );
     }
     const quickStartInitiallyVisible = await isVisibleButtonText(
@@ -269,10 +282,14 @@ async function main() {
       });
       await expectVisibleText(
         page,
-        `Start with: ${QUICK_START.expectedActionText}`,
+        `Do first: ${QUICK_START.expectedActionText}`,
       );
-      await expectVisibleText(page, "First action", { exact: true });
-      await expectVisibleText(page, "Next steps", { exact: true });
+      await expectVisibleText(page, "Start with the highlighted action", {
+        exact: true,
+      });
+      await expectVisibleText(page, "Your setup checklist", { exact: true });
+      await expectVisibleText(page, "Start here", { exact: true });
+      await expectVisibleText(page, "What happens next", { exact: true });
       await expectVisibleText(page, "Step 1 of");
       await expectVisibleText(page, QUICK_START.expectedActionText, {
         exact: true,

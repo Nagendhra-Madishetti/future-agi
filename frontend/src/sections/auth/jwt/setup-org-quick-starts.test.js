@@ -66,13 +66,14 @@ describe("setup org product-loop quick starts", () => {
     expect(observeQuickStart.sample).toBeUndefined();
   });
 
-  it("keeps the signup picker to the five first setup paths", () => {
+  it("keeps the signup picker to the first setup paths", () => {
     expect(SETUP_ORG_FIRST_SETUP_QUICK_START_IDS).toEqual([
       "observe",
       "prompt",
       "agent",
       "gateway",
       "evals",
+      "voice",
     ]);
     expect(
       SETUP_ORG_PRODUCT_LOOP_QUICK_STARTS.filter(
@@ -84,6 +85,7 @@ describe("setup org product-loop quick starts", () => {
       "Prototype agent",
       "Set up gateway",
       "Test AI using simulation",
+      "Connect voice agent",
     ]);
   });
 

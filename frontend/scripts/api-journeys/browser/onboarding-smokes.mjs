@@ -75,6 +75,17 @@ const SMOKES = [
     },
   },
   {
+    id: "setup-org-voice-controlled",
+    mode: "controlled",
+    file: "setup-org-completion-smoke.mjs",
+    description:
+      "Stubbed auth proof for setup-org voice quick start into the first voice action.",
+    env: {
+      ONBOARDING_SMOKE_SETUP_QUICK_START: "voice",
+      ONBOARDING_SMOKE_STUB_AUTH: "1",
+    },
+  },
+  {
     id: "onboarding-home-observe-controlled",
     mode: "controlled",
     file: "onboarding-home-observe-smoke.mjs",

@@ -9,6 +9,7 @@ export const SETUP_ORG_FIRST_SETUP_QUICK_START_IDS = [
   "agent",
   "gateway",
   "evals",
+  "voice",
 ];
 
 const goalOptionById = new Map(
