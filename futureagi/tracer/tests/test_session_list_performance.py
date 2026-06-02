@@ -371,4 +371,11 @@ class TestQueryTimeoutBudget:
         query, params = builder.build_span_attributes_query(session_ids)
         assert "LIMIT 500" in query
         assert "parent_span_id IS NULL OR parent_span_id = ''" in query
-        assert "PREWHERE" in query
+        # The committed PREWHERE micro-opt became a WHERE when the query gained
+        # the P3b id-remap LEFT JOIN: ClickHouse PREWHERE cannot reference a
+        # joined column, and the session-id filter now matches the resolved
+        # `ts_remap.survivor_id` (see session_list.build_span_attributes_query).
+        # The query is still bounded by LIMIT 500 + the root-span filter above;
+        # assert the resolved session filter is applied in the WHERE.
+        assert "WHERE" in query
+        assert "IN %(attr_session_ids)s" in query
