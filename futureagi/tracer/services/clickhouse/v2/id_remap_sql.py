@@ -51,7 +51,7 @@ survivor_id``) instead of the raw remap table. The map emits one row per old id
 guarantees ONE row per id — so a span's stored id matches AT MOST ONE map row and
 fan-out is structurally impossible. (The dedup is normally a no-op: old-id space
 ∩ new-id space = ∅, uuid4 vs uuid5. It is load-bearing ONLY for the Session §3.1
-carve-out's identity remap rows ``old_id == new_id`` — see ``_survivor_map_subquery``.)
+carve-out's identity remap rows ``old_id == new_id`` — see ``survivor_map_subquery``.)
 Properties this preserves/gains:
   • Pre-flip, all spans carry old ids; a non-consolidated old maps to ITSELF
     (argMin of a singleton group), so the join is a byte-identical no-op on
@@ -119,7 +119,7 @@ NIL_UUID = "00000000-0000-0000-0000-000000000000"
 REMAP_ALIAS = "id_remap"
 
 
-def _survivor_map_subquery(remap_table: str) -> str:
+def survivor_map_subquery(remap_table: str) -> str:
     """The derived ``(any_id -> survivor_id)`` survivor map for ``remap_table``.
 
     Two arms, UNION ALL'd, then an OUTER ``GROUP BY any_id`` that guarantees one
@@ -192,7 +192,7 @@ def remap_left_join(
     """Return the ``LEFT JOIN (<survivor map>) AS <alias> ON …`` clause that pairs
     with :func:`resolved_id_expr`.
 
-    Joins to the derived survivor map (:func:`_survivor_map_subquery`), NOT the raw
+    Joins to the derived survivor map (:func:`survivor_map_subquery`), NOT the raw
     remap table, so a consolidation group's many old ids + shared new id all map to
     ONE survivor and a post-flip span can match AT MOST ONE map row — eliminating
     the gate-C2 fan-out (see module docstring). ``remap_table`` is unqualified
@@ -201,9 +201,14 @@ def remap_left_join(
     dev/test/prod switch — same DB-agnostic rule as the schema files.
     """
     return (
-        f"LEFT JOIN ({_survivor_map_subquery(remap_table)}) AS {remap_alias} "
+        f"LEFT JOIN ({survivor_map_subquery(remap_table)}) AS {remap_alias} "
         f"ON {span_id_col} = {remap_alias}.any_id"
     )
 
 
-__all__ = ["REMAP_ALIAS", "resolved_id_expr", "remap_left_join"]
+__all__ = [
+    "REMAP_ALIAS",
+    "resolved_id_expr",
+    "remap_left_join",
+    "survivor_map_subquery",
+]

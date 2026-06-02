@@ -275,25 +275,29 @@ class CHSpanReader:
     ) -> dict[str, str]:
         """Map ``{input trace_session_id (str) -> canonical (old) id (str)}``.
 
-        P3b step1.5 (DESIGN §3 / id_remap_sql): the remap is keyed
-        ``old_id -> new_id``; the resolve direction is new→old. So a caller id
-        that is a NEW (deterministic) id maps to its ``old_id`` (the still-primary
-        curated key); an OLD id (or any id absent from the map) maps to ITSELF.
-        Used by per-session-map readers to re-key their result by every caller
-        input id (mirrors ``end_user_dict_reader`` keeping the caller's input id).
-        Pre-flip the map has no row whose ``new_id`` is one of these ids, so every
-        id maps to itself (a no-op).
+        P3b step1.5 (DESIGN §3 / id_remap_sql): resolve each caller id to its
+        consolidation group's **survivor** via the SAME survivor map the span side
+        uses (``survivor_map_subquery``), so the input side can never disagree with
+        the span side. A NEW (deterministic) id, a NON-survivor old id of a
+        many-old→one-new group, and the survivor itself ALL map to the survivor;
+        an id absent from the map (1:1 / net-new) maps to ITSELF. (The earlier
+        ``new_id -> old_id`` last-wins dict picked an ARBITRARY old for a
+        consolidation group, contradicting the span-side survivor and dropping the
+        session.) Pre-flip every id maps to itself (gate-B no-op).
         """
+        from tracer.services.clickhouse.v2.id_remap_sql import survivor_map_subquery
+
         ids = {str(s) for s in session_ids if s}
         if not ids:
             return {}
         rows = self._client.query(
-            "SELECT toString(new_id) AS new_id, toString(old_id) AS old_id "
-            "FROM trace_session_id_remap FINAL WHERE new_id IN %(ids)s",
+            "SELECT toString(any_id) AS any_id, toString(survivor_id) AS survivor_id "
+            f"FROM ({survivor_map_subquery('trace_session_id_remap')}) "
+            "WHERE any_id IN %(ids)s",
             parameters={"ids": tuple(ids)},
         ).result_rows
-        new_to_old = {str(n): str(o) for (n, o) in rows}
-        return {i: new_to_old.get(i, i) for i in ids}
+        id_to_survivor = {str(a): str(s) for (a, s) in rows}
+        return {i: id_to_survivor.get(i, i) for i in ids}
 
     @staticmethod
     def _session_filter_remap() -> tuple[str, str]:

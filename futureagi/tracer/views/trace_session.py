@@ -91,29 +91,34 @@ session_logger = structlog.get_logger(__name__)
 def _resolve_session_ids_to_canonical(analytics, session_ids):
     """Map ``{input trace_session_id (str) -> canonical (old) id (str)}``.
 
-    P3b step1.5 (DESIGN §3 / id_remap_sql): the ``trace_session_id_remap`` table
-    is keyed ``old_id -> new_id``; the resolve direction is new→old. A caller id
-    that is a NEW (deterministic) id maps to its ``old_id`` (the still-primary
-    curated key); an OLD id (or any id absent from the map) maps to ITSELF. Used
-    by the per-session label re-key so a bare-browse straddler row keyed by either
-    the old OR the new id resolves to the unified session. Pre-flip the map has no
-    row whose ``new_id`` is one of these ids, so every id maps to itself (no-op).
+    P3b step1.5 (DESIGN §3 / id_remap_sql): resolve each caller id to its
+    consolidation group's **survivor** via the SAME survivor map the span side
+    uses (``survivor_map_subquery``), so the input side never disagrees with the
+    span side. A NEW (deterministic) id, a NON-survivor old id of a many-old→one-new
+    group, and the survivor itself ALL map to the survivor; an id absent from the
+    map (1:1 / net-new) maps to ITSELF. (The earlier ``new_id -> old_id`` last-wins
+    dict picked an ARBITRARY old for a consolidation group, contradicting the
+    span-side survivor and dropping the session.) Pre-flip every id maps to itself
+    (gate-B no-op).
     """
+    from tracer.services.clickhouse.v2.id_remap_sql import survivor_map_subquery
+
     ids = {str(s) for s in (session_ids or []) if s}
     if not ids:
         return {}
     q = (
-        "SELECT toString(new_id) AS new_id, toString(old_id) AS old_id "
-        "FROM trace_session_id_remap FINAL WHERE new_id IN %(ids)s"
+        "SELECT toString(any_id) AS any_id, toString(survivor_id) AS survivor_id "
+        f"FROM ({survivor_map_subquery('trace_session_id_remap')}) "
+        "WHERE any_id IN %(ids)s"
     )
     res = analytics.execute_ch_query(q, {"ids": tuple(ids)}, timeout_ms=5000)
-    new_to_old = {}
+    id_to_survivor = {}
     for row in res.data or []:
         if isinstance(row, dict):
-            new_to_old[str(row.get("new_id"))] = str(row.get("old_id"))
+            id_to_survivor[str(row.get("any_id"))] = str(row.get("survivor_id"))
         else:
-            new_to_old[str(row[0])] = str(row[1])
-    return {i: new_to_old.get(i, i) for i in ids}
+            id_to_survivor[str(row[0])] = str(row[1])
+    return {i: id_to_survivor.get(i, i) for i in ids}
 
 
 def _get_request_organization(request):
