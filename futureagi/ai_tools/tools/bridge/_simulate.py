@@ -12,14 +12,17 @@ hand-written tools, so MCP and the UI share one source of truth:
 from ai_tools.drf_bridge import expose_to_mcp
 from simulate.views.run_test import (
     CallExecutionDetailView,
+    CreateRunTestView,
     CSVExportView,
     RunTestAnalyticsView,
     RunTestDetailView,
     RunTestEvalExplanationSummaryView,
+    RunTestExecutionView,
     RunTestListView,
     TestExecutionOptimiserAnalysisView,
+    TestExecutionStatusView,
 )
-from simulate.views.scenarios import ScenarioDetailView
+from simulate.views.scenarios import CreateScenarioView, ScenarioDetailView
 
 # get_eval_explanation_summary -> RunTestEvalExplanationSummaryView.get(request,
 # test_execution_id): the AI-generated cluster analysis of a test execution's
@@ -239,3 +242,103 @@ expose_to_mcp(
         }
     },
 )(TestExecutionOptimiserAnalysisView)
+
+# ---------------------------------------------------------------------------
+# Simulation WRITE lifecycle — previously you could LIST/cancel a test
+# execution but had no way to CREATE or RUN one via MCP, so the whole simulate
+# happy-path (build a scenario -> create a run test -> run it -> poll) was
+# unreachable. These bridge the existing DRF write APIViews (no custom tools);
+# the request body is auto-derived from each view's @validated_request
+# request_serializer, so the agent gets the real field contract.
+# ---------------------------------------------------------------------------
+
+# create_scenario -> CreateScenarioView.post (ScenarioCreateRequestSerializer):
+# create a scenario (a set of simulation test cases) of kind dataset/script/
+# graph. Creation runs async (returns 202 + the new scenario id with PROCESSING
+# status). The scenario id feeds create_run_test's scenario_ids.
+expose_to_mcp(
+    category="simulation",
+    tools={
+        "create": {
+            "name": "create_scenario",
+            "entity": "scenario",
+            "description": (
+                "Create a scenario (a set of simulation test cases) for an agent. "
+                "'kind' is 'dataset' (copy cases from a dataset), 'script', or "
+                "'graph'. Creation runs asynchronously and returns the new scenario "
+                "id with a PROCESSING status — poll get_scenario until it is ready. "
+                "Use the scenario id in create_run_test's scenario_ids."
+            ),
+        }
+    },
+)(CreateScenarioView)
+
+# create_run_test -> CreateRunTestView.post (CreateRunTestSerializer): create a
+# run test (saved simulation suite) for an agent. Requires name +
+# agent_definition_id + scenario_ids; optionally attach eval configs. Returns
+# the new run_test_id (the keystone id for execute_run_test / the analytics
+# tools).
+expose_to_mcp(
+    category="simulation",
+    tools={
+        "create": {
+            "name": "create_run_test",
+            "entity": "run test",
+            "description": (
+                "Create a run test (a saved simulation suite) for an agent. Provide "
+                "name, agent_definition_id (from list_agents) and scenario_ids "
+                "(from list_scenarios / create_scenario). Optionally attach "
+                "evaluations via eval_config_ids or evaluations_config. Returns the "
+                "new run_test_id — then start it with execute_run_test."
+            ),
+        }
+    },
+)(CreateRunTestView)
+
+# execute_run_test -> RunTestExecutionView.post(request, run_test_id)
+# (ExecuteRunTestSerializer): start running a run test's scenarios against the
+# agent, creating a test execution. Detail POST — the id routes to run_test_id;
+# optional scenario_ids body limits it to a subset. Returns execution_id +
+# status; poll with get_test_execution_status.
+expose_to_mcp(
+    category="simulation",
+    tools={
+        "execute": {
+            "name": "execute_run_test",
+            "method": "POST",
+            "detail": True,
+            "pk_kwarg": "run_test_id",
+            "id_source": "list_run_tests",
+            "entity": "run test",
+            "description": (
+                "Start executing a run test — runs its scenarios against the agent "
+                "and creates a test execution. Provide the run_test_id (from "
+                "list_run_tests / create_run_test). Optionally pass scenario_ids to "
+                "run only a subset. Returns the execution_id and initial status; "
+                "poll progress with get_test_execution_status."
+            ),
+        }
+    },
+)(RunTestExecutionView)
+
+# get_test_execution_status -> TestExecutionStatusView.get(request, run_test_id):
+# live status/progress of a run test's current execution (overall status +
+# per-scenario/call progress). Detail GET keyed by run_test_id. Use to poll
+# after execute_run_test.
+expose_to_mcp(
+    category="simulation",
+    tools={
+        "retrieve": {
+            "name": "get_test_execution_status",
+            "pk_kwarg": "run_test_id",
+            "id_source": "list_run_tests",
+            "entity": "run test",
+            "description": (
+                "Get the live execution status and progress of a run test's current "
+                "test execution — overall status plus per-scenario/call progress. "
+                "Provide the run_test_id (from list_run_tests). Use this to poll "
+                "after calling execute_run_test."
+            ),
+        }
+    },
+)(TestExecutionStatusView)

@@ -550,7 +550,7 @@ def _extract_serializer_from_validated_request(action_method):
 
 
 def _get_action_serializer(
-    viewset_cls, action_name: str, serializer_override: str = None
+    viewset_cls, action_name: str, serializer_override: str = None, method: str = None
 ):
     """Find the serializer for an action.
 
@@ -561,6 +561,12 @@ def _get_action_serializer(
       3. Closure inspection of @validated_request — pulls the
          SerializerMetaclass from the wrapper's free variables.
       4. Fall back to viewset.serializer_class.
+
+    For APIViews the handler is named by HTTP verb (`.post`/`.get`), not by
+    action (`create`/`list`), so when no action-named attribute exists we fall
+    back to the verb handler (via `method`) for steps 2–3 — otherwise a
+    write APIView's request_serializer is never found and the tool gets 0
+    params.
     """
     if serializer_override:
         module_path = viewset_cls.__module__.rsplit(".", 1)[0]
@@ -588,6 +594,11 @@ def _get_action_serializer(
                     continue
 
     action_method = getattr(viewset_cls, action_name, None)
+    if action_method is None and method:
+        # APIView: no attribute named after the action (create/list/execute);
+        # the real handler is the verb method (.post/.get/.put). Use it so the
+        # @validated_request / @swagger_auto_schema request serializer resolves.
+        action_method = getattr(viewset_cls, method.lower(), None)
     if action_method:
         swagger_data = getattr(action_method, "_swagger_auto_schema", None)
         if isinstance(swagger_data, dict):
@@ -841,7 +852,7 @@ def _register_bridge_tool(
         )
     else:
         serializer_cls = _get_action_serializer(
-            viewset_cls, action_name, serializer_override
+            viewset_cls, action_name, serializer_override, method=method
         )
         if serializer_cls:
             input_model = _serializer_to_pydantic(
