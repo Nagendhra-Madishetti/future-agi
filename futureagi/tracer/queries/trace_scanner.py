@@ -223,9 +223,18 @@ def write_scan_results(
 
     for result in results:
         try:
-            # Serialize dataclasses to JSON-safe dicts for JSONField storage
+            # Serialize dataclasses to JSON-safe dicts for JSONField storage.
+            # role/span/status/is_failure are the deterministic span
+            # attribution that lets the FE render a grounded breadcrumb.
             key_moments = [
-                {"kevinified": km.kevinified, "verbatim": km.verbatim}
+                {
+                    "kevinified": km.kevinified,
+                    "verbatim": km.verbatim,
+                    "role": km.role,
+                    "span": km.span,
+                    "status": km.status,
+                    "is_failure": km.is_failure,
+                }
                 for km in result.key_moments
             ]
             meta = {

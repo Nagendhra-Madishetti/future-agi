@@ -159,29 +159,23 @@ class KeyMoment:
 class PatternInsight:
     """One effect-size insight card in the Overview Pattern Summary grid.
 
-    Sentence-first, not number-first. The card answers "what's distinct about
-    these failures vs working runs, in plain words a non-statistician can act
-    on":
+    Wire shape matches the final designer UI (``OverviewTab`` → PatternSummary):
 
-    - ``headline`` — the behaviour in plain language ("The agent never used
-      escalate_to_human"). Verb-led, names the thing, agent as subject.
-    - ``detail``   — the human-unit contrast ("available in all 20, called in
-      none"). Always %/seconds/counts, never z/p/lift/"baseline".
-    - ``kind``     — drives the FE kicker + icon (tool_usage | speed | tokens |
-      missing_step | recurring_flag | shared_topic | regression | related).
-    - ``direction``— more | less | slower | faster | missing | new | cooccur;
-      FE color/arrow.
-    - ``evidence`` — tooltip-only rigor (test name, p-value, lift, sample
-      sizes, baseline definition). NEVER rendered in the card text.
+    - ``title``   — small uppercase kicker ("Common failure phrase").
+    - ``value``   — the punchy metric ("17 / 38", "82%", "~12.4s").
+    - ``caption`` — one human sentence; the key term wrapped in ``**bold**``
+      markers, which the FE ``renderRichCaption`` renders bold. Never contains
+      z/p/lift/test-name — the stat machinery is the gate, not the message.
 
-    ``effect`` is the effect-size magnitude the adaptive picker ranks by; it is
-    not serialized to the wire.
+    ``effect`` is the normalized effect-size the adaptive picker ranks by (not
+    serialized). ``evidence`` carries the stat rigor (test, z/p, lift, sample
+    sizes) for a future hover tooltip — the current FE card has no tooltip, so
+    it is unused for now but kept so the rigor isn't thrown away.
     """
 
-    kind: str
-    headline: str
-    detail: str
-    direction: str
+    title: str
+    value: str
+    caption: str
     effect: float = 0.0
     evidence: dict = field(default_factory=dict)
 

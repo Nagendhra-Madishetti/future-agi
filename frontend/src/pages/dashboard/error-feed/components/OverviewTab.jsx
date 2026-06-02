@@ -1951,12 +1951,13 @@ function TraceEvidence({ evidence, trace, traceId, workingTraceId }) {
   // Use the real reels when they carry rich per-step fields (role/span/
   // status/note); otherwise fall back to the mock-matching stub so the
   // breadcrumb shows the full designed experience until BE enriches steps.
-  const hasRich = (reel) =>
-    reel.some((s) => s && (s.span || s.spanPointer || s.status || s.isFailure));
+  // Prefer real evidence whenever we have any — rich (new, span-attributed)
+  // OR plain (old scans, kevinified-only). Only fall back to the design stub
+  // when there's genuinely no evidence, so we never fabricate a breadcrumb.
   const rawFail = evidence.failReel || [];
   const rawPass = evidence.passReel || [];
-  const failReel = hasRich(rawFail) ? rawFail : STUB_FAIL_REEL;
-  const passReel = hasRich(rawPass) ? rawPass : STUB_PASS_REEL;
+  const failReel = rawFail.length ? rawFail : STUB_FAIL_REEL;
+  const passReel = rawPass.length ? rawPass : STUB_PASS_REEL;
   const hasPassing = passReel.length > 0;
 
   const steps = activeReel === "fail" ? failReel : passReel;

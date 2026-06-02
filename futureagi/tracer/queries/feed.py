@@ -1031,10 +1031,9 @@ def _insight_distinctive_topic(
     fail_pct = round(100 * hits / total)
     base_pct = round(100 * base_hits / len(base_texts))
     return PatternInsight(
-        kind="shared_topic",
-        headline=f'These mostly involve "{term}"',
-        detail=f"{fail_pct}% of these vs {base_pct}% of working runs",
-        direction="more",
+        title="Shared input topic",
+        value=f"{fail_pct}%",
+        caption=f'share topic **"{term}"** · vs {base_pct}% of working runs',
         effect=min(1.0, float(z) / 10.0),
         evidence={
             "test": "log-odds w/ Dirichlet prior (Monroe)",
@@ -1078,10 +1077,9 @@ def _insight_brief_phrase(cluster_id: str, project_id: str) -> PatternInsight | 
     if hits < 2:
         return None
     return PatternInsight(
-        kind="recurring_flag",
-        headline=f'Scans keep flagging "{term}"',
-        detail=f"in {hits} of {total} findings here, rare elsewhere",
-        direction="more",
+        title="Common failure phrase",
+        value=f"{hits} / {total}",
+        caption=f'scans flag **"{term}"** · rare in other clusters',
         effect=min(1.0, float(z) / 10.0),
         evidence={
             "test": "log-odds w/ Dirichlet prior (Monroe)",
@@ -1137,22 +1135,20 @@ def _insight_distribution_shift(
     }
     if metric == "latency":
         fs, bs = fail_med / 1000.0, base_med / 1000.0
-        detail = f"~{fs:.1f}s typical vs ~{bs:.1f}s on working runs"
+        caption = f"vs **~{bs:.1f}s** on working runs"
         if fs >= 10:
-            detail += " — likely timing out"
+            caption += " · likely timing out"
         return PatternInsight(
-            kind="speed",
-            headline="These run slow",
-            detail=detail,
-            direction="slower",
+            title="Latency shift",
+            value=f"~{fs:.1f}s",
+            caption=caption,
             effect=min(1.0, (ratio - 1.0) / 4.0),
             evidence=evidence,
         )
     return PatternInsight(
-        kind="tokens",
-        headline="These burn far more tokens",
-        detail=f"~{_kfmt(fail_med)} vs ~{_kfmt(base_med)} tokens per run",
-        direction="more",
+        title="Token usage",
+        value=f"~{_kfmt(fail_med)}",
+        caption=f"vs **~{_kfmt(base_med)}** tokens on working runs",
         effect=min(1.0, (ratio - 1.0) / 4.0),
         evidence=evidence,
     )
@@ -1185,19 +1181,13 @@ def _insight_missing_tool(trace_ids: list[str]) -> PatternInsight | None:
         return None
     never = top_n == traces_with_tools
     if never:
-        headline = f"The agent never used `{top_tool}`"
-        detail = (
-            f"available in all {traces_with_tools}, called in none "
-            "— could be the missing step"
-        )
+        caption = f"never called **{top_tool}** — could be the missing step"
     else:
-        headline = f"The agent skips the `{top_tool}` tool"
-        detail = f"available but unused in {top_n} of {traces_with_tools}"
+        caption = f"skipped **{top_tool}** in these runs"
     return PatternInsight(
-        kind="missing_step",
-        headline=headline,
-        detail=detail,
-        direction="missing",
+        title="Missing step",
+        value=f"{top_n} / {traces_with_tools}",
+        caption=caption,
         effect=top_n / traces_with_tools,
         evidence={
             "tool": top_tool,
@@ -1407,27 +1397,78 @@ def _highlight_text(text: str, terms: list[str], hl: str) -> object:
     return segments
 
 
+def _attribute_old_key_moments(key_moments: list, trace_id: str) -> list:
+    """Reconstruct span attribution for old scans whose stored key_moments
+    predate it. Deterministic (no LLM): re-match the stored quotes against the
+    trace's live spans. Hybrid fast-path — new scans already carry ``role`` and
+    never reach here. Returns the moments unchanged if EE/spans are unavailable.
+    """
+    try:
+        from ee.agenthub.trace_scanner.compress import attribute_key_moments
+        from tracer.queries.trace_scanner import fetch_trace_data
+    except ImportError:  # OSS — no scanner; keep flat fallback.
+        return key_moments
+    traces = fetch_trace_data([trace_id])
+    if not traces:
+        return key_moments
+    trace_dict = traces[0].to_dict()
+    quotes = [(km.get("kevinified") or km.get("verbatim") or "") for km in key_moments]
+    attribution = attribute_key_moments(quotes, trace_dict)
+    return [
+        {**km, **attr} if not km.get("role") else km
+        for km, attr in zip(key_moments, attribution)
+    ]
+
+
 def _key_moments_to_reel(
     key_moments: list | None,
     highlight_terms: list[str] | None = None,
     hl: str = "error",
+    trace_id: str | None = None,
 ) -> list[dict]:
     """
     Map TraceScanResult.key_moments to ReelStep dicts the frontend renders.
 
-    Frontend ReelStep shape: { label: str, text: str | List[{t, hl?}], meta }.
-    When ``highlight_terms`` is provided, matching substrings inside each
-    step's text are wrapped as rich-text segments so the UI can paint them.
+    Frontend ReelStep shape: { label, text, span, status, isFailure, raw, meta }.
+    New scans carry deterministic span attribution (role/span/status/
+    is_failure) → a rich, grounded breadcrumb row. Old scans (no ``role``) are
+    enriched at runtime from the live span tree when ``trace_id`` is given;
+    only if that's unavailable do we emit the plain flat row (label
+    "EVIDENCE"). Either way the FE renders genuine data, never the stub.
+
+    Displayed ``text`` is the kevinified excerpt (readable); ``raw`` is the
+    exact verbatim for the expand-to-raw view.
     """
+    moments = list(key_moments or [])
+    # Hybrid: runtime-reconstruct attribution for old scans only (new scans
+    # already have role → zero overhead, no span re-fetch).
+    if trace_id and any(km and not km.get("role") for km in moments):
+        moments = _attribute_old_key_moments(moments, trace_id)
+
     steps: list[dict] = []
-    for km in key_moments or []:
+    for km in moments:
         verbatim = (km.get("verbatim") or "").strip()
         kevinified = (km.get("kevinified") or "").strip()
         if not verbatim and not kevinified:
             continue
-        raw_text = verbatim or kevinified
-        text = _highlight_text(raw_text, highlight_terms or [], hl)
-        steps.append({"label": "EVIDENCE", "text": text, "meta": None})
+        display = kevinified or verbatim
+        text = _highlight_text(display, highlight_terms or [], hl)
+        role = (km.get("role") or "").strip()
+        if role:
+            steps.append(
+                {
+                    "label": role,
+                    "text": text,
+                    "span": km.get("span") or None,
+                    "status": km.get("status") or "ok",
+                    "isFailure": bool(km.get("is_failure")),
+                    "raw": verbatim or display,
+                    "meta": None,
+                }
+            )
+        else:
+            # Old scan (no attribution) — real flat evidence, not the stub.
+            steps.append({"label": "EVIDENCE", "text": text, "meta": None})
     return steps
 
 
@@ -1493,6 +1534,7 @@ def _build_representative_trace(
             scan_result.key_moments,
             highlight_terms=highlight_terms or [],
             hl="error",
+            trace_id=str(trace.id),
         )
 
     return RepresentativeTrace(
@@ -1557,7 +1599,9 @@ def _fetch_success_trace_pass_reel(cluster_id: str) -> list[dict]:
         TraceScanResult.objects.filter(trace_id=success.id).only("key_moments").first()
     )
     if scan_result:
-        steps.extend(_key_moments_to_reel(scan_result.key_moments))
+        steps.extend(
+            _key_moments_to_reel(scan_result.key_moments, trace_id=str(success.id))
+        )
 
     # 3. Final successful output
     if output_text:

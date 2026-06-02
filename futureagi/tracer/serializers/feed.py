@@ -180,11 +180,11 @@ class KeyMomentSerializer(serializers.Serializer):
 
 
 class PatternInsightSerializer(serializers.Serializer):
-    kind = serializers.CharField()
-    headline = serializers.CharField()
-    detail = serializers.CharField(allow_blank=True)
-    direction = serializers.CharField()
-    # Tooltip-only stat rigor (test name, p-value, lift, sample sizes).
+    title = serializers.CharField()
+    value = serializers.CharField()
+    # Caption supports **bold** markers, rendered by the FE renderRichCaption.
+    caption = serializers.CharField(allow_blank=True)
+    # Stat rigor for a future hover tooltip (test, z/p, lift, sample sizes).
     evidence = serializers.DictField(required=False)
 
 
