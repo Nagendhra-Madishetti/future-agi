@@ -60,7 +60,7 @@ jobs:
       EE_REPO_READ_TOKEN: ${{ secrets.EE_REPO_READ_TOKEN || secrets.ORG_READ_TOKEN }}
       EE_REPO_BRANCH: ${{ github.head_ref || github.ref_name }}
       EE_BASE_REF: ${{ github.base_ref || github.ref_name || 'dev' }}
-      SDK_REPO_READ_TOKEN: ${{ secrets.SDK_REPO_READ_TOKEN || secrets.ORG_READ_TOKEN || github.token }}
+      SDK_REPO_READ_TOKEN: ${{ secrets.SDK_REPO_READ_TOKEN || '' }}
       SDK_REF_INPUT: ${{ github.event.inputs['sdk-ref'] || '' }}
       SDK_HEAD_REF: ${{ github.head_ref || github.ref_name }}
       SDK_BASE_REF: ${{ github.base_ref || github.ref_name }}
@@ -70,12 +70,11 @@ jobs:
 
       - name: Validate repository access tokens
         run: |
-          if [ -z "${SDK_REPO_READ_TOKEN}" ]; then
-            echo "::error::SDK_REPO_READ_TOKEN, ORG_READ_TOKEN, or GITHUB_TOKEN is required to checkout SDK compatibility repositories."
-            exit 1
-          fi
           if [ -z "${EE_REPO_READ_TOKEN}" ]; then
             echo "::notice::EE_REPO_READ_TOKEN or ORG_READ_TOKEN is not configured; generating the OSS OpenAPI contract only."
+          fi
+          if [ -z "${SDK_REPO_READ_TOKEN}" ]; then
+            echo "::notice::SDK_REPO_READ_TOKEN is not configured; using public access for SDK compatibility repositories."
           fi
 
       - name: Checkout EE package when available
@@ -149,13 +148,17 @@ jobs:
       - name: Resolve SDK ref
         id: resolve-sdk-ref
         run: |
-          AUTH_HEADER="$(printf 'x-access-token:%s' "${SDK_REPO_READ_TOKEN}" | base64 | tr -d '\n')"
+          SDK_AUTH_ARGS=()
+          if [ -n "${SDK_REPO_READ_TOKEN}" ]; then
+            AUTH_HEADER="$(printf 'x-access-token:%s' "${SDK_REPO_READ_TOKEN}" | base64 | tr -d '\n')"
+            SDK_AUTH_ARGS=(-c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${AUTH_HEADER}")
+          fi
           SDK_REPO_URL="https://github.com/future-agi/futureagi-sdk.git"
           for candidate in "${SDK_REF_INPUT}" "${SDK_HEAD_REF}" "${SDK_BASE_REF}" main; do
             if [ -z "${candidate}" ]; then
               continue
             fi
-            if git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${AUTH_HEADER}" \
+            if git "${SDK_AUTH_ARGS[@]}" \
               ls-remote --exit-code --heads --tags "${SDK_REPO_URL}" "${candidate}" >/dev/null 2>&1; then
               echo "sdk-ref=${candidate}" >> "$GITHUB_OUTPUT"
               echo "Using futureagi-sdk ref ${candidate}"
@@ -176,7 +179,7 @@ jobs:
           repository: future-agi/futureagi-sdk
           ref: ${{ steps.resolve-sdk-ref.outputs.sdk-ref }}
           path: futureagi-sdk
-          token: ${{ env.SDK_REPO_READ_TOKEN }}
+          token: ${{ env.SDK_REPO_READ_TOKEN || github.token }}
           persist-credentials: false
           fetch-depth: 1
 
@@ -185,7 +188,7 @@ jobs:
         with:
           repository: future-agi/futureagi-sdk-test-harness
           path: futureagi-sdk-test-harness
-          token: ${{ env.SDK_REPO_READ_TOKEN }}
+          token: ${{ env.SDK_REPO_READ_TOKEN || github.token }}
           persist-credentials: false
           fetch-depth: 1
 
