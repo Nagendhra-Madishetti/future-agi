@@ -13,9 +13,9 @@ from django.utils import timezone
 from rest_framework import status
 
 from accounts.models.workspace import Workspace
+from model_hub.models.ai_model import AIModel
 from model_hub.models.choices import AnnotationTypeChoices, FeedbackSourceChoices
 from model_hub.models.develop_annotations import AnnotationsLabels
-from model_hub.models.ai_model import AIModel
 from model_hub.models.evals_metric import Feedback
 from tracer.models.observation_span import ObservationSpan
 from tracer.models.project import Project
@@ -71,7 +71,13 @@ def make_same_org_other_workspace_span(organization, user, trace_type="observe")
         latency_ms=250,
         status="OK",
     )
-    return other_workspace, other_project, other_project_version, other_trace, other_span
+    return (
+        other_workspace,
+        other_project,
+        other_project_version,
+        other_trace,
+        other_span,
+    )
 
 
 @pytest.mark.integration
@@ -82,7 +88,10 @@ class TestObservationSpanRetrieveAPI:
     def test_retrieve_span_unauthenticated(self, api_client, observation_span):
         """Unauthenticated requests should be rejected."""
         response = api_client.get(f"/tracer/observation-span/{observation_span.id}/")
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_retrieve_span_success(self, auth_client, observation_span):
         """Retrieve an observation span by ID."""
@@ -188,10 +197,8 @@ class TestObservationSpanWorkspaceScopeAPI:
     def test_list_and_index_reject_same_org_other_workspace_project_version(
         self, auth_client, organization, user
     ):
-        _, _, other_project_version, _, other_span = (
-            make_same_org_other_workspace_span(
-                organization, user, trace_type="experiment"
-            )
+        _, _, other_project_version, _, other_span = make_same_org_other_workspace_span(
+            organization, user, trace_type="experiment"
         )
 
         list_response = auth_client.get(
@@ -285,7 +292,10 @@ class TestObservationSpanCreateAPI:
             },
             format="json",
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_create_span_success(self, auth_client, project, trace):
         """Create a new observation span."""
@@ -416,7 +426,10 @@ class TestObservationSpanBulkCreateAPI:
             },
             format="json",
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_bulk_create_spans_success(self, auth_client, project, trace):
         """Bulk create multiple observation spans."""
@@ -486,7 +499,10 @@ class TestObservationSpanListSpansAPI:
             "/tracer/observation-span/list_spans/",
             {"project_version_id": str(project_version.id)},
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_list_spans_missing_project_version(self, auth_client):
         """List spans fails without project version ID."""
@@ -583,12 +599,47 @@ class TestObservationSpanListSpansObserveAPI:
             "/tracer/observation-span/list_spans_observe/",
             {"project_id": str(observe_project.id)},
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
-    def test_list_spans_observe_missing_project(self, auth_client):
-        """List spans observe fails without project ID."""
+    def test_list_spans_observe_org_scoped(
+        self, auth_client, observe_project, trace_session, session_trace
+    ):
+        """Without project_id the endpoint is org-scoped (cross-project user
+        detail page) and must succeed — the org-wide CH query executes."""
+        ObservationSpan.objects.create(
+            id=f"span_{uuid.uuid4().hex[:8]}",
+            project=observe_project,
+            trace=session_trace,
+            name="Org Span",
+            observation_type="llm",
+            start_time=timezone.now() - timedelta(seconds=5),
+            end_time=timezone.now(),
+        )
         response = auth_client.get("/tracer/observation-span/list_spans_observe/")
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_list_spans_observe_invalid_project_id(self, auth_client):
+        """A non-existent project_id is a clean 400, not a generic 500."""
+        response = auth_client.get(
+            "/tracer/observation-span/list_spans_observe/",
+            {"project_id": str(uuid.uuid4())},
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_list_spans_observe_org_scoped_user_filter(
+        self, auth_client, observe_project, trace_session, session_trace
+    ):
+        """Org-scoped + user_id filter resolves via the CH end_users path and
+        the org-wide query executes (200). Unknown users resolve to an empty
+        set rather than erroring (CH net-new-user behaviour)."""
+        response = auth_client.get(
+            "/tracer/observation-span/list_spans_observe/",
+            {"user_id": "anybody@example.com"},
+        )
+        assert response.status_code == status.HTTP_200_OK
 
     def test_list_spans_observe_success(
         self, auth_client, observe_project, trace_session, session_trace
@@ -628,7 +679,10 @@ class TestObservationSpanSubmitFeedbackAPI:
             },
             format="json",
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_submit_feedback_success(self, auth_client, observation_span):
         """Submit feedback for an observation span."""
@@ -701,7 +755,10 @@ class TestObservationSpanGraphMethodsAPI:
             {"project_id": str(project.id)},
             format="json",
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_get_graph_methods_missing_project(self, auth_client):
         """Get graph methods fails without project ID."""
@@ -738,7 +795,10 @@ class TestObservationSpanGetFieldsAPI:
         response = api_client.get(
             "/tracer/observation-span/get_observation_span_fields/"
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_get_fields_success(self, auth_client):
         """Get available observation span fields."""
@@ -766,7 +826,10 @@ class TestObservationSpanAddAnnotationsAPI:
             },
             format="json",
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_add_annotations_success(
         self, auth_client, observation_span, project_version
@@ -822,7 +885,10 @@ class TestObservationSpanExportAPI:
             "/tracer/observation-span/get_spans_export_data/",
             {"project_version_id": str(project_version.id)},
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_export_spans_missing_project_version(self, auth_client):
         """Export spans fails without project version ID."""
@@ -861,7 +927,10 @@ class TestObservationSpanCreateOtelSpanAPI:
             },
             format="json",
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_create_otel_span_success(self, auth_client, project, trace):
         """Create an OTEL-format observation span."""
@@ -893,9 +962,7 @@ class TestObservationSpanCreateOtelSpanAPI:
         self, auth_client, observe_project, organization, user
     ):
         """OTEL create must not attach spans to an existing trace from another project."""
-        _, _, _, other_trace, _ = make_same_org_other_workspace_span(
-            organization, user
-        )
+        _, _, _, other_trace, _ = make_same_org_other_workspace_span(organization, user)
         span_id = f"otel_cross_workspace_{uuid.uuid4().hex[:8]}"
         now_ns = int(timezone.now().timestamp() * 1_000_000_000)
 
@@ -981,7 +1048,10 @@ class TestObservationSpanRetrieveLoadingAPI:
             "/tracer/observation-span/retrieve_loading/",
             {"span_id": observation_span.id},
         )
-        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
 
     def test_retrieve_loading_missing_span_id(self, auth_client):
         """Retrieve loading fails without span ID."""
@@ -996,3 +1066,44 @@ class TestObservationSpanRetrieveLoadingAPI:
         )
         # Accept 200 or 400
         assert response.status_code in [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST]
+
+
+@pytest.mark.unit
+class TestSpanListQueryBuilderOrgScope:
+    """Unit tests for org-scoped (project_ids) span queries.
+
+    Org-scoped span listing (no project_id → all org projects) relies on the
+    builder scoping by ``project_id IN (...)`` instead of a single equality.
+    These assert the generated SQL/params switch correctly — deterministic and
+    independent of ClickHouse (the integration tests above prove the queries
+    execute end-to-end against the test CH).
+    """
+
+    def _builder(self, **kw):
+        from tracer.services.clickhouse.query_builders import SpanListQueryBuilder
+
+        return SpanListQueryBuilder(page_number=0, page_size=30, **kw)
+
+    def test_single_project_uses_equality(self):
+        pid = str(uuid.uuid4())
+        b = self._builder(project_id=pid)
+        query, params = b.build()
+        assert "project_id = %(project_id)s" in query
+        assert "project_id IN" not in query
+        assert params["project_id"] == pid
+
+    def test_org_scope_uses_in_clause(self):
+        pids = [str(uuid.uuid4()), str(uuid.uuid4())]
+        b = self._builder(project_ids=pids)
+        query, params = b.build()
+        assert "project_id IN %(project_ids)s" in query
+        assert "project_id = %(project_id)s" not in query
+        assert set(params["project_ids"]) == set(pids)
+
+    def test_org_scope_content_query_uses_in_clause(self):
+        pids = [str(uuid.uuid4())]
+        b = self._builder(project_ids=pids)
+        b.build()  # populate params (start/end date, etc.)
+        cq, cparams = b.build_content_query([f"span_{uuid.uuid4().hex[:8]}"])
+        assert "project_id IN %(project_ids)s" in cq
+        assert "project_id = %(project_id)s" not in cq
