@@ -23,7 +23,6 @@ const PRODUCT_VIEW_TARGETS = [
   path.join(repoRoot, "futureagi", "accounts", "views"),
   path.join(repoRoot, "futureagi", "agent_playground", "views"),
   path.join(repoRoot, "futureagi", "agentcc", "views"),
-  path.join(repoRoot, "futureagi", "ee", "usage", "views"),
   path.join(repoRoot, "futureagi", "integrations", "views"),
   path.join(repoRoot, "futureagi", "mcp_server", "views"),
   path.join(repoRoot, "futureagi", "model_hub", "views"),
@@ -32,7 +31,6 @@ const PRODUCT_VIEW_TARGETS = [
   path.join(repoRoot, "futureagi", "tfc", "views"),
   path.join(repoRoot, "futureagi", "tracer", "views"),
   path.join(repoRoot, "futureagi", "ai_tools", "views.py"),
-  path.join(repoRoot, "futureagi", "ee", "falcon_ai", "views.py"),
   path.join(repoRoot, "futureagi", "saml2_auth", "views.py"),
 ].filter((target) => fs.existsSync(target));
 const HTTP_DECORATOR_RE =
