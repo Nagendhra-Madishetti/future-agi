@@ -1226,12 +1226,13 @@ ComposeArea.propTypes = {
   onSubmit: PropTypes.func,
 };
 
-// Default starter suggestions shown before the user asks their first
-// follow-up. Tuned to the cluster-analysis context.
+// Fallback "Try asking" set — used only when the agent's run returned no
+// grounded suggestions. Cluster-agnostic but honest (no invented specifics);
+// the agent's own suggested_questions replace these whenever present.
 const STARTER_SUGGESTIONS = [
-  "Why did this start happening?",
-  "How do I roll back to v23?",
-  "Show me an unaffected call",
+  "Show me a failing trace",
+  "What changed before this started?",
+  "How do I verify the fix?",
 ];
 
 // ── Main AnalyzeTab ───────────────────────────────────────────────────────

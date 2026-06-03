@@ -293,6 +293,9 @@ export async function startRun({ clusterId, projectId, token, workspaceId }) {
     }
 
     if (type === "rca_synthesis") {
+      const suggestions = Array.isArray(data.suggested_questions)
+        ? data.suggested_questions.filter(Boolean)
+        : [];
       patchThread(clusterId, (t) => ({
         ...t,
         messages: [
@@ -305,6 +308,11 @@ export async function startRun({ clusterId, projectId, token, workspaceId }) {
             confidence: data.confidence,
             category: CONF_CATEGORY[data.confidence] ?? "",
           },
+          // The agent's grounded "Try asking" set — the compose area reads the
+          // latest suggestions message. Omitted when the agent returned none.
+          ...(suggestions.length
+            ? [{ id: `sug-${Date.now()}`, type: "suggestions", items: suggestions }]
+            : []),
         ],
       }));
       return;
