@@ -581,6 +581,15 @@ class GetAPICallLogView(APIView):
 
             config = json.loads(log_row.config)
             error_localizer = config.get("error_localizer", {})
+            # The playground initially writes ``error_localizer: True`` as a
+            # flag and the worker overwrites it with the analysis dict once EL
+            # completes. If the FE polls inside the race window between
+            # task.status flipping to "completed" and the config patch
+            # landing, we'd otherwise leak the boolean to the FE as
+            # ``error_details: true``. Normalize the flag-shape to an empty
+            # dict so the fallback below picks up ``task.error_analysis``.
+            if not isinstance(error_localizer, dict):
+                error_localizer = {}
             # Look up the ErrorLocalizerTask keyed by this log_id so the
             # frontend can distinguish "still running" from "never started"
             # and from "completed". The task row is populated by
