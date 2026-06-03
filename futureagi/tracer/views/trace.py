@@ -6332,8 +6332,6 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             return self._gm.bad_request("Failed to compute agent graph")
 
 
-# Column order for the Users CSV export. Shared by `_stream_users_csv` so the
-# header line stays in lockstep with row cells.
 USERS_EXPORT_COLUMNS = [
     ("User ID", "user_id"),
     ("User ID Type", "user_id_type"),
@@ -6363,13 +6361,6 @@ def _format_users_export_cell(value):
 
 
 def _stream_users_csv(rows, project_id):
-    """Build a StreamingHttpResponse that yields the Users CSV row-by-row.
-
-    Streaming (instead of HttpResponse) keeps Python memory flat and avoids
-    the 60s LB idle timeout on large exports — the LB sees bytes as soon as
-    the header row is written.
-    """
-
     def generate():
         buffer = io.StringIO()
         writer = csv.writer(buffer)
@@ -6404,9 +6395,7 @@ class UsersView(APIView):
     @validated_request(
         query_serializer=UsersQuerySerializer,
         responses={200: UsersResponseSerializer, **ERROR_RESPONSES},
-        # `export=true` returns a streamed text/csv body instead of the
-        # JSON UsersResponse shape — declare both so the runtime response
-        # validator (and the generated frontend contract) accepts either.
+        # `export=true` returns text/csv; list returns JSON.
         produces=["application/json", "text/csv"],
     )
     def get(self, request, *args, **kwargs):
@@ -6435,9 +6424,6 @@ class UsersView(APIView):
                 page_size = 10
                 current_page = 0
 
-            # Export ignores pagination — fetch every matching row. The CH
-            # builder and PG fallback both short-circuit LIMIT/OFFSET when
-            # these are None.
             if export:
                 limit = None
                 offset = None
@@ -6488,9 +6474,6 @@ class UsersView(APIView):
             count = formatted["total_count"]
 
             if export:
-                # Export skips per-user span-attribute enrichment (only base
-                # columns are exported) and returns a streamed CSV instead of
-                # JSON. Matches PR #664's contract.
                 return _stream_users_csv(output, project_id)
 
             # Enrich with aggregated span attributes from ClickHouse

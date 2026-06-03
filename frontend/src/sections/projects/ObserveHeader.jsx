@@ -226,8 +226,6 @@ const ObserveHeader = ({
         url = endpoints.project.projectSessionListExport;
         filters = filterSession;
       } else if (text === "Users") {
-        // Users export rides the existing list endpoint with ?export=true.
-        // The backend (UsersView.get) branches on this flag and streams CSV.
         url = endpoints.project.getUsersList();
         filters = filterUsers;
         extraParams.export = true;

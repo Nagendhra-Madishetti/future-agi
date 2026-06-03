@@ -1,11 +1,3 @@
-"""End-to-end tests for the Users CSV export.
-
-The export is served by the same endpoint as the list view
-(`/tracer/users/`) gated by `?export=true`. These tests exercise the export
-branch in `UsersView.get`, the streaming CSV writer, and the ClickHouse →
-Postgres fallback contract.
-"""
-
 import csv
 import io
 import json
@@ -79,9 +71,7 @@ def _create_user_activity(organization, workspace, observe_project, *, suffix=""
     return end_user, session, trace, span
 
 
-# Header order is the contract the frontend (and external consumers of the
-# CSV) rely on. Duplicated here intentionally — if the view changes the
-# column order this test will catch it.
+# Header order is the frontend contract; if the view drifts, these tests catch it.
 _EXPECTED_HEADER = [
     "User ID",
     "User ID Type",
@@ -103,10 +93,8 @@ _EXPECTED_HEADER = [
 
 
 def _parse_csv(response):
-    """Drain a StreamingHttpResponse and return its parsed CSV rows."""
     body = b"".join(response.streaming_content).decode("utf-8")
-    reader = csv.reader(io.StringIO(body))
-    return list(reader)
+    return list(csv.reader(io.StringIO(body)))
 
 
 class TestUsersExport:
@@ -121,8 +109,6 @@ class TestUsersExport:
             span.start_time + timedelta(hours=1),
         )
 
-        # Force the CH path to fail so the PG fallback handles the export end
-        # to end. Keeps this test runnable without a live ClickHouse.
         with (
             patch.object(
                 AnalyticsQueryService,
@@ -152,9 +138,7 @@ class TestUsersExport:
         rows = _parse_csv(response)
         assert rows[0] == _EXPECTED_HEADER
         data_rows = [r for r in rows[1:] if r]
-        assert any(r[0] == end_user.user_id for r in data_rows)
         target = next(r for r in data_rows if r[0] == end_user.user_id)
-        # User ID Type, Total Tokens, Input/Output, num_traces filled correctly
         assert target[1] == "email"
         assert target[_EXPECTED_HEADER.index("Total Tokens")] == "18"
         assert target[_EXPECTED_HEADER.index("Input Tokens")] == "11"
@@ -174,9 +158,6 @@ class TestUsersExport:
     def test_export_ignores_pagination_params(
         self, auth_client, organization, workspace, observe_project
     ):
-        # Three users in the same date window — without `export=true` only the
-        # first page (size=1) would be returned. With `export=true` we expect
-        # every row regardless of page_size / current_page_index.
         users = []
         for i in range(3):
             eu, _, _, span = _create_user_activity(
@@ -206,8 +187,6 @@ class TestUsersExport:
                     "project_id": str(observe_project.id),
                     "filters": json.dumps(filters),
                     "export": "true",
-                    # These pagination params must be ignored on the export
-                    # branch.
                     "page_size": 1,
                     "current_page_index": 2,
                 },
@@ -215,15 +194,13 @@ class TestUsersExport:
 
         assert response.status_code == status.HTTP_200_OK
         rows = _parse_csv(response)
-        data_rows = [r for r in rows[1:] if r]
-        emitted_user_ids = {r[0] for r in data_rows}
+        emitted_user_ids = {r[0] for r in rows[1:] if r}
         for eu, _ in users:
             assert eu.user_id in emitted_user_ids
 
     def test_export_skips_pagination_in_builder_kwargs(
         self, auth_client, organization, workspace, observe_project
     ):
-        """The CH builder must be constructed with limit/offset = None."""
         _, _, _, span = _create_user_activity(organization, workspace, observe_project)
         filters = _date_filters(
             span.start_time - timedelta(hours=1),
@@ -261,7 +238,6 @@ class TestUsersExport:
             )
 
         assert response.status_code == status.HTTP_200_OK
-        # Builder should have been constructed once with limit=None, offset=None.
         builder_cls.assert_called_once()
         kwargs = builder_cls.call_args.kwargs
         assert kwargs["limit"] is None
@@ -271,7 +247,6 @@ class TestUsersExport:
     def test_export_formats_none_cells_as_empty(
         self, auth_client, organization, workspace, observe_project
     ):
-        """Cells with None values must render as empty, not the string 'None'."""
         end_user = EndUser.objects.create(
             organization=organization,
             workspace=workspace,
@@ -280,7 +255,6 @@ class TestUsersExport:
             user_id_type="email",
             user_id_hash="no-activity-hash",
         )
-        # No spans for this user — last_active should be empty in the CSV.
         _, _, _, span = _create_user_activity(
             organization, workspace, observe_project, suffix="active"
         )
@@ -312,10 +286,6 @@ class TestUsersExport:
 
         rows = _parse_csv(response)
         idle_row = next((r for r in rows[1:] if r and r[0] == end_user.user_id), None)
-        # The idle user has no spans in the date range so the PG path won't
-        # surface them at all (filtered_spans contract). This assertion just
-        # guards against the row, if present, leaking the literal "None"
-        # for last_active.
         if idle_row is not None:
             assert idle_row[_EXPECTED_HEADER.index("Last Active")] != "None"
 
@@ -344,8 +314,6 @@ class TestUsersExport:
 
 
 class TestUserListQueryBuilderUnpaginated:
-    """Drop the `count() OVER()` window when no pagination is requested."""
-
     def test_unpaginated_query_omits_window_count(self):
         from tracer.services.clickhouse.query_builders.user_list import (
             UserListQueryBuilder,

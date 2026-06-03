@@ -265,8 +265,7 @@ const UsersView = ({
     useUsersStore.setState({ filters: finalFilters });
   }, [finalFilters]);
 
-  // Wire the header (refresh + export). Lives below finalFilters so the
-  // export button picks up the current filter set.
+  // Must live after finalFilters so the export button sees the current filter set.
   useEffect(() => {
     setHeaderConfig((prev) => ({
       ...prev,

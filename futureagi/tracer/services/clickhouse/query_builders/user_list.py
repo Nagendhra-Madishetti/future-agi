@@ -134,9 +134,7 @@ class UserListQueryBuilder(BaseQueryBuilder):
         order_by = self._order_by()
         paginated = self.limit is not None and self.offset is not None
         pagination = "LIMIT %(limit)s OFFSET %(offset)s" if paginated else ""
-        # The total_count window is only needed for the paginated list view's
-        # total_pages calc. For unpaginated exports it forces CH to materialize
-        # a worktable for nothing — emit a constant 0 instead.
+        # Skip the window count for unpaginated exports — avoids materializing a worktable.
         total_count_select = (
             "count() OVER() AS total_count" if paginated else "0 AS total_count"
         )
