@@ -2,16 +2,14 @@ import csv
 import io
 import json
 import uuid
-from datetime import timedelta
-from unittest.mock import patch
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.utils import timezone
 from rest_framework import status
 
-from tracer.models.observation_span import EndUser, ObservationSpan
-from tracer.models.trace import Trace
-from tracer.models.trace_session import TraceSession
+from tracer.models.observation_span import EndUser
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
 
 pytestmark = [pytest.mark.integration, pytest.mark.api]
@@ -30,45 +28,56 @@ def _date_filters(start, end):
     ]
 
 
-def _create_user_activity(organization, workspace, observe_project, *, suffix=""):
-    end_user = EndUser.objects.create(
-        organization=organization,
-        workspace=workspace,
-        project=observe_project,
-        user_id=f"export-{suffix or uuid.uuid4().hex[:8]}@example.com",
-        user_id_type="email",
-        user_id_hash=f"export-hash-{suffix}",
-    )
-    session = TraceSession.objects.create(
-        project=observe_project,
-        name=f"Export Session {suffix}",
-    )
-    trace = Trace.objects.create(
-        project=observe_project,
-        session=session,
-        name=f"Export Trace {suffix}",
-        input={"message": "hello"},
-        output={"message": "world"},
-    )
-    start = timezone.now() - timedelta(hours=2)
-    span = ObservationSpan.objects.create(
-        id=f"export_span_{uuid.uuid4().hex[:16]}",
-        project=observe_project,
-        trace=trace,
-        end_user=end_user,
-        name="Export LLM Span",
-        observation_type="llm",
-        start_time=start,
-        end_time=start + timedelta(seconds=3),
-        latency_ms=300,
-        prompt_tokens=11,
-        completion_tokens=7,
-        total_tokens=18,
-        cost=0.123456,
-        status="OK",
-        span_attributes={"plan": "pro"},
-    )
-    return end_user, session, trace, span
+def _ch_stub(rows):
+    return MagicMock(data=rows)
+
+
+def _row(
+    *,
+    user_id,
+    user_id_type="email",
+    user_id_hash="hash",
+    activated_at=None,
+    last_active=None,
+    num_traces=1,
+    num_sessions=1,
+    avg_session_duration=3.0,
+    total_tokens=18,
+    total_cost=0.123456,
+    avg_trace_latency=300.0,
+    num_llm_calls=1,
+    num_guardrails_triggered=0,
+    bool_eval_pass_rate=0.0,
+    input_tokens=11,
+    output_tokens=7,
+    project_id=None,
+    end_user_id=None,
+    total_count=1,
+):
+    return {
+        "user_id": user_id,
+        "user_id_type": user_id_type,
+        "user_id_hash": user_id_hash,
+        "activated_at": activated_at or datetime.utcnow(),
+        "last_active": last_active,
+        "num_traces": num_traces,
+        "num_sessions": num_sessions,
+        "avg_session_duration": avg_session_duration,
+        "total_tokens": total_tokens,
+        "total_cost": total_cost,
+        "avg_trace_latency": avg_trace_latency,
+        "num_llm_calls": num_llm_calls,
+        "num_guardrails_triggered": num_guardrails_triggered,
+        "bool_eval_pass_rate": bool_eval_pass_rate,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "project_id": project_id or uuid.uuid4(),
+        "end_user_id": end_user_id or uuid.uuid4(),
+        "num_active_days": 1,
+        "num_traces_with_errors": 0,
+        "avg_output_float": 0.0,
+        "total_count": total_count,
+    }
 
 
 # Header order is the frontend contract; if the view drifts, these tests catch it.
@@ -98,27 +107,29 @@ def _parse_csv(response):
 
 
 class TestUsersExport:
-    def test_export_streams_csv_with_correct_headers_via_pg_fallback(
+    def test_export_streams_csv_with_correct_headers(
         self, auth_client, organization, workspace, observe_project
     ):
-        end_user, _, _, span = _create_user_activity(
-            organization, workspace, observe_project
-        )
-        filters = _date_filters(
-            span.start_time - timedelta(hours=1),
-            span.start_time + timedelta(hours=1),
-        )
+        user_id = "export-happy@example.com"
+        now = timezone.now()
+        filters = _date_filters(now - timedelta(hours=1), now + timedelta(hours=1))
+        rows = [
+            _row(
+                user_id=user_id,
+                total_tokens=18,
+                input_tokens=11,
+                output_tokens=7,
+                num_traces=1,
+                last_active=now,
+                project_id=observe_project.id,
+            )
+        ]
 
         with (
             patch.object(
                 AnalyticsQueryService,
-                "should_use_clickhouse",
-                return_value=True,
-            ),
-            patch.object(
-                AnalyticsQueryService,
                 "execute_ch_query",
-                side_effect=Exception("clickhouse unavailable"),
+                return_value=_ch_stub(rows),
             ),
         ):
             response = auth_client.get(
@@ -135,11 +146,11 @@ class TestUsersExport:
         assert "attachment;" in response["Content-Disposition"]
         assert f"users_{observe_project.id}_" in response["Content-Disposition"]
 
-        rows = _parse_csv(response)
-        assert rows[0] == _EXPECTED_HEADER
-        data_rows = [r for r in rows[1:] if r]
-        target = next(r for r in data_rows if r[0] == end_user.user_id)
-        assert target[1] == "email"
+        csv_rows = _parse_csv(response)
+        assert csv_rows[0] == _EXPECTED_HEADER
+        data_rows = [r for r in csv_rows[1:] if r]
+        target = next(r for r in data_rows if r[0] == user_id)
+        assert target[_EXPECTED_HEADER.index("User ID Type")] == "email"
         assert target[_EXPECTED_HEADER.index("Total Tokens")] == "18"
         assert target[_EXPECTED_HEADER.index("Input Tokens")] == "11"
         assert target[_EXPECTED_HEADER.index("Output Tokens")] == "7"
@@ -158,27 +169,16 @@ class TestUsersExport:
     def test_export_ignores_pagination_params(
         self, auth_client, organization, workspace, observe_project
     ):
-        users = []
-        for i in range(3):
-            eu, _, _, span = _create_user_activity(
-                organization, workspace, observe_project, suffix=str(i)
-            )
-            users.append((eu, span))
-        filters = _date_filters(
-            users[0][1].start_time - timedelta(hours=1),
-            users[0][1].start_time + timedelta(hours=1),
-        )
+        now = timezone.now()
+        filters = _date_filters(now - timedelta(hours=1), now + timedelta(hours=1))
+        user_ids = [f"export-page-{i}@example.com" for i in range(3)]
+        rows = [_row(user_id=uid, project_id=observe_project.id) for uid in user_ids]
 
         with (
             patch.object(
                 AnalyticsQueryService,
-                "should_use_clickhouse",
-                return_value=True,
-            ),
-            patch.object(
-                AnalyticsQueryService,
                 "execute_ch_query",
-                side_effect=Exception("clickhouse unavailable"),
+                return_value=_ch_stub(rows),
             ),
         ):
             response = auth_client.get(
@@ -193,26 +193,18 @@ class TestUsersExport:
             )
 
         assert response.status_code == status.HTTP_200_OK
-        rows = _parse_csv(response)
-        emitted_user_ids = {r[0] for r in rows[1:] if r}
-        for eu, _ in users:
-            assert eu.user_id in emitted_user_ids
+        csv_rows = _parse_csv(response)
+        emitted = {r[0] for r in csv_rows[1:] if r}
+        for uid in user_ids:
+            assert uid in emitted
 
     def test_export_skips_pagination_in_builder_kwargs(
         self, auth_client, organization, workspace, observe_project
     ):
-        _, _, _, span = _create_user_activity(organization, workspace, observe_project)
-        filters = _date_filters(
-            span.start_time - timedelta(hours=1),
-            span.start_time + timedelta(hours=1),
-        )
+        now = timezone.now()
+        filters = _date_filters(now - timedelta(hours=1), now + timedelta(hours=1))
 
         with (
-            patch.object(
-                AnalyticsQueryService,
-                "should_use_clickhouse",
-                return_value=True,
-            ),
             patch(
                 "tracer.views.trace.UserListQueryBuilder",
                 wraps=__import__(
@@ -223,7 +215,7 @@ class TestUsersExport:
             patch.object(
                 AnalyticsQueryService,
                 "execute_ch_query",
-                side_effect=Exception("force fallback"),
+                return_value=_ch_stub([]),
             ),
         ):
             response = auth_client.get(
@@ -247,32 +239,21 @@ class TestUsersExport:
     def test_export_formats_none_cells_as_empty(
         self, auth_client, organization, workspace, observe_project
     ):
-        end_user = EndUser.objects.create(
-            organization=organization,
-            workspace=workspace,
-            project=observe_project,
-            user_id="no-activity@example.com",
-            user_id_type="email",
-            user_id_hash="no-activity-hash",
-        )
-        _, _, _, span = _create_user_activity(
-            organization, workspace, observe_project, suffix="active"
-        )
-        filters = _date_filters(
-            span.start_time - timedelta(hours=1),
-            span.start_time + timedelta(hours=1),
-        )
+        now = timezone.now()
+        filters = _date_filters(now - timedelta(hours=1), now + timedelta(hours=1))
+        rows = [
+            _row(
+                user_id="export-idle@example.com",
+                last_active=None,
+                project_id=observe_project.id,
+            )
+        ]
 
         with (
             patch.object(
                 AnalyticsQueryService,
-                "should_use_clickhouse",
-                return_value=True,
-            ),
-            patch.object(
-                AnalyticsQueryService,
                 "execute_ch_query",
-                side_effect=Exception("force fallback"),
+                return_value=_ch_stub(rows),
             ),
         ):
             response = auth_client.get(
@@ -284,10 +265,9 @@ class TestUsersExport:
                 },
             )
 
-        rows = _parse_csv(response)
-        idle_row = next((r for r in rows[1:] if r and r[0] == end_user.user_id), None)
-        if idle_row is not None:
-            assert idle_row[_EXPECTED_HEADER.index("Last Active")] != "None"
+        csv_rows = _parse_csv(response)
+        data_row = next(r for r in csv_rows[1:] if r)
+        assert data_row[_EXPECTED_HEADER.index("Last Active")] == ""
 
     def test_export_filename_defaults_to_all_when_no_project(
         self, auth_client, organization, workspace, observe_project
@@ -295,13 +275,8 @@ class TestUsersExport:
         with (
             patch.object(
                 AnalyticsQueryService,
-                "should_use_clickhouse",
-                return_value=True,
-            ),
-            patch.object(
-                AnalyticsQueryService,
                 "execute_ch_query",
-                side_effect=Exception("force fallback"),
+                return_value=_ch_stub([]),
             ),
         ):
             response = auth_client.get(
@@ -321,8 +296,7 @@ class TestUserListQueryBuilderUnpaginated:
 
         builder = UserListQueryBuilder(
             organization_id=str(uuid.uuid4()),
-            workspace_id=str(uuid.uuid4()),
-            project_id=str(uuid.uuid4()),
+            project_ids=[str(uuid.uuid4())],
             limit=None,
             offset=None,
         )
@@ -338,8 +312,7 @@ class TestUserListQueryBuilderUnpaginated:
 
         builder = UserListQueryBuilder(
             organization_id=str(uuid.uuid4()),
-            workspace_id=str(uuid.uuid4()),
-            project_id=str(uuid.uuid4()),
+            project_ids=[str(uuid.uuid4())],
             limit=30,
             offset=0,
         )
