@@ -145,6 +145,19 @@ class TestDerivations:
             if spec.observability_key is not None:
                 assert spec.observability_key in valid, spec.key
 
+    @pytest.mark.unit
+    def test_observability_key_mapping_for_voice_obs_wiring(self):
+        # The agent-def observability wiring (views/agent_definition.py) maps the
+        # client provider string to its canonical ObservabilityProvider via
+        # these keys (TH-5642 step 1). livekit_bridge -> livekit is the crux.
+        assert get_spec("livekit_bridge").observability_key == "livekit"
+        assert get_spec("elevenlabs").observability_key == "eleven_labs"
+        assert get_spec("vapi").observability_key == "vapi"
+        assert get_spec("retell").observability_key == "retell"
+        # Providers without a push/API observability path are skipped (None).
+        assert get_spec("pipecat").observability_key is None
+        assert get_spec("deepgram").observability_key is None
+
 
 class TestBridgeRegistryParity:
     @pytest.mark.unit
