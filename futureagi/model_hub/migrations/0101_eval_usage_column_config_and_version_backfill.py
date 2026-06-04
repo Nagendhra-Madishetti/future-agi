@@ -1,12 +1,11 @@
-"""Add EVAL_USAGE to ColumnConfig.TableName choices and backfill
-version info on existing APICallLog entries.
+"""Backfill version info on existing APICallLog entries.
 
-The backfill tags each eval template's usage logs with the template's
-current default version (version_id + version_number in the config
-JSONField). This is imperfect for historical entries — they get the
-current default, not necessarily the version that actually ran — but
-it's the best we can do since version info was never tracked before.
-Going forward, all new entries will have the correct version.
+Tags each eval template's usage logs with the template's current
+default version (version_id + version_number in the config JSONField).
+This is imperfect for historical entries — they get the current default,
+not necessarily the version that actually ran — but it's the best we
+can do since version info was never tracked before. Going forward, all
+new entries will have the correct version.
 """
 
 from django.db import migrations, models
@@ -106,27 +105,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name="columnconfig",
-            name="table_name",
-            field=models.CharField(
-                choices=[
-                    ("Dataset", "Dataset"),
-                    ("DatasetDetail", "Dataset Detail"),
-                    ("OptimizeDataset", "Optimize Dataset"),
-                    (
-                        "OptimizeDatasetRightAnswer",
-                        "Optimize Dataset Right Answer",
-                    ),
-                    (
-                        "OptimizeDatasetPromptTemplateExplore",
-                        "Optimize Dataset Prompt Template Explore",
-                    ),
-                    ("EvalUsage", "Eval Usage"),
-                ],
-                max_length=100,
-            ),
-        ),
         migrations.RunPython(
             backfill_apicalllog_version_info,
             reverse_code=migrations.RunPython.noop,

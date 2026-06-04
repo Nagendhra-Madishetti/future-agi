@@ -2941,26 +2941,6 @@ class ExperimentAdditionalEvaluationsRequestSerializer(serializers.Serializer):
 # ── Eval Usage Column Config ────────────────────────────────────────
 
 
-class EvalUsageColumnConfigItemSerializer(serializers.Serializer):
-    value = serializers.CharField()
-    label = serializers.CharField(allow_blank=True)
-    enabled = serializers.BooleanField()
-
-
-class EvalUsageColumnConfigUpdateRequestSerializer(serializers.Serializer):
-    columns = serializers.ListField(
-        child=EvalUsageColumnConfigItemSerializer(),
-    )
-
-
-class EvalUsageColumnConfigResponseResultSerializer(serializers.Serializer):
-    columns = serializers.ListField(child=serializers.DictField())
-
-
-class EvalUsageColumnConfigResponseSerializer(serializers.Serializer):
-    status = serializers.BooleanField()
-    result = EvalUsageColumnConfigResponseResultSerializer()
-
 
 # ── Eval Usage Stats ────────────────────────────────────────────────
 

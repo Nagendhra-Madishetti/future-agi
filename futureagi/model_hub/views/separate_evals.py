@@ -73,8 +73,6 @@ from model_hub.serializers.contracts import (
     EvalTemplateVersionResponseSerializer,
     EvalTemplateVersionRestoreResponseSerializer,
     EvalTemplateNamesResponseSerializer,
-    EvalUsageColumnConfigResponseSerializer,
-    EvalUsageColumnConfigUpdateRequestSerializer,
     EvalUsageQuerySerializer,
     EvalUsageStatsResponseSerializer,
     EvalMetricRequestSerializer,
@@ -4958,19 +4956,6 @@ class GroundTruthTriggerEmbeddingView(APIView):
             return self._gm.bad_request(str(e))
 
 
-# ── Shared helpers for eval usage column config ─────────────────────
-
-_EVAL_USAGE_DEFAULT_COLUMNS = [
-    {"value": "score", "label": "Score", "enabled": True, "is_visible": True},
-    {"value": "result", "label": "Result", "enabled": True, "is_visible": True},
-    {"value": "input", "label": "Input", "enabled": True, "is_visible": True},
-    {"value": "reason", "label": "Reason", "enabled": True, "is_visible": True},
-    {"value": "source", "label": "Source", "enabled": True, "is_visible": True},
-    {"value": "version", "label": "Version", "enabled": True, "is_visible": True},
-    {"value": "feedback", "label": "Feedback", "enabled": True, "is_visible": True},
-    {"value": "created_at", "label": "Ran at", "enabled": True, "is_visible": True},
-]
-
 
 def _get_all_eval_required_keys(template):
     """Union of required_keys across all versions + current template config."""
@@ -4984,79 +4969,6 @@ def _get_all_eval_required_keys(template):
         all_keys.update(cs.get("required_keys", []))
     all_keys.update((template.config or {}).get("required_keys", []))
     return sorted(all_keys)
-
-
-def _get_or_create_eval_usage_column_config(template, organization):
-    """Get or create column config for an eval usage table.
-
-    On first call, builds defaults (static columns + input variable columns
-    from the union of required_keys across all versions). On subsequent calls,
-    reconciles — appends any new variables as hidden columns. Returns the
-    column config list with order_index, is_visible, and enabled normalized.
-    """
-    from model_hub.models.column_config import ColumnConfig
-
-    lookup = dict(
-        table_name=ColumnConfig.TableName.EVAL_USAGE,
-        organization=organization,
-        identifier=str(template.id),
-    )
-    try:
-        col_config_obj, created = ColumnConfig.objects.get_or_create(**lookup)
-    except ColumnConfig.MultipleObjectsReturned:
-        dupes = ColumnConfig.objects.filter(**lookup).order_by("-updated_at")
-        col_config_obj = dupes.first()
-        dupes.exclude(pk=col_config_obj.pk).delete()
-        created = False
-
-    if created:
-        cols = [
-            {**c, "order_index": i}
-            for i, c in enumerate(_EVAL_USAGE_DEFAULT_COLUMNS)
-        ]
-        idx = len(cols)
-        for key in _get_all_eval_required_keys(template):
-            cols.append({
-                "value": f"input_var_{key}",
-                "label": key,
-                "enabled": False,
-                "is_visible": False,
-                "order_index": idx,
-            })
-            idx += 1
-        col_config_obj.columns = cols
-        col_config_obj.save()
-    else:
-        # Reconcile: append new required_keys not in saved config
-        existing_values = {
-            c["value"] for c in (col_config_obj.columns or [])
-        }
-        added = False
-        idx = len(col_config_obj.columns or [])
-        for key in _get_all_eval_required_keys(template):
-            col_id = f"input_var_{key}"
-            if col_id not in existing_values:
-                col_config_obj.columns.append({
-                    "value": col_id,
-                    "label": key,
-                    "enabled": False,
-                    "is_visible": False,
-                    "order_index": idx,
-                })
-                idx += 1
-                added = True
-        if added:
-            col_config_obj.save()
-
-    # Normalize: ensure order_index, is_visible, enabled are present
-    result = []
-    for i, c in enumerate(col_config_obj.columns or []):
-        col = dict(c)
-        col.setdefault("order_index", i)
-        col.setdefault("is_visible", col.get("enabled", True))
-        col.setdefault("enabled", col.get("is_visible", True))
-        result.append(col)
-    return result
 
 
 class EvalUsageStatsView(APIView):
@@ -5479,11 +5391,6 @@ class EvalUsageStatsView(APIView):
 
                 log_items.append(row_data)
 
-            # ── Column config (same pattern as dataset table) ────────
-            column_config = _get_or_create_eval_usage_column_config(
-                template, organization
-            )
-
             response = {
                 "template_id": str(template_id),
                 "is_composite": template.template_type == "composite",
@@ -5497,7 +5404,6 @@ class EvalUsageStatsView(APIView):
                     ),
                 },
                 "chart": chart_data,
-                "column_config": column_config,
                 "table": log_items,
                 "logs": {
                     "total": total_logs,
@@ -5511,81 +5417,6 @@ class EvalUsageStatsView(APIView):
             logger.error(
                 f"Error in EvalUsageStatsView: {str(e)}\n{traceback.format_exc()}"
             )
-            return self._gm.bad_request(str(e))
-
-
-class EvalUsageColumnConfigView(APIView):
-    """
-    GET/POST /model-hub/eval-templates/<id>/usage/column-config/
-
-    Manages column visibility and ordering for the eval usage table.
-    Stores config in the ColumnConfig model (same pattern as dataset columns).
-    """
-
-    _gm = GeneralMethods()
-    permission_classes = [IsAuthenticated]
-
-    @validated_request(
-        responses={
-            200: EvalUsageColumnConfigResponseSerializer,
-            **MODEL_HUB_ERROR_RESPONSES,
-        },
-    )
-    def get(self, request, template_id, *args, **kwargs):
-        try:
-            organization = (
-                getattr(request, "organization", None) or request.user.organization
-            )
-            template = EvalTemplate.no_workspace_objects.get(
-                id=template_id, deleted=False
-            )
-            columns = _get_or_create_eval_usage_column_config(
-                template, organization
-            )
-            return self._gm.success_response({"columns": columns})
-
-        except EvalTemplate.DoesNotExist:
-            return self._gm.not_found("Eval template not found.")
-        except Exception as e:
-            logger.error(f"Error in EvalUsageColumnConfigView.get: {e}")
-            return self._gm.bad_request(str(e))
-
-    @validated_request(
-        request_serializer=EvalUsageColumnConfigUpdateRequestSerializer,
-        responses={
-            200: ModelHubStringResultResponseSerializer,
-            **MODEL_HUB_ERROR_RESPONSES,
-        },
-    )
-    def post(self, request, template_id, *args, **kwargs):
-        from model_hub.models.column_config import ColumnConfig
-
-        try:
-            organization = (
-                getattr(request, "organization", None) or request.user.organization
-            )
-            EvalTemplate.no_workspace_objects.get(id=template_id, deleted=False)
-
-            lookup = dict(
-                table_name=ColumnConfig.TableName.EVAL_USAGE,
-                organization=organization,
-                identifier=str(template_id),
-            )
-            try:
-                column_config, _ = ColumnConfig.objects.get_or_create(**lookup)
-            except ColumnConfig.MultipleObjectsReturned:
-                dupes = ColumnConfig.objects.filter(**lookup).order_by("-updated_at")
-                column_config = dupes.first()
-                dupes.exclude(pk=column_config.pk).delete()
-            column_config.columns = request.validated_data["columns"]
-            column_config.save()
-
-            return self._gm.success_response("Columns updated")
-
-        except EvalTemplate.DoesNotExist:
-            return self._gm.not_found("Eval template not found.")
-        except Exception as e:
-            logger.error(f"Error in EvalUsageColumnConfigView.post: {e}")
             return self._gm.bad_request(str(e))
 
 
