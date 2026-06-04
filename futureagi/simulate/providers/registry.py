@@ -138,6 +138,14 @@ _SPECS: tuple[ProviderSpec, ...] = (
         transport=Transport.WEBRTC_BRIDGE, connector_key="web_livekit_bridge",
         credential_shape=CredentialShape.LIVEKIT_SERVER, status=Status.PLANNED,
     ),
+    # Bland.ai agents are reached via the provider-neutral SIP/phone path (no
+    # WebRTC connector needed) — DESIGN.md §3/§6.
+    ProviderSpec(
+        "bland", "Bland.ai",
+        roles=frozenset({Role.AGENT_PLATFORM}),
+        transport=Transport.SIP, credential_shape=CredentialShape.API_KEY_ASSISTANT,
+        status=Status.PLANNED,
+    ),
     # --- Non-agent-platform roles ---
     ProviderSpec(
         "twilio", "Twilio",

@@ -41,7 +41,7 @@ class TestRegistryShape:
     def test_expected_providers_present(self):
         for key in [
             "vapi", "retell", "livekit_bridge", "others",
-            "elevenlabs", "deepgram", "agora", "pipecat",
+            "elevenlabs", "deepgram", "agora", "pipecat", "bland",
             "twilio", "livekit", "futureagi",
         ]:
             assert get_spec(key) is not None, key
@@ -117,7 +117,7 @@ class TestDerivations:
         ga = set(agent_platform_keys(include_planned=False))
         assert ga == {"vapi", "retell", "livekit_bridge", "others"}
         allp = set(agent_platform_keys(include_planned=True))
-        assert {"elevenlabs", "deepgram", "agora", "pipecat"} <= allp
+        assert {"elevenlabs", "deepgram", "agora", "pipecat", "bland"} <= allp
         # transport-only / system engines are never agent platforms
         assert "twilio" not in allp
         assert "livekit" not in allp
