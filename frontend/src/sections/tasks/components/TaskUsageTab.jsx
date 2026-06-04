@@ -908,15 +908,29 @@ const TaskUsageTab = ({ taskId }) => {
   const period = DATE_OPTION_TO_PERIOD[dateOption] || "30d";
   const apiEvalId = evalIdFilter === "all" ? undefined : evalIdFilter;
 
+  const customDateParams =
+    dateOption === "Custom" && dateFilter?.[0] && dateFilter?.[1]
+      ? {
+          startDate: new Date(dateFilter[0]).toISOString(),
+          endDate: new Date(dateFilter[1]).toISOString(),
+        }
+      : {};
+
   const { data: chartData, isLoading: chartLoading } = useTaskUsageChart(
     taskId,
-    { period, evalId: apiEvalId },
+    { period, evalId: apiEvalId, ...customDateParams },
   );
   const {
     data: logsData,
     isLoading: logsLoading,
     isFetching: logsFetching,
-  } = useTaskUsageLogs(taskId, { page, pageSize, period, evalId: apiEvalId });
+  } = useTaskUsageLogs(taskId, {
+    page,
+    pageSize,
+    period,
+    evalId: apiEvalId,
+    ...customDateParams,
+  });
 
   const stats = chartData?.stats || {};
   const chart = chartData?.chart || [];
