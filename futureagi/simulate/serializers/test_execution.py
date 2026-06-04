@@ -676,6 +676,11 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
                     ),
                     "reason": eval_data.get("reason", ""),
                     "type": eval_data.get("output_type", ""),
+                    "template_type": (
+                        getattr(eval_config.eval_template, "template_type", None)
+                        if eval_config and getattr(eval_config, "eval_template", None)
+                        else None
+                    ),
                     "visible": True,  # Default to visible
                     "error": is_error,
                     "status": eval_data.get(
