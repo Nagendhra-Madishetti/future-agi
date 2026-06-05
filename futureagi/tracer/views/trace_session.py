@@ -2272,8 +2272,8 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                             attrs = {}
                         # Fallback: merge from typed Map columns when raw is empty
                         if not attrs:
-                            str_map = attr_row.get("span_attr_str") or {}
-                            num_map = attr_row.get("span_attr_num") or {}
+                            str_map = attr_row.get("attrs_string") or {}
+                            num_map = attr_row.get("attrs_number") or {}
                             if isinstance(str_map, dict):
                                 attrs.update(str_map)
                             if isinstance(num_map, dict):
