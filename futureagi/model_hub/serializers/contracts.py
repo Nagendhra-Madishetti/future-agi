@@ -2192,6 +2192,7 @@ class CompositeEvalCreateRequestSerializer(serializers.Serializer):
         default=list,
     )
     child_template_ids = serializers.ListField(child=serializers.UUIDField())
+    child_configs = serializers.JSONField(required=False, allow_null=True, default=dict)
     aggregation_enabled = serializers.BooleanField(required=False, default=True)
     aggregation_function = serializers.ChoiceField(
         choices=["weighted_avg", "avg", "min", "max", "pass_rate"],
