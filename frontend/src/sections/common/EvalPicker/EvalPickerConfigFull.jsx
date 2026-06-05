@@ -229,6 +229,8 @@ const EvalPickerConfigFull = ({ evalData, onBack, onSave, isSaving }) => {
   useEffect(() => {
     if (!isComposite) return;
     if (!compositeDetail) return;
+    // In edit mode, wait for evalData so saved overrides aren't missed
+    if (isEditMode && !evalData) return;
     if (compositePopulatedRef.current) return;
     // Start from template child weights, then overlay saved per-binding overrides
     const initial = {};
