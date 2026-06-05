@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import status
 
-from tracer.models.observation_span import EndUser
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
 
 pytestmark = [pytest.mark.integration, pytest.mark.api]
@@ -112,15 +112,17 @@ class TestUsersExport:
     ):
         user_id = "export-happy@example.com"
         now = timezone.now()
+        activated = now - timedelta(days=1)
         filters = _date_filters(now - timedelta(hours=1), now + timedelta(hours=1))
         rows = [
             _row(
                 user_id=user_id,
+                activated_at=activated,
+                last_active=now,
                 total_tokens=18,
                 input_tokens=11,
                 output_tokens=7,
                 num_traces=1,
-                last_active=now,
                 project_id=observe_project.id,
             )
         ]
@@ -142,6 +144,8 @@ class TestUsersExport:
             )
 
         assert response.status_code == status.HTTP_200_OK
+        # Guards the 60s LB-timeout fix — buffered HttpResponse would regress this.
+        assert isinstance(response, StreamingHttpResponse)
         assert response["Content-Type"].startswith("text/csv")
         assert "attachment;" in response["Content-Disposition"]
         assert f"users_{observe_project.id}_" in response["Content-Disposition"]
@@ -155,6 +159,9 @@ class TestUsersExport:
         assert target[_EXPECTED_HEADER.index("Input Tokens")] == "11"
         assert target[_EXPECTED_HEADER.index("Output Tokens")] == "7"
         assert target[_EXPECTED_HEADER.index("No. of Traces")] == "1"
+        # Datetimes go through _format_users_export_cell → isoformat().
+        assert target[_EXPECTED_HEADER.index("First Active")] == activated.isoformat()
+        assert target[_EXPECTED_HEADER.index("Last Active")] == now.isoformat()
 
     def test_export_requires_authentication(self, api_client, observe_project):
         response = api_client.get(
@@ -235,6 +242,11 @@ class TestUsersExport:
         assert kwargs["limit"] is None
         assert kwargs["offset"] is None
         assert kwargs["filters"] == filters
+        # Post-CH25: workspace isolation rides on project_ids + empty_scope.
+        # Project requested IS in the workspace, so empty_scope must be False
+        # and project_ids must contain the requested project.
+        assert kwargs["project_ids"] == [str(observe_project.id)]
+        assert kwargs["empty_scope"] is False
 
     def test_export_formats_none_cells_as_empty(
         self, auth_client, organization, workspace, observe_project
@@ -286,6 +298,43 @@ class TestUsersExport:
 
         assert response.status_code == status.HTTP_200_OK
         assert "users_all_" in response["Content-Disposition"]
+
+    def test_export_returns_only_header_when_project_out_of_scope(
+        self, auth_client, organization, workspace, observe_project
+    ):
+        # Random UUID NOT in this user's workspace.
+        foreign_project_id = str(uuid.uuid4())
+
+        with (
+            patch(
+                "tracer.views.trace.UserListQueryBuilder",
+                wraps=__import__(
+                    "tracer.services.clickhouse.query_builders.user_list",
+                    fromlist=["UserListQueryBuilder"],
+                ).UserListQueryBuilder,
+            ) as builder_cls,
+            patch.object(
+                AnalyticsQueryService,
+                "execute_ch_query",
+                return_value=_ch_stub([]),
+            ),
+        ):
+            response = auth_client.get(
+                "/tracer/users/",
+                {"project_id": foreign_project_id, "export": "true"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        # Builder must be told the scope is empty so the SQL contracts to "no rows"
+        # rather than falling through to an org-wide scan.
+        kwargs = builder_cls.call_args.kwargs
+        assert kwargs["empty_scope"] is True
+        assert kwargs["project_ids"] == []
+
+        # Response is still a valid streamed CSV with just the header row.
+        csv_rows = _parse_csv(response)
+        assert csv_rows[0] == _EXPECTED_HEADER
+        assert [r for r in csv_rows[1:] if r] == []
 
 
 class TestUserListQueryBuilderUnpaginated:
