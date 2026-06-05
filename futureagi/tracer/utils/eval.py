@@ -1527,12 +1527,12 @@ def _execute_evaluation(
 
     # Track which eval version produced this result
     try:
-        _default_ver = EvalTemplateVersion.objects.get_default(eval_model)
-        if _default_ver:
-            source_config["version_id"] = str(_default_ver.id)
-            source_config["version_number"] = _default_ver.version_number
+        _ver = EvalTemplateVersion.objects.get_default(eval_model)
+        if _ver:
+            source_config["version_id"] = str(_ver.id)
+            source_config["version_number"] = _ver.version_number
     except Exception:
-        pass
+        logger.warning("version_tracking_failed", exc_info=True)
 
     api_call_type = _get_api_call_type(custom_eval_config.model)
     workspace = observation_span.project.workspace
@@ -2831,12 +2831,12 @@ def _execute_evaluation_for_trace(
 
     # Track which eval version produced this result
     try:
-        _default_ver = EvalTemplateVersion.objects.get_default(eval_template)
-        if _default_ver:
-            source_config["version_id"] = str(_default_ver.id)
-            source_config["version_number"] = _default_ver.version_number
+        _ver = EvalTemplateVersion.objects.get_default(eval_template)
+        if _ver:
+            source_config["version_id"] = str(_ver.id)
+            source_config["version_number"] = _ver.version_number
     except Exception:
-        pass
+        logger.warning("version_tracking_failed", exc_info=True)
 
     api_call_type = _get_api_call_type(custom_eval_config.model)
     api_call_log_row = None
@@ -3074,12 +3074,12 @@ def _execute_evaluation_for_session(
 
     # Track which eval version produced this result
     try:
-        _default_ver = EvalTemplateVersion.objects.get_default(eval_template)
-        if _default_ver:
-            source_config["version_id"] = str(_default_ver.id)
-            source_config["version_number"] = _default_ver.version_number
+        _ver = EvalTemplateVersion.objects.get_default(eval_template)
+        if _ver:
+            source_config["version_id"] = str(_ver.id)
+            source_config["version_number"] = _ver.version_number
     except Exception:
-        pass
+        logger.warning("version_tracking_failed", exc_info=True)
 
     api_call_type = _get_api_call_type(custom_eval_config.model)
     api_call_log_row = None

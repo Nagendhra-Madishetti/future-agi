@@ -8,7 +8,7 @@ can do since version info was never tracked before. Going forward, all
 new entries will have the correct version.
 """
 
-from django.db import migrations, models
+from django.db import migrations
 
 
 def backfill_apicalllog_version_info(apps, schema_editor):

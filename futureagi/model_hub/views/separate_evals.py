@@ -74,7 +74,6 @@ from model_hub.serializers.contracts import (
     EvalTemplateVersionListResponseSerializer,
     EvalTemplateVersionResponseSerializer,
     EvalTemplateVersionRestoreResponseSerializer,
-    EvalTemplateNamesResponseSerializer,
     EvalUsageQuerySerializer,
     EvalUsageStatsResponseSerializer,
     GroundTruthConfigRequestSerializer,
