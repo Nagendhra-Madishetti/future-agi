@@ -15,6 +15,7 @@ import _ from "lodash";
 import React from "react";
 import { Skeleton } from "@mui/material";
 import CustomTraceRenderer from "./Renderers/CustomTraceRenderer";
+import EvalResultChips from "./Renderers/EvalResultChips";
 import { RENDERER_CONFIG } from "./Renderers/common";
 import { NameCell } from "./Renderers";
 import IPOPCell from "./Renderers/IPOPCell";
@@ -532,16 +533,18 @@ export const getTraceListColumnDefs = (col) => {
 
   // Eval, annotation, and custom columns need wider minWidth for readable names.
   // Reason columns are text-heavy so default to an even wider min width.
+  const isEvalMetric = col?.groupBy === "Evaluation Metrics";
   const isEvalOrAnnotation =
-    col?.groupBy === "Evaluation Metrics" ||
-    col?.groupBy === "Annotation Metrics";
+    isEvalMetric || col?.groupBy === "Annotation Metrics";
   const defaultMinWidth = isReasonColumn
     ? 240
     : isCustomColumn
       ? 180
-      : isEvalOrAnnotation
-        ? 150
-        : 80;
+      : isEvalMetric
+        ? 230
+        : isEvalOrAnnotation
+          ? 150
+          : 80;
 
   // Custom columns need a valueGetter that handles dot-notation keys
   // and extracts values from flat row data (attributes included by backend).
@@ -600,11 +603,22 @@ export const getTraceListColumnDefs = (col) => {
         : {}),
     cellStyle: (params) => {
       const value = params.value;
-      if (isCellValueEmpty(value)) {
+      const structured = isEvalMetric && params.data?.eval_results?.[colId];
+      if (isCellValueEmpty(value) && !structured) {
         return {
           display: "flex",
           height: "100%",
           justifyContent: "center",
+        };
+      }
+      if (isEvalMetric) {
+        return {
+          display: "flex",
+          height: "100%",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          padding: 0,
+          overflow: "hidden",
         };
       }
     },
@@ -619,11 +633,22 @@ export const getTraceListColumnDefs = (col) => {
     },
     cellRendererSelector: (params) => {
       const value = params.value;
+      const column = params?.colDef?.context?.sourceColumn;
+      // Chips only when structured rollup data exists (eval_results block or
+      // object-valued cell) — flat-float eval cells keep the legacy renderer
+      // so other getTraceListColumnDefs consumers are unaffected
+      if (column?.groupBy === "Evaluation Metrics") {
+        const structured =
+          params.data?.eval_results?.[column?.id] ??
+          (value !== null && typeof value === "object" && !Array.isArray(value)
+            ? value
+            : null);
+        if (structured) return { component: EvalResultChips };
+      }
       if (isCellValueEmpty(value)) {
         // No renderer for empty values
         return null;
       }
-      const column = params?.colDef?.context?.sourceColumn;
       const colId = column?.id;
 
       if (RENDERER_CONFIG.nameColumns.includes(colId)) {

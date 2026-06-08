@@ -1,4 +1,5 @@
 {
+  "__NOTE__": "DUMMY DATA (TH-5641) \u2014 captured list_spans_observe response with task-enriched config. Not real API output. Delete when backend lands.",
   "status": true,
   "result": {
     "metadata": {
@@ -3513,5 +3514,6 @@
         "row_type": "traces"
       }
     ]
-  }
+  },
+  "__END_NOTE__": "END OF DUMMY DATA (TH-5641)"
 }
