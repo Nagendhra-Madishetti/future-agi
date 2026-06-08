@@ -11,6 +11,11 @@ import {
 } from "@mui/material";
 import Iconify from "src/components/iconify";
 import { useGetTraceDetail } from "src/api/project/trace-detail";
+// TH-5629: drive the Evals tab from the hand-built eval_results fixture until the
+// backend ships eval_results + eval_task_name/row_type/status. Flip to false (or
+// delete) once the live endpoint returns those fields.
+import dummyTraceDetail from "src/sections/projects/LLMTracing/dummyTraceDetail.json";
+const USE_DUMMY_TRACE_DETAIL = true;
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
 import DrawerHeader from "./DrawerHeader";
@@ -579,7 +584,11 @@ const TraceDetailDrawerV2 = ({
   }, []);
 
   const queryClient = useQueryClient();
-  const { data, isLoading } = useGetTraceDetail(open ? traceId : null);
+  const { data: apiData, isLoading: apiLoading } = useGetTraceDetail(
+    open ? traceId : null,
+  );
+  const data = USE_DUMMY_TRACE_DETAIL ? dummyTraceDetail.result : apiData;
+  const isLoading = USE_DUMMY_TRACE_DETAIL ? false : apiLoading;
 
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["trace-detail", traceId] });
