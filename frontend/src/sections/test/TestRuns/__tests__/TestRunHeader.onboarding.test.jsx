@@ -212,7 +212,7 @@ describe("TestRunHeader voice onboarding", () => {
         }),
       ),
     );
-    expect(mocks.setSdkCodeOpen).toHaveBeenCalledWith(true);
+    expect(mocks.setSdkCodeOpen).not.toHaveBeenCalled();
 
     await userEvent.click(
       screen.getByRole("button", { name: /^run test call$/i }),

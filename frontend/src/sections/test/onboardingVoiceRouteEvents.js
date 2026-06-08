@@ -114,6 +114,11 @@ export const buildVoiceRunTestHref = ({
   params.set("from", "onboarding");
   params.set("onboarding", VOICE_ONBOARDING_MODES.RUN_TEST_CALL);
   appendVoiceAgentDefinitionParam(params, agentDefinitionId);
+  params.set("tour_anchor", "voice_test_call_button");
+  params.set(
+    "journey_step",
+    STAGE_BY_MODE[VOICE_ONBOARDING_MODES.RUN_TEST_CALL],
+  );
 
   return appendVoiceOnboardingAttributionToHref(
     `/dashboard/simulate/test/${testId}/runs?${params.toString()}`,

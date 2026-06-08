@@ -204,18 +204,6 @@ const CreateRunTestPage = ({
     [location.search],
   );
 
-  const totalSteps = () => {
-    return steps.length;
-  };
-
-  const completedSteps = () => {
-    return Object.keys(completed).length;
-  };
-
-  const allStepsCompleted = () => {
-    return completedSteps() === totalSteps();
-  };
-
   const [formData, setFormData] = useState({
     testName: "",
     description: "",
@@ -234,6 +222,9 @@ const CreateRunTestPage = ({
     (formData.agentType === AGENT_TYPES.VOICE ||
       initialAgentType === AGENT_TYPES.VOICE);
   const visibleSteps = isVoiceCreateTestCallMode ? voiceTestCallSteps : steps;
+  const completedSteps = () => Object.keys(completed).length;
+  const allRequiredStepsCompleted = () =>
+    completedSteps() >= Math.max(visibleSteps.length - 1, 0);
   const currentVoiceStepLabel =
     visibleSteps[activeStep]?.label || "Create test call";
   const voiceFocusSteps = [
@@ -606,7 +597,7 @@ const CreateRunTestPage = ({
     },
   });
   const handleSubmit = async () => {
-    if (!allStepsCompleted) {
+    if (!allRequiredStepsCompleted()) {
       enqueueSnackbar("Please complete all the steps!");
       return;
     }

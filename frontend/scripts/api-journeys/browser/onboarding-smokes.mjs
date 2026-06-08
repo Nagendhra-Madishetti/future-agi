@@ -394,6 +394,13 @@ const SMOKES = [
       "Stubbed proof from first-run Home agent CTA through agent creation into run-scenario focus.",
   },
   {
+    id: "voice-home-to-test-call-controlled",
+    mode: "controlled",
+    file: "voice-home-to-test-call-controlled-smoke.mjs",
+    description:
+      "Stubbed proof from first-run Home voice CTA through test-call review.",
+  },
+  {
     id: "notification-settings-controlled",
     mode: "controlled",
     file: "notification-settings-smoke.mjs",

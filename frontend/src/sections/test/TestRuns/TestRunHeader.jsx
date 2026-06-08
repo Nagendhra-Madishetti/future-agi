@@ -197,7 +197,6 @@ const TestRunHeader = () => {
     if (!isRunTestCallMode || agentType !== AGENT_TYPES.VOICE || !testId) {
       return;
     }
-    setSdkCodeOpen(true);
     if (recordedFocusRef.current) return;
     recordedFocusRef.current = true;
     recordActivationEvent?.(
@@ -213,7 +212,6 @@ const TestRunHeader = () => {
     agentType,
     isRunTestCallMode,
     recordActivationEvent,
-    setSdkCodeOpen,
     testId,
     voiceQuickStartAttribution,
     voiceParams.agentDefinitionId,

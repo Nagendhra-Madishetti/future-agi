@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   columnConfigData: { data: { columnConfigs: [] } },
   locationSearch:
     "?from=onboarding&onboarding=create-test-call&agent_definition_id=agent-1&tour_anchor=voice_test_call_button&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
+  mutationPayloads: [],
   navigate: vi.fn(),
   push: vi.fn(),
   scenariosData: {
@@ -60,7 +61,10 @@ vi.mock("@tanstack/react-query", () => ({
   }),
   useMutation: (options = {}) => ({
     isPending: false,
-    mutate: (payload) => options.onSuccess?.({ id: "test-1" }, payload),
+    mutate: (payload) => {
+      mocks.mutationPayloads.push(payload);
+      options.onSuccess?.({ id: "test-1" }, payload);
+    },
   }),
   useQuery: ({ queryKey }) => {
     if (queryKey?.[0] === "scenarios") {
@@ -190,6 +194,7 @@ vi.mock("notistack", () => ({
 describe("CreateRunTestPage voice onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.mutationPayloads = [];
   });
 
   it("renders the voice-specific test-call setup instead of generic simulation copy", () => {
@@ -234,6 +239,47 @@ describe("CreateRunTestPage voice onboarding", () => {
 
     await waitFor(() =>
       expect(screen.getByText("Review test call setup")).toBeVisible(),
+    );
+  });
+
+  it("creates the first voice test call and preserves the run handoff", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+
+    render(
+      <CreateRunTestPage
+        open
+        onClose={onClose}
+        initialAgentDefinitionId="agent-1"
+        initialAgentType="voice"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText("Choose your scenarios");
+    await user.click(screen.getByText("Checkout call"));
+    await user.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText("Confirm the review path");
+    await user.click(screen.getByRole("button", { name: /^next$/i }));
+    await screen.findByText("Review test call setup");
+
+    const createButtons = screen.getAllByRole("button", {
+      name: /^create test call$/i,
+    });
+    await user.click(createButtons[createButtons.length - 1]);
+
+    expect(mocks.mutationPayloads).toEqual([
+      expect.objectContaining({
+        name: "First voice test call",
+        agent_definition_id: "agent-1",
+        agent_version: "version-1",
+        scenario_ids: ["scenario-1"],
+        evaluations_config: [],
+      }),
+    ]);
+    expect(onClose).toHaveBeenCalled();
+    expect(mocks.navigate).toHaveBeenCalledWith(
+      "/dashboard/simulate/test/test-1/runs?from=onboarding&onboarding=run-test-call&agent_definition_id=agent-1&tour_anchor=voice_test_call_button&journey_step=run_voice_test_call&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
     );
   });
 });

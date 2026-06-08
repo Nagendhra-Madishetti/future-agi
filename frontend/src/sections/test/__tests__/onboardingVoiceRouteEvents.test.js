@@ -147,7 +147,7 @@ describe("onboardingVoiceRouteEvents", () => {
         testId: "test-1",
       }),
     ).toBe(
-      "/dashboard/simulate/test/test-1/runs?from=onboarding&onboarding=run-test-call&agent_definition_id=agent-1&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
+      "/dashboard/simulate/test/test-1/runs?from=onboarding&onboarding=run-test-call&agent_definition_id=agent-1&tour_anchor=voice_test_call_button&journey_step=run_voice_test_call&quick_start_goal=connect_voice_ai_agent&quick_start_id=voice&quick_start_primary_path=voice",
     );
     expect(
       buildVoiceReviewCallHref({
