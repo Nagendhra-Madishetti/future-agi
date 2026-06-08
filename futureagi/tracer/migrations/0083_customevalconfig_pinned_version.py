@@ -6,7 +6,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("tracer", "0082_decouple_trace_session_fk"),
-        ("model_hub", "0106_decouple_telemetry_fk_constraints"),
+        ("model_hub", "0107_merge_20260608"),
     ]
 
     operations = [
