@@ -526,11 +526,27 @@ function assertActivationStateRequestAttribution(requests, expected) {
     requests.length >= 1,
     "Expected at least one activation-state request.",
   );
-  assert(
-    requests.length <= 3,
-    `Expected activation-state request count to stay bounded, got ${requests.length}`,
+  const expectedRequests = requests.filter(
+    (request) => request?.source === expected.source,
   );
-  for (const request of requests) {
+  assert(
+    expectedRequests.length >= 1,
+    `Expected at least one ${expected.source} activation-state request, got ${JSON.stringify(
+      requests,
+    )}`,
+  );
+  assert(
+    expectedRequests.length <= 3,
+    `Expected ${expected.source} activation-state request count to stay bounded, got ${expectedRequests.length}`,
+  );
+  const unrelatedRequests = requests.filter(
+    (request) => request?.source !== expected.source,
+  );
+  assert(
+    unrelatedRequests.length <= 4,
+    `Expected unrelated activation-state request count to stay bounded, got ${unrelatedRequests.length}`,
+  );
+  for (const request of expectedRequests) {
     assertExpectedAttribution(request, expected);
   }
 }

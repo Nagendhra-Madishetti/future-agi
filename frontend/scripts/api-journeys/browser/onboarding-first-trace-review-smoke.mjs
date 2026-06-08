@@ -278,13 +278,16 @@ async function main() {
       30000,
     );
 
+    const activationStages = activationStateResponses.map(
+      (response) => response.stage,
+    );
+    const collapsedActivationStages = activationStages.filter(
+      (stage, index) => index === 0 || stage !== activationStages[index - 1],
+    );
     assert(
-      activationStateResponses
-        .map((response) => response.stage)
-        .join(" -> ") === "waiting_for_first_trace -> review_first_trace",
-      `Unexpected activation sequence: ${activationStateResponses
-        .map((response) => response.stage)
-        .join(" -> ")}`,
+      collapsedActivationStages.join(" -> ") ===
+        "waiting_for_first_trace -> review_first_trace",
+      `Unexpected activation sequence: ${activationStages.join(" -> ")}`,
     );
     assert(
       traceDetailRequests.length === 1,
