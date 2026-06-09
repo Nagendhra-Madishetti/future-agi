@@ -406,7 +406,6 @@ import type {
   EvalSummaryTemplateListResponseApi,
   EvalSummaryTemplateMutationRequestApi,
   EvalSummaryTemplateResponseApi,
-  EvalTaskApi,
   EvalTemplateApi,
   EvalTemplateBulkDeleteRequestApi,
   EvalTemplateBulkDeleteResponseApi,
@@ -544,7 +543,6 @@ import type {
   IntegrationConnectionCreateApi,
   IntegrationConnectionDetailApi,
   IntegrationConnectionDetailResponseApi,
-  IntegrationConnectionListApi,
   IntegrationConnectionListResponseApi,
   IntegrationConnectionUpdateApi,
   IntegrationEmptyRequestApi,
@@ -1111,13 +1109,9 @@ import type {
   TracerDashboardWidgetsListParams,
   TracerDatasetList200,
   TracerDatasetListParams,
-  TracerEvalTaskGetEvalDetails200,
   TracerEvalTaskGetEvalDetailsParams,
-  TracerEvalTaskGetEvalTaskLogs200,
   TracerEvalTaskGetEvalTaskLogsParams,
-  TracerEvalTaskGetUsage200,
   TracerEvalTaskGetUsageParams,
-  TracerEvalTaskList200,
   TracerEvalTaskListEvalTasksParams,
   TracerEvalTaskListEvalTasksWithProjectNameParams,
   TracerEvalTaskListParams,
@@ -1216,8 +1210,6 @@ import type {
   TracerUserAlertLogsListAll200,
   TracerUserAlertLogsListAllParams,
   TracerUserAlertLogsListParams,
-  TracerUserAlertsList200,
-  TracerUserAlertsListMonitors200,
   TracerUserAlertsListMonitorsParams,
   TracerUserAlertsListParams,
   TracerUserAlertsMetricOptionsParams,
@@ -1277,7 +1269,6 @@ import type {
   UsageWorkspaceBreakdownResponseApi,
   UsageWorkspaceEvalSummaryListParams,
   UsageWorkspaceUsageSummaryListParams,
-  UserAlertMonitorApi,
   UserAlertMonitorDuplicateApi,
   UserAlertMonitorDuplicateResponseApi,
   UserAlertMonitorLogApi,
@@ -19427,7 +19418,7 @@ export const integrationsConnectionsRead = async (id: string, options?: RequestI
 
 
 export type integrationsConnectionsUpdateResponse200 = {
-  data: IntegrationConnectionListApi
+  data: IntegrationConnectionDetailResponseApi
   status: 200
 }
 
@@ -19472,7 +19463,7 @@ export const getIntegrationsConnectionsUpdateUrl = (id: string,) => {
  * API endpoints for managing integration connections.
  */
 export const integrationsConnectionsUpdate = async (id: string,
-    integrationConnectionListApi: NonReadonly<IntegrationConnectionListApi>, options?: RequestInit): Promise<integrationsConnectionsUpdateResponse> => {
+    integrationConnectionUpdateApi: IntegrationConnectionUpdateApi, options?: RequestInit): Promise<integrationsConnectionsUpdateResponse> => {
 
   return apiMutator<integrationsConnectionsUpdateResponse>(getIntegrationsConnectionsUpdateUrl(id),
   {
@@ -19480,7 +19471,7 @@ export const integrationsConnectionsUpdate = async (id: string,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      integrationConnectionListApi,)
+      integrationConnectionUpdateApi,)
   }
 );}
 
@@ -33780,7 +33771,11 @@ export const getModelHubEvalGroupsListUrl = (params?: ModelHubEvalGroupsListPara
 }
 
 /**
- * List all eval groups for the user's organization
+ * Pure routing: three independent bulk reads in this method (main
+EvalGroup queryset, EvalGroup.eval_templates through-table, and
+EvalTemplate) all route to DATABASE_FOR_EVAL_GROUP_LIST when
+"feature:eval_group_list" is opted in. No query semantics change.
+ * @summary List all eval groups for the user's organization.
  */
 export const modelHubEvalGroupsList = async (params?: ModelHubEvalGroupsListParams, options?: RequestInit): Promise<modelHubEvalGroupsListResponse> => {
 
@@ -40786,19 +40781,44 @@ export const modelHubKbUpdate = async (id: string,
 
 
 export type modelHubKbPartialUpdateResponse200 = {
-  data: KnowledgeBaseApi
+  data: KnowledgeBaseResponseApi
   status: 200
+}
+
+export type modelHubKbPartialUpdateResponse400 = {
+  data: ModelHubErrorResponseApi
+  status: 400
+}
+
+export type modelHubKbPartialUpdateResponse403 = {
+  data: ModelHubErrorResponseApi
+  status: 403
+}
+
+export type modelHubKbPartialUpdateResponse404 = {
+  data: ModelHubErrorResponseApi
+  status: 404
+}
+
+export type modelHubKbPartialUpdateResponse409 = {
+  data: ModelHubErrorResponseApi
+  status: 409
+}
+
+export type modelHubKbPartialUpdateResponse500 = {
+  data: ModelHubErrorResponseApi
+  status: 500
 }
 
 export type modelHubKbPartialUpdateResponseDefault = {
   data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200>
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 500>
 }
 
 export type modelHubKbPartialUpdateResponseSuccess = (modelHubKbPartialUpdateResponse200) & {
   headers: Headers;
 };
-export type modelHubKbPartialUpdateResponseError = (modelHubKbPartialUpdateResponseDefault) & {
+export type modelHubKbPartialUpdateResponseError = (modelHubKbPartialUpdateResponse400 | modelHubKbPartialUpdateResponse403 | modelHubKbPartialUpdateResponse404 | modelHubKbPartialUpdateResponse409 | modelHubKbPartialUpdateResponse500 | modelHubKbPartialUpdateResponseDefault) & {
   headers: Headers;
 };
 
@@ -40813,7 +40833,8 @@ export const getModelHubKbPartialUpdateUrl = (id: string,) => {
 }
 
 /**
- * ViewSet for handling KnowledgeBase operations.
+ * Partially update a knowledge base.
+ * @summary Partially update a knowledge base.
  */
 export const modelHubKbPartialUpdate = async (id: string,
     knowledgeBaseApi: NonReadonly<KnowledgeBaseApi>, options?: RequestInit): Promise<modelHubKbPartialUpdateResponse> => {
@@ -59971,7 +59992,7 @@ export const tracerDatasetDelete = async (id: string, options?: RequestInit): Pr
 
 
 export type tracerEvalTaskListResponse200 = {
-  data: TracerEvalTaskList200
+  data: void
   status: 200
 }
 
@@ -60022,7 +60043,7 @@ export const tracerEvalTaskList = async (params?: TracerEvalTaskListParams, opti
 
 
 export type tracerEvalTaskCreateResponse201 = {
-  data: EvalTaskApi
+  data: void
   status: 201
 }
 
@@ -60048,22 +60069,21 @@ export const getTracerEvalTaskCreateUrl = () => {
   return `/tracer/eval-task/`
 }
 
-export const tracerEvalTaskCreate = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskCreateResponse> => {
+export const tracerEvalTaskCreate = async ( options?: RequestInit): Promise<tracerEvalTaskCreateResponse> => {
 
   return apiMutator<tracerEvalTaskCreateResponse>(getTracerEvalTaskCreateUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskGetEvalDetailsResponse200 = {
-  data: TracerEvalTaskGetEvalDetails200
+  data: void
   status: 200
 }
 
@@ -60114,7 +60134,7 @@ export const tracerEvalTaskGetEvalDetails = async (params?: TracerEvalTaskGetEva
 
 
 export type tracerEvalTaskGetEvalTaskLogsResponse200 = {
-  data: TracerEvalTaskGetEvalTaskLogs200
+  data: void
   status: 200
 }
 
@@ -60165,7 +60185,7 @@ export const tracerEvalTaskGetEvalTaskLogs = async (params?: TracerEvalTaskGetEv
 
 
 export type tracerEvalTaskGetUsageResponse200 = {
-  data: TracerEvalTaskGetUsage200
+  data: void
   status: 200
 }
 
@@ -60216,7 +60236,7 @@ export const tracerEvalTaskGetUsage = async (params?: TracerEvalTaskGetUsagePara
 
 
 export type tracerEvalTaskListEvalTasksResponse200 = {
-  data: EvalTaskApi[]
+  data: void
   status: 200
 }
 
@@ -60270,7 +60290,7 @@ export const tracerEvalTaskListEvalTasks = async (params?: TracerEvalTaskListEva
 
 
 export type tracerEvalTaskListEvalTasksWithProjectNameResponse200 = {
-  data: EvalTaskApi[]
+  data: void
   status: 200
 }
 
@@ -60324,7 +60344,7 @@ export const tracerEvalTaskListEvalTasksWithProjectName = async (params?: Tracer
 
 
 export type tracerEvalTaskMarkEvalTasksDeletedResponse201 = {
-  data: EvalTaskApi
+  data: void
   status: 201
 }
 
@@ -60350,22 +60370,21 @@ export const getTracerEvalTaskMarkEvalTasksDeletedUrl = () => {
   return `/tracer/eval-task/mark_eval_tasks_deleted/`
 }
 
-export const tracerEvalTaskMarkEvalTasksDeleted = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskMarkEvalTasksDeletedResponse> => {
+export const tracerEvalTaskMarkEvalTasksDeleted = async ( options?: RequestInit): Promise<tracerEvalTaskMarkEvalTasksDeletedResponse> => {
 
   return apiMutator<tracerEvalTaskMarkEvalTasksDeletedResponse>(getTracerEvalTaskMarkEvalTasksDeletedUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskPauseEvalTaskResponse201 = {
-  data: EvalTaskApi
+  data: void
   status: 201
 }
 
@@ -60391,22 +60410,21 @@ export const getTracerEvalTaskPauseEvalTaskUrl = () => {
   return `/tracer/eval-task/pause_eval_task/`
 }
 
-export const tracerEvalTaskPauseEvalTask = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskPauseEvalTaskResponse> => {
+export const tracerEvalTaskPauseEvalTask = async ( options?: RequestInit): Promise<tracerEvalTaskPauseEvalTaskResponse> => {
 
   return apiMutator<tracerEvalTaskPauseEvalTaskResponse>(getTracerEvalTaskPauseEvalTaskUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskUnpauseEvalTaskResponse201 = {
-  data: EvalTaskApi
+  data: void
   status: 201
 }
 
@@ -60432,22 +60450,21 @@ export const getTracerEvalTaskUnpauseEvalTaskUrl = () => {
   return `/tracer/eval-task/unpause_eval_task/`
 }
 
-export const tracerEvalTaskUnpauseEvalTask = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskUnpauseEvalTaskResponse> => {
+export const tracerEvalTaskUnpauseEvalTask = async ( options?: RequestInit): Promise<tracerEvalTaskUnpauseEvalTaskResponse> => {
 
   return apiMutator<tracerEvalTaskUnpauseEvalTaskResponse>(getTracerEvalTaskUnpauseEvalTaskUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskUpdateEvalTaskResponse200 = {
-  data: EvalTaskApi
+  data: void
   status: 200
 }
 
@@ -60478,22 +60495,21 @@ export const getTracerEvalTaskUpdateEvalTaskUrl = () => {
 Edit & Re-run: Preserves existing results and only runs missing evaluations
  * @summary Update an evaluation task with either fresh run or edit & re-run logic.
  */
-export const tracerEvalTaskUpdateEvalTask = async (evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskUpdateEvalTaskResponse> => {
+export const tracerEvalTaskUpdateEvalTask = async ( options?: RequestInit): Promise<tracerEvalTaskUpdateEvalTaskResponse> => {
 
   return apiMutator<tracerEvalTaskUpdateEvalTaskResponse>(getTracerEvalTaskUpdateEvalTaskUrl(),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'PATCH'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskReadResponse200 = {
-  data: EvalTaskApi
+  data: void
   status: 200
 }
 
@@ -60533,7 +60549,7 @@ export const tracerEvalTaskRead = async (id: string, options?: RequestInit): Pro
 
 
 export type tracerEvalTaskUpdateResponse200 = {
-  data: EvalTaskApi
+  data: void
   status: 200
 }
 
@@ -60559,23 +60575,21 @@ export const getTracerEvalTaskUpdateUrl = (id: string,) => {
   return `/tracer/eval-task/${id}/`
 }
 
-export const tracerEvalTaskUpdate = async (id: string,
-    evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskUpdateResponse> => {
+export const tracerEvalTaskUpdate = async (id: string, options?: RequestInit): Promise<tracerEvalTaskUpdateResponse> => {
 
   return apiMutator<tracerEvalTaskUpdateResponse>(getTracerEvalTaskUpdateUrl(id),
   {
     ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'PUT'
+
+
   }
 );}
 
 
 
 export type tracerEvalTaskPartialUpdateResponse200 = {
-  data: EvalTaskApi
+  data: void
   status: 200
 }
 
@@ -60601,16 +60615,14 @@ export const getTracerEvalTaskPartialUpdateUrl = (id: string,) => {
   return `/tracer/eval-task/${id}/`
 }
 
-export const tracerEvalTaskPartialUpdate = async (id: string,
-    evalTaskApi: NonReadonly<EvalTaskApi>, options?: RequestInit): Promise<tracerEvalTaskPartialUpdateResponse> => {
+export const tracerEvalTaskPartialUpdate = async (id: string, options?: RequestInit): Promise<tracerEvalTaskPartialUpdateResponse> => {
 
   return apiMutator<tracerEvalTaskPartialUpdateResponse>(getTracerEvalTaskPartialUpdateUrl(id),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      evalTaskApi,)
+    method: 'PATCH'
+
+
   }
 );}
 
@@ -68195,7 +68207,7 @@ export const tracerUserAlertLogsListForAlert = async (id: string, options?: Requ
 
 
 export type tracerUserAlertsListResponse200 = {
-  data: TracerUserAlertsList200
+  data: void
   status: 200
 }
 
@@ -68253,7 +68265,7 @@ export const tracerUserAlertsList = async (params?: TracerUserAlertsListParams, 
 
 
 export type tracerUserAlertsCreateResponse201 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 201
 }
 
@@ -68279,22 +68291,21 @@ export const getTracerUserAlertsCreateUrl = () => {
   return `/tracer/user-alerts/`
 }
 
-export const tracerUserAlertsCreate = async (userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsCreateResponse> => {
+export const tracerUserAlertsCreate = async ( options?: RequestInit): Promise<tracerUserAlertsCreateResponse> => {
 
   return apiMutator<tracerUserAlertsCreateResponse>(getTracerUserAlertsCreateUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerUserAlertsBulkMuteResponse201 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 201
 }
 
@@ -68320,15 +68331,14 @@ export const getTracerUserAlertsBulkMuteUrl = () => {
   return `/tracer/user-alerts/bulk-mute/`
 }
 
-export const tracerUserAlertsBulkMute = async (userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsBulkMuteResponse> => {
+export const tracerUserAlertsBulkMute = async ( options?: RequestInit): Promise<tracerUserAlertsBulkMuteResponse> => {
 
   return apiMutator<tracerUserAlertsBulkMuteResponse>(getTracerUserAlertsBulkMuteUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'POST'
+
+
   }
 );}
 
@@ -68391,7 +68401,7 @@ export const tracerUserAlertsDuplicate = async (userAlertMonitorDuplicateApi: Us
 
 
 export type tracerUserAlertsListMonitorsResponse200 = {
-  data: TracerUserAlertsListMonitors200
+  data: void
   status: 200
 }
 
@@ -68508,7 +68518,7 @@ export const tracerUserAlertsMetricOptions = async (params?: TracerUserAlertsMet
 
 
 export type tracerUserAlertsPreviewGraphResponse201 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 201
 }
 
@@ -68538,22 +68548,21 @@ export const getTracerUserAlertsPreviewGraphUrl = () => {
  * Returns time-series data for a temporary monitor's metric, suitable for graphing a preview.
 Accepts monitor configuration in the request body.
  */
-export const tracerUserAlertsPreviewGraph = async (userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsPreviewGraphResponse> => {
+export const tracerUserAlertsPreviewGraph = async ( options?: RequestInit): Promise<tracerUserAlertsPreviewGraphResponse> => {
 
   return apiMutator<tracerUserAlertsPreviewGraphResponse>(getTracerUserAlertsPreviewGraphUrl(),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 export type tracerUserAlertsReadResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 
@@ -68593,7 +68602,7 @@ export const tracerUserAlertsRead = async (id: string, options?: RequestInit): P
 
 
 export type tracerUserAlertsUpdateResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 
@@ -68619,23 +68628,21 @@ export const getTracerUserAlertsUpdateUrl = (id: string,) => {
   return `/tracer/user-alerts/${id}/`
 }
 
-export const tracerUserAlertsUpdate = async (id: string,
-    userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsUpdateResponse> => {
+export const tracerUserAlertsUpdate = async (id: string, options?: RequestInit): Promise<tracerUserAlertsUpdateResponse> => {
 
   return apiMutator<tracerUserAlertsUpdateResponse>(getTracerUserAlertsUpdateUrl(id),
   {
     ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'PUT'
+
+
   }
 );}
 
 
 
 export type tracerUserAlertsPartialUpdateResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 
@@ -68661,16 +68668,14 @@ export const getTracerUserAlertsPartialUpdateUrl = (id: string,) => {
   return `/tracer/user-alerts/${id}/`
 }
 
-export const tracerUserAlertsPartialUpdate = async (id: string,
-    userAlertMonitorApi: NonReadonly<UserAlertMonitorApi>, options?: RequestInit): Promise<tracerUserAlertsPartialUpdateResponse> => {
+export const tracerUserAlertsPartialUpdate = async (id: string, options?: RequestInit): Promise<tracerUserAlertsPartialUpdateResponse> => {
 
   return apiMutator<tracerUserAlertsPartialUpdateResponse>(getTracerUserAlertsPartialUpdateUrl(id),
   {
     ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      userAlertMonitorApi,)
+    method: 'PATCH'
+
+
   }
 );}
 
@@ -68717,7 +68722,7 @@ export const tracerUserAlertsDelete = async (id: string, options?: RequestInit):
 
 
 export type tracerUserAlertsMonitorDetailsResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 
@@ -68757,7 +68762,7 @@ export const tracerUserAlertsMonitorDetails = async (id: string, options?: Reque
 
 
 export type tracerUserAlertsGraphDataResponse200 = {
-  data: UserAlertMonitorApi
+  data: void
   status: 200
 }
 
