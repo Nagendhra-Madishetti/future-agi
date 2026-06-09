@@ -230,7 +230,7 @@ class ProjectNameUpdateSerializer(serializers.Serializer):
 class ProjectVersionExportSerializer(StrictInputSerializer):
     project_id = serializers.UUIDField(required=True)
     runs_ids = serializers.ListField(
-        child=serializers.UUIDField(), required=False, allow_null=True
+        child=serializers.UUIDField(), required=False, allow_null=True, default=list
     )
     filters = filter_list_field(required=False, default=list)
     sort_params = MetricSortParamListField(required=False, default=list)

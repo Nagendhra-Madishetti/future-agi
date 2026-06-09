@@ -11,7 +11,6 @@ peerdb-backed deployment keeps the legacy table (default) while a CH-direct
 stack flips to v2 without code edits. See
 ``v2/schema/011_eval_logger_v2.sql`` + ``docs/CH25_MIGRATION.md``.
 """
-
 from __future__ import annotations
 
 from django.conf import settings
@@ -30,7 +29,5 @@ def eval_logger_source(alias: str = "") -> tuple[str, str]:
         predicate = f"{p}is_deleted = 0"
     else:
         # legacy peerdb CDC table.
-        predicate = (
-            f"{p}_peerdb_is_deleted = 0 AND ({p}deleted = 0 OR {p}deleted IS NULL)"
-        )
+        predicate = f"{p}_peerdb_is_deleted = 0 AND ({p}deleted = 0 OR {p}deleted IS NULL)"
     return table, predicate

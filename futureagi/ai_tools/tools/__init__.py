@@ -85,6 +85,7 @@ from ai_tools.tools.docs import (
 
 # Evaluation tools
 from ai_tools.tools.evaluations import (
+    apply_eval_group_to_dataset,  # noqa: F401
     compare_evaluations,  # noqa: F401
     create_composite_eval,  # noqa: F401
     create_eval_group,  # noqa: F401  — hand-written (EvalGroupView not clean CRUD)
@@ -93,6 +94,7 @@ from ai_tools.tools.evaluations import (
     delete_eval_logs,  # noqa: F401
     delete_eval_template,  # noqa: F401  — eval creation from Falcon (restored)
     duplicate_eval_template,  # noqa: F401
+    edit_eval_group_templates,  # noqa: F401
     evaluate_with_agent,  # noqa: F401
     execute_composite_eval,  # noqa: F401
     get_eval_code_snippet,  # noqa: F401

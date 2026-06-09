@@ -78,6 +78,7 @@ from tracer.services.clickhouse.query_builders import (
     AgentGraphQueryBuilder,
     UserListQueryBuilder,
 )
+from tracer.services.clickhouse.eval_logger_table import eval_logger_source
 from tracer.services.clickhouse.query_builders.base import NIL_UUID
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
 from tracer.services.observability_providers import ObservabilityService

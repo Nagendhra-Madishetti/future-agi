@@ -8,6 +8,36 @@ class ApiKeyCreateSerializer(serializers.Serializer):
     key = serializers.CharField(max_length=2500, allow_blank=True, allow_null=True)
 
 
+class ApiKeyRequestSerializer(serializers.Serializer):
+    provider = serializers.CharField(max_length=50)
+    key = serializers.CharField(
+        max_length=2500,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    config_json = serializers.JSONField(required=False, allow_null=True)
+
+
+class ApiKeyResponseSerializer(serializers.Serializer):
+    id = serializers.UUIDField(required=False)
+    provider = serializers.CharField(max_length=50)
+    organization = serializers.UUIDField(required=False, allow_null=True)
+    masked_actual_key = serializers.JSONField(required=False, allow_null=True)
+
+
+class ApiKeyListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    previous = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    results = ApiKeyResponseSerializer(many=True)
+
+
+class ApiKeySuccessResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = ApiKeyResponseSerializer()
+
+
 class ApiKeySerializer(serializers.ModelSerializer):
     """A stored model-provider API key/credential for the organization, used by
     prompt runs and evals to call an LLM provider (OpenAI, Anthropic, etc.).
@@ -15,13 +45,18 @@ class ApiKeySerializer(serializers.ModelSerializer):
     and only ever returned masked. List/read via list_api_keys / get_api_key and
     rotate or remove via update_api_key / delete_api_key."""
 
-    masked_actual_key = serializers.SerializerMethodField(
-        help_text="Read-only masked preview of the stored key (e.g. 'sk-1***abcd'); the full secret is never returned."
+    key = serializers.CharField(
+        max_length=2500,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        write_only=True,
     )
+    masked_actual_key = serializers.SerializerMethodField()
     config_json = serializers.JSONField(
         required=False,
         allow_null=True,
-        help_text="Structured credential payload for providers that need more than a single key (e.g. cloud service-account JSON); encrypted at rest.",
+        write_only=True,
     )
 
     def get_masked_actual_key(self, obj):

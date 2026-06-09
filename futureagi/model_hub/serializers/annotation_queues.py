@@ -579,7 +579,9 @@ class QueueItemSerializer(serializers.ModelSerializer):
         }
 
     def get_assigned_users(self, obj):
-        assignments = obj.assignments.filter(deleted=False).select_related("user")
+        assignments = getattr(obj, "active_assignments", None)
+        if assignments is None:
+            assignments = obj.assignments.filter(deleted=False).select_related("user")
         return [
             {
                 "id": str(a.user_id),
@@ -656,6 +658,24 @@ class QueueItemSerializer(serializers.ModelSerializer):
                 else:
                     raise serializers.ValidationError(
                         f"Source object not found: {source_type}={source_id}"
+                    )
+
+                queue = validated_data.get("queue")
+                if (
+                    queue
+                    and QueueItem.objects.filter(
+                        queue=queue,
+                        deleted=False,
+                        **{fk_field: source_obj},
+                    ).exists()
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "source_id": (
+                                "An active queue item already exists for this "
+                                f"{source_type} source."
+                            )
+                        }
                     )
 
         return super().create(validated_data)
@@ -761,6 +781,7 @@ class AnnotationQueueListQuerySerializer(StrictInputSerializer):
     search = serializers.CharField(required=False, allow_blank=True)
     include_counts = serializers.BooleanField(required=False)
     archived = serializers.BooleanField(required=False, default=False)
+    page_size = serializers.IntegerField(required=False, min_value=1)
 
 
 class QueueHardDeleteRequestSerializer(StrictInputSerializer):

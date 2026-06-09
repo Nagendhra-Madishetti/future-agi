@@ -22,7 +22,6 @@ from datetime import datetime
 from typing import Any
 
 from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
-
 # CH-direct: the embedded filter builder must emit v2 attribute columns
 # (attrs_string/number/bool) since this builder reads the v2 `spans` table.
 # The V2 subclass rewrites span_attr_* -> attrs_* in translate(); aliased to the
