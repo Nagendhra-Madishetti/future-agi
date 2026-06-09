@@ -227,6 +227,7 @@ WSGI_APPLICATION = "tfc.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+
 def _pg_config(host, port=None, *, name=None, disable_cursors=True, options=None):
     """
     Build a Postgres config dict for a Django DATABASES alias.
@@ -273,7 +274,9 @@ if _read_host:
         port=os.getenv("PGBOUNCER_READ_PORT", os.getenv("PGBOUNCER_PORT", 6432)),
         name=os.getenv("PG_READ_DB", os.getenv("PG_DB", "tfc")),
     )
-    DATABASES["replica"]["TEST"] = {"MIRROR": "default"}  # Tests use default DB, not a real replica
+    DATABASES["replica"]["TEST"] = {
+        "MIRROR": "default"
+    }  # Tests use default DB, not a real replica
 
 # Direct connection (bypasses PgBouncer) — used for migrations that need
 # `lock_timeout` set at connection time. PgBouncer transaction-pool mode
@@ -311,7 +314,9 @@ if _direct_host:
 # router re-reads settings per call, but feature-key constants in hot paths
 # are computed at import time.
 _opt_in_raw = os.getenv("READ_REPLICA_OPT_IN", "")
-READ_REPLICA_OPT_IN: list[str] = [s.strip() for s in _opt_in_raw.split(",") if s.strip()]
+READ_REPLICA_OPT_IN: list[str] = [
+    s.strip() for s in _opt_in_raw.split(",") if s.strip()
+]
 
 DATABASE_ROUTERS = ["tfc.routers.ReadReplicaRouter"]
 
@@ -637,7 +642,7 @@ _ssl = "http://" if _is_local else "https://"
 ssl = _ssl  # exported — used by accounts.utils, accounts.views.workspace_management
 
 BASE_URL = os.getenv(
-    "BASE_URL", "http://localhost:8000" if _is_local else f"https://api.futureagi.com"
+    "BASE_URL", "http://localhost:8000" if _is_local else "https://api.futureagi.com"
 )
 WEBSOCKET_ENDPOINT = os.getenv("WEBSOCKET_ENDPOINT", f"{BASE_URL}/call-websocket/")
 MINIO_URL = os.getenv(
@@ -780,20 +785,29 @@ WEBAUTHN_CHALLENGE_TTL = 120  # 2 minutes
 # to the legacy CLICKHOUSE dict above for connection details if not set
 # explicitly — see tracer/services/clickhouse/v2/__init__.py:get_v2_config().
 CLICKHOUSE_V2 = {
-    "CH25_HOST":      os.getenv("CH25_HOST"),
+    "CH25_HOST": os.getenv("CH25_HOST"),
     "CH25_HTTP_PORT": os.getenv("CH25_HTTP_PORT", "8123"),
-    "CH25_TCP_PORT":  os.getenv("CH25_TCP_PORT", "9000"),
-    "CH25_USER":      os.getenv("CH25_USER", "default"),
-    "CH25_PASSWORD":  os.getenv("CH25_PASSWORD", ""),
-    "CH25_DATABASE":  os.getenv("CH25_DATABASE", "default"),
+    "CH25_TCP_PORT": os.getenv("CH25_TCP_PORT", "9000"),
+    "CH25_USER": os.getenv("CH25_USER", "default"),
+    "CH25_PASSWORD": os.getenv("CH25_PASSWORD", ""),
+    "CH25_DATABASE": os.getenv("CH25_DATABASE", "default"),
     # ─── Per-query-type routing for the shadow-mode rollout ──────────────────
     # Comma-separated query type names. See tracer/services/clickhouse/v2/shadow.py
     # for RoutingMode definitions. Anything not listed defaults to V1_ONLY.
     "QUERY_TYPES_V2_PRIMARY": os.getenv("CH25_QUERY_TYPES_V2_PRIMARY", ""),
-    "QUERY_TYPES_V2_ONLY":    os.getenv("CH25_QUERY_TYPES_V2_ONLY", ""),
-    "QUERY_TYPES_SHADOW":     os.getenv("CH25_QUERY_TYPES_SHADOW", ""),
-    "QUERY_TYPES_DISABLED":   os.getenv("CH25_QUERY_TYPES_DISABLED", ""),
+    "QUERY_TYPES_V2_ONLY": os.getenv("CH25_QUERY_TYPES_V2_ONLY", ""),
+    "QUERY_TYPES_SHADOW": os.getenv("CH25_QUERY_TYPES_SHADOW", ""),
+    "QUERY_TYPES_DISABLED": os.getenv("CH25_QUERY_TYPES_DISABLED", ""),
 }
+
+# Eval-logger table read by the trace/voice/user eval-config discovery queries.
+# The CH25 spans cutover intentionally kept the legacy peerdb CDC table
+# `tracer_eval_logger` (`_peerdb_is_deleted`/`deleted` columns); the v2 table
+# `tracer_eval_logger_v2` (`is_deleted`) is its prepared replacement. Flip this
+# per-deployment (default = legacy so the peerdb-backed stacks are unaffected;
+# CH-direct stacks set it to `tracer_eval_logger_v2`). See
+# tracer/services/clickhouse/v2/schema/011_eval_logger_v2.sql + docs/CH25_MIGRATION.md.
+CH25_EVAL_LOGGER_TABLE = os.getenv("CH25_EVAL_LOGGER_TABLE", "tracer_eval_logger")
 
 # Where the eval runner reads span data from.
 #   "postgres"   — current behavior; reads from tracer_observation_span (Django ORM)
