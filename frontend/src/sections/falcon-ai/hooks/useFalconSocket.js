@@ -23,6 +23,13 @@ export const useFalconSocket = () => {
   // flushed once the connection opens instead of being silently dropped
   // (otherwise the UI streams forever with no reply — TH-4873).
   const pendingChatRef = useRef(null);
+  // Resume-after-drop guard: a `reconnect` (which asks the server to replay a
+  // stream) must fire ONLY when the socket closed DURING a stream — never on a
+  // fresh send. A fresh send also sets isStreaming=true, so an ungated
+  // reconnect there gets a `reconnect_status: "none"` reply that clears the
+  // live streaming state — dropping the answer or leaving the spinner stuck.
+  const droppedDuringStreamRef = useRef(false);
+  const reconnectSentRef = useRef(false);
 
   const {
     appendTextDelta,
@@ -79,16 +86,24 @@ export const useFalconSocket = () => {
         return;
       }
 
-      // On reconnect, check if there is an active stream to resume
+      // Resume a stream ONLY after a genuine mid-stream drop — never on a fresh
+      // send (which also has isStreaming=true). A spurious reconnect there gets
+      // a `reconnect_status: "none"` reply that wipes the live streaming state.
       const store = useFalconStore.getState();
-      if (store.currentConversationId && store.isStreaming) {
+      if (
+        droppedDuringStreamRef.current &&
+        store.currentConversationId &&
+        store.isStreaming
+      ) {
         ws.send(
           JSON.stringify({
             type: "reconnect",
             conversation_id: store.currentConversationId,
           }),
         );
+        reconnectSentRef.current = true;
       }
+      droppedDuringStreamRef.current = false;
     };
 
     ws.onmessage = (event) => {
@@ -206,15 +221,27 @@ export const useFalconSocket = () => {
             break;
 
           case "reconnect_status":
-            if (data.status === "running") {
-              // Stream is still active — replayed events will follow, then live events
-              setStreaming(true, useFalconStore.getState().streamingMessageId);
-            } else if (data.status === "done") {
-              // Stream completed while disconnected — events will replay, then done
-              // (the "done" event is part of the buffered events)
-            } else if (data.status === "none" || data.status === "cancelled") {
-              // No active stream — stop any loading indicators
-              setStreaming(false);
+            // Defensive: only honor a status we actually solicited (after a real
+            // drop). Otherwise a stray/late reconnect_status could clear a live,
+            // freshly-sent stream — the exact dropped-answer / stuck-spinner bug.
+            if (reconnectSentRef.current) {
+              if (data.status === "running") {
+                // Stream is still active — replayed events follow, then live events
+                setStreaming(
+                  true,
+                  useFalconStore.getState().streamingMessageId,
+                );
+              } else if (data.status === "done") {
+                // Stream completed while disconnected — events replay, then done
+                // (the "done" event is part of the buffered events)
+              } else if (
+                data.status === "none" ||
+                data.status === "cancelled"
+              ) {
+                // No active stream — stop any loading indicators
+                setStreaming(false);
+              }
+              reconnectSentRef.current = false;
             }
             break;
 
@@ -264,6 +291,13 @@ export const useFalconSocket = () => {
       clearInterval(pingRef.current);
       if (socketRef.current !== ws) return;
       socketRef.current = null;
+
+      // The active socket dropped mid-stream — mark it so the NEXT onopen
+      // resumes via `reconnect`. (A fresh send never closes here, so it won't
+      // set this flag and won't trigger the stream-wiping spurious reconnect.)
+      if (useFalconStore.getState().isStreaming) {
+        droppedDuringStreamRef.current = true;
+      }
 
       // Auth-related errors - do NOT retry
       if ([4001, 4401, 4403, 1008].includes(event.code)) {
@@ -325,7 +359,10 @@ export const useFalconSocket = () => {
         payload.skill_id = activeSkill.id;
       }
 
-      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      if (
+        socketRef.current &&
+        socketRef.current.readyState === WebSocket.OPEN
+      ) {
         socketRef.current.send(JSON.stringify(payload));
       } else {
         // Socket not open yet (first message after load / slow handshake).
