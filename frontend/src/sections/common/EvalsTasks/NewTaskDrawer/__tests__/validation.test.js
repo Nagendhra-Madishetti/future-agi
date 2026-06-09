@@ -88,4 +88,91 @@ describe("eval task filter payload contract", () => {
       trace_id: ["trace-1"],
     });
   });
+
+  it("does not merge same-column rows — two not_contains stay two entries", () => {
+    const { attributeFilters } = getNewTaskFilters(
+      {
+        runType: "continuous",
+        filters: [
+          {
+            property: "attributes",
+            propertyId: "customer_tier",
+            filterConfig: {
+              filterType: "text",
+              filterOp: "not_contains",
+              filterValue: "enterprise",
+            },
+          },
+          {
+            property: "attributes",
+            propertyId: "customer_tier",
+            filterConfig: {
+              filterType: "text",
+              filterOp: "not_contains",
+              filterValue: "startup",
+            },
+          },
+        ],
+      },
+      "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+      true,
+    );
+
+    expect(attributeFilters).toHaveLength(2);
+    expect(
+      attributeFilters.every(
+        (f) => f.filter_config.filter_op === "not_contains",
+      ),
+    ).toBe(true);
+    expect(attributeFilters.map((f) => f.filter_config.filter_value)).toEqual([
+      "enterprise",
+      "startup",
+    ]);
+  });
+
+  it("coerces a scalar in value to a list so filter_value survives", () => {
+    const { attributeFilters } = getNewTaskFilters(
+      {
+        runType: "continuous",
+        filters: [
+          {
+            property: "attributes",
+            propertyId: "customer_tier",
+            filterConfig: {
+              filterType: "text",
+              filterOp: "in",
+              filterValue: "enterprise",
+            },
+          },
+        ],
+      },
+      "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+      true,
+    );
+
+    expect(attributeFilters[0].filter_config.filter_op).toBe("in");
+    expect(attributeFilters[0].filter_config.filter_value).toEqual([
+      "enterprise",
+    ]);
+  });
+
+  it("emits an empty-string filter_value for null-ops", () => {
+    const { attributeFilters } = getNewTaskFilters(
+      {
+        runType: "continuous",
+        filters: [
+          {
+            property: "attributes",
+            propertyId: "customer_tier",
+            filterConfig: { filterType: "text", filterOp: "is_null" },
+          },
+        ],
+      },
+      "1372e742-a10b-4d98-9ca4-31ef4d67115f",
+      true,
+    );
+
+    expect(attributeFilters[0].filter_config.filter_op).toBe("is_null");
+    expect(attributeFilters[0].filter_config.filter_value).toBe("");
+  });
 });

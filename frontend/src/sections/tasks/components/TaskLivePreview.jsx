@@ -76,7 +76,10 @@ export function buildApiFilterArray(oldFormatFilters, startDate, endDate) {
     let filterValue;
     if (NO_VALUE_OPS.has(op)) {
       filterValue = "";
-    } else if (RANGE_OPS.has(op) || LIST_OPS.has(op)) {
+    } else if (LIST_OPS.has(op)) {
+      const arr = Array.isArray(v) ? v : v == null || v === "" ? [] : [v];
+      if (arr.length > 0) filterValue = arr;
+    } else if (RANGE_OPS.has(op)) {
       if (Array.isArray(v) && v.length > 0) filterValue = v;
     } else if (v !== undefined && v !== null && v !== "") {
       filterValue = v;

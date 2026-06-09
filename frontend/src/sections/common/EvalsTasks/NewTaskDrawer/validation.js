@@ -1,8 +1,10 @@
+import { NULL_OPERATORS } from "src/components/ComplexFilter/common";
 import { getNumberValidation } from "src/utils/validation";
 import { z } from "zod";
 
 const RANGE_OPS = new Set(["between", "not_between"]);
 const LIST_OPS = new Set(["in", "not_in"]);
+const NO_VALUE_OPS = new Set(NULL_OPERATORS);
 const TASK_FILTER_PROPERTY_TO_API = {
   span_kind: "observation_type",
   observation_type: "observation_type",
@@ -24,7 +26,12 @@ export const extractAttributeFilters = (filters) => {
     const v = f?.filterConfig?.filterValue;
 
     let filterValue;
-    if (RANGE_OPS.has(op) || LIST_OPS.has(op)) {
+    if (NO_VALUE_OPS.has(op)) {
+      filterValue = "";
+    } else if (LIST_OPS.has(op)) {
+      const arr = Array.isArray(v) ? v : v == null || v === "" ? [] : [v];
+      if (arr.length > 0) filterValue = arr;
+    } else if (RANGE_OPS.has(op)) {
       if (Array.isArray(v) && v.length > 0) filterValue = v;
     } else if (v !== undefined && v !== null && v !== "") {
       filterValue = v;
