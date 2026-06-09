@@ -1201,7 +1201,9 @@ def process_single_error_localization(task_id):
                 or "Error localization did not produce any results."
             )
             logger.warning(
-                f"Error localization skipped for {task.source_id}: {skip_reason}"
+                "error_localizer_empty_results",
+                source_id=str(task.source_id),
+                reason=skip_reason,
             )
             task.mark_as_skipped(skip_reason)
             if refund_cost_for_api_call is not None:

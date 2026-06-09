@@ -534,7 +534,11 @@ def run_eval_func(
             )
 
             logger.info(
-                f"sending to error localizer: {api_call_log_row.log_id}, {value}, {param_values}, {response.get('reason')}"
+                "error_localizer_dispatch",
+                log_id=api_call_log_row.log_id,
+                value=value,
+                params=param_values,
+                reason=response.get("reason"),
             )
             trigger_error_localization_for_playground(
                 eval_template=template,
