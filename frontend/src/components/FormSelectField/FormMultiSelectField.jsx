@@ -258,6 +258,8 @@ const formMultiSelectFieldPropTypes = {
   onChange: PropTypes.func,
 };
 
+FormMultiSelectField.propTypes = formMultiSelectFieldPropTypes;
+
 // @ts-ignore
 FormMultiSelectField.propTypes = formMultiSelectFieldPropTypes;
 export const EnhancedFormMultiSelectField =

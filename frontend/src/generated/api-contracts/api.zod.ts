@@ -34892,6 +34892,68 @@ export const TracerEvalTaskListQueryParams = zod.object({
   "limit": zod.number().optional().describe('Number of results to return per page.')
 })
 
+export const tracerEvalTaskListResponseResultsItemNameMax = 255;
+
+export const tracerEvalTaskListResponseResultsItemFiltersDateRangeMin = 2;
+export const tracerEvalTaskListResponseResultsItemFiltersDateRangeMax = 2;
+
+export const tracerEvalTaskListResponseResultsItemFiltersDefault = {  };
+export const tracerEvalTaskListResponseResultsItemSamplingRateMax = 100;
+
+export const tracerEvalTaskListResponseResultsItemSpansLimitMax = 1000000;
+
+export const tracerEvalTaskListResponseResultsItemRowTypeDefault = `spans`;
+
+export const TracerEvalTaskListResponse = zod.object({
+  "count": zod.number(),
+  "next": zod.string().url().optional(),
+  "previous": zod.string().url().optional(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1).max(tracerEvalTaskListResponseResultsItemNameMax),
+  "filters": zod.object({
+  "project_id": zod.string().optional().describe('Project scope for the evaluation task.'),
+  "date_range": zod.array(zod.string()).min(tracerEvalTaskListResponseResultsItemFiltersDateRangeMin).max(tracerEvalTaskListResponseResultsItemFiltersDateRangeMax).optional().describe('Inclusive start\/end ISO timestamps.'),
+  "created_at": zod.string().optional().describe('Lower-bound ISO timestamp for legacy task filters.'),
+  "session_id": zod.array(zod.string()).optional().describe('Trace session id(s) to constrain the task.'),
+  "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
+  "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
+  "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "span_attributes_filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional()
+}).default(tracerEvalTaskListResponseResultsItemFiltersDefault),
+  "sampling_rate": zod.number().min(1).max(tracerEvalTaskListResponseResultsItemSamplingRateMax),
+  "last_run": zod.string().datetime({"offset":true}).optional(),
+  "spans_limit": zod.number().min(1).max(tracerEvalTaskListResponseResultsItemSpansLimitMax).optional(),
+  "run_type": zod.enum(['continuous', 'historical']),
+  "row_type": zod.enum(['spans', 'traces', 'sessions', 'voiceCalls']).default(tracerEvalTaskListResponseResultsItemRowTypeDefault),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed', 'paused', 'deleted']).optional(),
+  "start_time": zod.string().datetime({"offset":true}).optional(),
+  "end_time": zod.string().datetime({"offset":true}).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "evals_details": zod.object({
+
+}).passthrough().optional(),
+  "evals": zod.array(zod.string().uuid()),
+  "failed_spans": zod.object({
+
+}).passthrough().optional(),
+  "progress": zod.string().optional()
+}))
+})
+
 
 export const tracerEvalTaskCreateBodyNameMax = 255;
 
@@ -34961,16 +35023,202 @@ export const TracerEvalTaskGetEvalDetailsQueryParams = zod.object({
   "limit": zod.number().optional().describe('Number of results to return per page.')
 })
 
+export const tracerEvalTaskGetEvalDetailsResponseResultsItemNameMax = 255;
+
+export const tracerEvalTaskGetEvalDetailsResponseResultsItemFiltersDateRangeMin = 2;
+export const tracerEvalTaskGetEvalDetailsResponseResultsItemFiltersDateRangeMax = 2;
+
+export const tracerEvalTaskGetEvalDetailsResponseResultsItemFiltersDefault = {  };
+export const tracerEvalTaskGetEvalDetailsResponseResultsItemSamplingRateMax = 100;
+
+export const tracerEvalTaskGetEvalDetailsResponseResultsItemSpansLimitMax = 1000000;
+
+export const tracerEvalTaskGetEvalDetailsResponseResultsItemRowTypeDefault = `spans`;
+
+export const TracerEvalTaskGetEvalDetailsResponse = zod.object({
+  "count": zod.number(),
+  "next": zod.string().url().optional(),
+  "previous": zod.string().url().optional(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1).max(tracerEvalTaskGetEvalDetailsResponseResultsItemNameMax),
+  "filters": zod.object({
+  "project_id": zod.string().optional().describe('Project scope for the evaluation task.'),
+  "date_range": zod.array(zod.string()).min(tracerEvalTaskGetEvalDetailsResponseResultsItemFiltersDateRangeMin).max(tracerEvalTaskGetEvalDetailsResponseResultsItemFiltersDateRangeMax).optional().describe('Inclusive start\/end ISO timestamps.'),
+  "created_at": zod.string().optional().describe('Lower-bound ISO timestamp for legacy task filters.'),
+  "session_id": zod.array(zod.string()).optional().describe('Trace session id(s) to constrain the task.'),
+  "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
+  "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
+  "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "span_attributes_filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional()
+}).default(tracerEvalTaskGetEvalDetailsResponseResultsItemFiltersDefault),
+  "sampling_rate": zod.number().min(1).max(tracerEvalTaskGetEvalDetailsResponseResultsItemSamplingRateMax),
+  "last_run": zod.string().datetime({"offset":true}).optional(),
+  "spans_limit": zod.number().min(1).max(tracerEvalTaskGetEvalDetailsResponseResultsItemSpansLimitMax).optional(),
+  "run_type": zod.enum(['continuous', 'historical']),
+  "row_type": zod.enum(['spans', 'traces', 'sessions', 'voiceCalls']).default(tracerEvalTaskGetEvalDetailsResponseResultsItemRowTypeDefault),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed', 'paused', 'deleted']).optional(),
+  "start_time": zod.string().datetime({"offset":true}).optional(),
+  "end_time": zod.string().datetime({"offset":true}).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "evals_details": zod.object({
+
+}).passthrough().optional(),
+  "evals": zod.array(zod.string().uuid()),
+  "failed_spans": zod.object({
+
+}).passthrough().optional(),
+  "progress": zod.string().optional()
+}))
+})
+
 
 export const TracerEvalTaskGetEvalTaskLogsQueryParams = zod.object({
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
   "limit": zod.number().optional().describe('Number of results to return per page.')
 })
 
+export const tracerEvalTaskGetEvalTaskLogsResponseResultsItemNameMax = 255;
+
+export const tracerEvalTaskGetEvalTaskLogsResponseResultsItemFiltersDateRangeMin = 2;
+export const tracerEvalTaskGetEvalTaskLogsResponseResultsItemFiltersDateRangeMax = 2;
+
+export const tracerEvalTaskGetEvalTaskLogsResponseResultsItemFiltersDefault = {  };
+export const tracerEvalTaskGetEvalTaskLogsResponseResultsItemSamplingRateMax = 100;
+
+export const tracerEvalTaskGetEvalTaskLogsResponseResultsItemSpansLimitMax = 1000000;
+
+export const tracerEvalTaskGetEvalTaskLogsResponseResultsItemRowTypeDefault = `spans`;
+
+export const TracerEvalTaskGetEvalTaskLogsResponse = zod.object({
+  "count": zod.number(),
+  "next": zod.string().url().optional(),
+  "previous": zod.string().url().optional(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1).max(tracerEvalTaskGetEvalTaskLogsResponseResultsItemNameMax),
+  "filters": zod.object({
+  "project_id": zod.string().optional().describe('Project scope for the evaluation task.'),
+  "date_range": zod.array(zod.string()).min(tracerEvalTaskGetEvalTaskLogsResponseResultsItemFiltersDateRangeMin).max(tracerEvalTaskGetEvalTaskLogsResponseResultsItemFiltersDateRangeMax).optional().describe('Inclusive start\/end ISO timestamps.'),
+  "created_at": zod.string().optional().describe('Lower-bound ISO timestamp for legacy task filters.'),
+  "session_id": zod.array(zod.string()).optional().describe('Trace session id(s) to constrain the task.'),
+  "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
+  "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
+  "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "span_attributes_filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional()
+}).default(tracerEvalTaskGetEvalTaskLogsResponseResultsItemFiltersDefault),
+  "sampling_rate": zod.number().min(1).max(tracerEvalTaskGetEvalTaskLogsResponseResultsItemSamplingRateMax),
+  "last_run": zod.string().datetime({"offset":true}).optional(),
+  "spans_limit": zod.number().min(1).max(tracerEvalTaskGetEvalTaskLogsResponseResultsItemSpansLimitMax).optional(),
+  "run_type": zod.enum(['continuous', 'historical']),
+  "row_type": zod.enum(['spans', 'traces', 'sessions', 'voiceCalls']).default(tracerEvalTaskGetEvalTaskLogsResponseResultsItemRowTypeDefault),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed', 'paused', 'deleted']).optional(),
+  "start_time": zod.string().datetime({"offset":true}).optional(),
+  "end_time": zod.string().datetime({"offset":true}).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "evals_details": zod.object({
+
+}).passthrough().optional(),
+  "evals": zod.array(zod.string().uuid()),
+  "failed_spans": zod.object({
+
+}).passthrough().optional(),
+  "progress": zod.string().optional()
+}))
+})
+
 
 export const TracerEvalTaskGetUsageQueryParams = zod.object({
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
   "limit": zod.number().optional().describe('Number of results to return per page.')
+})
+
+export const tracerEvalTaskGetUsageResponseResultsItemNameMax = 255;
+
+export const tracerEvalTaskGetUsageResponseResultsItemFiltersDateRangeMin = 2;
+export const tracerEvalTaskGetUsageResponseResultsItemFiltersDateRangeMax = 2;
+
+export const tracerEvalTaskGetUsageResponseResultsItemFiltersDefault = {  };
+export const tracerEvalTaskGetUsageResponseResultsItemSamplingRateMax = 100;
+
+export const tracerEvalTaskGetUsageResponseResultsItemSpansLimitMax = 1000000;
+
+export const tracerEvalTaskGetUsageResponseResultsItemRowTypeDefault = `spans`;
+
+export const TracerEvalTaskGetUsageResponse = zod.object({
+  "count": zod.number(),
+  "next": zod.string().url().optional(),
+  "previous": zod.string().url().optional(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1).max(tracerEvalTaskGetUsageResponseResultsItemNameMax),
+  "filters": zod.object({
+  "project_id": zod.string().optional().describe('Project scope for the evaluation task.'),
+  "date_range": zod.array(zod.string()).min(tracerEvalTaskGetUsageResponseResultsItemFiltersDateRangeMin).max(tracerEvalTaskGetUsageResponseResultsItemFiltersDateRangeMax).optional().describe('Inclusive start\/end ISO timestamps.'),
+  "created_at": zod.string().optional().describe('Lower-bound ISO timestamp for legacy task filters.'),
+  "session_id": zod.array(zod.string()).optional().describe('Trace session id(s) to constrain the task.'),
+  "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
+  "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
+  "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "span_attributes_filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional()
+}).default(tracerEvalTaskGetUsageResponseResultsItemFiltersDefault),
+  "sampling_rate": zod.number().min(1).max(tracerEvalTaskGetUsageResponseResultsItemSamplingRateMax),
+  "last_run": zod.string().datetime({"offset":true}).optional(),
+  "spans_limit": zod.number().min(1).max(tracerEvalTaskGetUsageResponseResultsItemSpansLimitMax).optional(),
+  "run_type": zod.enum(['continuous', 'historical']),
+  "row_type": zod.enum(['spans', 'traces', 'sessions', 'voiceCalls']).default(tracerEvalTaskGetUsageResponseResultsItemRowTypeDefault),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed', 'paused', 'deleted']).optional(),
+  "start_time": zod.string().datetime({"offset":true}).optional(),
+  "end_time": zod.string().datetime({"offset":true}).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "evals_details": zod.object({
+
+}).passthrough().optional(),
+  "evals": zod.array(zod.string().uuid()),
+  "failed_spans": zod.object({
+
+}).passthrough().optional(),
+  "progress": zod.string().optional()
+}))
 })
 
 
@@ -34998,6 +35246,64 @@ export const TracerEvalTaskListEvalTasksQueryParams = zod.object({
   "page_size": zod.number().min(1).max(tracerEvalTaskListEvalTasksQueryPageSizeMax).default(tracerEvalTaskListEvalTasksQueryPageSizeDefault)
 })
 
+export const tracerEvalTaskListEvalTasksResponseNameMax = 255;
+
+export const tracerEvalTaskListEvalTasksResponseFiltersDateRangeMin = 2;
+export const tracerEvalTaskListEvalTasksResponseFiltersDateRangeMax = 2;
+
+export const tracerEvalTaskListEvalTasksResponseFiltersDefault = {  };
+export const tracerEvalTaskListEvalTasksResponseSamplingRateMax = 100;
+
+export const tracerEvalTaskListEvalTasksResponseSpansLimitMax = 1000000;
+
+export const tracerEvalTaskListEvalTasksResponseRowTypeDefault = `spans`;
+
+export const TracerEvalTaskListEvalTasksResponseItem = zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1).max(tracerEvalTaskListEvalTasksResponseNameMax),
+  "filters": zod.object({
+  "project_id": zod.string().optional().describe('Project scope for the evaluation task.'),
+  "date_range": zod.array(zod.string()).min(tracerEvalTaskListEvalTasksResponseFiltersDateRangeMin).max(tracerEvalTaskListEvalTasksResponseFiltersDateRangeMax).optional().describe('Inclusive start\/end ISO timestamps.'),
+  "created_at": zod.string().optional().describe('Lower-bound ISO timestamp for legacy task filters.'),
+  "session_id": zod.array(zod.string()).optional().describe('Trace session id(s) to constrain the task.'),
+  "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
+  "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
+  "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "span_attributes_filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional()
+}).default(tracerEvalTaskListEvalTasksResponseFiltersDefault),
+  "sampling_rate": zod.number().min(1).max(tracerEvalTaskListEvalTasksResponseSamplingRateMax),
+  "last_run": zod.string().datetime({"offset":true}).optional(),
+  "spans_limit": zod.number().min(1).max(tracerEvalTaskListEvalTasksResponseSpansLimitMax).optional(),
+  "run_type": zod.enum(['continuous', 'historical']),
+  "row_type": zod.enum(['spans', 'traces', 'sessions', 'voiceCalls']).default(tracerEvalTaskListEvalTasksResponseRowTypeDefault),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed', 'paused', 'deleted']).optional(),
+  "start_time": zod.string().datetime({"offset":true}).optional(),
+  "end_time": zod.string().datetime({"offset":true}).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "evals_details": zod.object({
+
+}).passthrough().optional(),
+  "evals": zod.array(zod.string().uuid()),
+  "failed_spans": zod.object({
+
+}).passthrough().optional(),
+  "progress": zod.string().optional()
+})
+export const TracerEvalTaskListEvalTasksResponse = zod.array(TracerEvalTaskListEvalTasksResponseItem)
+
 
 /**
  * List Eval Tasks filtered
@@ -35022,6 +35328,64 @@ export const TracerEvalTaskListEvalTasksWithProjectNameQueryParams = zod.object(
   "page_number": zod.number().min(tracerEvalTaskListEvalTasksWithProjectNameQueryPageNumberMin).default(tracerEvalTaskListEvalTasksWithProjectNameQueryPageNumberDefault),
   "page_size": zod.number().min(1).max(tracerEvalTaskListEvalTasksWithProjectNameQueryPageSizeMax).default(tracerEvalTaskListEvalTasksWithProjectNameQueryPageSizeDefault)
 })
+
+export const tracerEvalTaskListEvalTasksWithProjectNameResponseNameMax = 255;
+
+export const tracerEvalTaskListEvalTasksWithProjectNameResponseFiltersDateRangeMin = 2;
+export const tracerEvalTaskListEvalTasksWithProjectNameResponseFiltersDateRangeMax = 2;
+
+export const tracerEvalTaskListEvalTasksWithProjectNameResponseFiltersDefault = {  };
+export const tracerEvalTaskListEvalTasksWithProjectNameResponseSamplingRateMax = 100;
+
+export const tracerEvalTaskListEvalTasksWithProjectNameResponseSpansLimitMax = 1000000;
+
+export const tracerEvalTaskListEvalTasksWithProjectNameResponseRowTypeDefault = `spans`;
+
+export const TracerEvalTaskListEvalTasksWithProjectNameResponseItem = zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1).max(tracerEvalTaskListEvalTasksWithProjectNameResponseNameMax),
+  "filters": zod.object({
+  "project_id": zod.string().optional().describe('Project scope for the evaluation task.'),
+  "date_range": zod.array(zod.string()).min(tracerEvalTaskListEvalTasksWithProjectNameResponseFiltersDateRangeMin).max(tracerEvalTaskListEvalTasksWithProjectNameResponseFiltersDateRangeMax).optional().describe('Inclusive start\/end ISO timestamps.'),
+  "created_at": zod.string().optional().describe('Lower-bound ISO timestamp for legacy task filters.'),
+  "session_id": zod.array(zod.string()).optional().describe('Trace session id(s) to constrain the task.'),
+  "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
+  "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
+  "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "span_attributes_filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional()
+}).default(tracerEvalTaskListEvalTasksWithProjectNameResponseFiltersDefault),
+  "sampling_rate": zod.number().min(1).max(tracerEvalTaskListEvalTasksWithProjectNameResponseSamplingRateMax),
+  "last_run": zod.string().datetime({"offset":true}).optional(),
+  "spans_limit": zod.number().min(1).max(tracerEvalTaskListEvalTasksWithProjectNameResponseSpansLimitMax).optional(),
+  "run_type": zod.enum(['continuous', 'historical']),
+  "row_type": zod.enum(['spans', 'traces', 'sessions', 'voiceCalls']).default(tracerEvalTaskListEvalTasksWithProjectNameResponseRowTypeDefault),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed', 'paused', 'deleted']).optional(),
+  "start_time": zod.string().datetime({"offset":true}).optional(),
+  "end_time": zod.string().datetime({"offset":true}).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "evals_details": zod.object({
+
+}).passthrough().optional(),
+  "evals": zod.array(zod.string().uuid()),
+  "failed_spans": zod.object({
+
+}).passthrough().optional(),
+  "progress": zod.string().optional()
+})
+export const TracerEvalTaskListEvalTasksWithProjectNameResponse = zod.array(TracerEvalTaskListEvalTasksWithProjectNameResponseItem)
 
 
 export const TracerEvalTaskMarkEvalTasksDeletedBody = zod.object({
@@ -35141,6 +35505,63 @@ export const TracerEvalTaskUpdateEvalTaskResponse = zod.object({
 
 export const TracerEvalTaskReadParams = zod.object({
   "id": zod.string()
+})
+
+export const tracerEvalTaskReadResponseNameMax = 255;
+
+export const tracerEvalTaskReadResponseFiltersDateRangeMin = 2;
+export const tracerEvalTaskReadResponseFiltersDateRangeMax = 2;
+
+export const tracerEvalTaskReadResponseFiltersDefault = {  };
+export const tracerEvalTaskReadResponseSamplingRateMax = 100;
+
+export const tracerEvalTaskReadResponseSpansLimitMax = 1000000;
+
+export const tracerEvalTaskReadResponseRowTypeDefault = `spans`;
+
+export const TracerEvalTaskReadResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1).max(tracerEvalTaskReadResponseNameMax),
+  "filters": zod.object({
+  "project_id": zod.string().optional().describe('Project scope for the evaluation task.'),
+  "date_range": zod.array(zod.string()).min(tracerEvalTaskReadResponseFiltersDateRangeMin).max(tracerEvalTaskReadResponseFiltersDateRangeMax).optional().describe('Inclusive start\/end ISO timestamps.'),
+  "created_at": zod.string().optional().describe('Lower-bound ISO timestamp for legacy task filters.'),
+  "session_id": zod.array(zod.string()).optional().describe('Trace session id(s) to constrain the task.'),
+  "trace_id": zod.array(zod.string()).optional().describe('Trace id(s) to constrain linked-source tasks.'),
+  "span_id": zod.array(zod.string()).optional().describe('Observation span id(s) to constrain linked-source tasks.'),
+  "observation_type": zod.array(zod.string()).optional().describe('Observation span type(s), for example llm, tool, or chain.'),
+  "span_attributes_filters": zod.array(zod.object({
+  "column_id": zod.string().describe('Column or attribute id to filter on.'),
+  "display_name": zod.string().optional().describe('Optional UI label for chips and saved views.'),
+  "source": zod.string().optional().describe('Optional source surface for mixed-source filters, for example traces, datasets, or simulation.'),
+  "output_type": zod.string().optional().describe('Optional metric output type metadata used by eval and annotation filters.'),
+  "filter_config": zod.object({
+  "filter_type": zod.string().describe('Canonical field type, for example text, number, boolean, datetime, categorical, thumbs, annotator, or array.'),
+  "filter_op": zod.string().describe('Canonical operator from api_contracts\/filter_contract.json, for example equals, not_equals, in, not_in, between, not_between, is_null, or is_not_null.'),
+  "filter_value": zod.unknown().optional().describe('Scalar, list, range tuple, boolean, or null depending on filter_op and filter_type.'),
+  "col_type": zod.string().optional().describe('Column family such as SYSTEM_METRIC, SPAN_ATTRIBUTE, EVAL_METRIC, ANNOTATION, or NORMAL.')
+})
+})).optional()
+}).default(tracerEvalTaskReadResponseFiltersDefault),
+  "sampling_rate": zod.number().min(1).max(tracerEvalTaskReadResponseSamplingRateMax),
+  "last_run": zod.string().datetime({"offset":true}).optional(),
+  "spans_limit": zod.number().min(1).max(tracerEvalTaskReadResponseSpansLimitMax).optional(),
+  "run_type": zod.enum(['continuous', 'historical']),
+  "row_type": zod.enum(['spans', 'traces', 'sessions', 'voiceCalls']).default(tracerEvalTaskReadResponseRowTypeDefault),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed', 'paused', 'deleted']).optional(),
+  "start_time": zod.string().datetime({"offset":true}).optional(),
+  "end_time": zod.string().datetime({"offset":true}).optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "evals_details": zod.object({
+
+}).passthrough().optional(),
+  "evals": zod.array(zod.string().uuid()),
+  "failed_spans": zod.object({
+
+}).passthrough().optional(),
+  "progress": zod.string().optional()
 })
 
 
@@ -41868,6 +42289,66 @@ export const TracerUserAlertsListQueryParams = zod.object({
 })
 
 
+export const tracerUserAlertsListResponseResultsItemMetricMax = 2556;
+
+export const tracerUserAlertsListResponseResultsItemThresholdMetricValueMax = 255;
+
+export const tracerUserAlertsListResponseResultsItemCriticalThresholdValueMin = 0;
+
+export const tracerUserAlertsListResponseResultsItemWarningThresholdValueMin = 0;
+
+export const tracerUserAlertsListResponseResultsItemAlertFrequencyMin = 5;
+export const tracerUserAlertsListResponseResultsItemAlertFrequencyMax = 2147483647;
+
+export const tracerUserAlertsListResponseResultsItemAutoThresholdTimeWindowMin = 0;
+export const tracerUserAlertsListResponseResultsItemAutoThresholdTimeWindowMax = 2147483647;
+
+export const tracerUserAlertsListResponseResultsItemNotificationEmailsItemMax = 254;
+
+export const tracerUserAlertsListResponseResultsItemSlackWebhookUrlMax = 200;
+
+
+
+export const TracerUserAlertsListResponse = zod.object({
+  "count": zod.number(),
+  "next": zod.string().url().optional(),
+  "previous": zod.string().url().optional(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "metric_name": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional(),
+  "metric_type": zod.enum(['count_of_errors', 'error_rates_for_function_calling', 'error_free_session_rates', 'service_provider_error_rates', 'llm_api_failure_rates', 'span_response_time', 'llm_response_time', 'token_usage', 'daily_tokens_spent', 'monthly_tokens_spent', 'evaluation_metrics']),
+  "metric": zod.string().max(tracerUserAlertsListResponseResultsItemMetricMax).optional().describe('Id of the evaluation template.'),
+  "threshold_operator": zod.enum(['greater_than', 'less_than']),
+  "threshold_type": zod.enum(['static', 'percentage_change']).optional().describe('Method to set the threshold for the monitor (Static or Percentage change).'),
+  "threshold_metric_value": zod.string().max(tracerUserAlertsListResponseResultsItemThresholdMetricValueMax).optional().describe('For choice and pass\/fail evals, the specific metric value to monitor.'),
+  "critical_threshold_value": zod.number().min(tracerUserAlertsListResponseResultsItemCriticalThresholdValueMin).optional(),
+  "warning_threshold_value": zod.number().min(tracerUserAlertsListResponseResultsItemWarningThresholdValueMin).optional(),
+  "alert_frequency": zod.number().min(tracerUserAlertsListResponseResultsItemAlertFrequencyMin).max(tracerUserAlertsListResponseResultsItemAlertFrequencyMax).optional().describe('Frequency of alert checks in minutes.'),
+  "auto_threshold_time_window": zod.number().min(tracerUserAlertsListResponseResultsItemAutoThresholdTimeWindowMin).max(tracerUserAlertsListResponseResultsItemAutoThresholdTimeWindowMax).optional().describe('For auto-thresholding. The time window in minutes to calculate the historical mean'),
+  "last_checked_at": zod.string().datetime({"offset":true}).optional().describe('The last time the monitor was checked for alerts.'),
+  "notification_emails": zod.array(zod.string().email().min(1).max(tracerUserAlertsListResponseResultsItemNotificationEmailsItemMax)).optional(),
+  "slack_webhook_url": zod.string().url().max(tracerUserAlertsListResponseResultsItemSlackWebhookUrlMax).optional(),
+  "slack_notes": zod.string().optional(),
+  "is_mute": zod.boolean().optional(),
+  "filters": zod.object({
+
+}).passthrough().optional(),
+  "logs": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "organization": zod.string().uuid(),
+  "workspace": zod.string().uuid().optional(),
+  "created_by": zod.string().uuid().optional()
+}))
+})
+
+
 
 export const tracerUserAlertsCreateBodyMetricMax = 2556;
 
@@ -41960,6 +42441,66 @@ export const TracerUserAlertsListMonitorsQueryParams = zod.object({
 })
 
 
+export const tracerUserAlertsListMonitorsResponseResultsItemMetricMax = 2556;
+
+export const tracerUserAlertsListMonitorsResponseResultsItemThresholdMetricValueMax = 255;
+
+export const tracerUserAlertsListMonitorsResponseResultsItemCriticalThresholdValueMin = 0;
+
+export const tracerUserAlertsListMonitorsResponseResultsItemWarningThresholdValueMin = 0;
+
+export const tracerUserAlertsListMonitorsResponseResultsItemAlertFrequencyMin = 5;
+export const tracerUserAlertsListMonitorsResponseResultsItemAlertFrequencyMax = 2147483647;
+
+export const tracerUserAlertsListMonitorsResponseResultsItemAutoThresholdTimeWindowMin = 0;
+export const tracerUserAlertsListMonitorsResponseResultsItemAutoThresholdTimeWindowMax = 2147483647;
+
+export const tracerUserAlertsListMonitorsResponseResultsItemNotificationEmailsItemMax = 254;
+
+export const tracerUserAlertsListMonitorsResponseResultsItemSlackWebhookUrlMax = 200;
+
+
+
+export const TracerUserAlertsListMonitorsResponse = zod.object({
+  "count": zod.number(),
+  "next": zod.string().url().optional(),
+  "previous": zod.string().url().optional(),
+  "results": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "metric_name": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional(),
+  "metric_type": zod.enum(['count_of_errors', 'error_rates_for_function_calling', 'error_free_session_rates', 'service_provider_error_rates', 'llm_api_failure_rates', 'span_response_time', 'llm_response_time', 'token_usage', 'daily_tokens_spent', 'monthly_tokens_spent', 'evaluation_metrics']),
+  "metric": zod.string().max(tracerUserAlertsListMonitorsResponseResultsItemMetricMax).optional().describe('Id of the evaluation template.'),
+  "threshold_operator": zod.enum(['greater_than', 'less_than']),
+  "threshold_type": zod.enum(['static', 'percentage_change']).optional().describe('Method to set the threshold for the monitor (Static or Percentage change).'),
+  "threshold_metric_value": zod.string().max(tracerUserAlertsListMonitorsResponseResultsItemThresholdMetricValueMax).optional().describe('For choice and pass\/fail evals, the specific metric value to monitor.'),
+  "critical_threshold_value": zod.number().min(tracerUserAlertsListMonitorsResponseResultsItemCriticalThresholdValueMin).optional(),
+  "warning_threshold_value": zod.number().min(tracerUserAlertsListMonitorsResponseResultsItemWarningThresholdValueMin).optional(),
+  "alert_frequency": zod.number().min(tracerUserAlertsListMonitorsResponseResultsItemAlertFrequencyMin).max(tracerUserAlertsListMonitorsResponseResultsItemAlertFrequencyMax).optional().describe('Frequency of alert checks in minutes.'),
+  "auto_threshold_time_window": zod.number().min(tracerUserAlertsListMonitorsResponseResultsItemAutoThresholdTimeWindowMin).max(tracerUserAlertsListMonitorsResponseResultsItemAutoThresholdTimeWindowMax).optional().describe('For auto-thresholding. The time window in minutes to calculate the historical mean'),
+  "last_checked_at": zod.string().datetime({"offset":true}).optional().describe('The last time the monitor was checked for alerts.'),
+  "notification_emails": zod.array(zod.string().email().min(1).max(tracerUserAlertsListMonitorsResponseResultsItemNotificationEmailsItemMax)).optional(),
+  "slack_webhook_url": zod.string().url().max(tracerUserAlertsListMonitorsResponseResultsItemSlackWebhookUrlMax).optional(),
+  "slack_notes": zod.string().optional(),
+  "is_mute": zod.boolean().optional(),
+  "filters": zod.object({
+
+}).passthrough().optional(),
+  "logs": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "organization": zod.string().uuid(),
+  "workspace": zod.string().uuid().optional(),
+  "created_by": zod.string().uuid().optional()
+}))
+})
+
+
 export const TracerUserAlertsMetricOptionsQueryParams = zod.object({
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
   "limit": zod.number().optional().describe('Number of results to return per page.')
@@ -42038,6 +42579,61 @@ export const TracerUserAlertsPreviewGraphBody = zod.object({
 
 export const TracerUserAlertsReadParams = zod.object({
   "id": zod.string()
+})
+
+
+export const tracerUserAlertsReadResponseMetricMax = 2556;
+
+export const tracerUserAlertsReadResponseThresholdMetricValueMax = 255;
+
+export const tracerUserAlertsReadResponseCriticalThresholdValueMin = 0;
+
+export const tracerUserAlertsReadResponseWarningThresholdValueMin = 0;
+
+export const tracerUserAlertsReadResponseAlertFrequencyMin = 5;
+export const tracerUserAlertsReadResponseAlertFrequencyMax = 2147483647;
+
+export const tracerUserAlertsReadResponseAutoThresholdTimeWindowMin = 0;
+export const tracerUserAlertsReadResponseAutoThresholdTimeWindowMax = 2147483647;
+
+export const tracerUserAlertsReadResponseNotificationEmailsItemMax = 254;
+
+export const tracerUserAlertsReadResponseSlackWebhookUrlMax = 200;
+
+
+
+export const TracerUserAlertsReadResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "metric_name": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional(),
+  "metric_type": zod.enum(['count_of_errors', 'error_rates_for_function_calling', 'error_free_session_rates', 'service_provider_error_rates', 'llm_api_failure_rates', 'span_response_time', 'llm_response_time', 'token_usage', 'daily_tokens_spent', 'monthly_tokens_spent', 'evaluation_metrics']),
+  "metric": zod.string().max(tracerUserAlertsReadResponseMetricMax).optional().describe('Id of the evaluation template.'),
+  "threshold_operator": zod.enum(['greater_than', 'less_than']),
+  "threshold_type": zod.enum(['static', 'percentage_change']).optional().describe('Method to set the threshold for the monitor (Static or Percentage change).'),
+  "threshold_metric_value": zod.string().max(tracerUserAlertsReadResponseThresholdMetricValueMax).optional().describe('For choice and pass\/fail evals, the specific metric value to monitor.'),
+  "critical_threshold_value": zod.number().min(tracerUserAlertsReadResponseCriticalThresholdValueMin).optional(),
+  "warning_threshold_value": zod.number().min(tracerUserAlertsReadResponseWarningThresholdValueMin).optional(),
+  "alert_frequency": zod.number().min(tracerUserAlertsReadResponseAlertFrequencyMin).max(tracerUserAlertsReadResponseAlertFrequencyMax).optional().describe('Frequency of alert checks in minutes.'),
+  "auto_threshold_time_window": zod.number().min(tracerUserAlertsReadResponseAutoThresholdTimeWindowMin).max(tracerUserAlertsReadResponseAutoThresholdTimeWindowMax).optional().describe('For auto-thresholding. The time window in minutes to calculate the historical mean'),
+  "last_checked_at": zod.string().datetime({"offset":true}).optional().describe('The last time the monitor was checked for alerts.'),
+  "notification_emails": zod.array(zod.string().email().min(1).max(tracerUserAlertsReadResponseNotificationEmailsItemMax)).optional(),
+  "slack_webhook_url": zod.string().url().max(tracerUserAlertsReadResponseSlackWebhookUrlMax).optional(),
+  "slack_notes": zod.string().optional(),
+  "is_mute": zod.boolean().optional(),
+  "filters": zod.object({
+
+}).passthrough().optional(),
+  "logs": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "organization": zod.string().uuid(),
+  "workspace": zod.string().uuid().optional(),
+  "created_by": zod.string().uuid().optional()
 })
 
 
@@ -42273,6 +42869,61 @@ export const TracerUserAlertsMonitorDetailsParams = zod.object({
 })
 
 
+export const tracerUserAlertsMonitorDetailsResponseMetricMax = 2556;
+
+export const tracerUserAlertsMonitorDetailsResponseThresholdMetricValueMax = 255;
+
+export const tracerUserAlertsMonitorDetailsResponseCriticalThresholdValueMin = 0;
+
+export const tracerUserAlertsMonitorDetailsResponseWarningThresholdValueMin = 0;
+
+export const tracerUserAlertsMonitorDetailsResponseAlertFrequencyMin = 5;
+export const tracerUserAlertsMonitorDetailsResponseAlertFrequencyMax = 2147483647;
+
+export const tracerUserAlertsMonitorDetailsResponseAutoThresholdTimeWindowMin = 0;
+export const tracerUserAlertsMonitorDetailsResponseAutoThresholdTimeWindowMax = 2147483647;
+
+export const tracerUserAlertsMonitorDetailsResponseNotificationEmailsItemMax = 254;
+
+export const tracerUserAlertsMonitorDetailsResponseSlackWebhookUrlMax = 200;
+
+
+
+export const TracerUserAlertsMonitorDetailsResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "metric_name": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional(),
+  "metric_type": zod.enum(['count_of_errors', 'error_rates_for_function_calling', 'error_free_session_rates', 'service_provider_error_rates', 'llm_api_failure_rates', 'span_response_time', 'llm_response_time', 'token_usage', 'daily_tokens_spent', 'monthly_tokens_spent', 'evaluation_metrics']),
+  "metric": zod.string().max(tracerUserAlertsMonitorDetailsResponseMetricMax).optional().describe('Id of the evaluation template.'),
+  "threshold_operator": zod.enum(['greater_than', 'less_than']),
+  "threshold_type": zod.enum(['static', 'percentage_change']).optional().describe('Method to set the threshold for the monitor (Static or Percentage change).'),
+  "threshold_metric_value": zod.string().max(tracerUserAlertsMonitorDetailsResponseThresholdMetricValueMax).optional().describe('For choice and pass\/fail evals, the specific metric value to monitor.'),
+  "critical_threshold_value": zod.number().min(tracerUserAlertsMonitorDetailsResponseCriticalThresholdValueMin).optional(),
+  "warning_threshold_value": zod.number().min(tracerUserAlertsMonitorDetailsResponseWarningThresholdValueMin).optional(),
+  "alert_frequency": zod.number().min(tracerUserAlertsMonitorDetailsResponseAlertFrequencyMin).max(tracerUserAlertsMonitorDetailsResponseAlertFrequencyMax).optional().describe('Frequency of alert checks in minutes.'),
+  "auto_threshold_time_window": zod.number().min(tracerUserAlertsMonitorDetailsResponseAutoThresholdTimeWindowMin).max(tracerUserAlertsMonitorDetailsResponseAutoThresholdTimeWindowMax).optional().describe('For auto-thresholding. The time window in minutes to calculate the historical mean'),
+  "last_checked_at": zod.string().datetime({"offset":true}).optional().describe('The last time the monitor was checked for alerts.'),
+  "notification_emails": zod.array(zod.string().email().min(1).max(tracerUserAlertsMonitorDetailsResponseNotificationEmailsItemMax)).optional(),
+  "slack_webhook_url": zod.string().url().max(tracerUserAlertsMonitorDetailsResponseSlackWebhookUrlMax).optional(),
+  "slack_notes": zod.string().optional(),
+  "is_mute": zod.boolean().optional(),
+  "filters": zod.object({
+
+}).passthrough().optional(),
+  "logs": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "organization": zod.string().uuid(),
+  "workspace": zod.string().uuid().optional(),
+  "created_by": zod.string().uuid().optional()
+})
+
+
 /**
  * Accepts `start_date` and `end_date` query parameters (ISO 8601 format).
 If not provided, it defaults to the last 7 days.
@@ -42280,6 +42931,61 @@ If not provided, it defaults to the last 7 days.
  */
 export const TracerUserAlertsGraphDataParams = zod.object({
   "id": zod.string()
+})
+
+
+export const tracerUserAlertsGraphDataResponseMetricMax = 2556;
+
+export const tracerUserAlertsGraphDataResponseThresholdMetricValueMax = 255;
+
+export const tracerUserAlertsGraphDataResponseCriticalThresholdValueMin = 0;
+
+export const tracerUserAlertsGraphDataResponseWarningThresholdValueMin = 0;
+
+export const tracerUserAlertsGraphDataResponseAlertFrequencyMin = 5;
+export const tracerUserAlertsGraphDataResponseAlertFrequencyMax = 2147483647;
+
+export const tracerUserAlertsGraphDataResponseAutoThresholdTimeWindowMin = 0;
+export const tracerUserAlertsGraphDataResponseAutoThresholdTimeWindowMax = 2147483647;
+
+export const tracerUserAlertsGraphDataResponseNotificationEmailsItemMax = 254;
+
+export const tracerUserAlertsGraphDataResponseSlackWebhookUrlMax = 200;
+
+
+
+export const TracerUserAlertsGraphDataResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "project": zod.string().uuid(),
+  "name": zod.string().min(1),
+  "metric_name": zod.string().optional(),
+  "created_at": zod.string().datetime({"offset":true}).optional(),
+  "updated_at": zod.string().datetime({"offset":true}).optional(),
+  "deleted": zod.boolean().optional(),
+  "deleted_at": zod.string().datetime({"offset":true}).optional(),
+  "metric_type": zod.enum(['count_of_errors', 'error_rates_for_function_calling', 'error_free_session_rates', 'service_provider_error_rates', 'llm_api_failure_rates', 'span_response_time', 'llm_response_time', 'token_usage', 'daily_tokens_spent', 'monthly_tokens_spent', 'evaluation_metrics']),
+  "metric": zod.string().max(tracerUserAlertsGraphDataResponseMetricMax).optional().describe('Id of the evaluation template.'),
+  "threshold_operator": zod.enum(['greater_than', 'less_than']),
+  "threshold_type": zod.enum(['static', 'percentage_change']).optional().describe('Method to set the threshold for the monitor (Static or Percentage change).'),
+  "threshold_metric_value": zod.string().max(tracerUserAlertsGraphDataResponseThresholdMetricValueMax).optional().describe('For choice and pass\/fail evals, the specific metric value to monitor.'),
+  "critical_threshold_value": zod.number().min(tracerUserAlertsGraphDataResponseCriticalThresholdValueMin).optional(),
+  "warning_threshold_value": zod.number().min(tracerUserAlertsGraphDataResponseWarningThresholdValueMin).optional(),
+  "alert_frequency": zod.number().min(tracerUserAlertsGraphDataResponseAlertFrequencyMin).max(tracerUserAlertsGraphDataResponseAlertFrequencyMax).optional().describe('Frequency of alert checks in minutes.'),
+  "auto_threshold_time_window": zod.number().min(tracerUserAlertsGraphDataResponseAutoThresholdTimeWindowMin).max(tracerUserAlertsGraphDataResponseAutoThresholdTimeWindowMax).optional().describe('For auto-thresholding. The time window in minutes to calculate the historical mean'),
+  "last_checked_at": zod.string().datetime({"offset":true}).optional().describe('The last time the monitor was checked for alerts.'),
+  "notification_emails": zod.array(zod.string().email().min(1).max(tracerUserAlertsGraphDataResponseNotificationEmailsItemMax)).optional(),
+  "slack_webhook_url": zod.string().url().max(tracerUserAlertsGraphDataResponseSlackWebhookUrlMax).optional(),
+  "slack_notes": zod.string().optional(),
+  "is_mute": zod.boolean().optional(),
+  "filters": zod.object({
+
+}).passthrough().optional(),
+  "logs": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "organization": zod.string().uuid(),
+  "workspace": zod.string().uuid().optional(),
+  "created_by": zod.string().uuid().optional()
 })
 
 

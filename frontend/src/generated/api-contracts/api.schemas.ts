@@ -25144,6 +25144,13 @@ page?: number;
 limit?: number;
 };
 
+export type TracerEvalTaskList200 = {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: EvalTaskApi[];
+};
+
 export type TracerEvalTaskGetEvalDetailsParams = {
 /**
  * A page number within the paginated result set.
@@ -25153,6 +25160,13 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+};
+
+export type TracerEvalTaskGetEvalDetails200 = {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: EvalTaskApi[];
 };
 
 export type TracerEvalTaskGetEvalTaskLogsParams = {
@@ -25166,6 +25180,13 @@ page?: number;
 limit?: number;
 };
 
+export type TracerEvalTaskGetEvalTaskLogs200 = {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: EvalTaskApi[];
+};
+
 export type TracerEvalTaskGetUsageParams = {
 /**
  * A page number within the paginated result set.
@@ -25175,6 +25196,13 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+};
+
+export type TracerEvalTaskGetUsage200 = {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: EvalTaskApi[];
 };
 
 export type TracerEvalTaskListEvalTasksParams = {
@@ -26280,6 +26308,13 @@ page?: number;
 limit?: number;
 };
 
+export type TracerUserAlertsList200 = {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: UserAlertMonitorApi[];
+};
+
 export type TracerUserAlertsListMonitorsParams = {
 /**
  * A page number within the paginated result set.
@@ -26289,6 +26324,13 @@ page?: number;
  * Number of results to return per page.
  */
 limit?: number;
+};
+
+export type TracerUserAlertsListMonitors200 = {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: UserAlertMonitorApi[];
 };
 
 export type TracerUserAlertsMetricOptionsParams = {

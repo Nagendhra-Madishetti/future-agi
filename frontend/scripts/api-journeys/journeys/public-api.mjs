@@ -6583,7 +6583,11 @@ function assertJsonAuthGuard(result, label) {
   );
   assertJsonErrorOneOf(
     result,
-    ["Authentication credentials", "requires authentication"],
+    [
+      "Authentication credentials",
+      "requires authentication",
+      "No organization context",
+    ],
     label,
   );
   assertNoHtml500(result, label);

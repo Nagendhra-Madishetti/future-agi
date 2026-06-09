@@ -1115,9 +1115,13 @@ import type {
   TracerDashboardWidgetsListParams,
   TracerDatasetList200,
   TracerDatasetListParams,
+  TracerEvalTaskGetEvalDetails200,
   TracerEvalTaskGetEvalDetailsParams,
+  TracerEvalTaskGetEvalTaskLogs200,
   TracerEvalTaskGetEvalTaskLogsParams,
+  TracerEvalTaskGetUsage200,
   TracerEvalTaskGetUsageParams,
+  TracerEvalTaskList200,
   TracerEvalTaskListEvalTasksParams,
   TracerEvalTaskListEvalTasksWithProjectNameParams,
   TracerEvalTaskListParams,
@@ -1216,6 +1220,8 @@ import type {
   TracerUserAlertLogsListAll200,
   TracerUserAlertLogsListAllParams,
   TracerUserAlertLogsListParams,
+  TracerUserAlertsList200,
+  TracerUserAlertsListMonitors200,
   TracerUserAlertsListMonitorsParams,
   TracerUserAlertsListParams,
   TracerUserAlertsMetricOptionsParams,
@@ -59758,7 +59764,7 @@ export const tracerDatasetDelete = async (id: string, options?: RequestInit): Pr
 
 
 export type tracerEvalTaskListResponse200 = {
-  data: void
+  data: TracerEvalTaskList200
   status: 200
 }
 
@@ -59850,7 +59856,7 @@ export const tracerEvalTaskCreate = async (evalTaskApi: NonReadonly<EvalTaskApi>
 
 
 export type tracerEvalTaskGetEvalDetailsResponse200 = {
-  data: void
+  data: TracerEvalTaskGetEvalDetails200
   status: 200
 }
 
@@ -59901,7 +59907,7 @@ export const tracerEvalTaskGetEvalDetails = async (params?: TracerEvalTaskGetEva
 
 
 export type tracerEvalTaskGetEvalTaskLogsResponse200 = {
-  data: void
+  data: TracerEvalTaskGetEvalTaskLogs200
   status: 200
 }
 
@@ -59952,7 +59958,7 @@ export const tracerEvalTaskGetEvalTaskLogs = async (params?: TracerEvalTaskGetEv
 
 
 export type tracerEvalTaskGetUsageResponse200 = {
-  data: void
+  data: TracerEvalTaskGetUsage200
   status: 200
 }
 
@@ -60003,7 +60009,7 @@ export const tracerEvalTaskGetUsage = async (params?: TracerEvalTaskGetUsagePara
 
 
 export type tracerEvalTaskListEvalTasksResponse200 = {
-  data: void
+  data: EvalTaskApi[]
   status: 200
 }
 
@@ -60057,7 +60063,7 @@ export const tracerEvalTaskListEvalTasks = async (params?: TracerEvalTaskListEva
 
 
 export type tracerEvalTaskListEvalTasksWithProjectNameResponse200 = {
-  data: void
+  data: EvalTaskApi[]
   status: 200
 }
 
@@ -60304,7 +60310,7 @@ export const tracerEvalTaskUpdateEvalTask = async (evalTaskUpdateRequestApi: Eva
 
 
 export type tracerEvalTaskReadResponse200 = {
-  data: void
+  data: EvalTaskApi
   status: 200
 }
 
@@ -67790,7 +67796,7 @@ export const tracerUserAlertLogsListForAlert = async (id: string, options?: Requ
 
 
 export type tracerUserAlertsListResponse200 = {
-  data: void
+  data: TracerUserAlertsList200
   status: 200
 }
 
@@ -67986,7 +67992,7 @@ export const tracerUserAlertsDuplicate = async (userAlertMonitorDuplicateApi: Us
 
 
 export type tracerUserAlertsListMonitorsResponse200 = {
-  data: void
+  data: TracerUserAlertsListMonitors200
   status: 200
 }
 
@@ -68148,7 +68154,7 @@ export const tracerUserAlertsPreviewGraph = async (userAlertMonitorPreviewGraphA
 
 
 export type tracerUserAlertsReadResponse200 = {
-  data: void
+  data: UserAlertMonitorApi
   status: 200
 }
 
@@ -68312,7 +68318,7 @@ export const tracerUserAlertsDelete = async (id: string, options?: RequestInit):
 
 
 export type tracerUserAlertsMonitorDetailsResponse200 = {
-  data: void
+  data: UserAlertMonitorApi
   status: 200
 }
 
@@ -68352,7 +68358,7 @@ export const tracerUserAlertsMonitorDetails = async (id: string, options?: Reque
 
 
 export type tracerUserAlertsGraphDataResponse200 = {
-  data: void
+  data: UserAlertMonitorApi
   status: 200
 }
 

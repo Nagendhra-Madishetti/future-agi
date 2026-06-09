@@ -31007,6 +31007,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
           }
         },
         "responses": {
+          "200": {
+            "required": [
+              "count",
+              "results"
+            ],
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "next": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "previous": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/EvalTask"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -31051,6 +31079,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
           }
         },
         "responses": {
+          "200": {
+            "required": [
+              "count",
+              "results"
+            ],
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "next": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "previous": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/EvalTask"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -31078,6 +31134,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
           }
         },
         "responses": {
+          "200": {
+            "required": [
+              "count",
+              "results"
+            ],
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "next": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "previous": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/EvalTask"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -31105,6 +31189,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
           }
         },
         "responses": {
+          "200": {
+            "required": [
+              "count",
+              "results"
+            ],
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "next": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "previous": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/EvalTask"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -31166,6 +31278,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
           }
         },
         "responses": {
+          "200": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/EvalTask"
+            }
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -31227,6 +31345,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
           }
         },
         "responses": {
+          "200": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/EvalTask"
+            }
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -31333,6 +31457,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "requestBody": null,
         "queryParameters": {},
         "responses": {
+          "200": {
+            "$ref": "#/definitions/EvalTask"
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -36310,6 +36437,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
           }
         },
         "responses": {
+          "200": {
+            "required": [
+              "count",
+              "results"
+            ],
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "next": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "previous": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/UserAlertMonitor"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -36401,6 +36556,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
           }
         },
         "responses": {
+          "200": {
+            "required": [
+              "count",
+              "results"
+            ],
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "next": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "previous": {
+                "type": "string",
+                "format": "uri",
+                "x-nullable": true
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/UserAlertMonitor"
+                }
+              }
+            }
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -36473,6 +36656,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "requestBody": null,
         "queryParameters": {},
         "responses": {
+          "200": {
+            "$ref": "#/definitions/UserAlertMonitor"
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -36533,6 +36719,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "requestBody": null,
         "queryParameters": {},
         "responses": {
+          "200": {
+            "$ref": "#/definitions/UserAlertMonitor"
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }
@@ -36547,6 +36736,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "requestBody": null,
         "queryParameters": {},
         "responses": {
+          "200": {
+            "$ref": "#/definitions/UserAlertMonitor"
+          },
           "default": {
             "$ref": "#/definitions/ManagementAPIErrorResponse"
           }

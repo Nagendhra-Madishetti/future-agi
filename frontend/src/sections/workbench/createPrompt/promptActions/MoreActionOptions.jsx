@@ -158,6 +158,8 @@ const moreActionOptionsPropTypes = {
   }),
 };
 
+MoreActionOptionsChild.propTypes = moreActionOptionsPropTypes;
+
 // @ts-ignore
 MoreActionOptionsChild.propTypes = moreActionOptionsPropTypes;
 export const MoreActionOptions = forwardRef(MoreActionOptionsChild);

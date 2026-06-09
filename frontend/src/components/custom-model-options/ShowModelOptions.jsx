@@ -116,6 +116,8 @@ const showModelOptionsPropTypes = {
   voiceOptions: PropTypes.object,
 };
 
+ShowModelOptionsChild.propTypes = showModelOptionsPropTypes;
+
 // @ts-ignore
 ShowModelOptionsChild.propTypes = showModelOptionsPropTypes;
 export const ShowModelOptions = forwardRef(ShowModelOptionsChild);
