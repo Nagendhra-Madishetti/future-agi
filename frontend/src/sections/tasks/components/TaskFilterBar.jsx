@@ -1,10 +1,18 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import PropTypes from "prop-types";
 import { Box, Button, Typography } from "@mui/material";
 import { useWatch } from "react-hook-form";
 import Iconify from "src/components/iconify";
 import { getRandomId } from "src/utils/utils";
-import TraceFilterPanel from "src/sections/projects/LLMTracing/TraceFilterPanel";
+import TraceFilterPanel, {
+  useTraceFilterProperties,
+} from "src/sections/projects/LLMTracing/TraceFilterPanel";
 
 // ── Operator handling — canonical backend ops ──
 //
@@ -329,6 +337,25 @@ const TaskFilterBar = ({
   );
   const suppressNextSync = useRef(false);
 
+  // Resolve UUID column ids → display names. Shares cache with TraceFilterPanel.
+  const { data: properties = [] } = useTraceFilterProperties(projectId, {
+    isSimulator,
+  });
+  const propertyById = useMemo(() => {
+    const map = {};
+    for (const p of properties) map[p.id] = p;
+    return map;
+  }, [properties]);
+  const enrichedFilters = useMemo(
+    () =>
+      panelFilters.map((f) => {
+        if (f.fieldName || f.fieldLabel !== f.field) return f;
+        const prop = propertyById[f.field];
+        return prop ? { ...f, fieldLabel: prop.name } : f;
+      }),
+    [panelFilters, propertyById],
+  );
+
   // Keep local panel state in sync with form filters when they change externally
   // (e.g. edit mode hydration). Skip the sync right after our own apply.
   useEffect(() => {
@@ -392,7 +419,7 @@ const TaskFilterBar = ({
             flexWrap: "wrap",
           }}
         >
-          {panelFilters.map((f, idx) => (
+          {enrichedFilters.map((f, idx) => (
             <FilterChip
               key={`${f.field}-${idx}`}
               filter={f}

@@ -469,7 +469,7 @@ export function buildTraceFilterProperties(
   return properties;
 }
 
-function useTraceFilterProperties(
+export function useTraceFilterProperties(
   projectId,
   { enabled = true, isSimulator = false } = {},
 ) {
