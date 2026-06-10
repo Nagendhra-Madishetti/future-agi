@@ -5309,14 +5309,6 @@ class EvalUsageStatsView(APIView):
                     else None
                 )
 
-                # Truncate long text fields to keep list payload sane;
-                # full content is available in the detail panel.
-                _MAX = 500
-                if isinstance(input_str, str) and len(input_str) > _MAX:
-                    input_str = input_str[:_MAX] + "…"
-                if isinstance(reason, str) and len(reason) > _MAX:
-                    reason = reason[:_MAX] + "…"
-
                 # Build row: static fields + flattened input variables
                 row_data = {
                     "row_id": str(log.log_id),
