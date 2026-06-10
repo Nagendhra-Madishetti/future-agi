@@ -359,6 +359,21 @@ class CHSpanReader:
         ).result_rows
         return [_row_to_chspan(r) for r in rows]
 
+    def first_span_by_type(self, trace_id: str, observation_type: str) -> CHSpan | None:
+        """First span of a given type in a trace, ordered by start_time.
+
+        Single-row CH read — replaces listing every span in a trace just to
+        find the first LLM/TOOL/etc. span.
+        """
+        rows = self._client.query(
+            f"SELECT {_LEAN_SELECT_SQL} FROM spans FINAL "
+            "WHERE trace_id = %(trace_id)s AND is_deleted = 0 "
+            "AND lower(observation_type) = %(otype)s "
+            "ORDER BY start_time, id LIMIT 1",
+            parameters={"trace_id": trace_id, "otype": observation_type.lower()},
+        ).result_rows
+        return _row_to_chspan(rows[0]) if rows else None
+
     # ─── All spans in a session ──────────────────────────────────────────────
     def list_by_session(self, session_id: str) -> list[CHSpan]:
         """For session-level evals (`EvalLogger.target_type='session'`).

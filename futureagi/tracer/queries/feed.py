@@ -1686,9 +1686,7 @@ def _conversation_utterance(attrs: dict, *, last_agent: bool = False) -> str | N
             idx = int(key.split(".")[2])
         except (IndexError, ValueError):
             continue
-        better = (
-            best_idx is None or (idx > best_idx if last_agent else idx < best_idx)
-        )
+        better = best_idx is None or (idx > best_idx if last_agent else idx < best_idx)
         if better:
             text = attrs.get(f"conversation.transcript.{idx}.message.content")
             if text:
@@ -1961,7 +1959,9 @@ def _fetch_representative_traces(
     # latest trace so the cards stay trace-shaped. Their judge reason and
     # score come from the session-level eval, keyed back via session_by_trace.
     member_session_ids = [
-        str(e.trace_session_id) for e in ect_rows if e.trace_session_id and not e.trace_id
+        str(e.trace_session_id)
+        for e in ect_rows
+        if e.trace_session_id and not e.trace_id
     ]
     rep_map = _session_rep_trace_map(member_session_ids)
     rep_traces = (
@@ -2317,12 +2317,13 @@ def _users_affected_in_window(trace_ids: list[str]) -> int:
     if not trace_ids:
         return 0
     with get_reader() as reader:
-        spans = reader.list_by_trace_ids([str(t) for t in trace_ids])
-    users: set = set()
-    for s in spans:
-        if s.end_user_id:
-            users.add(s.end_user_id)
-    return len(users)
+        users_by_trace = reader.distinct_end_users_by_trace_ids(
+            [str(t) for t in trace_ids]
+        )
+    all_users: set = set()
+    for users in users_by_trace.values():
+        all_users.update(users)
+    return len(all_users)
 
 
 def _avg_eval_score(trace_ids: list[str]) -> float | None:
@@ -2373,9 +2374,7 @@ def _fetch_trend_metrics(
     prev_trace_members, prev_sessions = _member_ids_in_window(
         cluster_id, prev_start, cur_start
     )
-    cur_traces = cur_trace_members + list(
-        _session_rep_trace_map(cur_sessions).values()
-    )
+    cur_traces = cur_trace_members + list(_session_rep_trace_map(cur_sessions).values())
     prev_traces = prev_trace_members + list(
         _session_rep_trace_map(prev_sessions).values()
     )
@@ -2387,7 +2386,9 @@ def _fetch_trend_metrics(
     prev_err_rate = (100.0 * len(prev_traces) / prev_total) if prev_total else 0.0
 
     # Session clusters score on session-target eval rows, not span evals.
-    cur_score = _avg_eval_score(cur_traces) or _avg_session_eval_score(cur_sessions) or 0.0
+    cur_score = (
+        _avg_eval_score(cur_traces) or _avg_session_eval_score(cur_sessions) or 0.0
+    )
     prev_score = (
         _avg_eval_score(prev_traces) or _avg_session_eval_score(prev_sessions) or 0.0
     )
@@ -2462,9 +2463,7 @@ def _fetch_events_over_time_with_passing(
         # otherwise UTC-side .date() can disagree with the err_rows /
         # pass_rows keys, breaking the day-bucket union below).
         # Session members resolve to their session's rep trace first.
-        window_session_ids = [
-            str(s) for t, s, _ in ect_rows_in_window if s and not t
-        ]
+        window_session_ids = [str(s) for t, s, _ in ect_rows_in_window if s and not t]
         rep_map = _session_rep_trace_map(window_session_ids)
         buckets_by_trace: dict[str, list] = {}
         for tid, sid, ect_created in ect_rows_in_window:
@@ -2478,18 +2477,17 @@ def _fetch_events_over_time_with_passing(
             )
 
         with get_reader() as reader:
-            spans = reader.list_by_trace_ids(list(buckets_by_trace.keys()))
+            users_by_trace = reader.distinct_end_users_by_trace_ids(
+                list(buckets_by_trace.keys())
+            )
 
-        # For each span with a non-null end_user_id, mark that user in
-        # every bucket-day its trace appeared on.
-        for s in spans:
-            if not s.end_user_id:
-                continue
-            buckets = buckets_by_trace.get(str(s.trace_id))
+        for tid, user_ids in users_by_trace.items():
+            buckets = buckets_by_trace.get(str(tid))
             if not buckets:
                 continue
-            for bucket in buckets:
-                users_by_day.setdefault(bucket, set()).add(s.end_user_id)
+            for uid in user_ids:
+                for bucket in buckets:
+                    users_by_day.setdefault(bucket, set()).add(uid)
 
     users_by_day = {bucket: len(users) for bucket, users in users_by_day.items()}
 
@@ -2675,19 +2673,8 @@ def _fetch_sidebar_ai_metadata(
     model: str | None = None
     model_version: str | None = None
     if focus_trace_id:
-        # Was: ObservationSpan.filter(trace_id=, observation_type__iexact="llm")
-        #          .order_by("start_time").only("model", "span_attributes").first()
-        # CH list_by_trace returns spans in (start_time, id) order with
-        # is_deleted=0 — matches the legacy filter+order_by. CH filters
-        # are case-sensitive, so the iexact="llm" is reproduced with a
-        # Python lower() comparison (the same idiom analyze_errors uses
-        # for status).
-        llm_span: CHSpan | None = None
         with get_reader() as reader:
-            for s in reader.list_by_trace(focus_trace_id):
-                if (s.observation_type or "").lower() == "llm":
-                    llm_span = s
-                    break
+            llm_span = reader.first_span_by_type(focus_trace_id, "llm")
         if llm_span:
             model = llm_span.model or None
             # CHSpan typed-Map string attrs live in attrs_string.
@@ -2757,9 +2744,7 @@ def _fetch_sidebar_evaluations(
         member_q |= Q(trace_session_id__in=effective_session_ids)
 
     rows = list(
-        EvalLogger.objects.filter(
-            member_q, custom_eval_config__isnull=False
-        ).values(
+        EvalLogger.objects.filter(member_q, custom_eval_config__isnull=False).values(
             "custom_eval_config__name",
             "output_bool",
             "output_float",
