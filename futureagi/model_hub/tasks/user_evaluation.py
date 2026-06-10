@@ -1209,22 +1209,22 @@ def process_single_error_localization(task_id):
             if BillingConfig is not None:
                 credits = BillingConfig.get().calculate_ai_credits(actual_cost)
 
-            if emit is not None and UsageEvent is not None and BillingEventType is not None:
-                emit(
-                UsageEvent(
-                    org_id=str(task.organization.id),
-                    event_type=BillingEventType.ERROR_LOCALIZER,
-                    amount=credits,
-                    properties={
-                        "source": "error_localizer",
-                        "source_id": str(task.id),
-                        "raw_cost_usd": str(actual_cost),
-                        **llm_usage_properties(
-                            getattr(localizer, "error_agent", None)
-                        ),
-                    },
-                )
-            )
+                if emit is not None and UsageEvent is not None and BillingEventType is not None:
+                    emit(
+                        UsageEvent(
+                            org_id=str(task.organization.id),
+                            event_type=BillingEventType.ERROR_LOCALIZER,
+                            amount=credits,
+                            properties={
+                                "source": "error_localizer",
+                                "source_id": str(task.id),
+                                "raw_cost_usd": str(actual_cost),
+                                **llm_usage_properties(
+                                    getattr(localizer, "error_agent", None)
+                                ),
+                            },
+                        )
+                    )
         except Exception:
             pass  # Metering failure must not break the action
 

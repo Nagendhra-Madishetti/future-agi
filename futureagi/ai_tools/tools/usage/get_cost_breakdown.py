@@ -62,7 +62,7 @@ class GetCostBreakdownTool(BaseTool):
             APICallLog = None
 
         if APICallLog is None:
-            return ToolResult(content="Cost tracking is not available in OSS mode.", data={})
+            return ToolResult.feature_unavailable(EEFeature.AUDIT_LOGS.value)
 
         logs_qs = APICallLog.no_workspace_objects.filter(
             organization=context.organization,
