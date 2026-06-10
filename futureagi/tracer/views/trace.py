@@ -47,6 +47,7 @@ from tfc.utils.base_viewset import BaseModelViewSetMixin
 from tfc.utils.error_codes import get_error_message
 from tfc.utils.general_methods import GeneralMethods
 from tracer.models.custom_eval_config import CustomEvalConfig, EvalOutputType
+from tracer.models.eval_task import EvalTask
 from tracer.models.observation_span import EvalLogger, ObservationSpan
 from tracer.models.project import Project
 from tracer.models.project_version import ProjectVersion
@@ -88,6 +89,7 @@ from tracer.utils.annotations import (
 from tracer.utils.filters import FilterEngine
 from tracer.utils.helper import (
     build_eval_task_map,
+    build_task_grouped_eval_scores,
     eval_count_cell,
     get_annotation_labels_for_project,
     get_default_trace_config,
@@ -1361,16 +1363,27 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             }
 
         # ----- Phase 8: Batch fetch eval scores from CH -----
-        eval_map = {}
+        # Collect raw (non-deleted) span-level eval rows + lookups so evals can
+        # be grouped eval_task -> eval -> {aggregate, spans} per span. All work
+        # is batched: one CH query (rows), one PG query (config names/output/
+        # choices via select_related — no extra query), one PG query (task
+        # names). Grouping/aggregation is pure Python over the fetched rows.
+        eval_rows: list[dict] = []
+        rows_by_span: dict[str, list[dict]] = {}
+        config_lookup: dict[str, dict] = {}
+        task_lookup: dict[str, str] = {}
         try:
             eval_table, eval_nd = eval_logger_source()
             eval_query = f"""
             SELECT
                 toString(observation_span_id) AS span_id,
                 toString(custom_eval_config_id) AS eval_config_id,
+                eval_task_id,
                 output_float,
                 output_bool,
                 output_str,
+                output_str_list,
+                error,
                 eval_explanation
             FROM {eval_table} FINAL
             WHERE trace_id = %(trace_id)s
@@ -1379,68 +1392,76 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
             eval_result = analytics.execute_ch_query(
                 eval_query, {"trace_id": str(trace_id)}, timeout_ms=30000
             )
-            # Collect unique config IDs for name lookup
+
+            # Collect unique config + task IDs for batched name lookups.
             config_ids_set = set()
+            task_ids_set = set()
             for row in eval_result.data:
+                if not row.get("span_id"):
+                    continue  # span-level evals only (skip trace/session rows)
                 cid = row.get("eval_config_id", "")
                 if cid:
                     config_ids_set.add(cid)
-            # Lookup eval config names from PG
-            config_lookup = {}
+                tid = row.get("eval_task_id")
+                if tid:
+                    task_ids_set.add(str(tid))
+
+            # Eval config name / output type / choices (single PG query;
+            # eval_template is select_related so choices/config cost no extra
+            # query). Soft-deleted configs excluded.
             if config_ids_set:
                 configs = CustomEvalConfig.objects.filter(
                     id__in=list(config_ids_set), deleted=False
                 ).select_related("eval_template")
                 config_lookup = {
                     str(c.id): {
-                        # Prefer the CustomEvalConfig's user-given name (e.g.
-                        # "voice_sentence_count"), fall back to the template
-                        # name only if unset. This keeps the drawer labels in
-                        # sync with the trace list column headers.
+                        # Prefer the CustomEvalConfig's user-given name, fall
+                        # back to the template name only if unset.
                         "name": c.name
                         or (c.eval_template.name if c.eval_template else str(c.id)),
-                        "output_type": (
-                            getattr(c.eval_template, "output_type_normalized", None)
+                        "output": (
+                            (c.eval_template.config or {}).get(
+                                "output", EvalOutputType.SCORE.value
+                            )
                             if c.eval_template
-                            else None
+                            else EvalOutputType.SCORE.value
+                        ),
+                        "choices": (
+                            (c.eval_template.choices or []) if c.eval_template else []
                         ),
                     }
                     for c in configs
                 }
-            # Pivot into per-span map
+
+            # Eval task names (single PG query; soft-deleted tasks excluded).
+            if task_ids_set:
+                task_lookup = {
+                    str(tid): name
+                    for tid, name in EvalTask.objects.filter(
+                        id__in=task_ids_set, deleted=False
+                    ).values_list("id", "name")
+                }
+
+            # Normalise rows once; bucket by span for per-span child structures.
             for row in eval_result.data:
                 sid = row.get("span_id", "")
-                if not sid:
-                    continue
-                if sid not in eval_map:
-                    eval_map[sid] = []
                 cid = row.get("eval_config_id", "")
-                info = config_lookup.get(cid, {})
-                # Compute score from output columns
-                output_float = row.get("output_float")
-                output_bool = row.get("output_bool")
-                output_str = row.get("output_str")
-                # Score: use float if non-zero, else bool (True=100, False=0)
-                if output_float and output_float != 0:
-                    score = round(output_float * 100, 2)
-                elif output_bool is not None:
-                    score = 100 if output_bool else 0
-                else:
-                    score = None
-
-                explanation = row.get("eval_explanation", "")
-
-                eval_map[sid].append(
-                    {
-                        "eval_config_id": cid,
-                        "eval_name": info.get("name", cid),
-                        "output_type": info.get("output_type"),
-                        "score": score,
-                        "result": output_str
-                        or (output_bool if output_bool is not None else None),
-                        "explanation": explanation if explanation else None,
-                    }
-                )
+                if not sid or not cid or cid not in config_lookup:
+                    continue
+                tid = row.get("eval_task_id")
+                normalized = {
+                    "span_id": sid,
+                    "eval_config_id": cid,
+                    "eval_task_id": str(tid) if tid else None,
+                    "output_float": row.get("output_float"),
+                    "output_bool": row.get("output_bool"),
+                    "output_str": row.get("output_str"),
+                    "output_str_list": row.get("output_str_list"),
+                    "error": row.get("error"),
+                    "explanation": row.get("eval_explanation") or None,
+                }
+                eval_rows.append(normalized)
+                rows_by_span.setdefault(sid, []).append(normalized)
         except Exception as e:
             logger.warning(f"Failed to fetch trace eval scores: {e}")
 
@@ -1550,8 +1571,28 @@ class TraceView(BaseModelViewSetMixin, ModelViewSet):
                 logger.warning(f"Failed to fetch span tags from PG: {e}")
 
         # ----- Attach evals + annotations to each span -----
+        # eval_scores is grouped eval_task -> eval -> {aggregate, spans}.
+        # Root span (parent_span_id null) gets the trace-level view: aggregate +
+        # span-wise data across ALL spans, built once and shared. Every other
+        # span gets the same structure scoped to just its own rows.
+        span_name_map = {
+            sid: entry["observation_span"].get("name")
+            for sid, entry in span_map.items()
+        }
+        trace_level_scores = build_task_grouped_eval_scores(
+            eval_rows, config_lookup, task_lookup, span_name_map, "trace"
+        )
         for sid, entry in span_map.items():
-            entry["eval_scores"] = eval_map.get(sid, [])
+            if entry["_parent_id"] is None:
+                entry["eval_scores"] = trace_level_scores
+            else:
+                entry["eval_scores"] = build_task_grouped_eval_scores(
+                    rows_by_span.get(sid, []),
+                    config_lookup,
+                    task_lookup,
+                    span_name_map,
+                    "span",
+                )
             entry["annotations"] = annotation_map.get(sid, [])
 
         # Build tree: link children to parents
