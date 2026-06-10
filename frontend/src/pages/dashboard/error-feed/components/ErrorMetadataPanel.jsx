@@ -29,6 +29,7 @@ import {
 } from "src/api/errorFeed/error-feed";
 import { useOrgMembers } from "src/api/annotation-queues/annotation-queues";
 import { useAuthContext } from "src/auth/hooks";
+import openExternal from "../openExternal";
 import { useErrorFeedStore } from "../store";
 import PropTypes from "prop-types";
 
@@ -826,7 +827,9 @@ CoOccurringList.propTypes = { issues: PropTypes.array.isRequired };
 
 // ── Integrations ──────────────────────────────────────────────────────────────
 
-function LinearTeamPicker({ open, onClose, clusterId, traceId }) {
+// Exported: the ClusterHeadlineCard's "Create Linear issue" button reuses
+// this picker (cluster-level — no trace context, the BE attaches the RCA).
+export function LinearTeamPicker({ open, onClose, clusterId, traceId }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   const { enqueueSnackbar } = useSnackbar();
@@ -844,14 +847,21 @@ function LinearTeamPicker({ open, onClose, clusterId, traceId }) {
       { clusterId, teamId, traceId },
       {
         onSuccess: (res) => {
+          // Wire form is snake_case; tolerate the axios camelCase aliases.
           const result = res?.data?.result;
-          if (result?.alreadyLinked) {
-            window.open(result.issueUrl, "_blank");
+          const issueId = result?.issue_id ?? result?.issueId;
+          const issueUrl = result?.issue_url ?? result?.issueUrl;
+          const alreadyLinked = result?.already_linked ?? result?.alreadyLinked;
+          if (alreadyLinked) {
+            openExternal(issueUrl);
           } else {
-            enqueueSnackbar(`Created ${result?.issueId}`, {
-              variant: "success",
-            });
-            if (result?.issueUrl) window.open(result.issueUrl, "_blank");
+            enqueueSnackbar(
+              issueId ? `Created ${issueId}` : "Linear issue created",
+              {
+                variant: "success",
+              },
+            );
+            openExternal(issueUrl);
           }
           onClose();
         },
@@ -1090,7 +1100,7 @@ function Integrations({
 
   const handleLinearAction = () => {
     if (linked) {
-      window.open(externalIssueUrl, "_blank");
+      openExternal(externalIssueUrl);
       return;
     }
     if (!linearConnected) {

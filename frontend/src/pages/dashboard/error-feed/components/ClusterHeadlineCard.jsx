@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import PropTypes from "prop-types";
 import Iconify from "src/components/iconify";
+import openExternal from "../openExternal";
 import { useErrorFeedStore } from "../store";
 
 // Format the cached-analysis timestamp into a short relative label.
@@ -184,12 +185,7 @@ function NotAnalyzedState({ onAnalyze }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
   return (
-    <Stack
-      direction="row"
-      alignItems="center"
-      gap={2}
-      sx={{ py: 0.5 }}
-    >
+    <Stack direction="row" alignItems="center" gap={2} sx={{ py: 0.5 }}>
       <Box
         sx={{
           width: 38,
@@ -202,13 +198,21 @@ function NotAnalyzedState({ onAnalyze }) {
           flexShrink: 0,
         }}
       >
-        <Iconify icon="mdi:star-four-points-outline" width={18} sx={{ color: ACCENT }} />
+        <Iconify
+          icon="mdi:star-four-points-outline"
+          width={18}
+          sx={{ color: ACCENT }}
+        />
       </Box>
       <Stack flex={1} gap={0.4} minWidth={0}>
         <Typography fontSize="14px" fontWeight={600} color="text.primary">
           No analysis yet
         </Typography>
-        <Typography fontSize="12px" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+        <Typography
+          fontSize="12px"
+          color="text.secondary"
+          sx={{ lineHeight: 1.55 }}
+        >
           No analysis yet — get a plain-English explanation and a suggested fix.
         </Typography>
       </Stack>
@@ -256,7 +260,11 @@ function StepChips({ activeStepIdx }) {
     <Stack direction="row" alignItems="center" gap={0.75} flexWrap="wrap">
       {ANALYSIS_STEP_LABELS.map((label, i) => {
         const status =
-          i < activeStepIdx ? "done" : i === activeStepIdx ? "active" : "queued";
+          i < activeStepIdx
+            ? "done"
+            : i === activeStepIdx
+              ? "active"
+              : "queued";
         const isActive = status === "active";
         const isDone = status === "done";
         return (
@@ -337,6 +345,7 @@ AnalyzingState.propTypes = { activeStepIdx: PropTypes.number };
 // ── State: analyzed (default after run) ──────────────────────────────────────
 function AnalyzedState({
   data,
+  linkedIssue,
   onApplyFix,
   onCreateLinear,
   onOpenAnalyze,
@@ -422,13 +431,23 @@ function AnalyzedState({
           </span>
         </Tooltip>
 
+        {/* One Linear issue per cluster — once linked, this is a link-out,
+            never a silent redirect dressed up as "create". */}
         <Button
           size="small"
           variant="outlined"
           startIcon={
-            <Iconify icon="simple-icons:linear" width={12} sx={{ color: "#5E6AD2" }} />
+            <Iconify
+              icon="simple-icons:linear"
+              width={12}
+              sx={{ color: "#5E6AD2" }}
+            />
           }
-          onClick={onCreateLinear}
+          onClick={
+            linkedIssue?.url
+              ? () => openExternal(linkedIssue.url)
+              : onCreateLinear
+          }
           sx={{
             height: 28,
             fontSize: "12px",
@@ -442,7 +461,9 @@ function AnalyzedState({
             },
           }}
         >
-          Create Linear issue
+          {linkedIssue?.url
+            ? `View ${linkedIssue.id || "Linear issue"}`
+            : "Create Linear issue"}
         </Button>
 
         <Box sx={{ flex: 1 }} />
@@ -475,6 +496,10 @@ function AnalyzedState({
 }
 AnalyzedState.propTypes = {
   data: PropTypes.object.isRequired,
+  linkedIssue: PropTypes.shape({
+    id: PropTypes.string,
+    url: PropTypes.string,
+  }),
   onApplyFix: PropTypes.func,
   onCreateLinear: PropTypes.func,
   onOpenAnalyze: PropTypes.func,
@@ -486,6 +511,7 @@ export default function ClusterHeadlineCard({
   error,
   onOpenAnalyze,
   onStartAnalysis,
+  onCreateLinear,
 }) {
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
@@ -754,8 +780,19 @@ export default function ClusterHeadlineCard({
                 ...data,
                 newSinceAnalysis,
               }}
+              linkedIssue={
+                error?.external_issue_url || error?.externalIssueUrl
+                  ? {
+                      id:
+                        error?.external_issue_id ??
+                        error?.externalIssueId ??
+                        null,
+                      url: error?.external_issue_url ?? error?.externalIssueUrl,
+                    }
+                  : null
+              }
               onApplyFix={noop}
-              onCreateLinear={noop}
+              onCreateLinear={onCreateLinear ?? noop}
               onOpenAnalyze={onOpenAnalyze ?? noop}
               onRerun={runAnalysis}
             />
@@ -769,4 +806,5 @@ ClusterHeadlineCard.propTypes = {
   error: PropTypes.object.isRequired,
   onOpenAnalyze: PropTypes.func,
   onStartAnalysis: PropTypes.func,
+  onCreateLinear: PropTypes.func,
 };

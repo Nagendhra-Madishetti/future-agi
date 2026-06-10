@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -21,7 +21,9 @@ import {
 } from "src/api/errorFeed/error-feed";
 import ErrorStatusChip from "./components/ErrorStatusChip";
 import ErrorSeverityBadge from "./components/ErrorSeverityBadge";
-import ErrorMetadataPanel from "./components/ErrorMetadataPanel";
+import ErrorMetadataPanel, {
+  LinearTeamPicker,
+} from "./components/ErrorMetadataPanel";
 import OverviewTab from "./components/OverviewTab";
 import TracesTab from "./components/TracesTab";
 import TrendsTab from "./components/TrendsTab";
@@ -98,6 +100,9 @@ export default function ErrorFeedDetailView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { activeTab, setActiveTab } = useErrorFeedStore();
+  // Headline card's "Create Linear issue" — cluster-level (no trace), the
+  // backend attaches the full cluster RCA to the ticket body.
+  const [linearPickerOpen, setLinearPickerOpen] = useState(false);
   const setAnalyzePendingStart = useErrorFeedStore(
     (s) => s.setAnalyzePendingStart,
   );
@@ -465,6 +470,7 @@ export default function ErrorFeedDetailView() {
                         setAnalyzePendingStart(currentError.clusterId, true);
                         setActiveTab("analyze");
                       }}
+                      onCreateLinear={() => setLinearPickerOpen(true)}
                     />
                   </Box>
                 )}
@@ -479,6 +485,13 @@ export default function ErrorFeedDetailView() {
 
       {/* ── Right sidebar ── */}
       <ErrorMetadataPanel error={currentError} />
+
+      <LinearTeamPicker
+        open={linearPickerOpen}
+        onClose={() => setLinearPickerOpen(false)}
+        clusterId={currentError?.clusterId}
+        traceId={null}
+      />
     </Box>
   );
 }
