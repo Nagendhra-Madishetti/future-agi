@@ -569,13 +569,16 @@ def get_cluster_trace_embeddings(
     Picks the first (oldest) trace linked to the cluster that has an embedding.
     Returns (trace_id, embedding) or None.
     """
-    # Get trace IDs in this cluster
-    trace_ids = list(
-        ErrorClusterTraces.objects.filter(
+    # Get trace IDs in this cluster. Session members have trace_id NULL —
+    # interpolating None into the CH IN-clause is a UUID parse error.
+    trace_ids = [
+        str(tid)
+        for tid in ErrorClusterTraces.objects.filter(
             cluster__cluster_id=cluster_id,
             cluster__project_id=project_id,
         ).values_list("trace_id", flat=True)
-    )
+        if tid
+    ]
 
     if not trace_ids:
         return None

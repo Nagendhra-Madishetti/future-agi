@@ -246,6 +246,7 @@ class OverviewResponseSerializer(serializers.Serializer):
     events_over_time = EventsOverTimePointSerializer(many=True)
     pattern_summary = PatternSummarySerializer()
     representative_traces = RepresentativeTraceSerializer(many=True)
+    representative_total = serializers.IntegerField(default=0)
 
 
 class OverviewApiResponseSerializer(serializers.Serializer):
@@ -297,6 +298,14 @@ class TracesTabQuerySerializer(serializers.Serializer):
         required=False, default=50, min_value=1, max_value=500
     )
     offset = serializers.IntegerField(required=False, default=0, min_value=0)
+
+
+class OverviewQuerySerializer(serializers.Serializer):
+    """Query params for GET /tracer/feed/issues/{cluster_id}/overview/."""
+
+    rep_limit = serializers.IntegerField(
+        required=False, default=20, min_value=1, max_value=200
+    )
 
 
 # ---------------------------------------------------------------------------

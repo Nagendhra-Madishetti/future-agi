@@ -25,12 +25,12 @@ from django.db.models import (
     Value,
     When,
 )
-from django.db.models.functions import TruncDate
+from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 from scipy.stats import ks_2samp
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
-from tracer.models.observation_span import EvalLogger
+from tracer.models.observation_span import EvalLogger, EvalTargetType
 from tracer.models.trace import Trace, TraceErrorAnalysisStatus
 from tracer.models.trace_error_analysis import (
     ClusterSource,
@@ -246,15 +246,28 @@ def _fetch_users_affected_batch(cluster_ids: list[str]) -> dict:
 
     ect_rows = ErrorClusterTraces.objects.filter(
         cluster__cluster_id__in=cluster_ids,
-    ).values_list("trace_id", "cluster__cluster_id")
+    ).values_list("trace_id", "trace_session_id", "cluster__cluster_id")
 
     # trace_id → set of cluster_ids it belongs to (one trace can sit in
-    # many clusters via separate ECT rows).
+    # many clusters via separate ECT rows). Session members (trace NULL)
+    # fan out to ALL of the session's traces — the user count must cover
+    # the whole conversation, not just the representative turn.
     trace_to_clusters: dict[str, set] = {}
-    for tid, cid in ect_rows:
-        if not tid or not cid:
+    session_to_clusters: dict[str, set] = {}
+    for tid, sid, cid in ect_rows:
+        if not cid:
             continue
-        trace_to_clusters.setdefault(str(tid), set()).add(cid)
+        if tid:
+            trace_to_clusters.setdefault(str(tid), set()).add(cid)
+        elif sid:
+            session_to_clusters.setdefault(str(sid), set()).add(cid)
+
+    if session_to_clusters:
+        for sid, tids in _session_traces_map(list(session_to_clusters)).items():
+            for tid in tids:
+                trace_to_clusters.setdefault(tid, set()).update(
+                    session_to_clusters[sid]
+                )
 
     if not trace_to_clusters:
         return {}
@@ -280,13 +293,18 @@ def _fetch_sessions_batch(cluster_ids: list[str]) -> dict:
     if not cluster_ids:
         return {}
 
+    # Session members store the session directly on the junction row;
+    # trace members reach theirs through trace.session. Coalesce keeps it
+    # one query for mixed batches.
     rows = (
-        ErrorClusterTraces.objects.filter(
-            cluster__cluster_id__in=cluster_ids,
-            trace__session__isnull=False,
-        )
+        ErrorClusterTraces.objects.filter(cluster__cluster_id__in=cluster_ids)
+        .filter(Q(trace__session__isnull=False) | Q(trace_session__isnull=False))
         .values("cluster__cluster_id")
-        .annotate(sessions=Count("trace__session_id", distinct=True))
+        .annotate(
+            sessions=Count(
+                Coalesce("trace_session_id", "trace__session_id"), distinct=True
+            )
+        )
     )
     return {r["cluster__cluster_id"]: r["sessions"] for r in rows}
 
@@ -311,9 +329,32 @@ def _fetch_latest_trace_id_batch(cluster_ids: list[str]) -> dict:
         .values("cluster__cluster_id", "trace_id")
     )
 
-    return {
+    out = {
         str(r["cluster__cluster_id"]): str(r["trace_id"]) for r in rows if r["trace_id"]
     }
+
+    # Session-membered clusters have trace_id NULL on every junction row —
+    # fall back to the newest member session's latest trace.
+    missing = [cid for cid in cluster_ids if str(cid) not in out]
+    if missing:
+        sess_rows = list(
+            ErrorClusterTraces.objects.filter(
+                cluster__cluster_id__in=missing,
+                trace_session_id__isnull=False,
+            )
+            .order_by("cluster__cluster_id", "-created_at")
+            .distinct("cluster__cluster_id")
+            .values("cluster__cluster_id", "trace_session_id")
+        )
+        rep_map = _session_rep_trace_map(
+            [str(r["trace_session_id"]) for r in sess_rows]
+        )
+        for r in sess_rows:
+            tid = rep_map.get(str(r["trace_session_id"]))
+            if tid:
+                out[str(r["cluster__cluster_id"])] = tid
+
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -521,41 +562,66 @@ def get_cluster_detail(
         # Eval clusters never get the scanner's KNN success match. A genuine
         # PASSING result for the same eval is the honest "working" reference
         # (powers the failing-vs-working comparison, e.g. voice call compare).
-        member_ids = _trace_ids_for_cluster(cluster.cluster_id)
-        passing = (
-            EvalLogger.objects.filter(
-                trace__project_id=cluster.project_id,
-                custom_eval_config_id=cluster.eval_config_id,
-                deleted=False,
+        if cluster.eval_target_type == EvalTargetType.SESSION:
+            # Session evals anchor to the session (trace NULL): find a
+            # passing session and represent it by its latest trace.
+            _, member_session_ids = _cluster_member_ids(cluster.cluster_id)
+            passing_session = (
+                EvalLogger.objects.filter(
+                    trace_session__project_id=cluster.project_id,
+                    custom_eval_config_id=cluster.eval_config_id,
+                    deleted=False,
+                )
+                .filter(Q(output_bool=True) | Q(output_float__gte=1.0))
+                .exclude(trace_session_id__in=member_session_ids)
+                .order_by("-created_at")
+                .values_list("trace_session_id", flat=True)
+                .first()
             )
-            .filter(Q(output_bool=True) | Q(output_float__gte=1.0))
-            .exclude(trace_id__in=member_ids)
-            .select_related("trace")
-            .order_by("-created_at")
-            .first()
-        )
-        if passing and passing.trace:
-            success_trace = TracePreview(
-                trace_id=str(passing.trace_id),
-                input=_trace_input_str(passing.trace),
-                output=_trace_output_str(passing.trace),
+            if passing_session:
+                rep_tid = _session_rep_trace_map([str(passing_session)]).get(
+                    str(passing_session)
+                )
+                rep_trace = (
+                    Trace.objects.filter(id=rep_tid).first() if rep_tid else None
+                )
+                if rep_trace:
+                    success_trace = TracePreview(
+                        trace_id=str(rep_trace.id),
+                        input=_trace_input_str(rep_trace),
+                        output=_trace_output_str(rep_trace),
+                    )
+        else:
+            member_ids = _trace_ids_for_cluster(cluster.cluster_id)
+            passing = (
+                EvalLogger.objects.filter(
+                    trace__project_id=cluster.project_id,
+                    custom_eval_config_id=cluster.eval_config_id,
+                    deleted=False,
+                )
+                .filter(Q(output_bool=True) | Q(output_float__gte=1.0))
+                .exclude(trace_id__in=member_ids)
+                .select_related("trace")
+                .order_by("-created_at")
+                .first()
             )
+            if passing and passing.trace:
+                success_trace = TracePreview(
+                    trace_id=str(passing.trace_id),
+                    input=_trace_input_str(passing.trace),
+                    output=_trace_output_str(passing.trace),
+                )
 
     representative_trace: TracePreview | None = None
     if row.trace_id:
-        rep = (
-            ErrorClusterTraces.objects.filter(
-                cluster__cluster_id=cluster.cluster_id,
-                trace_id=row.trace_id,
-            )
-            .select_related("trace")
-            .first()
-        )
-        if rep and rep.trace:
+        # Direct Trace fetch — session clusters' latest_trace_id is an
+        # effective trace (the session's rep), which has no junction row.
+        rep_trace_obj = Trace.objects.filter(id=row.trace_id).first()
+        if rep_trace_obj:
             representative_trace = TracePreview(
-                trace_id=str(rep.trace.id),
-                input=_trace_input_str(rep.trace),
-                output=_trace_output_str(rep.trace),
+                trace_id=str(rep_trace_obj.id),
+                input=_trace_input_str(rep_trace_obj),
+                output=_trace_output_str(rep_trace_obj),
             )
 
     rca = RcaSummary(
@@ -660,14 +726,55 @@ def _trace_output_str(trace) -> str | None:
     return _safe_str(trace.output)
 
 
+def _cluster_member_ids(cluster_id: str) -> tuple[list[str], list[str]]:
+    """(trace_ids, session_ids) of the cluster's junction members.
+
+    Session-target eval results anchor their junction row to a TraceSession
+    (trace FK NULL), so the two member kinds must be read separately.
+    """
+    rows = ErrorClusterTraces.objects.filter(
+        cluster__cluster_id=cluster_id
+    ).values_list("trace_id", "trace_session_id")
+    trace_ids = [str(t) for t, _ in rows if t]
+    session_ids = [str(s) for t, s in rows if s and not t]
+    return trace_ids, session_ids
+
+
+def _session_traces_map(session_ids: list[str]) -> dict[str, list[str]]:
+    """{session_id: [trace_ids, newest first]} for the given sessions."""
+    if not session_ids:
+        return {}
+    rows = (
+        Trace.objects.filter(session_id__in=session_ids)
+        .order_by("-created_at")
+        .values_list("session_id", "id")
+    )
+    out: dict[str, list[str]] = {}
+    for sid, tid in rows:
+        out.setdefault(str(sid), []).append(str(tid))
+    return out
+
+
+def _session_rep_trace_map(session_ids: list[str]) -> dict[str, str]:
+    """{session_id: the session's latest trace_id}.
+
+    The feed UI navigates traces; a session member is represented by its
+    most recent trace — the turn where a conversation-level failure
+    manifests.
+    """
+    return {sid: tids[0] for sid, tids in _session_traces_map(session_ids).items()}
+
+
 def _trace_ids_for_cluster(cluster_id: str) -> list[str]:
-    """Return all trace_ids linked to a cluster via ErrorClusterTraces."""
-    return [
-        str(tid)
-        for tid in ErrorClusterTraces.objects.filter(
-            cluster__cluster_id=cluster_id
-        ).values_list("trace_id", flat=True)
-    ]
+    """Navigable trace_ids for a cluster's members.
+
+    Trace/span members contribute their own trace; session members resolve
+    to their session's latest trace via ``_session_rep_trace_map``.
+    """
+    trace_ids, session_ids = _cluster_member_ids(cluster_id)
+    if session_ids:
+        trace_ids.extend(_session_rep_trace_map(session_ids).values())
+    return trace_ids
 
 
 # ---------------------------------------------------------------------------
@@ -1553,6 +1660,42 @@ def _key_moments_to_reel(
     return steps
 
 
+def _conversation_utterance(attrs: dict, *, last_agent: bool = False) -> str | None:
+    """Fallback I/O text for voice conversation roots, which carry a
+    flattened transcript (``conversation.transcript.{i}.message.role`` /
+    ``.content``) instead of ``input.value``/``output.value``.
+
+    Default: first caller utterance (the call's "input"). With
+    ``last_agent=True``: last agent utterance (its "output").
+    """
+    if not attrs:
+        return None
+    target_roles = (
+        ("assistant", "agent", "bot") if last_agent else ("user", "customer", "caller")
+    )
+    best_idx: int | None = None
+    best_text: str | None = None
+    for key, role in attrs.items():
+        if not key.startswith("conversation.transcript.") or not key.endswith(
+            ".message.role"
+        ):
+            continue
+        if str(role).lower() not in target_roles:
+            continue
+        try:
+            idx = int(key.split(".")[2])
+        except (IndexError, ValueError):
+            continue
+        better = (
+            best_idx is None or (idx > best_idx if last_agent else idx < best_idx)
+        )
+        if better:
+            text = attrs.get(f"conversation.transcript.{idx}.message.content")
+            if text:
+                best_idx, best_text = idx, str(text)
+    return best_text
+
+
 def _trace_judge(trace_id: str) -> tuple[str | None, float | None]:
     """The evaluator's reasoning + score for this trace — the lowest-scoring
     eval (the one explaining the failure), so the reason and the score badge
@@ -1592,6 +1735,38 @@ def _trace_judges_batch(
     for tid, explanation, score in rows:
         out.setdefault(str(tid), (explanation, score))
     return out
+
+
+def _session_judges_batch(
+    session_ids: list[str],
+) -> dict[str, tuple[str | None, float | None]]:
+    """Session twin of ``_trace_judges_batch`` — session-target EvalLogger
+    rows anchor to trace_session (trace FK NULL), so the per-trace lookup
+    never sees them. Keyed by session_id."""
+    if not session_ids:
+        return {}
+    rows = (
+        EvalLogger.objects.filter(trace_session_id__in=session_ids, deleted=False)
+        .exclude(eval_explanation__isnull=True)
+        .exclude(eval_explanation="")
+        .annotate(_score=EVAL_SCORE_EXPR)
+        .order_by("trace_session_id", "_score")
+        .values_list("trace_session_id", "eval_explanation", "_score")
+    )
+    out: dict[str, tuple[str | None, float | None]] = {}
+    for sid, explanation, score in rows:
+        out.setdefault(str(sid), (explanation, score))
+    return out
+
+
+def _avg_session_eval_score(session_ids: list[str]) -> float | None:
+    """Average session-target eval score over the given sessions
+    (bool counted 0/1 via EVAL_SCORE_EXPR)."""
+    if not session_ids:
+        return None
+    return EvalLogger.objects.filter(
+        trace_session_id__in=session_ids, target_type=EvalTargetType.SESSION
+    ).aggregate(avg=Avg(EVAL_SCORE_EXPR))["avg"]
 
 
 def _build_representative_trace(
@@ -1634,10 +1809,19 @@ def _build_representative_trace(
     output_text = None
     if root:
         # CHSpan stores typed-string attrs in attrs_string; input.value
-        # and output.value are string-valued so they live there.
+        # and output.value are string-valued so they live there. Voice
+        # conversation roots have neither — use the transcript instead.
         attrs = root.attrs_string or {}
-        input_text = _safe_str(attrs.get("input.value")) or _trace_input_str(trace)
-        output_text = _safe_str(attrs.get("output.value")) or _trace_output_str(trace)
+        input_text = (
+            _safe_str(attrs.get("input.value"))
+            or _conversation_utterance(attrs)
+            or _trace_input_str(trace)
+        )
+        output_text = (
+            _safe_str(attrs.get("output.value"))
+            or _conversation_utterance(attrs, last_agent=True)
+            or _trace_output_str(trace)
+        )
     else:
         input_text = _trace_input_str(trace)
         output_text = _trace_output_str(trace)
@@ -1773,18 +1957,38 @@ def _fetch_representative_traces(
         qs[: limit * 3] if limit else qs
     )  # over-fetch for dedupe when limited
 
+    # Session members carry no trace FK — resolve each to its session's
+    # latest trace so the cards stay trace-shaped. Their judge reason and
+    # score come from the session-level eval, keyed back via session_by_trace.
+    member_session_ids = [
+        str(e.trace_session_id) for e in ect_rows if e.trace_session_id and not e.trace_id
+    ]
+    rep_map = _session_rep_trace_map(member_session_ids)
+    rep_traces = (
+        {str(t.id): t for t in Trace.objects.filter(id__in=rep_map.values())}
+        if rep_map
+        else {}
+    )
+
     # First pass: dedupe by trace id so the batch helpers below only fetch
     # what we'll actually emit.
     deduped: list[Trace] = []
+    session_by_trace: dict[str, str] = {}
     seen_ids: set = set()
     for ect in ect_rows:
-        if not ect.trace:
+        trace = ect.trace
+        if trace is None and ect.trace_session_id:
+            sid = str(ect.trace_session_id)
+            trace = rep_traces.get(rep_map.get(sid, ""))
+            if trace is not None:
+                session_by_trace[str(trace.id)] = sid
+        if not trace:
             continue
-        tid = str(ect.trace.id)
+        tid = str(trace.id)
         if tid in seen_ids:
             continue
         seen_ids.add(tid)
-        deduped.append(ect.trace)
+        deduped.append(trace)
         if limit and len(deduped) >= limit:
             break
 
@@ -1797,6 +2001,20 @@ def _fetch_representative_traces(
     scores = _get_trace_scores_batch(trace_ids)
     scans = _get_scan_results_batch(trace_ids)
     judges = _trace_judges_batch(trace_ids)
+    session_judges = _session_judges_batch(list(session_by_trace.values()))
+
+    def _judge_for(tid: str) -> tuple[str | None, float | None] | None:
+        sid = session_by_trace.get(tid)
+        if sid and sid in session_judges:
+            return session_judges[sid]
+        return judges.get(tid)
+
+    def _score_for(tid: str) -> float | None:
+        score = scores.get(tid)
+        if score is None and tid in session_by_trace:
+            judge = session_judges.get(session_by_trace[tid])
+            score = judge[1] if judge else None
+        return score
 
     return [
         _build_representative_trace(
@@ -1806,9 +2024,9 @@ def _fetch_representative_traces(
             highlight_terms=highlight_terms,
             root=roots.get(str(trace.id)),
             totals=totals.get(str(trace.id)),
-            score=scores.get(str(trace.id)),
+            score=_score_for(str(trace.id)),
             scan_result=scans.get(str(trace.id)),
-            judge=judges.get(str(trace.id)),
+            judge=_judge_for(str(trace.id)),
             _prefetched=True,
         )
         for trace in deduped
@@ -1825,18 +2043,34 @@ def _cluster_qs_for_access(
 
 
 def get_overview(
-    cluster_id: str, project_ids: list[str] | None = None
+    cluster_id: str,
+    project_ids: list[str] | None = None,
+    *,
+    rep_limit: int = 20,
 ) -> OverviewResponse | None:
-    """Full Overview tab payload for a cluster."""
+    """Full Overview tab payload for a cluster.
+
+    ``rep_limit`` caps the representative-trace cards — full membership
+    lives in the Traces tab, which paginates properly. Building a card is
+    the expensive part (CH root span + totals + judges per trace), so
+    shipping all members made big clusters crawl.
+    """
     cluster = _cluster_qs_for_access(cluster_id, project_ids).first()
     if not cluster:
         return None
     project_id = str(cluster.project_id)
 
+    member_total = ErrorClusterTraces.objects.filter(
+        cluster__cluster_id=cluster_id
+    ).aggregate(c=Count(Coalesce("trace_id", "trace_session_id"), distinct=True))["c"]
+
     return OverviewResponse(
         events_over_time=_fetch_events_over_time(cluster_id),
         pattern_summary=_fetch_pattern_summary(cluster_id),
-        representative_traces=_fetch_representative_traces(cluster_id, project_id),
+        representative_traces=_fetch_representative_traces(
+            cluster_id, project_id, limit=rep_limit
+        ),
+        representative_total=member_total or 0,
     )
 
 
@@ -1860,7 +2094,10 @@ def _percentile(values: list[int], pct: float) -> int:
 
 def _fetch_traces_aggregates(cluster_id: str) -> TracesAggregates:
     """Compute per-cluster aggregates for the Traces tab stat bar."""
-    trace_ids = _trace_ids_for_cluster(cluster_id)
+    member_trace_ids, member_session_ids = _cluster_member_ids(cluster_id)
+    trace_ids = list(member_trace_ids)
+    if member_session_ids:
+        trace_ids.extend(_session_rep_trace_map(member_session_ids).values())
     if not trace_ids:
         return TracesAggregates()
 
@@ -1877,7 +2114,12 @@ def _fetch_traces_aggregates(cluster_id: str) -> TracesAggregates:
     # PR3: span-only via _avg_eval_score — keeps the avg comparable to
     # pre-row_type semantics. Trace-level evals (PR4) surface elsewhere.
     # Helper uses EVAL_SCORE_EXPR for bool-aware avg (sim/voice clusters).
-    avg_score = _avg_eval_score(trace_ids) or 0.0
+    # Session clusters have no span evals on their member traces — their
+    # score lives on the session-target rows instead.
+    avg_score = _avg_eval_score(trace_ids)
+    if avg_score is None and member_session_ids:
+        avg_score = _avg_session_eval_score(member_session_ids)
+    avg_score = avg_score or 0.0
 
     # Latency percentiles: sum(latency_ms) per trace via CH batch helper.
     totals_by_trace = _get_trace_totals_batch(trace_ids)
@@ -1925,18 +2167,41 @@ def _fetch_trace_rows(
         .order_by("-created_at")
     )
 
-    total = base.values("trace_id").distinct().count()
+    # Session members have trace_id NULL — count the member unit either way.
+    total = base.aggregate(
+        c=Count(Coalesce("trace_id", "trace_session_id"), distinct=True)
+    )["c"]
+
+    page_ects = list(base[offset : offset + limit * 3])  # over-fetch for dedupe
+    page_session_ids = [
+        str(e.trace_session_id)
+        for e in page_ects
+        if e.trace_session_id and not e.trace_id
+    ]
+    rep_map = _session_rep_trace_map(page_session_ids)
+    rep_traces = (
+        {str(t.id): t for t in Trace.objects.filter(id__in=rep_map.values())}
+        if rep_map
+        else {}
+    )
 
     page_traces: list[Trace] = []
+    session_by_trace: dict[str, str] = {}
     seen: set = set()
-    for ect in base[offset : offset + limit * 3]:  # over-fetch for dedupe
-        if not ect.trace:
+    for ect in page_ects:
+        trace = ect.trace
+        if trace is None and ect.trace_session_id:
+            sid = str(ect.trace_session_id)
+            trace = rep_traces.get(rep_map.get(sid, ""))
+            if trace is not None:
+                session_by_trace[str(trace.id)] = sid
+        if not trace:
             continue
-        tid = str(ect.trace.id)
+        tid = str(trace.id)
         if tid in seen:
             continue
         seen.add(tid)
-        page_traces.append(ect.trace)
+        page_traces.append(trace)
         if len(page_traces) >= limit:
             break
 
@@ -1944,6 +2209,7 @@ def _fetch_trace_rows(
         return [], total
 
     page_trace_ids = [str(t.id) for t in page_traces]
+    session_judges = _session_judges_batch(list(session_by_trace.values()))
 
     # Pre-batch CH/PG lookups: one round-trip each.
     totals_by_trace = _get_trace_totals_batch(page_trace_ids)
@@ -1963,13 +2229,17 @@ def _fetch_trace_rows(
         latency, prompt, completion = totals_by_trace.get(tid, (None, None, None))
         tokens = (prompt or 0) + (completion or 0)
         score = scores_by_trace.get(tid)
+        if score is None and tid in session_by_trace:
+            judge = session_judges.get(session_by_trace[tid])
+            score = judge[1] if judge else None
         root = roots_by_trace.get(tid)
 
         input_text = None
         if root:
-            # CHSpan typed-Map string attrs live in attrs_string.
+            # CHSpan typed-Map string attrs live in attrs_string. Voice
+            # conversation roots: fall back to the first caller utterance.
             attrs = root.attrs_string or {}
-            input_text = attrs.get("input.value")
+            input_text = attrs.get("input.value") or _conversation_utterance(attrs)
         if not input_text:
             input_text = _trace_input_str(trace)
 
@@ -2014,16 +2284,32 @@ def get_traces_tab(
 # ---------------------------------------------------------------------------
 
 
-def _trace_ids_in_cluster_window(
+def _member_ids_in_window(
     cluster_id: str, since: datetime, until: datetime | None = None
-) -> list[str]:
-    """Trace IDs that joined the cluster within a time window (via ECT)."""
+) -> tuple[list[str], list[str]]:
+    """(trace_ids, session_ids) that joined the cluster within a window."""
     qs = ErrorClusterTraces.objects.filter(
         cluster__cluster_id=cluster_id, created_at__gte=since
     )
     if until is not None:
         qs = qs.filter(created_at__lt=until)
-    return [str(tid) for tid in qs.values_list("trace_id", flat=True) if tid]
+    rows = qs.values_list("trace_id", "trace_session_id")
+    trace_ids = [str(t) for t, _ in rows if t]
+    session_ids = [str(s) for t, s in rows if s and not t]
+    return trace_ids, session_ids
+
+
+def _trace_ids_in_cluster_window(
+    cluster_id: str, since: datetime, until: datetime | None = None
+) -> list[str]:
+    """Effective trace IDs that joined the cluster within a time window.
+
+    Session members resolve to their session's latest trace.
+    """
+    trace_ids, session_ids = _member_ids_in_window(cluster_id, since, until)
+    if session_ids:
+        trace_ids.extend(_session_rep_trace_map(session_ids).values())
+    return trace_ids
 
 
 def _users_affected_in_window(trace_ids: list[str]) -> int:
@@ -2083,8 +2369,16 @@ def _fetch_trend_metrics(
     cur_start = now - window
     prev_start = cur_start - window
 
-    cur_traces = _trace_ids_in_cluster_window(cluster_id, cur_start)
-    prev_traces = _trace_ids_in_cluster_window(cluster_id, prev_start, cur_start)
+    cur_trace_members, cur_sessions = _member_ids_in_window(cluster_id, cur_start)
+    prev_trace_members, prev_sessions = _member_ids_in_window(
+        cluster_id, prev_start, cur_start
+    )
+    cur_traces = cur_trace_members + list(
+        _session_rep_trace_map(cur_sessions).values()
+    )
+    prev_traces = prev_trace_members + list(
+        _session_rep_trace_map(prev_sessions).values()
+    )
 
     cur_total = _project_scope_total(project_id, cluster_source, cur_start)
     prev_total = _project_scope_total(project_id, cluster_source, prev_start, cur_start)
@@ -2092,8 +2386,11 @@ def _fetch_trend_metrics(
     cur_err_rate = (100.0 * len(cur_traces) / cur_total) if cur_total else 0.0
     prev_err_rate = (100.0 * len(prev_traces) / prev_total) if prev_total else 0.0
 
-    cur_score = _avg_eval_score(cur_traces) or 0.0
-    prev_score = _avg_eval_score(prev_traces) or 0.0
+    # Session clusters score on session-target eval rows, not span evals.
+    cur_score = _avg_eval_score(cur_traces) or _avg_session_eval_score(cur_sessions) or 0.0
+    prev_score = (
+        _avg_eval_score(prev_traces) or _avg_session_eval_score(prev_sessions) or 0.0
+    )
 
     cur_users = _users_affected_in_window(cur_traces)
     prev_users = _users_affected_in_window(prev_traces)
@@ -2155,7 +2452,7 @@ def _fetch_events_over_time_with_passing(
         ErrorClusterTraces.objects.filter(
             cluster__cluster_id=cluster_id,
             created_at__gte=since,
-        ).values_list("trace_id", "created_at")
+        ).values_list("trace_id", "trace_session_id", "created_at")
     )
     if ect_rows_in_window:
         # trace_id → list of bucket-dates (one ECT row may pair a trace
@@ -2164,11 +2461,19 @@ def _fetch_events_over_time_with_passing(
         # (which converts to the active timezone before truncating —
         # otherwise UTC-side .date() can disagree with the err_rows /
         # pass_rows keys, breaking the day-bucket union below).
+        # Session members resolve to their session's rep trace first.
+        window_session_ids = [
+            str(s) for t, s, _ in ect_rows_in_window if s and not t
+        ]
+        rep_map = _session_rep_trace_map(window_session_ids)
         buckets_by_trace: dict[str, list] = {}
-        for tid, ect_created in ect_rows_in_window:
-            if not tid or not ect_created:
+        for tid, sid, ect_created in ect_rows_in_window:
+            if not ect_created:
                 continue
-            buckets_by_trace.setdefault(str(tid), []).append(
+            effective_tid = str(tid) if tid else rep_map.get(str(sid or ""))
+            if not effective_tid:
+                continue
+            buckets_by_trace.setdefault(effective_tid, []).append(
                 timezone.localtime(ect_created).date()
             )
 
@@ -2223,17 +2528,22 @@ def _fetch_score_trends(
     Splits the window in half: first half = prev, second half = current.
     Daily sparkline is average ``output_float`` per day over the full window.
     """
-    trace_ids = _trace_ids_for_cluster(cluster_id)
-    if not trace_ids:
+    member_trace_ids, member_session_ids = _cluster_member_ids(cluster_id)
+    if not member_trace_ids and not member_session_ids:
         return []
 
     now = timezone.now()
     since = now - timedelta(days=days)
     midpoint = now - timedelta(days=days / 2)
 
+    # Session members' eval rows anchor to trace_session, not trace.
+    member_q = Q(trace_id__in=member_trace_ids)
+    if member_session_ids:
+        member_q |= Q(trace_session_id__in=member_session_ids)
+
     rows = list(
         EvalLogger.objects.filter(
-            trace_id__in=trace_ids,
+            member_q,
             created_at__gte=since,
             custom_eval_config__isnull=False,
         )
@@ -2341,6 +2651,8 @@ def _fetch_sidebar_ai_metadata(
     cluster: TraceErrorGroup,
     trace_ids: list[str],
     selected_trace_id: str | None = None,
+    session_ids: list[str] | None = None,
+    selected_session_id: str | None = None,
 ) -> SidebarAIMetadata:
     """Model / version / project / eval score / trace id for the sidebar.
 
@@ -2352,17 +2664,13 @@ def _fetch_sidebar_ai_metadata(
     """
     project = cluster.project.name if cluster.project_id else None
 
-    # Trace to inspect: caller's pick, or cluster's latest as fallback.
+    # Trace to inspect: caller's pick, or cluster's latest as fallback
+    # (session-aware — resolves session members to their rep trace).
     focus_trace_id: str | None = selected_trace_id
     if focus_trace_id is None:
-        latest = (
-            ErrorClusterTraces.objects.filter(cluster__cluster_id=cluster.cluster_id)
-            .order_by("-created_at")
-            .values_list("trace_id", flat=True)
-            .first()
+        focus_trace_id = _fetch_latest_trace_id_batch([cluster.cluster_id]).get(
+            cluster.cluster_id
         )
-        if latest:
-            focus_trace_id = str(latest)
 
     model: str | None = None
     model_version: str | None = None
@@ -2392,10 +2700,15 @@ def _fetch_sidebar_ai_metadata(
 
     # When a trace is explicitly selected, report THAT trace's score.
     # Otherwise show the cluster-wide average (current no-selection default).
+    # Session clusters score on session-target eval rows, not span evals.
     if selected_trace_id:
         eval_score = _avg_eval_score([selected_trace_id])
+        if eval_score is None and selected_session_id:
+            eval_score = _avg_session_eval_score([selected_session_id])
     else:
         eval_score = _avg_eval_score(trace_ids)
+        if eval_score is None and session_ids:
+            eval_score = _avg_session_eval_score(session_ids)
     if eval_score is not None:
         eval_score = round(eval_score, 4)
 
@@ -2411,6 +2724,8 @@ def _fetch_sidebar_ai_metadata(
 def _fetch_sidebar_evaluations(
     trace_ids: list[str],
     selected_trace_id: str | None = None,
+    session_ids: list[str] | None = None,
+    selected_session_id: str | None = None,
 ) -> list[EvaluationResult]:
     """Roll up EvalLogger rows to one row per CustomEvalConfig.name.
 
@@ -2424,17 +2739,26 @@ def _fetch_sidebar_evaluations(
 
     When ``selected_trace_id`` is provided, only that trace's eval rows are
     considered — otherwise the rollup spans every trace in the cluster.
+    Session-target eval rows anchor to trace_session, so ``session_ids``
+    (and ``selected_session_id`` when the selected trace represents a
+    session member) widen the filter for session clusters.
     """
     if selected_trace_id:
         effective_trace_ids = [selected_trace_id]
+        effective_session_ids = [selected_session_id] if selected_session_id else []
     else:
         effective_trace_ids = trace_ids
-    if not effective_trace_ids:
+        effective_session_ids = session_ids or []
+    if not effective_trace_ids and not effective_session_ids:
         return []
+
+    member_q = Q(trace_id__in=effective_trace_ids)
+    if effective_session_ids:
+        member_q |= Q(trace_session_id__in=effective_session_ids)
 
     rows = list(
         EvalLogger.objects.filter(
-            trace_id__in=effective_trace_ids, custom_eval_config__isnull=False
+            member_q, custom_eval_config__isnull=False
         ).values(
             "custom_eval_config__name",
             "output_bool",
@@ -2582,12 +2906,20 @@ def get_sidebar(
         return None
 
     project_id = str(cluster.project_id)
-    trace_ids = _trace_ids_for_cluster(cluster_id)
+    member_trace_ids, member_session_ids = _cluster_member_ids(cluster_id)
+    rep_map = _session_rep_trace_map(member_session_ids)
+    session_by_trace = {tid: sid for sid, tid in rep_map.items()}
+    trace_ids = member_trace_ids + list(rep_map.values())
 
     # Guardrail: only honor trace_id if it actually belongs to this cluster.
     selected_trace_id: str | None = None
     if trace_id and str(trace_id) in trace_ids:
         selected_trace_id = str(trace_id)
+    # For session members, the selected trace stands in for its session —
+    # eval rows anchor there.
+    selected_session_id = (
+        session_by_trace.get(selected_trace_id) if selected_trace_id else None
+    )
 
     # Age since first_seen — frontend renders as integer days
     age_days: int | None = None
@@ -2601,10 +2933,17 @@ def get_sidebar(
         age_days=age_days,
     )
     ai_metadata = _fetch_sidebar_ai_metadata(
-        cluster, trace_ids, selected_trace_id=selected_trace_id
+        cluster,
+        trace_ids,
+        selected_trace_id=selected_trace_id,
+        session_ids=member_session_ids,
+        selected_session_id=selected_session_id,
     )
     evaluations = _fetch_sidebar_evaluations(
-        trace_ids, selected_trace_id=selected_trace_id
+        trace_ids,
+        selected_trace_id=selected_trace_id,
+        session_ids=member_session_ids,
+        selected_session_id=selected_session_id,
     )
     co_occurring = _fetch_co_occurring_issues(cluster_id, project_id)
 

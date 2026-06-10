@@ -271,6 +271,9 @@ class OverviewResponse:
     events_over_time: list[EventsOverTimePoint] = field(default_factory=list)
     pattern_summary: PatternSummary = field(default_factory=PatternSummary)
     representative_traces: list[RepresentativeTrace] = field(default_factory=list)
+    # Total members in the cluster — representative_traces is capped by
+    # rep_limit, so the FE needs this to render "showing N of M".
+    representative_total: int = 0
 
 
 # ---------------------------------------------------------------------------

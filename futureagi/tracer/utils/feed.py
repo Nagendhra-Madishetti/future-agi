@@ -88,10 +88,13 @@ def update_feed_issue(
 
 
 def get_overview_tab(
-    cluster_id: str, project_ids: list[str] | None = None
+    cluster_id: str,
+    project_ids: list[str] | None = None,
+    *,
+    rep_limit: int = 20,
 ) -> OverviewResponse | None:
     """Overview tab: events over time, pattern summary, representative traces."""
-    return feed_queries.get_overview(cluster_id, project_ids)
+    return feed_queries.get_overview(cluster_id, project_ids, rep_limit=rep_limit)
 
 
 def get_traces_tab(
