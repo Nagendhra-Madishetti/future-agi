@@ -10,9 +10,10 @@
 #   • light (default, COMPOSE_PROFILES unset)
 #       Everything you need to run the app: frontend, backend, worker,
 #       agentcc-gateway, serving, code-executor, postgres, clickhouse, redis,
-#       minio, temporal. ~12 containers. Analytics views (Observe / Trace
-#       drilldowns) will show empty data — they're fed by PeerDB, which is
-#       only on in `full` mode.
+#       minio, temporal, fi-collector. ~12 containers. Redis fronts Celery,
+#       Channels, cache, and locks — no separate RabbitMQ broker. Analytics
+#       views (Observe / Trace drilldowns) will show empty data — they're
+#       fed by PeerDB, which is only on in `full` mode.
 #
 #   • full (COMPOSE_PROFILES=full)
 #       Adds the PeerDB CDC stack (10 containers) so transactional Postgres
@@ -124,8 +125,11 @@ x-backend-env: &backend-env
   REDIS_LOCK_URL: redis://redis:6379/2
   REDIS_STATE_URL: redis://redis:6379/2
 
-  # RabbitMQ for Django Channels / Celery compatibility
-  CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-user}:${RABBITMQ_PASSWORD:-password}@rabbitmq:5672//
+  # Celery broker + Channels layer both ride on Redis in OSS — no separate
+  # AMQP broker. EE/cloud can flip CELERY_BROKER_URL to amqp://… and set
+  # CHANNELS_BACKEND=rabbitmq if they bring their own RabbitMQ.
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/3}
+  CHANNELS_BACKEND: ${CHANNELS_BACKEND:-redis}
 
   # Object storage (MinIO)
   # STORAGE_BACKEND drives URL routing: "minio" for the OSS local stack,
@@ -196,8 +200,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
       temporal:
         condition: service_healthy
       agentcc-gateway:
@@ -225,8 +227,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
 
@@ -391,20 +391,6 @@ services:
       - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-user}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-password}
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -643,7 +629,6 @@ volumes:
   postgres-data:
   clickhouse-data:
   redis-data:
-  rabbitmq-data:
   minio-data:
   peerdb-catalog-data:
   peerdb-minio-data:
