@@ -25,10 +25,14 @@ class ClusterableEvalResult:
     trace_id: Optional[str] = None
     session_id: Optional[str] = None
     score: Optional[float] = None  # output_float if available
+    # Canonical failure phrase distilled from the explanation by a cheap
+    # LLM (trace-specific noise stripped). None when distillation is
+    # unavailable (OSS) or failed — embedding falls back to the raw text.
+    distilled: Optional[str] = None
 
     @property
     def embedding_text(self) -> str:
-        return self.explanation
+        return self.distilled or self.explanation
 
 
 @dataclass
