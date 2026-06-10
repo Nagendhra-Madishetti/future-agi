@@ -701,11 +701,16 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
                 ErrorLocalizerTask,
             )
 
-            el_tasks = ErrorLocalizerTask.objects.filter(
+            request = (self.context or {}).get("request")
+            workspace = getattr(request, "workspace", None) if request else None
+            el_qs = ErrorLocalizerTask.objects.filter(
                 source=ErrorLocalizerSource.SIMULATE,
                 metadata__call_execution_id=str(ce_id),
                 metadata__eval_config_id__in=enabled_ids,
-            ).only(
+            )
+            if workspace is not None:
+                el_qs = el_qs.filter(workspace=workspace)
+            el_tasks = el_qs.only(
                 "metadata",
                 "status",
                 "error_analysis",
@@ -1326,10 +1331,14 @@ class CallExecutionSerializer(serializers.ModelSerializer):
             if not obj_id:
                 return []
 
+            request = (self.context or {}).get("request")
+            workspace = getattr(request, "workspace", None) if request else None
             call_execution_tasks = ErrorLocalizerTask.objects.filter(
                 source=ErrorLocalizerSource.SIMULATE.value,
                 metadata__call_execution_id=str(obj_id),
             )
+            if workspace is not None:
+                call_execution_tasks = call_execution_tasks.filter(workspace=workspace)
 
             error_localizer_data = []
             for task in call_execution_tasks:

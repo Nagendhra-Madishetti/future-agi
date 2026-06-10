@@ -1,5 +1,6 @@
 import json
 import uuid
+from typing import Any
 
 import structlog
 from django.db import close_old_connections
@@ -673,7 +674,7 @@ def _validate_error_localizer_fields(rule_prompt, input_data, eval_result):
     return ErrorLocalizerStatus.PENDING, ""
 
 
-def _has_localized_segments(error_analysis):
+def _has_localized_segments(error_analysis: Any) -> bool:
     if not error_analysis:
         return False
     if isinstance(error_analysis, dict):
@@ -683,7 +684,7 @@ def _has_localized_segments(error_analysis):
     return True
 
 
-def _extract_eval_value(value):
+def _extract_eval_value(value: Any) -> Any:
     if not isinstance(value, dict):
         return value
     if isinstance(value.get("failure"), bool):
@@ -694,7 +695,7 @@ def _extract_eval_value(value):
     return value
 
 
-def should_run_error_localizer(value, eval_template):
+def should_run_error_localizer(value: Any, eval_template: Any) -> tuple[bool, str]:
     if eval_template is None:
         return False, "No eval template is attached to this evaluation."
     if getattr(eval_template, "eval_type", "") == "code":
