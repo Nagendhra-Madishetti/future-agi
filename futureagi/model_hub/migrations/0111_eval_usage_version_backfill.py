@@ -8,7 +8,11 @@ can do since version info was never tracked before. Going forward, all
 new entries will have the correct version.
 """
 
+import logging
+
 from django.db import migrations
+
+logger = logging.getLogger(__name__)
 
 
 def backfill_apicalllog_version_info(apps, schema_editor):
@@ -32,7 +36,7 @@ def backfill_apicalllog_version_info(apps, schema_editor):
         )
         unwrapped = cursor.rowcount
         if unwrapped:
-            print(f"\n  Unwrapped {unwrapped} double-encoded APICallLog configs.")
+            logger.info(f"\n  Unwrapped {unwrapped} double-encoded APICallLog configs.")
 
     EvalTemplate = apps.get_model("model_hub", "EvalTemplate")
     EvalTemplateVersion = apps.get_model("model_hub", "EvalTemplateVersion")
