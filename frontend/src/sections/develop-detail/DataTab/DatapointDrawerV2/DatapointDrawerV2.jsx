@@ -1555,17 +1555,17 @@ const ErrorLocalizationCellSection = ({ evalOpen, onAnalysisLoaded }) => {
             py: 1.25,
             borderRadius: "6px",
             border: "1px solid",
-            borderColor: "warning.light",
+            borderColor: "info.light",
             backgroundColor: (theme) =>
               theme.palette.mode === "dark"
-                ? "rgba(255, 171, 0, 0.08)"
-                : "rgba(255, 171, 0, 0.06)",
+                ? "rgba(47, 124, 247, 0.08)"
+                : "rgba(47, 124, 247, 0.06)",
           }}
         >
           <Iconify
             icon="solar:forbidden-circle-bold"
             width={18}
-            sx={{ color: "warning.main", flexShrink: 0 }}
+            sx={{ color: "info.main", flexShrink: 0 }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
