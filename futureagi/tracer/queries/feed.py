@@ -1457,18 +1457,12 @@ def _fetch_pattern_summary(cluster_id: str) -> PatternSummary:
 def _get_root_span(trace_id: str) -> CHSpan | None:
     """Root span = no parent (NULL or empty string).
 
-    Single-trace convenience -- uses CHSpanReader.list_by_trace and picks
-    the LAST parentless span (the legacy ObservationSpan.Meta.ordering
-    is `["-start_time"]`, so the old `.first()` returned the newest
-    root). Callers iterating many trace ids should use
-    _get_root_spans_batch to avoid N+1 CH reads.
+    Single-trace convenience — delegates to roots_by_trace_ids which
+    queries only root spans (parent_span_id = '') instead of listing
+    every span. Returns the latest root per the batch helper's ordering.
     """
-    with get_reader() as reader:
-        spans = reader.list_by_trace(str(trace_id))
-    for s in reversed(spans):
-        if not s.parent_span_id:
-            return s
-    return None
+    roots = _get_root_spans_batch([str(trace_id)])
+    return roots.get(str(trace_id))
 
 
 def _get_root_spans_batch(trace_ids: list[str]) -> dict:
@@ -1839,7 +1833,7 @@ def _build_representative_trace(
             scan_result.key_moments,
             highlight_terms=highlight_terms or [],
             hl="error",
-            trace_id=str(trace.id),
+            trace_id=None if _prefetched else str(trace.id),
         )
 
     if judge is None and not _prefetched:
@@ -1925,6 +1919,9 @@ def _fetch_representative_traces(
     cluster_id: str,
     project_id: str,
     limit: int | None = None,
+    *,
+    pass_reel: list[dict] | None = None,
+    highlight_terms: list[str] | None = None,
 ) -> list[RepresentativeTrace]:
     """
     Failing traces in the cluster (Overview tab's "Traces affected" list).
@@ -1943,8 +1940,10 @@ def _fetch_representative_traces(
     The success trace itself is NOT added to this list — it's surfaced via
     FeedDetailCore.success_trace for future comparison features.
     """
-    pass_reel = _fetch_success_trace_pass_reel(cluster_id)
-    highlight_terms = _cluster_highlight_terms(cluster_id, project_id)
+    if pass_reel is None:
+        pass_reel = _fetch_success_trace_pass_reel(cluster_id)
+    if highlight_terms is None:
+        highlight_terms = _cluster_highlight_terms(cluster_id, project_id)
 
     qs = (
         ErrorClusterTraces.objects.filter(cluster__cluster_id=cluster_id)
@@ -2064,11 +2063,18 @@ def get_overview(
         cluster__cluster_id=cluster_id
     ).aggregate(c=Count(Coalesce("trace_id", "trace_session_id"), distinct=True))["c"]
 
+    pass_reel = _fetch_success_trace_pass_reel(cluster_id)
+    highlight_terms = _cluster_highlight_terms(cluster_id, project_id)
+
     return OverviewResponse(
         events_over_time=_fetch_events_over_time(cluster_id),
         pattern_summary=_fetch_pattern_summary(cluster_id),
         representative_traces=_fetch_representative_traces(
-            cluster_id, project_id, limit=rep_limit
+            cluster_id,
+            project_id,
+            limit=rep_limit,
+            pass_reel=pass_reel,
+            highlight_terms=highlight_terms,
         ),
         representative_total=member_total or 0,
     )
