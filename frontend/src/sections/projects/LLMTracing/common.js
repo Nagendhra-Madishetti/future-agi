@@ -603,7 +603,8 @@ export const getTraceListColumnDefs = (col) => {
         : {}),
     cellStyle: (params) => {
       const value = params.value;
-      const structured = isEvalMetric && params.data?.eval_results?.[colId];
+      const structured =
+        isEvalMetric && value && typeof value === "object" && !Array.isArray(value);
       if (isCellValueEmpty(value) && !structured) {
         return {
           display: "flex",
@@ -634,16 +635,15 @@ export const getTraceListColumnDefs = (col) => {
     cellRendererSelector: (params) => {
       const value = params.value;
       const column = params?.colDef?.context?.sourceColumn;
-      // Chips only when structured rollup data exists (eval_results block or
-      // object-valued cell) — flat-float eval cells keep the legacy renderer
-      // so other getTraceListColumnDefs consumers are unaffected
-      if (column?.groupBy === "Evaluation Metrics") {
-        const structured =
-          params.data?.eval_results?.[column?.id] ??
-          (value !== null && typeof value === "object" && !Array.isArray(value)
-            ? value
-            : null);
-        if (structured) return { component: EvalResultChips };
+      // Chips for object-valued eval cells (pass/fail or choice counts);
+      // scalar score cells fall through to the default renderer.
+      if (
+        column?.groupBy === "Evaluation Metrics" &&
+        value !== null &&
+        typeof value === "object" &&
+        !Array.isArray(value)
+      ) {
+        return { component: EvalResultChips };
       }
       if (isCellValueEmpty(value)) {
         // No renderer for empty values

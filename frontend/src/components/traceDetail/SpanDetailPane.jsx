@@ -1752,7 +1752,7 @@ const SpanDetailPane = ({
   // pane per drawer-open via a key, so this re-runs each open). Never watched
   // after — the user can switch tabs/spans freely without being pulled back.
   const [activeTab, setActiveTab] = useState(() =>
-    isRootSpan && initialTab === "evals" ? "evals" : "preview",
+    initialTab === "evals" ? "evals" : "preview",
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("markdown"); // "markdown" | "json" | "chat"

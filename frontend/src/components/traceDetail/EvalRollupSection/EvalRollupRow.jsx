@@ -2,23 +2,18 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { Box, Typography } from "@mui/material";
 import Iconify from "src/components/iconify";
-import {
-  adaptEvalCell,
-  buildChips,
-} from "src/sections/projects/LLMTracing/evalCellModel";
-import {
-  ResultChip,
-  Annotation,
-} from "src/sections/projects/LLMTracing/Renderers/EvalResultChips";
+import { evalCellChips } from "src/sections/projects/LLMTracing/evalCellModel";
+import { ResultChip } from "src/sections/projects/LLMTracing/Renderers/EvalResultChips";
 import BreakdownRow from "./BreakdownRow";
-import { colFromEval, evalToCell, NAME_W } from "./utils";
+import { colFromEval, NAME_W } from "./utils";
 
 // One eval rolled up across its spans (trace scope); expands to the per-span
-// breakdown. The chip is rendered from the backend-computed `aggregate`.
+// breakdown. The chip renders the backend-computed `aggregate` directly.
 const EvalRollupRow = ({ ev, onSelectSpan, onFixWithFalcon }) => {
-  const col = colFromEval(ev);
-  const { chips, notEvaluated } = buildChips(adaptEvalCell(evalToCell(ev), col), col);
   const spans = ev.spans || [];
+  const erroredCount = spans.filter((s) => s.error).length;
+  const chips = evalCellChips(ev.aggregate, colFromEval(ev));
+  if (erroredCount) chips.push({ label: `Errored ${erroredCount}`, tone: "errored" });
   const [open, setOpen] = useState(spans.length <= 1); // N=1 auto-expands
 
   return (
@@ -63,9 +58,6 @@ const EvalRollupRow = ({ ev, onSelectSpan, onFixWithFalcon }) => {
           <Typography sx={{ fontSize: 10.5, color: "text.disabled", ml: 0.5 }}>
             from {spans.length} span{spans.length === 1 ? "" : "s"}
           </Typography>
-          {notEvaluated > 0 && (
-            <Annotation text={`+ ${notEvaluated} not evaluated`} />
-          )}
         </Box>
       </Box>
       {open &&

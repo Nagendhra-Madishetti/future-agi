@@ -12,91 +12,49 @@ export const resolveEvalKind = (col) => {
   return EVAL_KIND.NUMERIC;
 };
 
-const normalizeSpanLevel = (sl) => {
-  if (!sl) return null;
-  const evaluated = sl.evaluated_count ?? null;
-  const inScope = sl.in_scope_count ?? null;
-  const errored = sl.errored_count ?? 0;
-  const outcomes = sl.outcomes || {};
-  const mean = sl.mean ?? sl.score ?? null;
-  const notEvaluated =
-    inScope != null && evaluated != null
-      ? Math.max(0, inScope - evaluated - errored)
-      : 0;
-  return { outcomes, evaluated, inScope, errored, mean, notEvaluated };
-};
-
-// Maps the backend's computed eval_results rollup into the cell model.
-export const adaptEvalCell = (raw, col) => {
-  const kind = resolveEvalKind(col);
-  if (raw == null || raw === "") return null;
-  if (typeof raw !== "object" || Array.isArray(raw)) return null;
-  if (!("trace_level" in raw) && !("span_level" in raw)) return null;
-
-  const tl = raw.trace_level;
-  return {
-    kind,
-    traceLevel: tl
-      ? { outcome: tl.outcome ?? null, value: tl.value ?? null }
-      : null,
-    spanLevel: normalizeSpanLevel(raw.span_level),
-  };
-};
-
 export const choiceTone = (label, col) =>
   (col?.choicesMap || {})[label] || "neutral";
 
-const trimNum = (n) =>
-  typeof n === "number" ? `${Number(n.toFixed(2))}` : `${n}`;
-
-const spanLevelChips = (model, col) => {
-  const { kind } = model;
-  const { outcomes, evaluated, errored, mean, notEvaluated } = model.spanLevel;
-  const chips = [];
-  const denom =
-    evaluated ?? (Object.values(outcomes).reduce((a, b) => a + b, 0) || null);
+// Render the backend's flat eval cell value straight into chips — no wrapper.
+// Pass/Fail -> {pass,fail} counts; Choices -> {label:count}; Score -> number.
+// Also accepts a scalar (Pass/Fail "pass"/"fail"/number, a single choice
+// string/array) as a defensive fallback.
+export const evalCellChips = (value, col) => {
+  if (value == null || value === "") return [];
+  const kind = resolveEvalKind(col);
 
   if (kind === EVAL_KIND.PASS_FAIL) {
-    if (outcomes.fail) chips.push({ label: `Fail ${outcomes.fail}`, tone: "fail" });
-    if (errored) chips.push({ label: `Errored ${errored}`, tone: "errored" });
-    if (outcomes.pass) chips.push({ label: `Pass ${outcomes.pass}`, tone: "pass" });
-  } else if (kind === EVAL_KIND.CHOICE) {
-    Object.entries(outcomes)
-      .sort((a, b) => b[1] - a[1])
-      .forEach(([label, count]) => {
-        const pct = denom ? Math.round((count / denom) * 100) : null;
-        chips.push({
-          label: pct != null ? `${label} ${pct}%` : `${label} ${count}`,
+    if (typeof value === "object" && !Array.isArray(value)) {
+      const chips = [];
+      if (value.fail) chips.push({ label: `Fail ${value.fail}`, tone: "fail" });
+      if (value.pass) chips.push({ label: `Pass ${value.pass}`, tone: "pass" });
+      return chips;
+    }
+    const passed =
+      value === "pass" ||
+      value === true ||
+      (typeof value === "number" && value >= 50);
+    return [{ label: passed ? "Pass" : "Fail", tone: passed ? "pass" : "fail" }];
+  }
+
+  if (kind === EVAL_KIND.CHOICE) {
+    if (typeof value === "object" && !Array.isArray(value)) {
+      return Object.entries(value)
+        .filter(([, n]) => n > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, n]) => ({
+          label: `${label} ${n}`,
           tone: choiceTone(label, col),
-        });
-      });
-    if (errored) chips.push({ label: `Errored ${errored}`, tone: "errored" });
-  } else {
-    if (mean != null) chips.push({ label: `${trimNum(mean)}%`, tone: "plain" });
-    if (errored) chips.push({ label: `Errored ${errored}`, tone: "errored" });
+        }));
+    }
+    const labels = Array.isArray(value) ? value : [value];
+    return labels
+      .filter((l) => l != null && l !== "")
+      .map((l) => ({ label: String(l), tone: choiceTone(String(l), col) }));
   }
-  return { chips, notEvaluated };
-};
 
-const traceLevelChip = (model, col) => {
-  const { outcome, value } = model.traceLevel;
-  if (model.kind === EVAL_KIND.NUMERIC || (outcome == null && value != null))
-    return { label: `${trimNum(value)}%`, tone: "plain" };
-  if (outcome === "pass" || outcome === "fail")
-    return { label: outcome === "pass" ? "Pass" : "Fail", tone: outcome };
-  if (outcome === "errored") return { label: "Errored", tone: "errored" };
-  if (outcome) return { label: outcome, tone: choiceTone(outcome, col) };
-  return null;
-};
-
-// Model → display chips + "not evaluated" remainder. Pure data (no JSX) so it
-// can be shared by the grid cell renderer and the drawer rollup view.
-export const buildChips = (model, col) => {
-  if (!model) return { chips: [], notEvaluated: 0 };
-  if (model.spanLevel) return spanLevelChips(model, col);
-  if (model.traceLevel) {
-    const chip = traceLevelChip(model, col);
-    return { chips: chip ? [chip] : [], notEvaluated: 0 };
-  }
-  return { chips: [], notEvaluated: 0 };
+  // Score
+  if (typeof value === "number")
+    return [{ label: `${Number(value.toFixed(2))}%`, tone: "plain" }];
+  return [{ label: String(value), tone: "plain" }];
 };
