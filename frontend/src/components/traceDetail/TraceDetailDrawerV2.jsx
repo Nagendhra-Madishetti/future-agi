@@ -1231,7 +1231,7 @@ const TraceDetailDrawerV2 = ({
                   onSelectSpan={handleSelectSpan}
                   drawerOpen={open}
                   initialTab={initialSpanTab}
-                  key={`${traceId}-${open}`}
+                  key={`${traceId}-${initialSpanId}-${open}`}
                 />
               </Box>
             )}
@@ -1316,7 +1316,7 @@ const TraceDetailDrawerV2 = ({
                   onSelectSpan={handleSelectSpan}
                   drawerOpen={open}
                   initialTab={initialSpanTab}
-                  key={`${traceId}-${open}`}
+                  key={`${traceId}-${initialSpanId}-${open}`}
                 />
               ) : (
                 /* Summary when no span selected */

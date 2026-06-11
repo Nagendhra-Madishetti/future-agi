@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { Box, Typography } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { adaptEvalCell, buildChips } from "../evalCellModel";
+import { evalCellChips } from "../evalCellModel";
 
 const TONE_TO_PALETTE = {
   pass: "success",
@@ -70,11 +70,9 @@ Annotation.propTypes = { text: PropTypes.string };
 // AG-Grid cell renderer for an eval-results cell.
 const EvalResultChips = (params) => {
   const col = params?.colDef?.context?.sourceColumn;
-  const raw = params?.data?.eval_results?.[col?.id] ?? params?.value;
-  const model = adaptEvalCell(raw, col);
-  if (!model) return null;
-
-  const { chips, notEvaluated } = buildChips(model, col);
+  const raw = params?.value;
+  const chips = evalCellChips(raw, col);
+  if (!chips.length && raw == null) return null;
   const nothingRan = chips.length === 0;
   return (
     <Box
@@ -94,12 +92,7 @@ const EvalResultChips = (params) => {
       {chips.map((c) => (
         <ResultChip key={c.label} label={c.label} tone={c.tone} />
       ))}
-      {nothingRan && notEvaluated === 0 && <Annotation text="Not evaluated" />}
-      {notEvaluated > 0 && (
-        <Annotation
-          text={nothingRan ? "Not evaluated" : `+ ${notEvaluated} not evaluated`}
-        />
-      )}
+      {nothingRan && <Annotation text="Not evaluated" />}
     </Box>
   );
 };

@@ -14,24 +14,6 @@ export const colFromEval = (ev) => ({
   choicesMap: {},
 });
 
-// Reshape the backend `aggregate` into the {span_level} cell that the shared
-// adaptEvalCell/buildChips already render.
-export const evalToCell = (ev) => {
-  const spans = ev.spans || [];
-  const errored = spans.filter((s) => s.error).length;
-  const kind = resolveEvalKind({ outputType: ev.output_type });
-  return {
-    trace_level: null,
-    span_level: {
-      outcomes: kind === EVAL_KIND.NUMERIC ? {} : ev.aggregate || {},
-      evaluated_count: spans.length - errored,
-      in_scope_count: spans.length,
-      errored_count: errored,
-      mean: kind === EVAL_KIND.NUMERIC ? (ev.aggregate ?? null) : null,
-    },
-  };
-};
-
 export const spanResultChip = (span, outputType) => {
   if (span.error) return { label: "Errored", tone: "errored" };
   const kind = resolveEvalKind({ outputType });

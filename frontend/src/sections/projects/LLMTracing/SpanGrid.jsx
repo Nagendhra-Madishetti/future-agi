@@ -602,11 +602,9 @@ const SpanGrid = React.forwardRef(
         }
         // Eval-cell click pre-focuses the drawer's Evals tab (read once on
         // open); any other cell clears it for the default tab.
-        setDrawerTab(
-          event?.colDef?.headerComponentParams?.group === "Evaluation Metrics"
-            ? "evals"
-            : null,
-        );
+        const isEvalCell =
+          event?.colDef?.context?.sourceColumn?.groupBy === "Evaluation Metrics";
+        setDrawerTab(isEvalCell ? "evals" : null);
         setSpanDetailDrawerOpen({
           trace_id: traceId,
           span_id: spanId,
