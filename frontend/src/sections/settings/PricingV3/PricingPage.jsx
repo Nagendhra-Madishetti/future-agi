@@ -798,7 +798,7 @@ export default function PricingPage() {
               >
                 <Table size="small">
                   <TableBody>
-                    {canonicalEntries(data.custom_details.features)
+                    {canonicalEntries(customDetails.features)
                       .filter(
                         ([key]) =>
                           !SKIP_FEATURE_PREFIXES.some((p) => key.startsWith(p)),
@@ -881,7 +881,7 @@ export default function PricingPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {canonicalEntries(data.custom_details.pricing).flatMap(
+                      {canonicalEntries(customDetails.pricing).flatMap(
                         ([dimKey, dim]) =>
                           dim.tiers.map((tier, idx) => (
                             <TableRow key={`${dimKey}-${idx}`}>
