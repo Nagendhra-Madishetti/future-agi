@@ -2445,8 +2445,44 @@ class GroundTruthConfigRequestSerializer(serializers.Serializer):
 
 
 class GroundTruthSearchRequestSerializer(serializers.Serializer):
-    query = serializers.CharField(trim_whitespace=False)
+    query = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        trim_whitespace=False,
+        help_text="Legacy single-text query. Prefer `inputs` for multi-variable.",
+    )
+    inputs = JsonObjectRequestField(
+        required=False,
+        allow_null=True,
+        help_text='Multi-variable runtime inputs: {"variable_name": "value", ...}',
+    )
     max_results = serializers.IntegerField(required=False, min_value=1, max_value=20)
+    similarity_threshold = serializers.FloatField(
+        required=False, min_value=0, max_value=1
+    )
+
+    def validate(self, attrs):
+        if not attrs.get("query") and not attrs.get("inputs"):
+            raise serializers.ValidationError(
+                "Either `query` or `inputs` must be provided."
+            )
+        return attrs
+
+
+class GroundTruthValidateOutputRequestSerializer(serializers.Serializer):
+    """Validate a candidate output value against the template's output_type."""
+
+    value = serializers.JSONField()
+
+
+class GroundTruthValidateOutputResponseResultSerializer(serializers.Serializer):
+    ok = serializers.BooleanField()
+    error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class GroundTruthValidateOutputResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthValidateOutputResponseResultSerializer()
 
 
 class GroundTruthItemSerializer(serializers.Serializer):
@@ -2462,6 +2498,7 @@ class GroundTruthItemSerializer(serializers.Serializer):
     embedded_row_count = serializers.IntegerField(required=False)
     storage_type = serializers.CharField(required=False)
     created_at = serializers.CharField(required=False, allow_blank=True)
+    embeddings_stale = serializers.BooleanField(required=False, default=False)
 
 
 class GroundTruthListResponseResultSerializer(serializers.Serializer):
@@ -2502,6 +2539,7 @@ class GroundTruthRoleMappingResponseResultSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     role_mapping = serializers.JSONField(required=False, allow_null=True)
     embedding_status = serializers.CharField()
+    embeddings_stale = serializers.BooleanField(required=False, default=False)
 
 
 class GroundTruthRoleMappingResponseSerializer(serializers.Serializer):
@@ -2530,6 +2568,7 @@ class GroundTruthStatusResponseResultSerializer(serializers.Serializer):
     embedded_row_count = serializers.IntegerField()
     total_rows = serializers.IntegerField()
     progress_percent = serializers.FloatField()
+    embeddings_stale = serializers.BooleanField(required=False, default=False)
 
 
 class GroundTruthStatusResponseSerializer(serializers.Serializer):
@@ -2566,7 +2605,8 @@ class GroundTruthConfigResponseSerializer(serializers.Serializer):
 
 
 class GroundTruthSearchResponseResultSerializer(serializers.Serializer):
-    query = serializers.CharField()
+    query = serializers.CharField(allow_blank=True)
+    inputs = serializers.JSONField(required=False, allow_null=True)
     results = serializers.ListField(child=serializers.JSONField())
     total = serializers.IntegerField()
 

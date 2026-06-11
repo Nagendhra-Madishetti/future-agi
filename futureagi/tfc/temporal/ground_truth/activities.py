@@ -31,7 +31,10 @@ def _generate_embeddings_sync(ground_truth_id: str) -> dict:
 
     from model_hub.models.evals_metric import EvalGroundTruth, EvalGroundTruthEmbedding
     from model_hub.utils.ground_truth_retrieval import (
-        generate_embedding,
+        EMBED_MODEL_IMAGE_TEXT,
+        EMBED_MODEL_TEXT,
+        compute_row_embedding,
+        detect_row_modality,
         prepare_embedding_text,
     )
 
@@ -45,46 +48,64 @@ def _generate_embeddings_sync(ground_truth_id: str) -> dict:
             "error": "Ground truth not found",
         }
 
-    # Mark as processing
     gt.embedding_status = "processing"
     gt.embedded_row_count = 0
     gt.save(update_fields=["embedding_status", "embedded_row_count", "updated_at"])
 
-    # Clear any existing embeddings (for re-embedding after role mapping change)
     EvalGroundTruthEmbedding.objects.filter(ground_truth=gt).delete()
 
     data = gt.data or []
-    role_mapping = gt.role_mapping
+    variable_mapping = gt.variable_mapping
     rows_embedded = 0
+
+    # Decide once which embedding model the whole dataset uses (per-row
+    # mixing would put vectors in different spaces and break cosine
+    # similarity between them). If any row has an image-shaped mapped
+    # value the entire dataset embeds via the joint image-text model.
+    dataset_modality = EMBED_MODEL_TEXT
+    for row in data:
+        if detect_row_modality(row, variable_mapping) == "image":
+            dataset_modality = EMBED_MODEL_IMAGE_TEXT
+            break
 
     for idx, row in enumerate(data):
         try:
-            text = prepare_embedding_text(row, role_mapping)
-            if not text.strip():
+            if dataset_modality == EMBED_MODEL_IMAGE_TEXT:
+                model_used, embedding = compute_row_embedding(row, variable_mapping)
+                text_for_storage = prepare_embedding_text(row, variable_mapping)
+            else:
+                text_for_storage = prepare_embedding_text(row, variable_mapping)
+                if not text_for_storage.strip():
+                    logger.warning(
+                        "empty_embedding_text",
+                        gt_id=ground_truth_id,
+                        row_index=idx,
+                    )
+                    continue
+                model_used, embedding = compute_row_embedding(row, variable_mapping)
+
+            if embedding is None:
                 logger.warning(
-                    "empty_embedding_text",
+                    "row_embedding_returned_none",
                     gt_id=ground_truth_id,
                     row_index=idx,
+                    model=model_used,
                 )
                 continue
-
-            embedding = generate_embedding(text)
 
             EvalGroundTruthEmbedding.objects.create(
                 ground_truth=gt,
                 row_index=idx,
-                text_content=text[:5000],  # Truncate for storage
+                text_content=(text_for_storage or "")[:5000],
                 embedding=embedding,
                 row_data=row,
             )
             rows_embedded += 1
 
-            # Update progress every 50 rows
             if rows_embedded % 50 == 0:
                 gt.embedded_row_count = rows_embedded
                 gt.save(update_fields=["embedded_row_count", "updated_at"])
 
-            # Heartbeat so Temporal knows we're alive
             activity.heartbeat(f"Embedded {rows_embedded}/{len(data)} rows")
 
         except Exception as e:
@@ -94,12 +115,18 @@ def _generate_embeddings_sync(ground_truth_id: str) -> dict:
                 row_index=idx,
                 error=str(e),
             )
-            # Continue with next row — don't fail the whole job for one row
 
-    # Final update
     gt.embedded_row_count = rows_embedded
     gt.embedding_status = "completed" if rows_embedded > 0 else "failed"
-    gt.save(update_fields=["embedding_status", "embedded_row_count", "updated_at"])
+    gt.embedding_model = dataset_modality
+    gt.save(
+        update_fields=[
+            "embedding_status",
+            "embedded_row_count",
+            "embedding_model",
+            "updated_at",
+        ]
+    )
 
     return {
         "ground_truth_id": ground_truth_id,
