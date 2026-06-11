@@ -28,7 +28,7 @@ from django.db.models import (
     Value,
     When,
 )
-from django.db.models.functions import Cast, Coalesce, Floor, JSONObject, NullIf, Round
+from django.db.models.functions import Coalesce, JSONObject, Round
 from django.http import FileResponse, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -69,6 +69,7 @@ from tracer.serializers.trace import (
     UsersQuerySerializer,
     UsersResponseSerializer,
 )
+from tracer.services.clickhouse.eval_logger_table import eval_logger_source
 from tracer.services.clickhouse.graph_dispatch import (
     fetch_annotation_graph_ch,
     fetch_eval_graph_ch,
@@ -76,11 +77,8 @@ from tracer.services.clickhouse.graph_dispatch import (
 )
 from tracer.services.clickhouse.query_builders import (
     AgentGraphQueryBuilder,
-    EvalMetricsQueryBuilder,
-    TimeSeriesQueryBuilder,
     UserListQueryBuilder,
 )
-from tracer.services.clickhouse.eval_logger_table import eval_logger_source
 from tracer.services.clickhouse.query_builders.base import NIL_UUID
 from tracer.services.clickhouse.query_service import AnalyticsQueryService
 from tracer.services.observability_providers import ObservabilityService
@@ -4706,11 +4704,19 @@ USERS_EXPORT_COLUMNS = [
 ]
 
 
+# Characters that Excel / Google Sheets treat as the start of a formula. Any
+# cell beginning with one of these executes on open, so customer-controlled
+# strings (notably `user_id`) must be neutralized by prefixing a single quote.
+_CSV_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
+
+
 def _format_users_export_cell(value):
     if value is None:
         return ""
     if isinstance(value, datetime):
         return value.isoformat()
+    if isinstance(value, str) and value.startswith(_CSV_FORMULA_TRIGGERS):
+        return "'" + value
     return value
 
 

