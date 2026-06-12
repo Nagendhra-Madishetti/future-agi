@@ -138,9 +138,6 @@ export function useSaveGroundTruthSetup(templateId) {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["evals", "ground-truth"] });
       if (templateId) {
-        queryClient.invalidateQueries({
-          queryKey: ["evals", "ground-truth-config", templateId],
-        });
         // Setup writes template.config.ground_truth; without this the
         // dirty check stays true until the next page visit.
         queryClient.invalidateQueries({
