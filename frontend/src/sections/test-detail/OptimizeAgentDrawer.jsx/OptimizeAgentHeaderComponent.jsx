@@ -19,7 +19,10 @@ import ModalWrapper from "src/components/ModalWrapper/ModalWrapper";
 import { ShowComponent } from "src/components/show";
 import SvgColor from "src/components/svg-color";
 import CallStatus from "src/sections/test/CallLogs/CallStatus";
-import { KeyOptimizerMapping } from "../CreateEditOptimization/common";
+import {
+  KeyOptimizerMapping,
+  mapConfigurationToForm,
+} from "../CreateEditOptimization/common";
 import RerunOptimizationModal from "../CreateEditOptimization/RerunOptimizationModal";
 import OptimizeAgentHeaderComponentSkeleton from "./OptimizeAgentHeaderComponentSkeleton";
 import { AgentPromptOptimizerRerunStatus } from "../FixMyAgentDrawer/common";
@@ -53,7 +56,7 @@ const OptimizeAgentHeaderComponent = ({ optimization, isLoading }) => {
       name: `${optimiserName} - Rerun - ${format(new Date(), "dd MMM yyyy")}`,
       model: optimization?.model,
       optimiserType: optimiserType,
-      configuration: optimization?.configuration,
+      configuration: mapConfigurationToForm(optimization?.configuration),
     };
   };
 
