@@ -529,11 +529,10 @@ import type {
   GroundTruthListResponseApi,
   GroundTruthMappingRequestApi,
   GroundTruthMappingResponseApi,
-  GroundTruthRoleMappingRequestApi,
-  GroundTruthRoleMappingResponseApi,
   GroundTruthSearchRequestApi,
   GroundTruthSearchResponseApi,
   GroundTruthSetupRequestApi,
+  GroundTruthSetupResponseApi,
   GroundTruthStatusResponseApi,
   GroundTruthUploadRequestApi,
   GroundTruthUploadResponseApi,
@@ -40406,12 +40405,9 @@ export const getModelHubGroundTruthMappingUpdateUrl = (groundTruthId: string,) =
 }
 
 /**
- * Updates ``variable_mapping`` — the per-row mapping from a rule
-prompt's ``{{template_variable}}`` placeholders to GT column names.
-Used when a CustomPromptEvaluator is run against a GT dataset (each
-row produces a templated prompt). Distinct from
-:class:`GroundTruthRoleMappingView`, which handles the semantic
-roles used by retrieval (input / expected_output / score / reason).
+ * Legacy single-purpose endpoint. Superseded by
+:class:`GroundTruthSetupView`, which writes variable mapping
+alongside role mapping and injection config in one atomic call.
  * @summary PUT /model-hub/ground-truth/<id>/mapping/
  */
 export const modelHubGroundTruthMappingUpdate = async (groundTruthId: string,
@@ -40424,76 +40420,6 @@ export const modelHubGroundTruthMappingUpdate = async (groundTruthId: string,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       groundTruthMappingRequestApi,)
-  }
-);}
-
-
-
-export type modelHubGroundTruthRoleMappingUpdateResponse200 = {
-  data: GroundTruthRoleMappingResponseApi
-  status: 200
-}
-
-export type modelHubGroundTruthRoleMappingUpdateResponse400 = {
-  data: ModelHubErrorResponseApi
-  status: 400
-}
-
-export type modelHubGroundTruthRoleMappingUpdateResponse403 = {
-  data: ModelHubErrorResponseApi
-  status: 403
-}
-
-export type modelHubGroundTruthRoleMappingUpdateResponse404 = {
-  data: ModelHubErrorResponseApi
-  status: 404
-}
-
-export type modelHubGroundTruthRoleMappingUpdateResponse409 = {
-  data: ModelHubErrorResponseApi
-  status: 409
-}
-
-export type modelHubGroundTruthRoleMappingUpdateResponse500 = {
-  data: ModelHubErrorResponseApi
-  status: 500
-}
-
-export type modelHubGroundTruthRoleMappingUpdateResponseDefault = {
-  data: ManagementAPIErrorResponseApi
-  status: Exclude<HTTPStatusCodes, 200 | 400 | 403 | 404 | 409 | 500>
-}
-
-export type modelHubGroundTruthRoleMappingUpdateResponseSuccess = (modelHubGroundTruthRoleMappingUpdateResponse200) & {
-  headers: Headers;
-};
-export type modelHubGroundTruthRoleMappingUpdateResponseError = (modelHubGroundTruthRoleMappingUpdateResponse400 | modelHubGroundTruthRoleMappingUpdateResponse403 | modelHubGroundTruthRoleMappingUpdateResponse404 | modelHubGroundTruthRoleMappingUpdateResponse409 | modelHubGroundTruthRoleMappingUpdateResponse500 | modelHubGroundTruthRoleMappingUpdateResponseDefault) & {
-  headers: Headers;
-};
-
-export type modelHubGroundTruthRoleMappingUpdateResponse = (modelHubGroundTruthRoleMappingUpdateResponseSuccess | modelHubGroundTruthRoleMappingUpdateResponseError)
-
-export const getModelHubGroundTruthRoleMappingUpdateUrl = (groundTruthId: string,) => {
-
-
-
-
-  return `/model-hub/ground-truth/${groundTruthId}/role-mapping/`
-}
-
-/**
- * PUT /model-hub/ground-truth/<id>/role-mapping/
- */
-export const modelHubGroundTruthRoleMappingUpdate = async (groundTruthId: string,
-    groundTruthRoleMappingRequestApi: GroundTruthRoleMappingRequestApi, options?: RequestInit): Promise<modelHubGroundTruthRoleMappingUpdateResponse> => {
-
-  return apiMutator<modelHubGroundTruthRoleMappingUpdateResponse>(getModelHubGroundTruthRoleMappingUpdateUrl(groundTruthId),
-  {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(
-      groundTruthRoleMappingRequestApi,)
   }
 );}
 
@@ -40570,7 +40496,7 @@ export const modelHubGroundTruthSearchCreate = async (groundTruthId: string,
 
 
 export type modelHubGroundTruthSetupUpdateResponse200 = {
-  data: GroundTruthRoleMappingResponseApi
+  data: GroundTruthSetupResponseApi
   status: 200
 }
 
@@ -40622,10 +40548,9 @@ export const getModelHubGroundTruthSetupUpdateUrl = (groundTruthId: string,) => 
 }
 
 /**
- * Atomic write of variable mapping, role mapping, and injection config
+ * Atomic save of variable mapping, role mapping, and injection config
 (max_examples, similarity_threshold, injection_format, enabled).
-``role_mapping["output"]`` is mandatory; the service rejects the
-write without it.
+``role_mapping["output"]`` is mandatory.
  * @summary PUT /model-hub/ground-truth/<id>/setup/
  */
 export const modelHubGroundTruthSetupUpdate = async (groundTruthId: string,

@@ -11430,27 +11430,6 @@ export interface GroundTruthMappingResponseApi {
   result: GroundTruthMappingResponseResultApi;
 }
 
-export type GroundTruthRoleMappingRequestApiRoleMapping = { [key: string]: unknown };
-
-export interface GroundTruthRoleMappingRequestApi {
-  role_mapping: GroundTruthRoleMappingRequestApiRoleMapping;
-}
-
-export type GroundTruthRoleMappingResponseResultApiRoleMapping = { [key: string]: unknown };
-
-export interface GroundTruthRoleMappingResponseResultApi {
-  id: string;
-  role_mapping?: GroundTruthRoleMappingResponseResultApiRoleMapping;
-  /** @minLength 1 */
-  embedding_status: string;
-  embeddings_stale?: boolean;
-}
-
-export interface GroundTruthRoleMappingResponseApi {
-  status: boolean;
-  result: GroundTruthRoleMappingResponseResultApi;
-}
-
 /**
  * Multi-variable runtime inputs: {"variable_name": "value", ...}
  */
@@ -11518,6 +11497,28 @@ export interface GroundTruthSetupRequestApi {
   injection_format?: GroundTruthSetupRequestApiInjectionFormat;
   /** Whether this template should inject GT few-shot examples at run time. Default True for back-compat with older FE clients; current FE always sends explicitly. */
   enabled?: boolean;
+}
+
+export type GroundTruthSetupResponseResultApiVariableMapping = { [key: string]: unknown };
+
+export type GroundTruthSetupResponseResultApiRoleMapping = { [key: string]: unknown };
+
+export type GroundTruthSetupResponseResultApiConfig = { [key: string]: unknown };
+
+export interface GroundTruthSetupResponseResultApi {
+  id: string;
+  template_id: string;
+  variable_mapping?: GroundTruthSetupResponseResultApiVariableMapping;
+  role_mapping?: GroundTruthSetupResponseResultApiRoleMapping;
+  /** @minLength 1 */
+  embedding_status: string;
+  embeddings_stale?: boolean;
+  config?: GroundTruthSetupResponseResultApiConfig;
+}
+
+export interface GroundTruthSetupResponseApi {
+  status: boolean;
+  result: GroundTruthSetupResponseResultApi;
 }
 
 export interface GroundTruthStatusResponseResultApi {

@@ -2576,6 +2576,23 @@ class GroundTruthRoleMappingResponseSerializer(serializers.Serializer):
     result = GroundTruthRoleMappingResponseResultSerializer()
 
 
+class GroundTruthSetupResponseResultSerializer(serializers.Serializer):
+    """Shape returned by GroundTruthService.update_setup."""
+
+    id = serializers.UUIDField()
+    template_id = serializers.UUIDField()
+    variable_mapping = serializers.JSONField(required=False, allow_null=True)
+    role_mapping = serializers.JSONField(required=False, allow_null=True)
+    embedding_status = serializers.CharField()
+    embeddings_stale = serializers.BooleanField(required=False, default=False)
+    config = serializers.JSONField(required=False, allow_null=True)
+
+
+class GroundTruthSetupResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = GroundTruthSetupResponseResultSerializer()
+
+
 class GroundTruthDataResponseResultSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     page = serializers.IntegerField()

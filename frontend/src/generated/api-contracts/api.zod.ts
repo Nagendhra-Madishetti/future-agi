@@ -22069,12 +22069,9 @@ export const ModelHubGroundTruthEmbedCreateResponse = zod.object({
 
 
 /**
- * Updates ``variable_mapping`` — the per-row mapping from a rule
-prompt's ``{{template_variable}}`` placeholders to GT column names.
-Used when a CustomPromptEvaluator is run against a GT dataset (each
-row produces a templated prompt). Distinct from
-:class:`GroundTruthRoleMappingView`, which handles the semantic
-roles used by retrieval (input / expected_output / score / reason).
+ * Legacy single-purpose endpoint. Superseded by
+:class:`GroundTruthSetupView`, which writes variable mapping
+alongside role mapping and injection config in one atomic call.
  * @summary PUT /model-hub/ground-truth/<id>/mapping/
  */
 export const ModelHubGroundTruthMappingUpdateParams = zod.object({
@@ -22094,35 +22091,6 @@ export const ModelHubGroundTruthMappingUpdateResponse = zod.object({
   "variable_mapping": zod.object({
 
 }).passthrough().optional()
-})
-})
-
-
-/**
- * PUT /model-hub/ground-truth/<id>/role-mapping/
- */
-export const ModelHubGroundTruthRoleMappingUpdateParams = zod.object({
-  "ground_truth_id": zod.string()
-})
-
-export const ModelHubGroundTruthRoleMappingUpdateBody = zod.object({
-  "role_mapping": zod.object({
-
-}).passthrough()
-})
-
-
-export const modelHubGroundTruthRoleMappingUpdateResponseResultEmbeddingsStaleDefault = false;
-
-export const ModelHubGroundTruthRoleMappingUpdateResponse = zod.object({
-  "status": zod.boolean(),
-  "result": zod.object({
-  "id": zod.string().uuid(),
-  "role_mapping": zod.object({
-
-}).passthrough().optional(),
-  "embedding_status": zod.string().min(1),
-  "embeddings_stale": zod.boolean().default(modelHubGroundTruthRoleMappingUpdateResponseResultEmbeddingsStaleDefault)
 })
 })
 
@@ -22164,10 +22132,9 @@ export const ModelHubGroundTruthSearchCreateResponse = zod.object({
 
 
 /**
- * Atomic write of variable mapping, role mapping, and injection config
+ * Atomic save of variable mapping, role mapping, and injection config
 (max_examples, similarity_threshold, injection_format, enabled).
-``role_mapping["output"]`` is mandatory; the service rejects the
-write without it.
+``role_mapping["output"]`` is mandatory.
  * @summary PUT /model-hub/ground-truth/<id>/setup/
  */
 export const ModelHubGroundTruthSetupUpdateParams = zod.object({
@@ -22202,11 +22169,18 @@ export const ModelHubGroundTruthSetupUpdateResponse = zod.object({
   "status": zod.boolean(),
   "result": zod.object({
   "id": zod.string().uuid(),
+  "template_id": zod.string().uuid(),
+  "variable_mapping": zod.object({
+
+}).passthrough().optional(),
   "role_mapping": zod.object({
 
 }).passthrough().optional(),
   "embedding_status": zod.string().min(1),
-  "embeddings_stale": zod.boolean().default(modelHubGroundTruthSetupUpdateResponseResultEmbeddingsStaleDefault)
+  "embeddings_stale": zod.boolean().default(modelHubGroundTruthSetupUpdateResponseResultEmbeddingsStaleDefault),
+  "config": zod.object({
+
+}).passthrough().optional()
 })
 })
 

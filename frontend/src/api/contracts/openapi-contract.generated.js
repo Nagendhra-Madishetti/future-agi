@@ -5,7 +5,7 @@
 export const OPENAPI_CONTRACT = Object.freeze({
   "generatedFrom": "api_contracts/openapi/swagger.json",
   "swaggerVersion": "2.0",
-  "endpointCount": 978,
+  "endpointCount": 977,
   "endpoints": {
     "/accounts/2fa/recovery-codes/": {
       "get": {
@@ -20445,40 +20445,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
-    "/model-hub/ground-truth/{ground_truth_id}/role-mapping/": {
-      "put": {
-        "operationId": "model-hub_ground-truth_role-mapping_update",
-        "runtimeRequestValidation": true,
-        "runtimeResponseValidation": true,
-        "requestBody": {
-          "$ref": "#/definitions/GroundTruthRoleMappingRequest"
-        },
-        "queryParameters": {},
-        "responses": {
-          "200": {
-            "$ref": "#/definitions/GroundTruthRoleMappingResponse"
-          },
-          "400": {
-            "$ref": "#/definitions/ModelHubErrorResponse"
-          },
-          "403": {
-            "$ref": "#/definitions/ModelHubErrorResponse"
-          },
-          "404": {
-            "$ref": "#/definitions/ModelHubErrorResponse"
-          },
-          "409": {
-            "$ref": "#/definitions/ModelHubErrorResponse"
-          },
-          "500": {
-            "$ref": "#/definitions/ModelHubErrorResponse"
-          },
-          "default": {
-            "$ref": "#/definitions/ManagementAPIErrorResponse"
-          }
-        }
-      }
-    },
     "/model-hub/ground-truth/{ground_truth_id}/search/": {
       "post": {
         "operationId": "model-hub_ground-truth_search_create",
@@ -20524,7 +20490,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "queryParameters": {},
         "responses": {
           "200": {
-            "$ref": "#/definitions/GroundTruthRoleMappingResponse"
+            "$ref": "#/definitions/GroundTruthSetupResponse"
           },
           "400": {
             "$ref": "#/definitions/ModelHubErrorResponse"
@@ -57182,34 +57148,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
-    "GroundTruthRoleMappingRequest": {
-      "required": [
-        "role_mapping"
-      ],
-      "type": "object",
-      "properties": {
-        "role_mapping": {
-          "title": "Role mapping",
-          "type": "object"
-        }
-      }
-    },
-    "GroundTruthRoleMappingResponse": {
-      "required": [
-        "status",
-        "result"
-      ],
-      "type": "object",
-      "properties": {
-        "status": {
-          "title": "Status",
-          "type": "boolean"
-        },
-        "result": {
-          "$ref": "#/definitions/GroundTruthRoleMappingResponseResult"
-        }
-      }
-    },
     "GroundTruthSearchRequest": {
       "type": "object",
       "properties": {
@@ -57299,6 +57237,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "description": "Whether this template should inject GT few-shot examples at run time. Default True for back-compat with older FE clients; current FE always sends explicitly.",
           "type": "boolean",
           "default": true
+        }
+      }
+    },
+    "GroundTruthSetupResponse": {
+      "required": [
+        "status",
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean"
+        },
+        "result": {
+          "$ref": "#/definitions/GroundTruthSetupResponseResult"
         }
       }
     },
@@ -82354,35 +82308,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
-    "GroundTruthRoleMappingResponseResult": {
-      "required": [
-        "id",
-        "embedding_status"
-      ],
-      "type": "object",
-      "properties": {
-        "id": {
-          "title": "Id",
-          "type": "string",
-          "format": "uuid"
-        },
-        "role_mapping": {
-          "title": "Role mapping",
-          "type": "object",
-          "x-nullable": true
-        },
-        "embedding_status": {
-          "title": "Embedding status",
-          "type": "string",
-          "minLength": 1
-        },
-        "embeddings_stale": {
-          "title": "Embeddings stale",
-          "type": "boolean",
-          "default": false
-        }
-      }
-    },
     "GroundTruthSearchResponseResult": {
       "required": [
         "query",
@@ -82409,6 +82334,51 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "total": {
           "title": "Total",
           "type": "integer"
+        }
+      }
+    },
+    "GroundTruthSetupResponseResult": {
+      "required": [
+        "id",
+        "template_id",
+        "embedding_status"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "template_id": {
+          "title": "Template id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "variable_mapping": {
+          "title": "Variable mapping",
+          "type": "object",
+          "x-nullable": true
+        },
+        "role_mapping": {
+          "title": "Role mapping",
+          "type": "object",
+          "x-nullable": true
+        },
+        "embedding_status": {
+          "title": "Embedding status",
+          "type": "string",
+          "minLength": 1
+        },
+        "embeddings_stale": {
+          "title": "Embeddings stale",
+          "type": "boolean",
+          "default": false
+        },
+        "config": {
+          "title": "Config",
+          "type": "object",
+          "x-nullable": true
         }
       }
     },
