@@ -98399,7 +98399,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
     },
     "PatternInsight": {
       "required": [
-        "title",
         "value",
         "caption"
       ],
@@ -98408,6 +98407,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "title": {
           "title": "Title",
           "type": "string",
+          "default": "",
           "minLength": 1
         },
         "value": {

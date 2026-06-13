@@ -36228,6 +36228,7 @@ export const TracerFeedIssuesOverviewListQueryParams = zod.object({
 })
 
 export const tracerFeedIssuesOverviewListResponseStatusDefault = true;
+export const tracerFeedIssuesOverviewListResponseResultPatternSummaryInsightsItemTitleDefault = ``;
 
 
 
@@ -36250,7 +36251,7 @@ export const TracerFeedIssuesOverviewListResponse = zod.object({
 })),
   "pattern_summary": zod.object({
   "insights": zod.array(zod.object({
-  "title": zod.string().min(1),
+  "title": zod.string().min(1).default(tracerFeedIssuesOverviewListResponseResultPatternSummaryInsightsItemTitleDefault),
   "value": zod.string().min(1),
   "caption": zod.string(),
   "evidence": zod.record(zod.string(), zod.string()).optional()

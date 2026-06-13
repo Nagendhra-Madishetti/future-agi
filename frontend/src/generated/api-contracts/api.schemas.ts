@@ -18997,7 +18997,7 @@ export type PatternInsightApiEvidence = {[key: string]: string};
 
 export interface PatternInsightApi {
   /** @minLength 1 */
-  title: string;
+  title?: string;
   /** @minLength 1 */
   value: string;
   caption: string;
