@@ -1267,7 +1267,17 @@ class EmbeddingManager:
         ``ALTER ... UPDATE`` is async on MergeTree; the mutation is queued
         and reads filter ``deleted=0`` so old rows fall out as it catches up.
         """
-        self.db_client.create_table(table_name)
+        table_exists = self.db_client.client.execute(
+            f"EXISTS TABLE {table_name}"
+        )[0][0]
+        if not table_exists:
+            logger.info(
+                "vectors_soft_delete_skipped_table_missing",
+                table_name=table_name,
+                eval_id=eval_id,
+            )
+            return
+
         clauses = [
             f"eval_id = '{eval_id}'",
             "has(metadata.key, 'organization_id')",
