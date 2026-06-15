@@ -290,6 +290,11 @@ class SwitchOrganizationView(APIView):
                     "role": ws_role,
                     "invited_by": user,
                     "is_active": True,
+                    "organization_membership": (
+                        OrganizationMembership.no_workspace_objects.filter(
+                            user=user, organization=organization, is_active=True
+                        ).first()
+                    ),
                 },
             )
             return ws

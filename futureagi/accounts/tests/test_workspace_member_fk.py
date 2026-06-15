@@ -1,0 +1,208 @@
+"""Tests for the workspace→org membership FK fix (TH-5928)."""
+
+import pytest
+from rest_framework import status
+
+from accounts.models.organization_membership import OrganizationMembership
+from accounts.models.user import User
+from accounts.models.workspace import WorkspaceMembership
+from accounts.services.workspace_members import list_workspace_members
+from tfc.constants.levels import Level
+from tfc.middleware.workspace_context import set_workspace_context
+
+WS_MEMBERS_URL = "/accounts/workspace/{workspace_id}/members/"
+
+
+def _make_member(organization, email, level=Level.MEMBER, role="Member"):
+    set_workspace_context(organization=organization)
+    u = User.objects.create_user(
+        email=email,
+        password="pass123",
+        name=role,
+        organization=organization,
+        organization_role=role,
+    )
+    om = OrganizationMembership.objects.create(
+        user=u,
+        organization=organization,
+        role=role,
+        level=level,
+        is_active=True,
+    )
+    return u, om
+
+
+def _add_to_workspace(workspace, user, org_membership):
+    return WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=user,
+        role="workspace_member",
+        level=Level.WORKSPACE_MEMBER,
+        organization_membership=org_membership,
+        is_active=True,
+    )
+
+
+def _null_the_fk(ws_mem):
+    WorkspaceMembership.objects.filter(pk=ws_mem.pk).update(
+        organization_membership=None
+    )
+
+
+@pytest.mark.django_db
+class TestListWorkspaceMembersSelector:
+
+    def test_returns_member_with_org_role_when_fk_set(
+        self, organization, workspace, user
+    ):
+        member, om = _make_member(organization, "alice@futureagi.com")
+        _add_to_workspace(workspace, member, om)
+
+        page = list_workspace_members(workspace=workspace, organization=organization)
+
+        rows = {r["email"]: r for r in page["results"]}
+        assert "alice@futureagi.com" in rows
+        assert rows["alice@futureagi.com"]["org_role"] is not None
+        assert rows["alice@futureagi.com"]["org_level"] == Level.MEMBER
+
+    def test_fallback_resolves_org_role_when_fk_null(
+        self, organization, workspace, user
+    ):
+        member, om = _make_member(organization, "bob@futureagi.com")
+        ws_mem = _add_to_workspace(workspace, member, om)
+        _null_the_fk(ws_mem)
+
+        page = list_workspace_members(workspace=workspace, organization=organization)
+
+        row = next(r for r in page["results"] if r["email"] == "bob@futureagi.com")
+        assert row["org_role"] is not None
+        assert row["org_level"] == Level.MEMBER
+
+    def test_fallback_emits_warning_with_workspace_and_user_ids(
+        self, organization, workspace, user, caplog
+    ):
+        member, om = _make_member(organization, "carol@futureagi.com")
+        ws_mem = _add_to_workspace(workspace, member, om)
+        _null_the_fk(ws_mem)
+
+        with caplog.at_level("WARNING"):
+            list_workspace_members(workspace=workspace, organization=organization)
+
+        hits = [
+            r
+            for r in caplog.records
+            if "workspace_member_list_null_org_fk" in r.getMessage()
+        ]
+        assert hits, "expected fallback warning to fire"
+        msg = hits[0].getMessage()
+        assert str(member.id) in msg
+        assert str(workspace.id) in msg
+
+    def test_no_warning_when_all_fks_populated(
+        self, organization, workspace, user, caplog
+    ):
+        member, om = _make_member(organization, "dave@futureagi.com")
+        _add_to_workspace(workspace, member, om)
+
+        with caplog.at_level("WARNING"):
+            list_workspace_members(workspace=workspace, organization=organization)
+
+        assert not any(
+            "workspace_member_list_null_org_fk" in r.getMessage()
+            for r in caplog.records
+        )
+
+    def test_excludes_inactive_workspace_memberships(
+        self, organization, workspace, user
+    ):
+        member, om = _make_member(organization, "eve@futureagi.com")
+        ws_mem = _add_to_workspace(workspace, member, om)
+        WorkspaceMembership.objects.filter(pk=ws_mem.pk).update(is_active=False)
+
+        page = list_workspace_members(workspace=workspace, organization=organization)
+
+        emails = {r["email"] for r in page["results"]}
+        assert "eve@futureagi.com" not in emails
+
+    def test_pagination_returns_correct_slice(self, organization, workspace, user):
+        for i in range(5):
+            m, om = _make_member(organization, f"u{i}@futureagi.com")
+            _add_to_workspace(workspace, m, om)
+
+        page1 = list_workspace_members(
+            workspace=workspace, organization=organization, page=1, limit=2
+        )
+        page2 = list_workspace_members(
+            workspace=workspace, organization=organization, page=2, limit=2
+        )
+
+        assert page1["total"] == page2["total"]
+        assert len(page1["results"]) == 2
+        assert len(page2["results"]) == 2
+        emails1 = {r["email"] for r in page1["results"]}
+        emails2 = {r["email"] for r in page2["results"]}
+        assert emails1.isdisjoint(emails2)
+
+    def test_fallback_query_count_is_bounded(self, organization, workspace, user):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        for i in range(10):
+            m, om = _make_member(organization, f"q{i}@futureagi.com")
+            ws_mem = _add_to_workspace(workspace, m, om)
+            _null_the_fk(ws_mem)
+
+        with CaptureQueriesContext(connection) as ctx:
+            list_workspace_members(workspace=workspace, organization=organization)
+        small_count = len(ctx)
+
+        for i in range(40):
+            m, om = _make_member(organization, f"qq{i}@futureagi.com")
+            ws_mem = _add_to_workspace(workspace, m, om)
+            _null_the_fk(ws_mem)
+
+        with CaptureQueriesContext(connection) as ctx:
+            list_workspace_members(workspace=workspace, organization=organization)
+        large_count = len(ctx)
+
+        # Fallback uses one membership map per call, not one query per row.
+        assert large_count <= small_count + 2
+
+
+@pytest.mark.django_db
+class TestWorkspaceMemberListViewFKFallback:
+
+    def test_response_renders_org_role_when_fk_null(
+        self, auth_client, organization, workspace
+    ):
+        member, om = _make_member(organization, "view-null@futureagi.com")
+        ws_mem = _add_to_workspace(workspace, member, om)
+        _null_the_fk(ws_mem)
+
+        resp = auth_client.get(WS_MEMBERS_URL.format(workspace_id=workspace.id))
+
+        assert resp.status_code == status.HTTP_200_OK
+        rows = {r["email"]: r for r in resp.data["result"]["results"]}
+        assert "view-null@futureagi.com" in rows
+        # CamelCaseJSONRenderer flips org_role → orgRole on the wire.
+        row = rows["view-null@futureagi.com"]
+        assert row.get("orgRole") or row.get("org_role")
+
+
+@pytest.mark.django_db
+class TestWorkspaceMembershipFKInvariant:
+
+    def test_no_null_fk_rows_for_active_memberships(
+        self, organization, workspace, user
+    ):
+        for i in range(3):
+            m, om = _make_member(organization, f"inv{i}@futureagi.com")
+            _add_to_workspace(workspace, m, om)
+
+        null_count = WorkspaceMembership.no_workspace_objects.filter(
+            workspace__organization=organization,
+            is_active=True,
+            organization_membership__isnull=True,
+        ).count()
+
+        assert null_count == 0

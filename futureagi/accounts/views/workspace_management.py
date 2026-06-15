@@ -491,6 +491,13 @@ class WorkspaceInviteAPIView(APIView):
                                         "role": workspace_role,
                                         "invited_by": user,
                                         "is_active": True,
+                                        "organization_membership": (
+                                            OrganizationMembership.no_workspace_objects.filter(
+                                                user=target_user,
+                                                organization=workspace.organization,
+                                                is_active=True,
+                                            ).first()
+                                        ),
                                     },
                                 )
                             )
