@@ -2415,6 +2415,33 @@ class GroundTruthUploadRequestSerializer(serializers.Serializer):
         return attrs
 
 
+class GroundTruthRoleMappingSerializer(serializers.Serializer):
+    """Maps GT dataset columns to their semantic role for the eval prompt.
+
+    ``output`` (or legacy ``expected_output``) is required at the service
+    layer; ``explanation`` (or legacy ``reasoning`` / ``reason``) is
+    optional. All values are GT dataset column names.
+    """
+
+    output = serializers.CharField(required=False, allow_blank=False)
+    explanation = serializers.CharField(required=False, allow_blank=False)
+    expected_output = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        help_text="Legacy alias for `output`.",
+    )
+    reasoning = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        help_text="Legacy alias for `explanation`.",
+    )
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        help_text="Legacy alias for `explanation`.",
+    )
+
+
 class GroundTruthSetupRequestSerializer(serializers.Serializer):
     """Single atomic write covering variable mapping, role mapping, and
     injection config. Backs the FE single-Save UX on the GT tab.
@@ -2424,8 +2451,15 @@ class GroundTruthSetupRequestSerializer(serializers.Serializer):
     service layer rejects any other keys.
     """
 
-    variable_mapping = serializers.JSONField()
-    role_mapping = serializers.JSONField()
+    variable_mapping = serializers.DictField(
+        child=serializers.JSONField(),
+        allow_empty=False,
+        help_text=(
+            "Map of template variable name → GT column name (string) "
+            "or list of column names. Keys are dynamic per-template."
+        ),
+    )
+    role_mapping = GroundTruthRoleMappingSerializer()
     max_examples = serializers.IntegerField(min_value=1, max_value=20)
     similarity_threshold = serializers.FloatField(min_value=0, max_value=1)
     injection_format = serializers.ChoiceField(
@@ -2492,8 +2526,16 @@ class GroundTruthItemSerializer(serializers.Serializer):
     file_name = serializers.CharField(required=False, allow_blank=True)
     columns = serializers.ListField(child=serializers.CharField())
     row_count = serializers.IntegerField()
-    variable_mapping = serializers.JSONField(required=False, allow_null=True)
-    role_mapping = serializers.JSONField(required=False, allow_null=True)
+    variable_mapping = serializers.DictField(
+        child=serializers.JSONField(),
+        required=False,
+        allow_null=True,
+        help_text=(
+            "Map of template variable name → GT column name (string) "
+            "or list of column names."
+        ),
+    )
+    role_mapping = GroundTruthRoleMappingSerializer(required=False, allow_null=True)
     embedding_status = serializers.CharField(required=False)
     embedded_row_count = serializers.IntegerField(required=False)
     storage_type = serializers.CharField(required=False)
@@ -2530,8 +2572,16 @@ class GroundTruthSetupResponseResultSerializer(serializers.Serializer):
 
     id = serializers.UUIDField()
     template_id = serializers.UUIDField()
-    variable_mapping = serializers.JSONField(required=False, allow_null=True)
-    role_mapping = serializers.JSONField(required=False, allow_null=True)
+    variable_mapping = serializers.DictField(
+        child=serializers.JSONField(),
+        required=False,
+        allow_null=True,
+        help_text=(
+            "Map of template variable name → GT column name (string) "
+            "or list of column names."
+        ),
+    )
+    role_mapping = GroundTruthRoleMappingSerializer(required=False, allow_null=True)
     embedding_status = serializers.CharField()
     embeddings_stale = serializers.BooleanField(required=False, default=False)
     config = serializers.JSONField(required=False, allow_null=True)

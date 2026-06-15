@@ -347,7 +347,7 @@ class GroundTruthService:
         )
 
         if gt.embedding_status != "completed":
-            logger.info(
+            logger.debug(
                 "ground_truth_retrieve_skipped_not_ready",
                 ground_truth_id=str(gt.id),
                 status=gt.embedding_status,

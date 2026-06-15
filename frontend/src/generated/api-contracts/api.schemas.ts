@@ -9959,9 +9959,32 @@ export interface EvalFeedbackListResponseApi {
   result: EvalFeedbackListResponseResultApi;
 }
 
-export type GroundTruthItemApiVariableMapping = { [key: string]: unknown };
+export interface GroundTruthRoleMappingApi {
+  /** @minLength 1 */
+  output?: string;
+  /** @minLength 1 */
+  explanation?: string;
+  /**
+     * Legacy alias for `output`.
+     * @minLength 1
+     */
+  expected_output?: string;
+  /**
+     * Legacy alias for `explanation`.
+     * @minLength 1
+     */
+  reasoning?: string;
+  /**
+     * Legacy alias for `explanation`.
+     * @minLength 1
+     */
+  reason?: string;
+}
 
-export type GroundTruthItemApiRoleMapping = { [key: string]: unknown };
+/**
+ * Map of template variable name → GT column name (string) or list of column names.
+ */
+export type GroundTruthItemApiVariableMapping = {[key: string]: { [key: string]: unknown }};
 
 export interface GroundTruthItemApi {
   id: string;
@@ -9971,8 +9994,9 @@ export interface GroundTruthItemApi {
   file_name?: string;
   columns: string[];
   row_count: number;
+  /** Map of template variable name → GT column name (string) or list of column names. */
   variable_mapping?: GroundTruthItemApiVariableMapping;
-  role_mapping?: GroundTruthItemApiRoleMapping;
+  role_mapping?: GroundTruthRoleMappingApi;
   /** @minLength 1 */
   embedding_status?: string;
   embedded_row_count?: number;
@@ -11395,9 +11419,10 @@ export interface GroundTruthSearchResponseApi {
   result: GroundTruthSearchResponseResultApi;
 }
 
-export type GroundTruthSetupRequestApiVariableMapping = { [key: string]: unknown };
-
-export type GroundTruthSetupRequestApiRoleMapping = { [key: string]: unknown };
+/**
+ * Map of template variable name → GT column name (string) or list of column names. Keys are dynamic per-template.
+ */
+export type GroundTruthSetupRequestApiVariableMapping = {[key: string]: { [key: string]: unknown }};
 
 export type GroundTruthSetupRequestApiInjectionFormat = typeof GroundTruthSetupRequestApiInjectionFormat[keyof typeof GroundTruthSetupRequestApiInjectionFormat];
 
@@ -11409,8 +11434,9 @@ export const GroundTruthSetupRequestApiInjectionFormat = {
 } as const;
 
 export interface GroundTruthSetupRequestApi {
+  /** Map of template variable name → GT column name (string) or list of column names. Keys are dynamic per-template. */
   variable_mapping: GroundTruthSetupRequestApiVariableMapping;
-  role_mapping: GroundTruthSetupRequestApiRoleMapping;
+  role_mapping: GroundTruthRoleMappingApi;
   /**
      * @minimum 1
      * @maximum 20
@@ -11426,17 +11452,19 @@ export interface GroundTruthSetupRequestApi {
   enabled?: boolean;
 }
 
-export type GroundTruthSetupResponseResultApiVariableMapping = { [key: string]: unknown };
-
-export type GroundTruthSetupResponseResultApiRoleMapping = { [key: string]: unknown };
+/**
+ * Map of template variable name → GT column name (string) or list of column names.
+ */
+export type GroundTruthSetupResponseResultApiVariableMapping = {[key: string]: { [key: string]: unknown }};
 
 export type GroundTruthSetupResponseResultApiConfig = { [key: string]: unknown };
 
 export interface GroundTruthSetupResponseResultApi {
   id: string;
   template_id: string;
+  /** Map of template variable name → GT column name (string) or list of column names. */
   variable_mapping?: GroundTruthSetupResponseResultApiVariableMapping;
-  role_mapping?: GroundTruthSetupResponseResultApiRoleMapping;
+  role_mapping?: GroundTruthRoleMappingApi;
   /** @minLength 1 */
   embedding_status: string;
   embeddings_stale?: boolean;
