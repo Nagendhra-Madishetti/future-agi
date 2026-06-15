@@ -42,6 +42,7 @@ import AddLabelDrawer from "src/components/traceDetailDrawer/AddLabelDrawer";
 import { buildTraceAnnotationSources } from "src/components/voiceAnnotationSources";
 import AddTagsPopover from "./AddTagsPopover";
 import SaveViewPopover from "./SaveViewDialog";
+import { buildPromptConfigFromSpan } from "./promptFromSpan";
 import { useNavigate } from "react-router";
 import TraceFilterPanel from "src/sections/projects/LLMTracing/TraceFilterPanel";
 import ImagineTab from "src/components/imagine/ImagineTab";
@@ -72,150 +73,6 @@ const ACTION_ITEMS = [
   { id: "annotate", label: "Annotate", icon: "mdi:comment-text-outline" },
   { id: "queue", label: "Add to annotation queue", icon: "mdi:playlist-plus" },
 ];
-
-/**
- * Parse template variables from span attributes.
- * SDK stores them as JSON string in:
- *   - gen_ai.prompt.template.variables
- *   - llm.prompt_template.variables
- * Returns { varName: value } or null.
- */
-function parseTemplateVariables(attrs) {
-  const raw =
-    attrs?.["gen_ai.prompt.template.variables"] ||
-    attrs?.["llm.prompt_template.variables"];
-  if (!raw) return null;
-  try {
-    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed))
-      return parsed;
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
-/**
- * Replace resolved variable values in text with {{varName}} placeholders.
- * Sorts by value length descending so longer values get replaced first
- * (avoids partial matches when one value is a substring of another).
- */
-function templatizeText(text, variables) {
-  if (!text || !variables) return text;
-  let result = text;
-  const entries = Object.entries(variables)
-    .filter(([, val]) => val != null && String(val).length > 0)
-    .sort((a, b) => String(b[1]).length - String(a[1]).length);
-  for (const [name, value] of entries) {
-    const strVal = String(value);
-    // Replace all occurrences of the value with {{name}}
-    let idx = result.indexOf(strVal);
-    while (idx !== -1) {
-      result =
-        result.slice(0, idx) +
-        `{{${name}}}` +
-        result.slice(idx + strVal.length);
-      idx = result.indexOf(strVal, idx + `{{${name}}}`.length);
-    }
-  }
-  return result;
-}
-
-/**
- * Extract LLM input messages from span attributes and convert to
- * the workbench prompt_config format.
- * If template variables are found, replaces resolved values with
- * {{variable}} placeholders and returns variable_names for the draft.
- */
-function buildPromptConfigFromSpan(span) {
-  const attrs = span?.span_attributes || span?.eval_attributes || {};
-  const templateVars = parseTemplateVariables(attrs);
-
-  // Parse input messages from flattened attributes
-  const tempMessages = {};
-  const messagePrefixes = [
-    "llm.inputMessages",
-    "llm.input_messages",
-    "gen_ai.input.messages",
-  ];
-
-  Object.keys(attrs).forEach((key) => {
-    const matchingPrefix = messagePrefixes.find((prefix) =>
-      key.startsWith(prefix),
-    );
-    if (!matchingPrefix) return;
-    const parts = key.replace(`${matchingPrefix}.`, "").split(".");
-    const index = parts[0];
-    const property = parts.slice(1).join(".");
-    if (!tempMessages[index]) tempMessages[index] = {};
-    if (property === "message.role" || property === "role") {
-      tempMessages[index].role = attrs[key];
-    }
-    if (
-      property.startsWith("message.content") ||
-      property.startsWith("content")
-    ) {
-      let content = attrs[key];
-      if (typeof content === "object" && content !== null)
-        content = JSON.stringify(content, null, 2);
-      if (!tempMessages[index].content) tempMessages[index].content = content;
-      else if (typeof tempMessages[index].content === "string") {
-        tempMessages[index].content += content;
-      }
-    }
-  });
-
-  const parsedMessages = Object.keys(tempMessages)
-    .sort((a, b) => parseInt(a) - parseInt(b))
-    .filter((key) => tempMessages[key].role)
-    .map((key) => {
-      let text =
-        typeof tempMessages[key].content === "string"
-          ? tempMessages[key].content
-          : JSON.stringify(tempMessages[key].content ?? "", null, 2);
-      // Replace resolved values with {{variable}} placeholders
-      if (templateVars) {
-        text = templatizeText(text, templateVars);
-      }
-      return {
-        role: tempMessages[key].role,
-        content: [{ type: "text", text }],
-      };
-    });
-
-  // Fallback: if no messages parsed from attributes, use span.input
-  if (parsedMessages.length === 0 && span?.input) {
-    let inputContent =
-      typeof span.input === "string"
-        ? span.input
-        : JSON.stringify(span.input, null, 2);
-    if (templateVars) {
-      inputContent = templatizeText(inputContent, templateVars);
-    }
-    parsedMessages.push(
-      { role: "system", content: [{ type: "text", text: "" }] },
-      { role: "user", content: [{ type: "text", text: inputContent }] },
-    );
-  }
-
-  // Ensure system message exists
-  if (parsedMessages.length > 0 && parsedMessages[0].role !== "system") {
-    parsedMessages.unshift({
-      role: "system",
-      content: [{ type: "text", text: "" }],
-    });
-  }
-
-  // Build variable_names dict: { varName: [sampleValue] }
-  const variableNames = {};
-  if (templateVars) {
-    for (const [name, value] of Object.entries(templateVars)) {
-      variableNames[name] = value != null ? [String(value)] : [];
-    }
-  }
-
-  return { messages: parsedMessages, variableNames };
-}
 
 function getSpan(entry) {
   return entry?.observation_span || {};
@@ -752,10 +609,22 @@ const TraceDetailDrawerV2 = ({
               `/dashboard/workbench/create/${promptTemplateId}?tab=Playground`,
             );
           } else {
-            const { messages, variableNames } = buildPromptConfigFromSpan(span);
+            const { messages, variableNames, model, provider, parameters } =
+              buildPromptConfigFromSpan(span);
+            const configuration = {
+              ...parameters,
+              output_format: "string",
+              ...(model && {
+                model,
+                model_detail: {
+                  model_name: model,
+                  ...(provider && { providers: provider }),
+                },
+              }),
+            };
             createPromptDraft({
               name: "",
-              prompt_config: [{ messages }],
+              prompt_config: [{ configuration, messages }],
               ...(Object.keys(variableNames).length > 0 && {
                 variable_names: variableNames,
               }),
