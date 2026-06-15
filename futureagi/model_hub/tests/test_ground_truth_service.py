@@ -94,7 +94,7 @@ def test_embed_dataset_marks_failed_when_writer_raises():
     )
 
     with patch(
-        "model_hub.services.ground_truth_service._soft_delete_prior_vectors"
+        "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.soft_delete_vectors"
     ), patch(
         "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.parallel_process_metadata",
         side_effect=RuntimeError("ch unreachable"),
@@ -113,7 +113,7 @@ def test_embed_dataset_marks_completed_on_success():
     )
 
     with patch(
-        "model_hub.services.ground_truth_service._soft_delete_prior_vectors"
+        "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.soft_delete_vectors"
     ), patch(
         "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.parallel_process_metadata"
     ):
