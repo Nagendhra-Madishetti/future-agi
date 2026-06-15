@@ -53,6 +53,17 @@ def maybe_pin_new_version(eval_metric, request_data, user, organization, workspa
     if rule_prompt:
         snap["messages"] = [{"role": "system", "content": rule_prompt}]
 
+    # Dedup on typed fields (criteria/model columns + one JSON key), not blob
+    # equality — avoids the false-skip case the old whole-snapshot compare hit.
+    current_pinned = eval_metric.pinned_version
+    if current_pinned and (
+        (current_pinned.criteria or "") == (criteria or "")
+        and (current_pinned.model or "") == (resolved_model or "")
+        and (current_pinned.config_snapshot or {}).get("composite_weight_overrides")
+        == weight_overrides
+    ):
+        return None
+
     prompt_messages = config_to_prompt_messages(
         snap, criteria=criteria,
         eval_type_id=snap.get("eval_type_id"),
