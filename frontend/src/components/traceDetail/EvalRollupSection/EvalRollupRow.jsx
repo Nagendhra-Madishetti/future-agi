@@ -14,7 +14,7 @@ const EvalRollupRow = ({ ev, onSelectSpan, onFixWithFalcon }) => {
   const erroredCount = spans.filter((s) => s.error).length;
   const chips = evalCellChips(ev.aggregate, colFromEval(ev));
   if (erroredCount) chips.push({ label: `Errored ${erroredCount}`, tone: "errored" });
-  const [open, setOpen] = useState(spans.length <= 1); // N=1 auto-expands
+  const [open, setOpen] = useState(false);
 
   return (
     <>

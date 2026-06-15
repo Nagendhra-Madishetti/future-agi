@@ -21,6 +21,9 @@ export const choiceTone = (label, col) =>
 // string/array) as a defensive fallback.
 export const evalCellChips = (value, col) => {
   if (value == null || value === "") return [];
+  if (typeof value === "object" && !Array.isArray(value) && value.error) {
+    return [{ label: "Error", tone: "errored" }];
+  }
   const kind = resolveEvalKind(col);
 
   if (kind === EVAL_KIND.PASS_FAIL) {

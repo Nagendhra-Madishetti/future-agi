@@ -5,15 +5,17 @@ export const EVAL_TASK_ROW_TYPE = {
   SPANS: "spans",
 };
 
+const TRACE_GLYPH = { code: "T", label: "Trace-level eval — one result per trace" };
+const SPAN_GLYPH = {
+  code: "S",
+  label: "Span-level eval — rolled up across this trace's spans",
+};
+
 const GLYPH_BY_ROW_TYPE = {
-  [EVAL_TASK_ROW_TYPE.TRACES]: {
-    code: "T",
-    label: "Trace-level eval — one result per trace",
-  },
-  [EVAL_TASK_ROW_TYPE.SPANS]: {
-    code: "S",
-    label: "Span-level eval — rolled up across this trace's spans",
-  },
+  traces: TRACE_GLYPH,
+  trace: TRACE_GLYPH,
+  spans: SPAN_GLYPH,
+  span: SPAN_GLYPH,
 };
 
 export const isEvalMetricColumn = (col) => col?.groupBy === EVAL_METRICS_GROUP;
@@ -29,7 +31,7 @@ export const buildColumnBlocks = (cols = []) => {
       group = {
         taskName: col.evalTaskName,
         createdAt: col.evalTaskCreatedAt || null,
-        rowType: col.rowType || null,
+        rowType: col.rowType || col.targetType || null,
         evals: [],
       };
       byTask.set(col.evalTaskName, group);
