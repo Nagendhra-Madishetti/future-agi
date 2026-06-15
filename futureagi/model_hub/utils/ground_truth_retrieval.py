@@ -27,45 +27,11 @@ above all of that.
 
 from __future__ import annotations
 
-import datetime
-import json
 from typing import Any
 
 import structlog
 
 logger = structlog.get_logger(__name__)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Optional: structured debug dump for the runtime injection path.
-# Useful while wiring up new evaluators against GT; keeps a per-event
-# JSON record at /tmp/gt_injection_debug.log so it can be tailed with
-# ``docker exec backend tail -f /tmp/gt_injection_debug.log``.
-# ─────────────────────────────────────────────────────────────────────
-
-_GT_DEBUG_LOG = "/tmp/gt_injection_debug.log"
-
-
-def _log_gt_injection(event: str, **payload: Any) -> None:
-    """Emit a structured log AND append the full payload to the debug log.
-
-    Errors writing the file are logged at WARNING and swallowed — debug
-    output is best-effort and should never bring down an eval.
-    """
-    logger.info(event, **payload)
-    try:
-        with open(_GT_DEBUG_LOG, "a", encoding="utf-8") as fp:
-            fp.write(
-                f"\n=== {datetime.datetime.utcnow().isoformat()}Z {event} ===\n"
-            )
-            for key, value in payload.items():
-                fp.write(f"--- {key} ---\n")
-                if isinstance(value, str):
-                    fp.write(value + "\n")
-                else:
-                    fp.write(json.dumps(value, indent=2, default=str) + "\n")
-    except Exception as exc:
-        logger.warning("gt_injection_debug_log_write_failed", error=str(exc))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -294,7 +260,7 @@ def inject_ground_truth_context(
         return mapped
 
     if not has_usable_inputs_for_gt(gt_obj.variable_mapping, mapped):
-        _log_gt_injection(
+        logger.info(
             "ground_truth_skipped_no_usable_inputs",
             gt_id=str(gt_obj.id),
             eval_type_id=eval_type_id,
@@ -323,7 +289,7 @@ def inject_ground_truth_context(
                 injection_format=gt_config.get("injection_format", "structured"),
             )
             mapped["ground_truth_few_shot"] = few_shot_text
-        _log_gt_injection(
+        logger.info(
             "ground_truth_custom_prompt_injected",
             gt_id=str(gt_obj.id),
             template_id=str(getattr(eval_template, "id", "") or ""),
@@ -340,7 +306,7 @@ def inject_ground_truth_context(
         return mapped
 
     mapped["ground_truth_config"] = gt_config
-    _log_gt_injection(
+    logger.info(
         "ground_truth_agent_config_injected",
         gt_id=str(gt_obj.id),
         template_id=str(getattr(eval_template, "id", "") or ""),
