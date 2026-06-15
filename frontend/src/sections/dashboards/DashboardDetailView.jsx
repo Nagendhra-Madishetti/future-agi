@@ -705,6 +705,9 @@ export default function DashboardDetailView() {
   // Delete-dashboard confirmation
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
+  // Delete-widget confirmation (target stashed since closeWidgetMenu clears menuWidget)
+  const [deleteWidgetTarget, setDeleteWidgetTarget] = useState(null);
+
   // Grid container ref (for measuring column widths during resize)
   const gridContainerRef = useRef(null);
 
@@ -895,10 +898,21 @@ export default function DashboardDetailView() {
   };
 
   const handleDeleteWidget = () => {
-    if (menuWidget) {
-      deleteWidget.mutate({ dashboardId, widgetId: menuWidget.id });
-    }
+    setDeleteWidgetTarget(menuWidget);
     closeWidgetMenu();
+  };
+
+  const confirmDeleteWidget = () => {
+    if (deleteWidgetTarget) {
+      deleteWidget.mutate(
+        { dashboardId, widgetId: deleteWidgetTarget.id },
+        {
+          onSuccess: () =>
+            enqueueSnackbar("Widget deleted", { variant: "success" }),
+        },
+      );
+    }
+    setDeleteWidgetTarget(null);
   };
 
   const handleDuplicateWidget = () => {
@@ -1539,6 +1553,23 @@ export default function DashboardDetailView() {
             color="error"
             size="small"
             onClick={confirmDeleteDashboard}
+          >
+            Delete
+          </Button>
+        }
+      />
+
+      <ConfirmDialog
+        open={!!deleteWidgetTarget}
+        onClose={() => setDeleteWidgetTarget(null)}
+        title="Delete Widget"
+        content={`Are you sure you want to delete "${deleteWidgetTarget?.name}"? This action cannot be undone.`}
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            size="small"
+            onClick={confirmDeleteWidget}
           >
             Delete
           </Button>
