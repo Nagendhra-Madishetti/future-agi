@@ -260,7 +260,7 @@ def inject_ground_truth_context(
         return mapped
 
     if not has_usable_inputs_for_gt(gt_obj.variable_mapping, mapped):
-        logger.info(
+        logger.debug(
             "ground_truth_skipped_no_usable_inputs",
             gt_id=str(gt_obj.id),
             eval_type_id=eval_type_id,
@@ -289,7 +289,7 @@ def inject_ground_truth_context(
                 injection_format=gt_config.get("injection_format", "structured"),
             )
             mapped["ground_truth_few_shot"] = few_shot_text
-        logger.info(
+        logger.debug(
             "ground_truth_custom_prompt_injected",
             gt_id=str(gt_obj.id),
             template_id=str(getattr(eval_template, "id", "") or ""),
@@ -306,7 +306,7 @@ def inject_ground_truth_context(
         return mapped
 
     mapped["ground_truth_config"] = gt_config
-    logger.info(
+    logger.debug(
         "ground_truth_agent_config_injected",
         gt_id=str(gt_obj.id),
         template_id=str(getattr(eval_template, "id", "") or ""),

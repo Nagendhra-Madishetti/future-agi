@@ -19716,6 +19716,11 @@ export const ModelHubEvalTemplatesGroundTruthListParams = zod.object({
 
 
 
+
+
+
+
+
 export const modelHubEvalTemplatesGroundTruthListResponseResultItemsItemEmbeddingsStaleDefault = false;
 
 export const ModelHubEvalTemplatesGroundTruthListResponse = zod.object({
@@ -19729,12 +19734,16 @@ export const ModelHubEvalTemplatesGroundTruthListResponse = zod.object({
   "file_name": zod.string().optional(),
   "columns": zod.array(zod.string().min(1)),
   "row_count": zod.number(),
-  "variable_mapping": zod.object({
+  "variable_mapping": zod.record(zod.string(), zod.object({
 
-}).passthrough().optional(),
+}).passthrough()).optional().describe('Map of template variable name → GT column name (string) or list of column names.'),
   "role_mapping": zod.object({
-
-}).passthrough().optional(),
+  "output": zod.string().min(1).optional(),
+  "explanation": zod.string().min(1).optional(),
+  "expected_output": zod.string().min(1).optional().describe('Legacy alias for `output`.'),
+  "reasoning": zod.string().min(1).optional().describe('Legacy alias for `explanation`.'),
+  "reason": zod.string().min(1).optional().describe('Legacy alias for `explanation`.')
+}).optional(),
   "embedding_status": zod.string().min(1).optional(),
   "embedded_row_count": zod.number().optional(),
   "storage_type": zod.string().min(1).optional(),
@@ -22084,13 +22093,18 @@ export const ModelHubGroundTruthMappingUpdateBody = zod.object({
 }).passthrough()
 })
 
+
+export const modelHubGroundTruthMappingUpdateResponseResultEmbeddingsStaleDefault = false;
+
 export const ModelHubGroundTruthMappingUpdateResponse = zod.object({
   "status": zod.boolean(),
   "result": zod.object({
   "id": zod.string().uuid(),
-  "variable_mapping": zod.object({
+  "variable_mapping": zod.record(zod.string(), zod.object({
 
-}).passthrough().optional()
+}).passthrough()).optional().describe('Map of template variable name → GT column name (string) or list of column names.'),
+  "embedding_status": zod.string().min(1),
+  "embeddings_stale": zod.boolean().default(modelHubGroundTruthMappingUpdateResponseResultEmbeddingsStaleDefault)
 })
 })
 
@@ -22141,6 +22155,11 @@ export const ModelHubGroundTruthSetupUpdateParams = zod.object({
   "ground_truth_id": zod.string()
 })
 
+
+
+
+
+
 export const modelHubGroundTruthSetupUpdateBodyMaxExamplesMax = 20;
 
 export const modelHubGroundTruthSetupUpdateBodySimilarityThresholdMin = 0;
@@ -22150,17 +22169,26 @@ export const modelHubGroundTruthSetupUpdateBodyInjectionFormatDefault = `structu
 export const modelHubGroundTruthSetupUpdateBodyEnabledDefault = true;
 
 export const ModelHubGroundTruthSetupUpdateBody = zod.object({
-  "variable_mapping": zod.object({
+  "variable_mapping": zod.record(zod.string(), zod.object({
 
-}).passthrough(),
+}).passthrough()).describe('Map of template variable name → GT column name (string) or list of column names. Keys are dynamic per-template.'),
   "role_mapping": zod.object({
-
-}).passthrough(),
+  "output": zod.string().min(1).optional(),
+  "explanation": zod.string().min(1).optional(),
+  "expected_output": zod.string().min(1).optional().describe('Legacy alias for `output`.'),
+  "reasoning": zod.string().min(1).optional().describe('Legacy alias for `explanation`.'),
+  "reason": zod.string().min(1).optional().describe('Legacy alias for `explanation`.')
+}),
   "max_examples": zod.number().min(1).max(modelHubGroundTruthSetupUpdateBodyMaxExamplesMax),
   "similarity_threshold": zod.number().min(modelHubGroundTruthSetupUpdateBodySimilarityThresholdMin).max(modelHubGroundTruthSetupUpdateBodySimilarityThresholdMax),
   "injection_format": zod.enum(['structured', 'conversational', 'xml']).default(modelHubGroundTruthSetupUpdateBodyInjectionFormatDefault),
   "enabled": zod.boolean().default(modelHubGroundTruthSetupUpdateBodyEnabledDefault).describe('Whether this template should inject GT few-shot examples at run time. Default True for back-compat with older FE clients; current FE always sends explicitly.')
 })
+
+
+
+
+
 
 
 export const modelHubGroundTruthSetupUpdateResponseResultEmbeddingsStaleDefault = false;
@@ -22170,12 +22198,16 @@ export const ModelHubGroundTruthSetupUpdateResponse = zod.object({
   "result": zod.object({
   "id": zod.string().uuid(),
   "template_id": zod.string().uuid(),
-  "variable_mapping": zod.object({
+  "variable_mapping": zod.record(zod.string(), zod.object({
 
-}).passthrough().optional(),
+}).passthrough()).optional().describe('Map of template variable name → GT column name (string) or list of column names.'),
   "role_mapping": zod.object({
-
-}).passthrough().optional(),
+  "output": zod.string().min(1).optional(),
+  "explanation": zod.string().min(1).optional(),
+  "expected_output": zod.string().min(1).optional().describe('Legacy alias for `output`.'),
+  "reasoning": zod.string().min(1).optional().describe('Legacy alias for `explanation`.'),
+  "reason": zod.string().min(1).optional().describe('Legacy alias for `explanation`.')
+}).optional(),
   "embedding_status": zod.string().min(1),
   "embeddings_stale": zod.boolean().default(modelHubGroundTruthSetupUpdateResponseResultEmbeddingsStaleDefault),
   "config": zod.object({

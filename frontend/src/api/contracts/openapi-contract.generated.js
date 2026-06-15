@@ -57204,11 +57204,14 @@ export const OPENAPI_CONTRACT = Object.freeze({
       "properties": {
         "variable_mapping": {
           "title": "Variable mapping",
-          "type": "object"
+          "description": "Map of template variable name → GT column name (string) or list of column names. Keys are dynamic per-template.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
         },
         "role_mapping": {
-          "title": "Role mapping",
-          "type": "object"
+          "$ref": "#/definitions/GroundTruthRoleMapping"
         },
         "max_examples": {
           "title": "Max examples",
@@ -82292,7 +82295,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
     },
     "GroundTruthMappingResponseResult": {
       "required": [
-        "id"
+        "id",
+        "embedding_status"
       ],
       "type": "object",
       "properties": {
@@ -82303,8 +82307,22 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "variable_mapping": {
           "title": "Variable mapping",
+          "description": "Map of template variable name → GT column name (string) or list of column names.",
           "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          },
           "x-nullable": true
+        },
+        "embedding_status": {
+          "title": "Embedding status",
+          "type": "string",
+          "minLength": 1
+        },
+        "embeddings_stale": {
+          "title": "Embeddings stale",
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -82337,6 +82355,40 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "GroundTruthRoleMapping": {
+      "type": "object",
+      "properties": {
+        "output": {
+          "title": "Output",
+          "type": "string",
+          "minLength": 1
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_output": {
+          "title": "Expected output",
+          "description": "Legacy alias for `output`.",
+          "type": "string",
+          "minLength": 1
+        },
+        "reasoning": {
+          "title": "Reasoning",
+          "description": "Legacy alias for `explanation`.",
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "title": "Reason",
+          "description": "Legacy alias for `explanation`.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "x-nullable": true
+    },
     "GroundTruthSetupResponseResult": {
       "required": [
         "id",
@@ -82357,13 +82409,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "variable_mapping": {
           "title": "Variable mapping",
+          "description": "Map of template variable name → GT column name (string) or list of column names.",
           "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          },
           "x-nullable": true
         },
         "role_mapping": {
-          "title": "Role mapping",
-          "type": "object",
-          "x-nullable": true
+          "$ref": "#/definitions/GroundTruthRoleMapping"
         },
         "embedding_status": {
           "title": "Embedding status",
@@ -94393,13 +94447,15 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "variable_mapping": {
           "title": "Variable mapping",
+          "description": "Map of template variable name → GT column name (string) or list of column names.",
           "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          },
           "x-nullable": true
         },
         "role_mapping": {
-          "title": "Role mapping",
-          "type": "object",
-          "x-nullable": true
+          "$ref": "#/definitions/GroundTruthRoleMapping"
         },
         "embedding_status": {
           "title": "Embedding status",
