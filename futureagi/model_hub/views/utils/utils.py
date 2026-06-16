@@ -249,16 +249,10 @@ def validate_file_url(
 
     # Get configuration for this file type
     config = FILE_TYPE_CONFIG[file_type]
-    valid_extensions = config["extensions"]
 
-    # Check file extension
-    url_lower = url.lower().split("?")[0]  # Remove query params
-    if not any(url_lower.endswith(ext) for ext in valid_extensions):
-        raise ValueError(
-            f"URL does not appear to be a {file_type}. Expected extensions: {', '.join(valid_extensions)}"
-        )
-
-    # Verify URL is accessible
+    # Verify URL is accessible and validate via content-type.
+    # Extension-based checks are intentionally skipped — S3, CDN, and
+    # presigned URLs commonly use UUID/hash keys with no file extension.
     try:
         response = requests.head(url, timeout=5, allow_redirects=True)
         if response.status_code >= 400:
@@ -266,14 +260,18 @@ def validate_file_url(
                 f"{file_type.capitalize()} URL returned status code {response.status_code}"
             )
 
-        # Check content type if configured for this file type
         if config["check_content_type"]:
             content_type = response.headers.get("Content-Type", "").lower()
             expected_prefix = config["content_type_prefix"]
             if content_type and not content_type.startswith(expected_prefix):
-                raise ValueError(
-                    f"URL content-type is '{content_type}', not a {file_type} type (expected {expected_prefix}*)"
-                )
+                # Content-type mismatch — fall back to extension check as a
+                # last resort (some servers return generic content-types).
+                valid_extensions = config["extensions"]
+                url_lower = url.lower().split("?")[0]
+                if not any(url_lower.endswith(ext) for ext in valid_extensions):
+                    raise ValueError(
+                        f"URL content-type is '{content_type}', not a {file_type} type"
+                    )
     except requests.exceptions.RequestException as e:
         raise ValueError(f"Cannot access {file_type} URL: {str(e)}")
 
