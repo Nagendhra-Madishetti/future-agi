@@ -359,12 +359,10 @@ class GroundTruthService:
         )
 
         gt_id_for_callback = gt.id
+        rows_done_max = [0]
 
         def _persist_progress(rows_done: int) -> None:
-            # Live row counter — FE polls /status/ and renders this. Updates
-            # via fresh queryset so concurrent worker writes do not race the
-            # in-memory ``gt`` snapshot. Best-effort: a save failure here must
-            # not abort the embed; we log and continue.
+            rows_done_max[0] = max(rows_done_max[0], rows_done)
             try:
                 EvalGroundTruth.objects.filter(id=gt_id_for_callback).update(
                     embedded_row_count=rows_done,
@@ -395,7 +393,13 @@ class GroundTruthService:
             )
             return _mark_failed(gt, f"Embedding failed: {exc}")
 
-        rows_embedded = len(data)
+        rows_embedded = rows_done_max[0]
+        if rows_embedded == 0:
+            return _mark_failed(
+                gt,
+                "Embedding failed: no rows were written. "
+                "Check the embedding-serving service availability.",
+            )
         gt.embedded_row_count = rows_embedded
         gt.embedding_status = EvalGroundTruth.EmbeddingStatus.COMPLETED
         gt.save(

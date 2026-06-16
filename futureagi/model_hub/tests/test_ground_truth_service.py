@@ -148,10 +148,19 @@ def test_embed_dataset_marks_completed_on_success():
         variable_mapping={"q": "q"},
     )
 
+    def fake_process(*_args, **kwargs):
+        cb = kwargs.get("progress_callback")
+        if cb:
+            for i in range(1, len(kwargs.get("metadatas") or []) + 1):
+                cb(i)
+
     with patch(
         "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.soft_delete_vectors"
     ), patch(
-        "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.parallel_process_metadata"
+        "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.parallel_process_metadata",
+        side_effect=fake_process,
+    ), patch(
+        "model_hub.services.ground_truth_service.EvalGroundTruth.objects.filter"
     ):
         result = GroundTruthService.embed_dataset(gt=gt)
 
@@ -159,6 +168,26 @@ def test_embed_dataset_marks_completed_on_success():
     assert result.rows_embedded == 2
     assert gt.embedded_row_count == 2
     assert gt.embedding_status == EvalGroundTruth.EmbeddingStatus.COMPLETED
+
+
+def test_embed_dataset_marks_failed_when_zero_rows_written():
+    gt = _FakeGT(
+        data=[{"q": "hi"}, {"q": "yo"}],
+        variable_mapping={"q": "q"},
+    )
+
+    with patch(
+        "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.soft_delete_vectors"
+    ), patch(
+        "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.parallel_process_metadata"
+    ):
+        # parallel_process_metadata is a noop here — no callback fires, so
+        # no source row was persisted. embed_dataset must surface FAILED
+        # rather than blindly stamping COMPLETED.
+        result = GroundTruthService.embed_dataset(gt=gt)
+
+    assert result.status == EvalGroundTruth.EmbeddingStatus.FAILED
+    assert "no rows were written" in (result.error or "").lower()
 
 
 def test_embed_dataset_forwards_progress_callback_to_manager():
