@@ -57,9 +57,15 @@ class _FakeGT:
     organization_id: str = "org-fake"
     workspace_id: str = "ws-fake"
     save_calls: list[list[str]] = field(default_factory=list)
+    refresh_overrides: dict[str, Any] = field(default_factory=dict)
 
     def save(self, update_fields=None):
         self.save_calls.append(list(update_fields or []))
+
+    def refresh_from_db(self, fields=None):
+        for key in fields or self.refresh_overrides.keys():
+            if key in self.refresh_overrides:
+                setattr(self, key, self.refresh_overrides[key])
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -168,6 +174,35 @@ def test_embed_dataset_marks_completed_on_success():
     assert result.rows_embedded == 2
     assert gt.embedded_row_count == 2
     assert gt.embedding_status == EvalGroundTruth.EmbeddingStatus.COMPLETED
+
+
+def test_embed_dataset_marks_pending_when_mapping_changes_during_embed():
+    gt = _FakeGT(
+        data=[{"q": "hi"}, {"q": "yo"}],
+        variable_mapping={"q": "q"},
+    )
+    gt.refresh_overrides = {"variable_mapping": {"q": "q_renamed"}}
+
+    def fake_process(*_args, **kwargs):
+        cb = kwargs.get("progress_callback")
+        if cb:
+            for i in range(1, len(kwargs.get("metadatas") or []) + 1):
+                cb(i)
+
+    with patch(
+        "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.soft_delete_vectors"
+    ), patch(
+        "agentic_eval.core.embeddings.embedding_manager.EmbeddingManager.parallel_process_metadata",
+        side_effect=fake_process,
+    ), patch(
+        "model_hub.services.ground_truth_service.EvalGroundTruth.objects.filter"
+    ):
+        result = GroundTruthService.embed_dataset(gt=gt)
+
+    assert result.status == EvalGroundTruth.EmbeddingStatus.PENDING
+    assert result.rows_embedded == 2
+    assert gt.embedding_status == EvalGroundTruth.EmbeddingStatus.PENDING
+    assert gt.embedded_row_count == 2
 
 
 def test_embed_dataset_marks_failed_when_zero_rows_written():

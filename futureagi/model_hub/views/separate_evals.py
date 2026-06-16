@@ -4412,7 +4412,11 @@ class GroundTruthListView(APIView):
             for gt in gts:
                 stale = bool(
                     gt.embedded_row_count > 0
-                    and gt.embedding_status != EvalGroundTruth.EmbeddingStatus.COMPLETED
+                    and gt.embedding_status
+                    in (
+                        EvalGroundTruth.EmbeddingStatus.PENDING,
+                        EvalGroundTruth.EmbeddingStatus.FAILED,
+                    )
                 )
                 items.append(
                     GroundTruthItem(
@@ -4656,7 +4660,14 @@ class GroundTruthStatusView(APIView):
             total = gt.row_count or 0
             embedded = gt.embedded_row_count or 0
             progress = (embedded / total * 100) if total > 0 else 0.0
-            stale = bool(embedded > 0 and gt.embedding_status != EvalGroundTruth.EmbeddingStatus.COMPLETED)
+            stale = bool(
+                embedded > 0
+                and gt.embedding_status
+                in (
+                    EvalGroundTruth.EmbeddingStatus.PENDING,
+                    EvalGroundTruth.EmbeddingStatus.FAILED,
+                )
+            )
 
             response = GroundTruthStatusResponse(
                 id=str(gt.id),
@@ -4788,6 +4799,12 @@ class GroundTruthTriggerEmbeddingView(APIView):
 
             if gt.row_count == 0:
                 return self._gm.bad_request("No data rows to embed.")
+
+            if not (gt.variable_mapping or {}):
+                return self._gm.bad_request(
+                    "Variable mapping is empty. Map at least one eval "
+                    "variable to a ground truth column before embedding."
+                )
 
             # Reset status
             gt.embedding_status = EvalGroundTruth.EmbeddingStatus.PENDING

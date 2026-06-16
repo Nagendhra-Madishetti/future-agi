@@ -11,6 +11,7 @@ import PropTypes from "prop-types";
 import React, { useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
 import ErrorLocalizeCard from "src/sections/common/ErrorLocalizeCard";
+import Iconify from "src/components/iconify";
 import { InlineAudio } from "src/components/inline-audio/inline-row-audio";
 import CompositeResultView from "./CompositeResultView";
 import { canonicalEntries } from "src/utils/utils";
@@ -43,13 +44,6 @@ const EvalResultDisplay = ({ result }) => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      {/* Retrieved ground-truth few-shot examples. Shown above the
-          verdict so users read calibration before result. Hidden when
-          no GT was used on this run. */}
-      <GroundTruthExamplesPanel
-        examples={result.ground_truth_examples}
-      />
-
       {/* View toggle */}
       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
         <Box
@@ -98,6 +92,8 @@ const EvalResultDisplay = ({ result }) => {
       ) : (
         <FormattedResult result={result} />
       )}
+
+      <GroundTruthExamplesPanel examples={result.ground_truth_examples} />
     </Box>
   );
 };
@@ -698,21 +694,20 @@ const JsonView = ({ data }) => {
   );
 };
 
-// Retrieved GT few-shot examples panel, shown above the verdict.
-// Tri-state: null/undefined hides; [] renders empty state; [...]
-// renders cards. Unmapped row columns are suppressed.
+// null/undefined: GT not enabled, hide. []: enabled but empty, show explicit
+// no-match note. Non-empty: collapsible card list.
 const GroundTruthExamplesPanel = ({ examples }) => {
-  const [open, setOpen] = useState(true);
+  const isEmpty = Array.isArray(examples) && examples.length === 0;
+  const [open, setOpen] = useState(isEmpty);
   if (!Array.isArray(examples)) return null;
-  const isEmpty = examples.length === 0;
 
   return (
     <Box
       sx={{
         border: 1,
-        borderColor: "divider",
+        borderColor: isEmpty ? "warning.light" : "divider",
         borderRadius: 1,
-        bgcolor: "background.neutral",
+        bgcolor: isEmpty ? "warning.lighter" : "background.neutral",
         p: 1,
       }}
     >
@@ -721,14 +716,24 @@ const GroundTruthExamplesPanel = ({ examples }) => {
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: 1,
+          gap: 0.75,
           cursor: "pointer",
           userSelect: "none",
         }}
       >
-        <Typography variant="caption" sx={{ fontWeight: 600 }}>
+        {isEmpty && (
+          <Iconify
+            icon="mdi:information-outline"
+            width={14}
+            sx={{ color: "warning.dark" }}
+          />
+        )}
+        <Typography
+          variant="caption"
+          sx={{ fontWeight: 600, color: isEmpty ? "warning.dark" : "text.primary" }}
+        >
           {isEmpty
-            ? "No ground truth matched"
+            ? "Ground truth enabled, but no matching examples were retrieved"
             : `Retrieved ground truth (${examples.length})`}
         </Typography>
         <Typography
@@ -745,9 +750,10 @@ const GroundTruthExamplesPanel = ({ examples }) => {
               variant="caption"
               sx={{ color: "text.secondary", fontSize: "11px" }}
             >
-              No rows in your ground truth dataset were close enough to this
-              input to be retrieved. Lower Match strictness, or test with
-              input semantically closer to your dataset.
+              None of the rows in your ground truth dataset were similar enough
+              to this input to be retrieved. The eval ran without calibration
+              examples. Try a test input that&apos;s semantically closer to your
+              dataset, or expand the dataset to cover more cases.
             </Typography>
           ) : (
             examples.map((entry, idx) => (

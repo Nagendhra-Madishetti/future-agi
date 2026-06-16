@@ -99,6 +99,14 @@ class GroundTruthService:
                 code="EXPECTED_OUTPUT_REQUIRED",
             )
 
+        if enabled and not (variable_mapping or {}):
+            return ServiceError(
+                "Map at least one eval variable to a ground truth column "
+                "before enabling. Without a mapping the retriever has "
+                "nothing to embed against.",
+                code="VARIABLE_MAPPING_REQUIRED",
+            )
+
         if not (1 <= int(max_examples) <= 20):
             return ServiceError(
                 "max_examples must be between 1 and 20.",
@@ -130,16 +138,19 @@ class GroundTruthService:
         variable_mapping_changed = (gt.variable_mapping or {}) != (
             variable_mapping or {}
         )
-        embeddings_stale = False
+        has_prior_vectors = (gt.embedded_row_count or 0) > 0
+        embeddings_stale = variable_mapping_changed and has_prior_vectors
 
         with transaction.atomic():
             gt.variable_mapping = variable_mapping
             gt.role_mapping = role_mapping
             gt_update_fields = ["variable_mapping", "role_mapping", "updated_at"]
-            if variable_mapping_changed and gt.embedding_status == EvalGroundTruth.EmbeddingStatus.COMPLETED:
+            if (
+                variable_mapping_changed
+                and gt.embedding_status == EvalGroundTruth.EmbeddingStatus.COMPLETED
+            ):
                 gt.embedding_status = EvalGroundTruth.EmbeddingStatus.PENDING
                 gt_update_fields.append("embedding_status")
-                embeddings_stale = True
             gt.save(update_fields=gt_update_fields)
 
             template_config = dict(eval_template.config or {})
@@ -328,6 +339,7 @@ class GroundTruthService:
         organization_id = _organization_id_or_raise(gt)
         workspace_id = _workspace_id_or_none(gt)
         eval_id = str(gt.eval_template_id)
+        mapping_at_start = dict(gt.variable_mapping or {})
 
         gt.embedding_status = EvalGroundTruth.EmbeddingStatus.PROCESSING
         gt.embedded_row_count = 0
@@ -393,8 +405,18 @@ class GroundTruthService:
                 "Embedding failed: no rows were written. "
                 "Check the embedding-serving service availability.",
             )
+
+        gt.refresh_from_db(fields=["variable_mapping"])
+        mapping_changed_during_embed = (
+            dict(gt.variable_mapping or {}) != mapping_at_start
+        )
+        terminal_status = (
+            EvalGroundTruth.EmbeddingStatus.PENDING
+            if mapping_changed_during_embed
+            else EvalGroundTruth.EmbeddingStatus.COMPLETED
+        )
         gt.embedded_row_count = rows_embedded
-        gt.embedding_status = EvalGroundTruth.EmbeddingStatus.COMPLETED
+        gt.embedding_status = terminal_status
         gt.save(
             update_fields=[
                 "embedding_status",
@@ -406,11 +428,13 @@ class GroundTruthService:
             "ground_truth_embed_done",
             ground_truth_id=str(gt.id),
             rows_embedded=rows_embedded,
+            terminal_status=terminal_status,
+            mapping_changed_during_embed=mapping_changed_during_embed,
         )
         return EmbedDatasetResult(
             ground_truth_id=str(gt.id),
             rows_embedded=rows_embedded,
-            status=EvalGroundTruth.EmbeddingStatus.COMPLETED,
+            status=terminal_status,
         )
 
     @staticmethod

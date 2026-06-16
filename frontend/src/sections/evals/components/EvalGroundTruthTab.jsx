@@ -1106,6 +1106,11 @@ const GroundTruthSetupForm = ({
   template,
   evalVariables,
   rulePrompt,
+  onEmbed,
+  onTest,
+  embedPending,
+  embeddingStatus,
+  embeddingsStale,
 }) => {
   // Always derive Jinja variables from the live rule prompt so removing
   // a variable from the prompt also drops its row from the mapping UI
@@ -1163,26 +1168,117 @@ const GroundTruthSetupForm = ({
   useEffect(() => setEnabled(persistedEnabled), [persistedEnabled]);
 
   const save = useSaveGroundTruthSetup(template?.id);
+  const { enqueueSnackbar } = useSnackbar();
+  const [saveAndEmbedPending, setSaveAndEmbedPending] = useState(false);
 
-  const isDirty =
-    !shallowEqual(normalizeMapping(varMapping), persistedVarMapping) ||
+  const mappingDirty = !shallowEqual(
+    normalizeMapping(varMapping),
+    persistedVarMapping,
+  );
+  const paramsDirty =
     outputColumn !== initialOutputColumn ||
     explanationColumn !== initialExplanationColumn ||
     Number(maxExamples) !== Number(persistedMaxExamples) ||
     enabled !== persistedEnabled;
+  const isDirty = mappingDirty || paramsDirty;
 
-  const canSave = Boolean(outputColumn) && !save.isPending;
+  const normalizedMapping = normalizeMapping(varMapping);
+  const hasMapping = Object.keys(normalizedMapping).length > 0;
+  const canSave =
+    Boolean(outputColumn) &&
+    (!enabled || hasMapping) &&
+    !save.isPending;
+  const embeddingInProgress =
+    embeddingStatus === "processing" ||
+    (embeddingStatus === "pending" && embedPending);
+  const embeddingsReady =
+    embeddingStatus === "completed" && !embeddingsStale;
+  const needsEmbed = !embeddingsReady && !embeddingInProgress;
 
-  const handleSave = () => {
+  const buildPayload = () => {
     const role = { output: outputColumn };
     if (explanationColumn) role.explanation = explanationColumn;
-    save.mutate({
+    return {
       gtId: gt.id,
       variableMapping: normalizeMapping(varMapping),
       roleMapping: role,
       maxExamples: Number(maxExamples),
       enabled,
-    });
+    };
+  };
+
+  const handleSave = async () => {
+    await save.mutateAsync(buildPayload());
+    if (mappingDirty && embeddingInProgress) {
+      enqueueSnackbar(
+        "Saved. The in-flight embed will finish with the old mapping. Re-embed once it completes.",
+        { variant: "info" },
+      );
+    }
+  };
+
+  const handleSaveAndEmbed = async () => {
+    try {
+      setSaveAndEmbedPending(true);
+      if (isDirty) await save.mutateAsync(buildPayload());
+      if (onEmbed) await onEmbed();
+    } finally {
+      setSaveAndEmbedPending(false);
+    }
+  };
+
+  let ctaMode;
+  if (embeddingInProgress) ctaMode = "embedding";
+  else if (mappingDirty) ctaMode = "save_and_embed";
+  else if (paramsDirty) ctaMode = "save";
+  else if (needsEmbed) ctaMode = "embed";
+  else ctaMode = "saved";
+
+  const ctaPending = save.isPending || saveAndEmbedPending || embedPending;
+  const ctaDisabled =
+    !canSave || ctaPending || ctaMode === "saved" || ctaMode === "embedding";
+
+  const ctaLabel = (() => {
+    if (ctaPending) {
+      if (saveAndEmbedPending) return "Saving and embedding…";
+      if (save.isPending) return "Saving…";
+      if (embedPending) return "Starting embed…";
+    }
+    switch (ctaMode) {
+      case "embedding":
+        return "Embedding in progress…";
+      case "save_and_embed":
+        return "Save and embed";
+      case "save":
+        return "Save";
+      case "embed":
+        return "Embed";
+      default:
+        return "Saved";
+    }
+  })();
+
+  const ctaIcon = (() => {
+    if (ctaPending) return null;
+    switch (ctaMode) {
+      case "save_and_embed":
+        return "mdi:content-save-cog-outline";
+      case "save":
+        return "mdi:content-save-outline";
+      case "embed":
+        return "mdi:brain";
+      case "embedding":
+        return "mdi:progress-clock";
+      default:
+        return "mdi:check";
+    }
+  })();
+
+  const handleCtaClick = () => {
+    if (ctaMode === "save_and_embed") return handleSaveAndEmbed();
+    if (ctaMode === "save") return handleSave();
+    if (ctaMode === "embed") return onEmbed?.();
+    return undefined;
   };
 
   const columns = gt.columns || [];
@@ -1354,7 +1450,7 @@ const GroundTruthSetupForm = ({
             variant="caption"
             sx={{ color: "warning.dark", fontSize: "11px", mt: -0.25 }}
           >
-            Values in this column must match the eval's output type. {referenceHint}
+            Values in this column must match the eval&apos;s output type. {referenceHint}
           </Typography>
         )}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1454,7 +1550,6 @@ const GroundTruthSetupForm = ({
         </Box>
       </Box>
 
-      {/* Single Save, anchored at the bottom of the form. */}
       <Box
         sx={{
           display: "flex",
@@ -1477,28 +1572,62 @@ const GroundTruthSetupForm = ({
             Pick the column that holds the reference output.
           </Typography>
         )}
-        <Button
-          fullWidth
-          variant={isDirty ? "contained" : "outlined"}
-          onClick={handleSave}
-          disabled={!canSave || !isDirty}
-          startIcon={
-            save.isPending ? (
-              <CircularProgress size={14} />
-            ) : (
-              <Iconify
-                icon={isDirty ? "mdi:content-save" : "mdi:check"}
-                width={16}
-              />
-            )
-          }
-        >
-          {save.isPending
-            ? "Saving..."
-            : isDirty
-              ? "Save changes"
-              : "All changes saved"}
-        </Button>
+        {outputColumn && enabled && !hasMapping && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: "error.main",
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+            }}
+          >
+            <Iconify icon="mdi:alert-circle-outline" width={14} />
+            Map at least one eval variable to a ground truth column.
+          </Typography>
+        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Button
+            variant={
+              ctaMode === "saved" || ctaMode === "embedding"
+                ? "outlined"
+                : "contained"
+            }
+            onClick={handleCtaClick}
+            disabled={ctaDisabled}
+            startIcon={
+              ctaPending ? (
+                <CircularProgress size={14} />
+              ) : ctaIcon ? (
+                <Iconify icon={ctaIcon} width={16} />
+              ) : null
+            }
+            sx={{ flex: 1, minWidth: 0 }}
+          >
+            {ctaLabel}
+          </Button>
+          <Tooltip
+            title={
+              embeddingInProgress
+                ? "Embeddings are still generating — this run may not return GT examples yet."
+                : !embeddingsReady
+                  ? "GT retrieval needs embeddings — run an Embed first for best results."
+                  : "Try GT retrieval against a sample input"
+            }
+          >
+            <span>
+              <Button
+                variant="text"
+                onClick={onTest}
+                endIcon={<Iconify icon="mdi:arrow-right" width={16} />}
+                disabled={!onTest}
+                sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+              >
+                Test eval
+              </Button>
+            </span>
+          </Tooltip>
+        </Box>
       </Box>
     </Box>
   );
@@ -1507,7 +1636,7 @@ const GroundTruthSetupForm = ({
 // ═══════════════════════════════════════════════════════════════
 // MAIN TAB
 // ═══════════════════════════════════════════════════════════════
-const EvalGroundTruthTab = ({ templateId }) => {
+const EvalGroundTruthTab = ({ templateId, onSwitchToDetails }) => {
   const { enqueueSnackbar } = useSnackbar();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -1705,34 +1834,6 @@ const EvalGroundTruthTab = ({ templateId }) => {
 
             <Box sx={{ flex: 1 }} />
 
-            {(embeddingStatus === "pending" ||
-              embeddingStatus === "failed" ||
-              activeDataset?.embeddings_stale ||
-              activeDataset?.embeddingsStale) && (
-              <Tooltip
-                title={
-                  activeDataset?.embeddings_stale ||
-                  activeDataset?.embeddingsStale
-                    ? "Variable mapping changed. Re-embed to refresh vectors."
-                    : "Generate embeddings for similarity search"
-                }
-              >
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<Iconify icon="mdi:brain" width={14} />}
-                  onClick={handleTriggerEmbed}
-                  disabled={triggerEmbed.isPending}
-                  sx={{ fontSize: "11px", height: 26 }}
-                >
-                  {activeDataset?.embeddings_stale ||
-                  activeDataset?.embeddingsStale
-                    ? "Re-embed"
-                    : "Embed"}
-                </Button>
-              </Tooltip>
-            )}
-
             <Tooltip title="Upload new dataset">
               <IconButton size="small" onClick={() => setDrawerOpen(true)}>
                 <Iconify icon="mdi:upload" width={16} />
@@ -1769,6 +1870,14 @@ const EvalGroundTruthTab = ({ templateId }) => {
                 template={evalData}
                 evalVariables={evalVariables}
                 rulePrompt={rulePrompt}
+                onEmbed={handleTriggerEmbed}
+                onTest={onSwitchToDetails}
+                embedPending={triggerEmbed.isPending}
+                embeddingStatus={embeddingStatus}
+                embeddingsStale={Boolean(
+                  activeDataset?.embeddings_stale ||
+                    activeDataset?.embeddingsStale,
+                )}
               />
             </Box>
             {/* Right: data preview - AG Grid spreadsheet */}
