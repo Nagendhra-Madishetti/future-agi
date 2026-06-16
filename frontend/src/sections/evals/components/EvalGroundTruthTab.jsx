@@ -1168,8 +1168,17 @@ const GroundTruthSetupForm = ({
   useEffect(() => setEnabled(persistedEnabled), [persistedEnabled]);
 
   const save = useSaveGroundTruthSetup(template?.id);
-  const { enqueueSnackbar } = useSnackbar();
-  const [saveAndEmbedPending, setSaveAndEmbedPending] = useState(false);
+  const [embedChainRunning, setEmbedChainRunning] = useState(false);
+
+  useEffect(() => {
+    if (
+      embedChainRunning &&
+      embeddingStatus &&
+      embeddingStatus !== "pending"
+    ) {
+      setEmbedChainRunning(false);
+    }
+  }, [embedChainRunning, embeddingStatus]);
 
   const mappingDirty = !shallowEqual(
     normalizeMapping(varMapping),
@@ -1180,20 +1189,29 @@ const GroundTruthSetupForm = ({
     explanationColumn !== initialExplanationColumn ||
     Number(maxExamples) !== Number(persistedMaxExamples) ||
     enabled !== persistedEnabled;
-  const isDirty = mappingDirty || paramsDirty;
 
-  const normalizedMapping = normalizeMapping(varMapping);
-  const hasMapping = Object.keys(normalizedMapping).length > 0;
+  const hasMapping =
+    Object.keys(normalizeMapping(varMapping)).length > 0;
   const canSave =
-    Boolean(outputColumn) &&
-    (!enabled || hasMapping) &&
-    !save.isPending;
-  const embeddingInProgress =
+    Boolean(outputColumn) && (!enabled || hasMapping) && !save.isPending;
+  const embedActive =
+    embedChainRunning ||
+    embedPending ||
     embeddingStatus === "processing" ||
     (embeddingStatus === "pending" && embedPending);
   const embeddingsReady =
     embeddingStatus === "completed" && !embeddingsStale;
-  const needsEmbed = !embeddingsReady && !embeddingInProgress;
+
+  const configDirty = mappingDirty || paramsDirty;
+  const needsEmbed = !embeddingsReady && !embedActive;
+  const hasWork = configDirty || needsEmbed;
+  const ctaPending = save.isPending || embedActive;
+  let ctaLabel;
+  if (save.isPending) ctaLabel = "Saving…";
+  else if (embedActive) ctaLabel = "Embedding…";
+  else if (hasWork) ctaLabel = "Save";
+  else ctaLabel = "Saved";
+  const ctaDisabled = !canSave || ctaPending || !hasWork;
 
   const buildPayload = () => {
     const role = { output: outputColumn };
@@ -1207,78 +1225,15 @@ const GroundTruthSetupForm = ({
     };
   };
 
-  const handleSave = async () => {
-    await save.mutateAsync(buildPayload());
-    if (mappingDirty && embeddingInProgress) {
-      enqueueSnackbar(
-        "Saved. The in-flight embed will finish with the old mapping. Re-embed once it completes.",
-        { variant: "info" },
-      );
-    }
-  };
-
-  const handleSaveAndEmbed = async () => {
+  const handleCtaClick = async () => {
+    setEmbedChainRunning(true);
     try {
-      setSaveAndEmbedPending(true);
-      if (isDirty) await save.mutateAsync(buildPayload());
-      if (onEmbed) await onEmbed();
-    } finally {
-      setSaveAndEmbedPending(false);
+      if (configDirty) await save.mutateAsync(buildPayload());
+      if ((mappingDirty || !embeddingsReady) && onEmbed) await onEmbed();
+    } catch (err) {
+      setEmbedChainRunning(false);
+      throw err;
     }
-  };
-
-  let ctaMode;
-  if (embeddingInProgress) ctaMode = "embedding";
-  else if (mappingDirty) ctaMode = "save_and_embed";
-  else if (paramsDirty) ctaMode = "save";
-  else if (needsEmbed) ctaMode = "embed";
-  else ctaMode = "saved";
-
-  const ctaPending = save.isPending || saveAndEmbedPending || embedPending;
-  const ctaDisabled =
-    !canSave || ctaPending || ctaMode === "saved" || ctaMode === "embedding";
-
-  const ctaLabel = (() => {
-    if (ctaPending) {
-      if (saveAndEmbedPending) return "Saving and embedding…";
-      if (save.isPending) return "Saving…";
-      if (embedPending) return "Starting embed…";
-    }
-    switch (ctaMode) {
-      case "embedding":
-        return "Embedding in progress…";
-      case "save_and_embed":
-        return "Save and embed";
-      case "save":
-        return "Save";
-      case "embed":
-        return "Embed";
-      default:
-        return "Saved";
-    }
-  })();
-
-  const ctaIcon = (() => {
-    if (ctaPending) return null;
-    switch (ctaMode) {
-      case "save_and_embed":
-        return "mdi:content-save-cog-outline";
-      case "save":
-        return "mdi:content-save-outline";
-      case "embed":
-        return "mdi:brain";
-      case "embedding":
-        return "mdi:progress-clock";
-      default:
-        return "mdi:check";
-    }
-  })();
-
-  const handleCtaClick = () => {
-    if (ctaMode === "save_and_embed") return handleSaveAndEmbed();
-    if (ctaMode === "save") return handleSave();
-    if (ctaMode === "embed") return onEmbed?.();
-    return undefined;
   };
 
   const columns = gt.columns || [];
@@ -1588,19 +1543,17 @@ const GroundTruthSetupForm = ({
         )}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Button
-            variant={
-              ctaMode === "saved" || ctaMode === "embedding"
-                ? "outlined"
-                : "contained"
-            }
+            variant={hasWork ? "contained" : "outlined"}
             onClick={handleCtaClick}
             disabled={ctaDisabled}
             startIcon={
               ctaPending ? (
                 <CircularProgress size={14} />
-              ) : ctaIcon ? (
-                <Iconify icon={ctaIcon} width={16} />
-              ) : null
+              ) : hasWork ? (
+                <Iconify icon="mdi:content-save-outline" width={16} />
+              ) : (
+                <Iconify icon="mdi:check" width={16} />
+              )
             }
             sx={{ flex: 1, minWidth: 0 }}
           >
@@ -1608,10 +1561,10 @@ const GroundTruthSetupForm = ({
           </Button>
           <Tooltip
             title={
-              embeddingInProgress
-                ? "Embeddings are still generating — this run may not return GT examples yet."
+              embedActive
+                ? "Embeddings are still generating; this run may not return GT examples yet."
                 : !embeddingsReady
-                  ? "GT retrieval needs embeddings — run an Embed first for best results."
+                  ? "GT retrieval needs embeddings; run an Embed first for best results."
                   : "Try GT retrieval against a sample input"
             }
           >
