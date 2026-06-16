@@ -339,7 +339,8 @@ export const getColumnConfig = ({
     headerName: eachCol?.name,
     valueGetter: (v) => {
       const cell = v?.data?.[eachCol?.id];
-      const rawValue = cell?.cell_value ?? cell?.cellValue;
+      const rawValue =
+        cell?.cell_value !== undefined ? cell.cell_value : cell?.cellValue;
       return parseCellValue(rawValue, AGGridCellDataType[colDataType]);
     },
     valueSetter: (params) => {
