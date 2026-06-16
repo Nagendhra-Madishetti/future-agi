@@ -38,6 +38,7 @@ def _row(span, cid, tid, **kw):
         "span_id": span,
         "eval_config_id": cid,
         "eval_task_id": tid,
+        "target_type": "span",
         "output_float": None,
         "output_bool": None,
         "output_str": None,
@@ -85,6 +86,22 @@ def test_root_aggregates_across_all_spans():
     assert evals["cfg3"]["aggregate"] == {"Pass": 2, "Fail": 1, "Unknown": 0}
     # span-wise data covers all three spans
     assert {s["span_id"] for s in evals["cfg1"]["spans"]} == {"SPAN1", "SPAN2", "SPAN3"}
+    # target_type carried per eval (span/trace/session)
+    assert evals["cfg1"]["target_type"] == "span"
+    assert evals["cfg2"]["target_type"] == "span"
+
+
+def test_target_type_carried_per_eval():
+    rows = [
+        _row("SPAN1", "cfg1", "task1", output_float=0.6, target_type="trace"),
+        _row("SPAN1", "cfg2", "task1", output_bool=1, target_type="span"),
+    ]
+    out = build_task_grouped_eval_scores(
+        rows, CONFIG_LOOKUP, TASK_LOOKUP, SPAN_NAMES, "trace"
+    )
+    evals = _evals_by_cid(out)
+    assert evals["cfg1"]["target_type"] == "trace"
+    assert evals["cfg2"]["target_type"] == "span"
 
 
 def test_root_span_wise_values_are_raw():
@@ -279,6 +296,7 @@ def _ch_eval_row(span_id, cid, tid, **kw):
         "span_id": span_id,
         "eval_config_id": cid,
         "eval_task_id": tid,
+        "target_type": "span",
         "output_float": None,
         "output_bool": None,
         "output_str": None,
@@ -315,6 +333,8 @@ def test_fetch_builds_rows_and_batched_lookups(custom_eval_config, eval_task):
     # Explanation normalised ("" -> None handled at row level).
     assert rows_by_span["SPANA"][0]["explanation"] == "ok"
     assert rows_by_span["SPANB"][0]["explanation"] is None
+    # target_type carried into normalised rows.
+    assert rows_by_span["SPANA"][0]["target_type"] == "span"
 
 
 @pytest.mark.django_db

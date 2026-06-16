@@ -537,6 +537,14 @@ def build_task_grouped_eval_scores(
                 _aggregate_eval_cell(eval_rows, output_type), output_type, choices
             )
 
+            # target_type (span/trace/session) the eval was applied at — same
+            # discriminator the list endpoints carry per (config, task). Rows in
+            # one (task, config) group share it; take the first non-null.
+            target_type = next(
+                (r.get("target_type") for r in eval_rows if r.get("target_type")),
+                None,
+            )
+
             # One entry per span (group this eval's rows by span_id).
             by_span: dict = {}
             for row in eval_rows:
@@ -562,6 +570,7 @@ def build_task_grouped_eval_scores(
                     "eval_config_id": cid,
                     "eval_name": info.get("name", cid),
                     "output_type": output_type,
+                    "target_type": target_type,
                     "aggregate": aggregate,
                     "spans": spans,
                 }
@@ -611,6 +620,7 @@ def fetch_grouped_eval_rows(analytics, trace_id):
             toString(observation_span_id) AS span_id,
             toString(custom_eval_config_id) AS eval_config_id,
             eval_task_id,
+            target_type,
             output_float,
             output_bool,
             output_str,
@@ -681,6 +691,7 @@ def fetch_grouped_eval_rows(analytics, trace_id):
                 "span_id": sid,
                 "eval_config_id": cid,
                 "eval_task_id": str(tid) if tid else None,
+                "target_type": row.get("target_type") or None,
                 "output_float": row.get("output_float"),
                 "output_bool": row.get("output_bool"),
                 "output_str": row.get("output_str"),
