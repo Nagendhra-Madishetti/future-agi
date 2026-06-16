@@ -20245,11 +20245,17 @@ export const ModelHubExperimentsV2CreateBody = zod.object({
   "agent_version": zod.string().uuid().optional(),
   "model": zod.object({
 
-}).passthrough().optional(),
-  "model_params": zod.record(zod.string(), zod.string()).default(modelHubExperimentsV2CreateBodyPromptConfigItemModelParamsDefault),
-  "configuration": zod.record(zod.string(), zod.string()).default(modelHubExperimentsV2CreateBodyPromptConfigItemConfigurationDefault),
+}).passthrough().optional().describe('Any valid JSON value.'),
+  "model_params": zod.object({
+
+}).passthrough().default(modelHubExperimentsV2CreateBodyPromptConfigItemModelParamsDefault).describe('Any valid JSON value.'),
+  "configuration": zod.object({
+
+}).passthrough().default(modelHubExperimentsV2CreateBodyPromptConfigItemConfigurationDefault).describe('Any valid JSON value.'),
   "output_format": zod.string().min(1).default(modelHubExperimentsV2CreateBodyPromptConfigItemOutputFormatDefault),
-  "messages": zod.array(zod.record(zod.string(), zod.string())).optional(),
+  "messages": zod.array(zod.object({
+
+}).passthrough().describe('Any valid JSON value.')).optional(),
   "voice_input_column_id": zod.string().uuid().optional()
 })),
   "user_eval_metrics": zod.array(zod.object({
@@ -20451,11 +20457,17 @@ export const ModelHubExperimentsV2UpdateBody = zod.object({
   "agent_version": zod.string().uuid().optional(),
   "model": zod.object({
 
-}).passthrough().optional(),
-  "model_params": zod.record(zod.string(), zod.string()).default(modelHubExperimentsV2UpdateBodyPromptConfigItemModelParamsDefault),
-  "configuration": zod.record(zod.string(), zod.string()).default(modelHubExperimentsV2UpdateBodyPromptConfigItemConfigurationDefault),
+}).passthrough().optional().describe('Any valid JSON value.'),
+  "model_params": zod.object({
+
+}).passthrough().default(modelHubExperimentsV2UpdateBodyPromptConfigItemModelParamsDefault).describe('Any valid JSON value.'),
+  "configuration": zod.object({
+
+}).passthrough().default(modelHubExperimentsV2UpdateBodyPromptConfigItemConfigurationDefault).describe('Any valid JSON value.'),
   "output_format": zod.string().min(1).default(modelHubExperimentsV2UpdateBodyPromptConfigItemOutputFormatDefault),
-  "messages": zod.array(zod.record(zod.string(), zod.string())).optional(),
+  "messages": zod.array(zod.object({
+
+}).passthrough().describe('Any valid JSON value.')).optional(),
   "voice_input_column_id": zod.string().uuid().optional()
 })).optional(),
   "user_eval_metrics": zod.array(zod.object({

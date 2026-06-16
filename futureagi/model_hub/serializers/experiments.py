@@ -1,5 +1,6 @@
 # serializers.py
 from rest_framework import serializers
+from tfc.utils.serializer_fields import JsonValueField
 
 from agentic_eval.core_evals.run_prompt.litellm_models import LiteLLMModelManager
 from model_hub.models.choices import ProviderLogoUrls
@@ -410,14 +411,14 @@ class PromptConfigEntrySerializer(serializers.Serializer):
     agent_version = serializers.UUIDField(required=False, allow_null=True)
 
     # Model config (prompt entries only — single string or ModelSpec dict)
-    model = serializers.JSONField(required=False, default=None)
-    model_params = serializers.DictField(required=False, default=dict)
-    configuration = serializers.DictField(required=False, default=dict)
+    model = JsonValueField(required=False, default=None)
+    model_params = JsonValueField(required=False, default=dict)
+    configuration = JsonValueField(required=False, default=dict)
     output_format = serializers.CharField(required=False, default="string")
 
     # Inline messages (tts/stt/image experiments)
     messages = serializers.ListField(
-        child=serializers.DictField(),
+        child=JsonValueField(),
         required=False,
     )
 

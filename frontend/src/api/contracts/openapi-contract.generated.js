@@ -80675,25 +80675,23 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "model": {
           "title": "Model",
-          "type": "object"
+          "type": "object",
+          "x-json-value": true,
+          "description": "Any valid JSON value."
         },
         "model_params": {
           "title": "Model params",
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "default": {}
+          "default": {},
+          "x-json-value": true,
+          "description": "Any valid JSON value."
         },
         "configuration": {
           "title": "Configuration",
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "default": {}
+          "default": {},
+          "x-json-value": true,
+          "description": "Any valid JSON value."
         },
         "output_format": {
           "title": "Output format",
@@ -80705,10 +80703,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "array",
           "items": {
             "type": "object",
-            "additionalProperties": {
-              "type": "string",
-              "x-nullable": true
-            }
+            "x-json-value": true,
+            "description": "Any valid JSON value."
           }
         },
         "voice_input_column_id": {
