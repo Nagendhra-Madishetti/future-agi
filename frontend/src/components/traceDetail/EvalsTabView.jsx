@@ -407,6 +407,7 @@ const EvalsTabView = ({
   emptyMessage,
   showSpanColumn = true,
   onFixWithFalcon,
+  groupByTask = false,
 }) => {
   const [search, setSearch] = useState("");
   const list = useMemo(() => (Array.isArray(evals) ? evals : []), [evals]);
@@ -432,6 +433,20 @@ const EvalsTabView = ({
         (e.spanName || "").toLowerCase().includes(q),
     );
   }, [list, search]);
+
+  // Optional grouping by eval task (voice drawer). One header per task, in
+  // first-seen order; no rollup. Null when grouping is off or no eval
+  // carries a task name, so the flat list renders instead.
+  const taskGroups = useMemo(() => {
+    if (!groupByTask || !filtered.some((e) => e.eval_task_name)) return null;
+    const byTask = new Map();
+    for (const ev of filtered) {
+      const task = ev.eval_task_name || "Other";
+      if (!byTask.has(task)) byTask.set(task, []);
+      byTask.get(task).push(ev);
+    }
+    return Array.from(byTask, ([task, evals]) => ({ task, evals }));
+  }, [filtered, groupByTask]);
 
   if (list.length === 0) {
     return (
@@ -705,15 +720,43 @@ const EvalsTabView = ({
           <Box sx={{ width: "25%" }} />
         </Box>
 
-        {filtered.map((ev) => (
-          <EvalTableRow
-            key={ev.id || ev.eval_name}
-            ev={ev}
-            onSelectSpan={onSelectSpan}
-            showSpanColumn={showSpanColumn}
-            onFixWithFalcon={onFixWithFalcon}
-          />
-        ))}
+        {taskGroups
+          ? taskGroups.map((group) => (
+              <Box key={group.task}>
+                <Typography
+                  sx={{
+                    px: 1.5,
+                    py: 0.75,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    bgcolor: "background.neutral",
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  {group.task}
+                </Typography>
+                {group.evals.map((ev) => (
+                  <EvalTableRow
+                    key={ev.id || ev.eval_name}
+                    ev={ev}
+                    onSelectSpan={onSelectSpan}
+                    showSpanColumn={showSpanColumn}
+                    onFixWithFalcon={onFixWithFalcon}
+                  />
+                ))}
+              </Box>
+            ))
+          : filtered.map((ev) => (
+              <EvalTableRow
+                key={ev.id || ev.eval_name}
+                ev={ev}
+                onSelectSpan={onSelectSpan}
+                showSpanColumn={showSpanColumn}
+                onFixWithFalcon={onFixWithFalcon}
+              />
+            ))}
       </Box>
     </Box>
   );
@@ -725,6 +768,7 @@ EvalsTabView.propTypes = {
   emptyMessage: PropTypes.string,
   showSpanColumn: PropTypes.bool,
   onFixWithFalcon: PropTypes.func,
+  groupByTask: PropTypes.bool,
 };
 
 export default EvalsTabView;
