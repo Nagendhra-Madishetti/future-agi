@@ -142,12 +142,7 @@ export function useSaveGroundTruthSetup(templateId) {
           queryKey: ["evals", "detail", templateId],
         });
       }
-      enqueueSnackbar(
-        result?.embeddings_stale
-          ? "Saved. Variable mapping changed. Re-embed when ready."
-          : "Saved",
-        { variant: result?.embeddings_stale ? "warning" : "success" },
-      );
+      enqueueSnackbar("Saved", { variant: "success" });
     },
     onError: (err) =>
       enqueueSnackbar(toastFromError(err, "Failed to save"), {
