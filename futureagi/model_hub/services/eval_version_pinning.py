@@ -56,10 +56,11 @@ def maybe_pin_new_version(eval_metric, request_data, user, organization, workspa
     # Dedup: skip if the full canonical snapshot matches the pinned version.
     # Sorting keys ensures stable comparison regardless of insertion order.
     current_pinned = eval_metric.pinned_version
-    if current_pinned and json.dumps(snap, sort_keys=True, default=str) == json.dumps(
-        current_pinned.config_snapshot or {}, sort_keys=True, default=str
-    ):
-        return None
+    if current_pinned:
+        new_snap_json = json.dumps(snap, sort_keys=True, default=str)
+        old_snap_json = json.dumps(current_pinned.config_snapshot or {}, sort_keys=True, default=str)
+        if new_snap_json == old_snap_json:
+            return None
 
     prompt_messages = config_to_prompt_messages(
         snap, criteria=criteria,
