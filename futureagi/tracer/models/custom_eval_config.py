@@ -63,7 +63,12 @@ class CustomEvalConfig(BaseModel):
 
     @property
     def pinned_version_number(self):
-        """Version number of the pinned version, or None if unpinned."""
+        """Version number of the pinned version, or None if unpinned.
+
+        Safe even when the version is soft-deleted: resolve_version() filters
+        deleted=False and falls back to the default, so a stale pin doesn't
+        cause an incorrect version to run.
+        """
         if self.pinned_version_id:
             return self.pinned_version.version_number
         return None

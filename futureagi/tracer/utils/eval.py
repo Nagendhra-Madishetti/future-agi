@@ -1594,7 +1594,6 @@ def _execute_evaluation(
             _eval_inputs["session_context"] = _session_ctx
 
     # --- Run eval via unified engine ---
-    _pinned_vn = custom_eval_config.pinned_version_number
     try:
         result = run_eval(
             EvalRequest(
@@ -1609,7 +1608,7 @@ def _execute_evaluation(
                 runtime_config=custom_eval_config.config,
                 organization_id=org_id,
                 workspace_id=ws_id,
-                version_number=_pinned_vn,
+                pinned_version=custom_eval_config.pinned_version,
             )
         )
 
@@ -2916,7 +2915,6 @@ def _execute_evaluation_for_trace(
     if _di["span_context"]:
         _eval_inputs["span_context"] = build_span_context(anchor_span)
 
-    _pinned_vn = custom_eval_config.pinned_version_number
     try:
         result = run_eval(
             EvalRequest(
@@ -2931,7 +2929,7 @@ def _execute_evaluation_for_trace(
                 runtime_config=custom_eval_config.config,
                 organization_id=org_id,
                 workspace_id=ws_id,
-                version_number=_pinned_vn,
+                pinned_version=custom_eval_config.pinned_version,
             )
         )
 
@@ -3152,7 +3150,6 @@ def _execute_evaluation_for_session(
         if _session_ctx is not None:
             _eval_inputs["session_context"] = _session_ctx
 
-    _pinned_vn = custom_eval_config.pinned_version_number
     try:
         result = run_eval(
             EvalRequest(
@@ -3167,7 +3164,7 @@ def _execute_evaluation_for_session(
                 runtime_config=custom_eval_config.config,
                 organization_id=org_id,
                 workspace_id=ws_id,
-                version_number=_pinned_vn,
+                pinned_version=custom_eval_config.pinned_version,
             )
         )
 
