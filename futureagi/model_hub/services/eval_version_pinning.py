@@ -4,7 +4,7 @@ Handles snapshot building, dedup, and atomic version creation
 so the view stays thin.
 """
 
-from django.db import transaction
+import json
 
 from model_hub.models.evals_metric import EvalTemplateVersion
 from model_hub.utils.prompt_migration import config_to_prompt_messages
@@ -53,14 +53,11 @@ def maybe_pin_new_version(eval_metric, request_data, user, organization, workspa
     if rule_prompt:
         snap["messages"] = [{"role": "system", "content": rule_prompt}]
 
-    # Dedup on typed fields (criteria/model columns + one JSON key), not blob
-    # equality — avoids the false-skip case the old whole-snapshot compare hit.
+    # Dedup: skip if the full canonical snapshot matches the pinned version.
+    # Sorting keys ensures stable comparison regardless of insertion order.
     current_pinned = eval_metric.pinned_version
-    if current_pinned and (
-        (current_pinned.criteria or "") == (criteria or "")
-        and (current_pinned.model or "") == (resolved_model or "")
-        and (current_pinned.config_snapshot or {}).get("composite_weight_overrides")
-        == weight_overrides
+    if current_pinned and json.dumps(snap, sort_keys=True, default=str) == json.dumps(
+        current_pinned.config_snapshot or {}, sort_keys=True, default=str
     ):
         return None
 
@@ -69,17 +66,16 @@ def maybe_pin_new_version(eval_metric, request_data, user, organization, workspa
         eval_type_id=snap.get("eval_type_id"),
     )
 
-    with transaction.atomic():
-        ver = EvalTemplateVersion.objects.create_version(
-            eval_template=tpl,
-            prompt_messages=prompt_messages,
-            config_snapshot=snap,
-            criteria=criteria,
-            model=resolved_model,
-            user=user,
-            organization=organization,
-            workspace=workspace,
-        )
-        eval_metric.pinned_version = ver
+    ver = EvalTemplateVersion.objects.create_version(
+        eval_template=tpl,
+        prompt_messages=prompt_messages,
+        config_snapshot=snap,
+        criteria=criteria,
+        model=resolved_model,
+        user=user,
+        organization=organization,
+        workspace=workspace,
+    )
+    eval_metric.pinned_version = ver
 
     return ver

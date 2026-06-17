@@ -256,7 +256,7 @@ def prepare_eval_config(
 
     # AgentEvaluator — multi-turn reasoning via Falcon AI AgentLoop
     if eval_type_id == "AgentEvaluator":
-        config["rule_prompt"] = config.get("rule_prompt") or eval_template.config.get(
+        config["rule_prompt"] = config["rule_prompt"] if "rule_prompt" in config else eval_template.config.get(
             "rule_prompt"
         )
         config["model"] = model or eval_template.config.get("model")
@@ -300,12 +300,12 @@ def prepare_eval_config(
     # CustomPromptEvaluator — LLM-as-judge
     elif eval_type_id == "CustomPromptEvaluator":
         config["provider"] = eval_template.config.get("provider")
-        config["rule_prompt"] = config.get("rule_prompt") or eval_template.config.get(
+        config["rule_prompt"] = config["rule_prompt"] if "rule_prompt" in config else eval_template.config.get(
             "rule_prompt"
         )
-        config["system_prompt"] = config.get(
+        config["system_prompt"] = config["system_prompt"] if "system_prompt" in config else eval_template.config.get(
             "system_prompt"
-        ) or eval_template.config.get("system_prompt")
+        )
         raw_output = eval_template.config.get("output")
         if eval_template.choice_scores and raw_output != "Pass/Fail":
             config["output_type"] = "choices"
