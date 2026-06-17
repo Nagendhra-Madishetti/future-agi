@@ -268,7 +268,7 @@ export default function ImportPrompt({
     const selectedVersion = versionRes.find(
       (v) => v?.template_version === selectedVersionId,
     );
-    const messages = selectedVersion?.promptConfigSnapshot?.messages || [];
+    const messages = selectedVersion?.prompt_config_snapshot?.messages || [];
     setPromptMessages(messages);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVersionId, selectedPromptId, versionRes?.length]);
