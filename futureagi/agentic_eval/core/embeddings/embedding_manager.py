@@ -545,6 +545,8 @@ class EmbeddingManager:
                         mod_dict[inp2] = self.encode_path(mod_dict[str(inp2)])
 
                 mod_dict["input_type"] = input_dict[inp]
+                if table_name == GROUND_TRUTH_TABLE_NAME:
+                    mod_dict["column_name"] = str(inp)
 
                 # Get embedding for this input
                 try:
@@ -860,7 +862,8 @@ class EmbeddingManager:
         ]
 
         # Sort by average similarity in descending order
-        common_items.sort(key=lambda x: x["avg_similarity"], reverse=True)
+        # avg_similarity holds cosineDistance; sort ascending (closest first).
+        common_items.sort(key=lambda x: x["avg_similarity"])
 
         # Extract the full items for the top_k common items
         top_items = [
