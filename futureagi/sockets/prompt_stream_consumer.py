@@ -135,6 +135,10 @@ class PromptStreamConsumer(AsyncJsonWebsocketConsumer):
             template = await database_sync_to_async(PromptTemplate.objects.get)(
                 id=template_id
             )
+            # Drive the run under the template's org so billing/workspace
+            # resolution is always correct regardless of which org was
+            # resolved at connect time.
+            self.organization_id = template.organization_id
             version_to_run = content.get("version")
             execution = await database_sync_to_async(PromptVersion.objects.get)(
                 original_template=template, template_version=version_to_run
@@ -451,8 +455,10 @@ class PromptStreamConsumer(AsyncJsonWebsocketConsumer):
         @database_sync_to_async
         def check_template():
             try:
+                from accounts.services.template_access import user_can_access_template
+
                 template = PromptTemplate.objects.get(id=template_id)
-                if template.organization_id != self.organization_id:
+                if not user_can_access_template(self.user, template):
                     return "no_permission"
                 return "valid"
             except PromptTemplate.DoesNotExist:
@@ -465,12 +471,13 @@ class PromptStreamConsumer(AsyncJsonWebsocketConsumer):
                 {
                     "type": "error",
                     "message": "You do not have permission to access this template.",
+                    "session_uuid": self.session_uuid,
                 }
             )
             await self.close(code=4003)
             return False
         elif result == "not_found":
-            await self.send_json({"type": "error", "message": "Template not found."})
+            await self.send_json({"type": "error", "message": "Template not found.", "session_uuid": self.session_uuid})
             await self.close(code=4004)
             return False
 
