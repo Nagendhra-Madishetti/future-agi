@@ -2512,7 +2512,12 @@ class EvaluationRunner:
             config["data_injection"] = _di_normalize(
                 _uem_di or self.eval_template.config.get("data_injection", {})
             )
-            config["summary"] = self.eval_template.config.get(
+            # summary lives in user_eval_metric.config["run_config"]["summary"].
+            # Fall back to template default if not set.
+            _uem_summary = None
+            if self.user_eval_metric and self.user_eval_metric.config:
+                _uem_summary = self.user_eval_metric.config.get("run_config", {}).get("summary")
+            config["summary"] = _uem_summary or self.eval_template.config.get(
                 "summary", {"type": "concise"}
             )
             # Pass org/workspace context for tool resolution
