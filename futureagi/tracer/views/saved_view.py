@@ -39,6 +39,13 @@ class SavedViewViewSet(BaseModelViewSetMixin, ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+
+        # Detail actions (retrieve, update, destroy, duplicate) look up by PK
+        # and must not apply list-scoped filters — the view may be project-bound
+        # while no project_id is present in the query string.
+        if self.action not in ("list",):
+            return queryset.select_related("created_by", "updated_by")
+
         project_id = self.request.query_params.get("project_id")
         tab_type = self.request.query_params.get("tab_type")
         if project_id:
