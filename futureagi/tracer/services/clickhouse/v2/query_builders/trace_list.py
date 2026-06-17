@@ -4,25 +4,27 @@ v2 TraceList query builder — targets the CH 25.3 spans schema.
 Same pattern as v2/span_list.py: SUBCLASS the v1 builder, rewrite the
 compiled SQL output. The v1 TraceList builder reads from `spans` (legacy
 24.10 columns) plus joins to `tracer_eval_logger` and `model_hub_score`.
-We rewrite the `spans` table references; eval and annotation joins are
-unchanged.
 
-Methods overridden:
-  - `build()` — Phase 1: light trace+root-span page (no input/output)
-  - `build_content_query()` — Phase 2: heavy attrs maps + metadata
-  - `build_span_attributes_query()` — Phase 3: attributes_extra fetch
-  - `build_count_query()` — pagination count
-  - `build_span_count_query()` — per-trace span tally
+`V2RewriteMixin` routes every inherited `build*` method's SQL through the v2
+rewriter at one boundary (no per-method overrides). The only locally-defined
+method is `build_count_query`, which carries a rollup fast-path; its SQL is
+rewritten by the mixin just like every other.
+
+`build_eval_query` / `build_annotation_query` are excluded from the rewrite:
+they read the legacy `tracer_eval_logger` / `model_hub_score` tables, which are
+NOT part of the CH 25.3 migration and still carry `_peerdb_is_deleted` (the
+spans-side `_peerdb_is_deleted` in those joins resolves via the schema-014
+ALIAS). Rewriting them would break those tables.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 from tracer.services.clickhouse.query_builders.trace_list import TraceListQueryBuilder
-from tracer.services.clickhouse.v2.query_builders.filters import rewrite_and_apply_v2_settings
+from tracer.services.clickhouse.v2.query_builders._rewrite import V2RewriteMixin
 
 
-class TraceListQueryBuilderV2(TraceListQueryBuilder):
+class TraceListQueryBuilderV2(V2RewriteMixin, TraceListQueryBuilder):
     """Drop-in v2 TraceList builder.
 
     Callers swap one import line:
@@ -32,17 +34,7 @@ class TraceListQueryBuilderV2(TraceListQueryBuilder):
     Or route via the shadow harness in v2/shadow.py.
     """
 
-    def build(self) -> Tuple[str, Dict[str, Any]]:
-        sql, params = super().build()
-        return rewrite_and_apply_v2_settings(sql), params
-
-    def build_content_query(self, trace_ids: List[str]) -> Tuple[str, Dict[str, Any]]:
-        sql, params = super().build_content_query(trace_ids)
-        return rewrite_and_apply_v2_settings(sql), params
-
-    def build_span_attributes_query(self, *args, **kwargs) -> Tuple[str, Dict[str, Any]]:
-        sql, params = super().build_span_attributes_query(*args, **kwargs)
-        return rewrite_and_apply_v2_settings(sql), params
+    _v2_rewrite_exclude = frozenset({"build_eval_query", "build_annotation_query"})
 
     def build_count_query(self) -> Tuple[str, Dict[str, Any]]:
         """Pagination count.
@@ -89,25 +81,11 @@ class TraceListQueryBuilderV2(TraceListQueryBuilder):
           AND hour >= toStartOfHour(toDateTime(%(start_date)s))
           AND hour <  toStartOfHour(toDateTime(%(end_date)s)) + INTERVAL 1 HOUR
             """
-            return rewrite_and_apply_v2_settings(sql), params
-
-        sql, params = super().build_count_query()
-        return rewrite_and_apply_v2_settings(sql), params
-
-    def build_span_count_query(self, *args, **kwargs) -> Tuple[str, Dict[str, Any]]:
-        sql, params = super().build_span_count_query(*args, **kwargs)
-        return rewrite_and_apply_v2_settings(sql), params
-
-    def build_user_id_query(self, trace_ids: List[str]) -> Tuple[str, Dict[str, Any]]:
-        """Route the inherited user-id query through the v2 rewriter so it hits
-        `end_users_dict` / `is_deleted` instead of the v1 `enduser_dict` /
-        `_peerdb_is_deleted`. Direct dictGet on the span's `end_user_id`; the
-        remap-aware `end_user_dict_reader.resolve_user_ids` is the fallback if a
-        future id re-key ever makes that lookup miss."""
-        sql, params = super().build_user_id_query(trace_ids)
-        if not sql:
+            # V2RewriteMixin appends the v2 SETTINGS to the returned SQL.
             return sql, params
-        return rewrite_and_apply_v2_settings(sql), params
+
+        # Slow path: v1's raw uniq over spans; the mixin rewrites + applies SETTINGS.
+        return super().build_count_query()
 
 
 __all__ = ["TraceListQueryBuilderV2"]

@@ -21,11 +21,6 @@ from tracer.services.clickhouse.query_builders.base import BaseQueryBuilder
 from tracer.services.clickhouse.query_builders.expressions import (
     annotation_numeric_value_expr,
 )
-# CH-direct: use the v2 filter builder (rewrites span_attr_* -> attrs_*) since
-# this graph reads the v2 `spans` table. Aliased to keep the call sites unchanged.
-from tracer.services.clickhouse.v2.query_builders.filters import (
-    ClickHouseFilterBuilderV2 as ClickHouseFilterBuilder,
-)
 
 
 class AnnotationGraphQueryBuilder(BaseQueryBuilder):
@@ -153,6 +148,11 @@ class AnnotationGraphQueryBuilder(BaseQueryBuilder):
 
     def _filtered_spans_subquery(self, select_expr: str) -> str:
         """Return the row set that defines the currently visible Observe rows."""
+        # Lazy import: a module-level import would form a v1↔v2 circular import.
+        from tracer.services.clickhouse.v2.query_builders.filters import (
+            ClickHouseFilterBuilderV2 as ClickHouseFilterBuilder,
+        )
+
         query_mode = (
             ClickHouseFilterBuilder.QUERY_MODE_SPAN
             if self.observe_type == "span"

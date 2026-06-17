@@ -59,8 +59,11 @@ _COL_RENAME_RE = re.compile(
 
 
 # Legacy CDC dict names → v2 CH-native dicts (same key/attrs, so a token rename).
+# Sourced from the now-renamed v2 curated dimension tables (end_users RMT,
+# trace_sessions RMT) instead of the legacy CDC landing tables.
 _DICT_RENAMES: Dict[str, str] = {
     "enduser_dict": "end_users_dict",
+    "trace_session_dict": "trace_sessions_dict",
 }
 _DICT_RENAME_RE = re.compile(
     r"\b(" + "|".join(re.escape(k) for k in _DICT_RENAMES.keys()) + r")\b"
