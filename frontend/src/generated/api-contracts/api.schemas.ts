@@ -10207,7 +10207,7 @@ export interface EvalUsagePaginationApi {
   page_size: number;
 }
 
-export type EvalUsageStatsResponseResultApiTableItem = {[key: string]: string};
+export type EvalUsageStatsResponseResultApiTableItem = { [key: string]: unknown };
 
 export interface EvalUsageStatsResponseResultApi {
   template_id: string;
@@ -23677,6 +23677,33 @@ export type ModelHubEvalGroupsList200 = {
   previous?: string;
   results: EvalGroupApi[];
 };
+
+export type ModelHubEvalTemplatesFeedbackListListParams = {
+/**
+ * @minimum 0
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+page_size?: number;
+period?: ModelHubEvalTemplatesFeedbackListListPeriod;
+};
+
+export type ModelHubEvalTemplatesFeedbackListListPeriod = typeof ModelHubEvalTemplatesFeedbackListListPeriod[keyof typeof ModelHubEvalTemplatesFeedbackListListPeriod];
+
+
+export const ModelHubEvalTemplatesFeedbackListListPeriod = {
+  '30m': '30m',
+  '6h': '6h',
+  '1d': '1d',
+  '7d': '7d',
+  '30d': '30d',
+  '90d': '90d',
+  '180d': '180d',
+  '365d': '365d',
+} as const;
 
 export type ModelHubEvalTemplatesUsageListParams = {
 /**

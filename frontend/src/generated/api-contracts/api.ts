@@ -669,6 +669,7 @@ import type {
   ModelHubEvalConfigResponseApi,
   ModelHubEvalGroupsList200,
   ModelHubEvalGroupsListParams,
+  ModelHubEvalTemplatesFeedbackListListParams,
   ModelHubEvalTemplatesUsageListParams,
   ModelHubExperimentDetailList200,
   ModelHubExperimentDetailListParams,
@@ -35531,12 +35532,24 @@ export type modelHubEvalTemplatesFeedbackListListResponseError = (modelHubEvalTe
 
 export type modelHubEvalTemplatesFeedbackListListResponse = (modelHubEvalTemplatesFeedbackListListResponseSuccess | modelHubEvalTemplatesFeedbackListListResponseError)
 
-export const getModelHubEvalTemplatesFeedbackListListUrl = (templateId: string,) => {
+export const getModelHubEvalTemplatesFeedbackListListUrl = (templateId: string,
+    params?: ModelHubEvalTemplatesFeedbackListListParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (Array.isArray(value)) {
+      value
+        .filter((item) => item !== undefined && item !== null)
+        .forEach((item) => normalizedParams.append(key, item.toString()))
+    } else if (value !== undefined && value !== null) {
+      normalizedParams.append(key, value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/model-hub/eval-templates/${templateId}/feedback-list/`
+  return stringifiedParams.length > 0 ? `/model-hub/eval-templates/${templateId}/feedback-list/?${stringifiedParams}` : `/model-hub/eval-templates/${templateId}/feedback-list/`
 }
 
 /**
@@ -35544,9 +35557,10 @@ export const getModelHubEvalTemplatesFeedbackListListUrl = (templateId: string,)
 Query params: page (0-based), page_size
  * @summary GET /model-hub/eval-templates/<id>/feedback-list/
  */
-export const modelHubEvalTemplatesFeedbackListList = async (templateId: string, options?: RequestInit): Promise<modelHubEvalTemplatesFeedbackListListResponse> => {
+export const modelHubEvalTemplatesFeedbackListList = async (templateId: string,
+    params?: ModelHubEvalTemplatesFeedbackListListParams, options?: RequestInit): Promise<modelHubEvalTemplatesFeedbackListListResponse> => {
 
-  return apiMutator<modelHubEvalTemplatesFeedbackListListResponse>(getModelHubEvalTemplatesFeedbackListListUrl(templateId),
+  return apiMutator<modelHubEvalTemplatesFeedbackListListResponse>(getModelHubEvalTemplatesFeedbackListListUrl(templateId,params),
   {
     ...options,
     method: 'GET'

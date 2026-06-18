@@ -19609,6 +19609,20 @@ export const ModelHubEvalTemplatesFeedbackListListParams = zod.object({
   "template_id": zod.string()
 })
 
+export const modelHubEvalTemplatesFeedbackListListQueryPageDefault = 0;
+export const modelHubEvalTemplatesFeedbackListListQueryPageMin = 0;
+
+export const modelHubEvalTemplatesFeedbackListListQueryPageSizeDefault = 25;
+export const modelHubEvalTemplatesFeedbackListListQueryPageSizeMax = 100;
+
+export const modelHubEvalTemplatesFeedbackListListQueryPeriodDefault = `30d`;
+
+export const ModelHubEvalTemplatesFeedbackListListQueryParams = zod.object({
+  "page": zod.number().min(modelHubEvalTemplatesFeedbackListListQueryPageMin).default(modelHubEvalTemplatesFeedbackListListQueryPageDefault),
+  "page_size": zod.number().min(1).max(modelHubEvalTemplatesFeedbackListListQueryPageSizeMax).default(modelHubEvalTemplatesFeedbackListListQueryPageSizeDefault),
+  "period": zod.enum(['30m', '6h', '1d', '7d', '30d', '90d', '180d', '365d']).default(modelHubEvalTemplatesFeedbackListListQueryPeriodDefault)
+})
+
 
 
 
@@ -19906,7 +19920,9 @@ export const ModelHubEvalTemplatesUsageListResponse = zod.object({
   "pass_count": zod.number().optional(),
   "fail_count": zod.number().optional()
 })),
-  "table": zod.array(zod.record(zod.string(), zod.string())),
+  "table": zod.array(zod.object({
+
+}).passthrough()),
   "logs": zod.object({
   "total": zod.number(),
   "page": zod.number(),

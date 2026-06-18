@@ -17739,10 +17739,45 @@ export const OPENAPI_CONTRACT = Object.freeze({
     "/model-hub/eval-templates/{template_id}/feedback-list/": {
       "get": {
         "operationId": "model-hub_eval-templates_feedback-list_list",
-        "runtimeRequestValidation": false,
-        "runtimeResponseValidation": false,
+        "runtimeRequestValidation": true,
+        "runtimeResponseValidation": true,
         "requestBody": null,
-        "queryParameters": {},
+        "queryParameters": {
+          "page": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "page_size": {
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          "period": {
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "30m",
+                "6h",
+                "1d",
+                "7d",
+                "30d",
+                "90d",
+                "180d",
+                "365d"
+              ],
+              "default": "30d"
+            }
+          }
+        },
         "responses": {
           "200": {
             "$ref": "#/definitions/EvalFeedbackListResponse"
@@ -80524,11 +80559,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "table": {
           "type": "array",
           "items": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string",
-              "x-nullable": true
-            }
+            "type": "object"
           }
         },
         "logs": {
