@@ -219,9 +219,10 @@ def process_single_evaluation(user_eval_metric):
     }
     try:
         from model_hub.models.evals_metric import EvalTemplateVersion
+        _pinned_id = getattr(user_eval_metric, "pinned_version_id", None)
         _ver = (
             user_eval_metric.pinned_version
-            if user_eval_metric.pinned_version_id
+            if _pinned_id
             else EvalTemplateVersion.objects.get_default(user_eval_metric.template)
         )
         if _ver:

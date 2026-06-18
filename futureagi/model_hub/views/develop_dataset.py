@@ -11658,7 +11658,7 @@ def run_evaluation_task(evaluation_data):
         row_ids = evaluation_data["row_ids"]
 
         # Update status for all metrics
-        metrics = UserEvalMetric.objects.filter(id__in=metric_ids).select_related("pinned_version", "template")
+        metrics = UserEvalMetric.objects.filter(id__in=metric_ids).select_related("template")
         metric_map = {str(metric.id): metric for metric in list(metrics)}
         metrics.update(status=StatusType.RUNNING.value)
 
@@ -11763,9 +11763,10 @@ def run_evaluation_task(evaluation_data):
                     # Track which eval version produced this result — prefer pinned over default
                     try:
                         from model_hub.models.evals_metric import EvalTemplateVersion
+                        _pinned_id = getattr(metric, "pinned_version_id", None)
                         _ver = (
                             metric.pinned_version
-                            if metric.pinned_version_id
+                            if _pinned_id
                             else EvalTemplateVersion.objects.get_default(metric.template)
                         )
                         if _ver:
