@@ -5082,16 +5082,10 @@ class EvalUsageStatsView(APIView):
                 getattr(request, "organization", None) or request.user.organization
             )
 
-            # Parse query params
-            try:
-                page = max(int(request.GET.get("page", 0)), 0)
-            except (ValueError, TypeError):
-                page = 0
-            try:
-                page_size = min(max(int(request.GET.get("page_size", 25)), 1), 100)
-            except (ValueError, TypeError):
-                page_size = 25
-            period = request.GET.get("period", "30d")
+            query = request.validated_query_data
+            page = query["page"]
+            page_size = query["page_size"]
+            period = query["period"]
 
             period_delta = self.PERIOD_MAP.get(period, timedelta(days=30))
             end_date = timezone.now()
@@ -5410,7 +5404,7 @@ class EvalUsageStatsView(APIView):
                 }
 
                 # Flatten input variables as individual columns
-                all_vars = input_vars or config.get("input", {})
+                all_vars = input_vars or (config.get("input", {}) if isinstance(config, dict) else {})
                 if isinstance(all_vars, dict):
                     for var_key, var_val in all_vars.items():
                         row_data[f"input_var_{var_key}"] = {
@@ -5504,8 +5498,9 @@ class EvalFeedbackListView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        responses={200: EvalFeedbackListResponseSerializer, **MODEL_HUB_ERROR_RESPONSES}
+    @validated_request(
+        query_serializer=EvalUsageQuerySerializer,
+        responses={200: EvalFeedbackListResponseSerializer, **MODEL_HUB_ERROR_RESPONSES},
     )
     def get(self, request, template_id, *args, **kwargs):
         from model_hub.models.evals_metric import Feedback
@@ -5522,14 +5517,9 @@ class EvalFeedbackListView(APIView):
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Eval template not found.")
 
-            try:
-                page = max(int(request.GET.get("page", 0)), 0)
-            except (ValueError, TypeError):
-                page = 0
-            try:
-                page_size = min(max(int(request.GET.get("page_size", 25)), 1), 100)
-            except (ValueError, TypeError):
-                page_size = 25
+            query = request.validated_query_data
+            page = query["page"]
+            page_size = query["page_size"]
 
             # Get log IDs for this template as strings (Feedback.source_id is CharField)
             log_ids = list(

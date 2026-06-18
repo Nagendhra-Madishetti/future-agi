@@ -1,6 +1,6 @@
 """Regression tests for eval-usage version tracking (PR #747).
 
-1. Migration 0111 guard — returns early when ee.usage is absent (OSS).
+1. Migration 0112 guard — returns early when ee.usage is absent (OSS).
 2. Pinned-child version tracking — resolved_version takes priority over default.
 """
 
@@ -28,18 +28,18 @@ def _load_migration():
     import importlib
 
     return importlib.import_module(
-        "model_hub.migrations.0111_eval_usage_version_backfill"
+        "model_hub.migrations.0112_eval_usage_version_backfill"
     )
 
 
-def test_migration_0111_returns_early_when_usage_app_absent():
+def test_migration_0112_returns_early_when_usage_app_absent():
     """OSS build: backfill exits cleanly when the usage app isn't installed."""
     mod = _load_migration()
     result = mod.backfill_apicalllog_version_info(_FakeAppsNoUsage(), schema_editor=None)
     assert result is None
 
 
-def test_migration_0111_has_reversible_noop():
+def test_migration_0112_has_reversible_noop():
     """The migration's RunPython declares a reverse_code so it's reversible."""
     from django.db.migrations.operations.special import RunPython
 

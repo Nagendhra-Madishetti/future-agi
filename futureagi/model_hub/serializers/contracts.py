@@ -1736,7 +1736,7 @@ class EvalUsageStatsResponseResultSerializer(serializers.Serializer):
     is_composite = serializers.BooleanField()
     stats = EvalUsageStatsSerializer()
     chart = EvalUsageChartPointSerializer(many=True)
-    table = serializers.ListField(child=serializers.DictField())
+    table = serializers.ListField(child=serializers.JSONField())
     logs = EvalUsagePaginationSerializer()
 
 

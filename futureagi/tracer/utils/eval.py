@@ -1541,9 +1541,13 @@ def _execute_evaluation(
     if feedback_id:
         source_config["feedback_id"] = str(feedback_id)
 
-    # Track which eval version produced this result
+    # Track which eval version produced this result — prefer pinned over default
     try:
-        _ver = EvalTemplateVersion.objects.get_default(eval_model)
+        _ver = (
+            custom_eval_config.pinned_version
+            if custom_eval_config.pinned_version_id
+            else EvalTemplateVersion.objects.get_default(eval_model)
+        )
         if _ver:
             source_config["version_id"] = str(_ver.id)
             source_config["version_number"] = _ver.version_number
@@ -2867,9 +2871,13 @@ def _execute_evaluation_for_trace(
     if feedback_id:
         source_config["feedback_id"] = str(feedback_id)
 
-    # Track which eval version produced this result
+    # Track which eval version produced this result — prefer pinned over default
     try:
-        _ver = EvalTemplateVersion.objects.get_default(eval_template)
+        _ver = (
+            custom_eval_config.pinned_version
+            if custom_eval_config.pinned_version_id
+            else EvalTemplateVersion.objects.get_default(eval_template)
+        )
         if _ver:
             source_config["version_id"] = str(_ver.id)
             source_config["version_number"] = _ver.version_number
@@ -3110,9 +3118,13 @@ def _execute_evaluation_for_session(
     if feedback_id:
         source_config["feedback_id"] = str(feedback_id)
 
-    # Track which eval version produced this result
+    # Track which eval version produced this result — prefer pinned over default
     try:
-        _ver = EvalTemplateVersion.objects.get_default(eval_template)
+        _ver = (
+            custom_eval_config.pinned_version
+            if custom_eval_config.pinned_version_id
+            else EvalTemplateVersion.objects.get_default(eval_template)
+        )
         if _ver:
             source_config["version_id"] = str(_ver.id)
             source_config["version_number"] = _ver.version_number
