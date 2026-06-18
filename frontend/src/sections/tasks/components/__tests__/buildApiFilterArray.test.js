@@ -40,7 +40,11 @@ describe("buildApiFilterArray — task live-preview wire builder", () => {
     ]);
   });
 
-  it("does not merge same-column number-equals rows — two `equals` rows stay two scalar entries (backend ANDs → matches nothing)", () => {
+  // Known gap, pending a backend number `in` operator: two same-column number
+  // `equals` rows can't be ORed (numbers have no `in`), so they stay two scalar
+  // entries that the backend ANDs → matches nothing. This pins the current
+  // contract, not desired behaviour.
+  it("known gap (pending BE number-in): same-column number-equals rows stay two scalar entries — backend ANDs → matches nothing", () => {
     const numRow = (filterValue) => ({
       property: "attributes",
       propertyId: "token_count",

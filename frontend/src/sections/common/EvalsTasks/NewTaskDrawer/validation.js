@@ -40,7 +40,7 @@ export const extractAttributeFilters = (filters) => {
       if (f.property in TOP_LEVEL_SIBLING_KEY_BY_PROPERTY) return false;
       // Legacy rows with neither apiColType nor propertyId are BE no-ops.
       if (!f.propertyId && f.property !== "attributes") return false;
-      return f.propertyId || f.property === "attributes";
+      return true;
     })
     .map((f) => {
       const columnId = f.propertyId || f.property;
