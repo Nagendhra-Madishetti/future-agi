@@ -47772,11 +47772,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "eval_outputs": {
           "title": "Eval outputs",
-          "type": "string",
-          "readOnly": true,
+          "description": "Get evaluation outputs in a structured format",
+          "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/CallExecutionEvalOutput"
-          }
+          },
+          "readOnly": true
         },
         "eval_metrics": {
           "title": "Eval metrics",
@@ -76798,7 +76799,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "x-nullable": true
         },
         "output_choices": {
-          "title": "Output choices",
           "description": "Set when stored config[output]=choices and multi_choice",
           "type": "array",
           "items": {

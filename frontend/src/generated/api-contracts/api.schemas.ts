@@ -16055,6 +16055,35 @@ export const CallExecutionDetailApiStatus = {
 } as const;
 
 /**
+ * Verbatim runner output (number | bool | string | list | dict | null)
+ */
+export type CallExecutionEvalOutputApiValue = { [key: string]: unknown };
+
+export interface CallExecutionEvalOutputApi {
+  /** Verbatim runner output (number | bool | string | list | dict | null) */
+  value?: CallExecutionEvalOutputApiValue;
+  reason?: string;
+  type?: string;
+  name?: string;
+  error?: boolean;
+  status?: string;
+  skipped?: boolean;
+  /** Set when stored config[output]=Pass/Fail */
+  output_pass?: boolean;
+  /** Set when stored config[output] in (score, numeric) */
+  output_score?: number;
+  /** Set when stored config[output]=choices and not multi_choice */
+  output_choice?: string;
+  /** Set when stored config[output]=choices and multi_choice */
+  output_choices?: string[];
+}
+
+/**
+ * Get evaluation outputs in a structured format
+ */
+export type CallExecutionDetailApiEvalOutputs = {[key: string]: CallExecutionEvalOutputApi};
+
+/**
  * number | bool | string | list[string] | null
  */
 export type CallExecutionEvalMetricApiValue = { [key: string]: unknown };
@@ -16149,7 +16178,8 @@ export interface CallExecutionDetailApi {
   readonly audio_url?: string;
   /** @minLength 1 */
   readonly customer_name?: string;
-  readonly eval_outputs?: string;
+  /** Get evaluation outputs in a structured format */
+  readonly eval_outputs?: CallExecutionDetailApiEvalOutputs;
   /** Get evaluation metrics in a format suitable for the UI */
   readonly eval_metrics?: CallExecutionDetailApiEvalMetrics;
   readonly scenario_columns?: string;
@@ -22490,30 +22520,6 @@ export interface UsageWorkspaceBreakdownResponseApi {
 export interface StripeWebhookLegacyResponseApi {
   status: boolean;
   result?: StripeWebhookResultApi;
-}
-
-/**
- * Verbatim runner output (number | bool | string | list | dict | null)
- */
-export type CallExecutionEvalOutputApiValue = { [key: string]: unknown };
-
-export interface CallExecutionEvalOutputApi {
-  /** Verbatim runner output (number | bool | string | list | dict | null) */
-  value?: CallExecutionEvalOutputApiValue;
-  reason?: string;
-  type?: string;
-  name?: string;
-  error?: boolean;
-  status?: string;
-  skipped?: boolean;
-  /** Set when stored config[output]=Pass/Fail */
-  output_pass?: boolean;
-  /** Set when stored config[output] in (score, numeric) */
-  output_score?: number;
-  /** Set when stored config[output]=choices and not multi_choice */
-  output_choice?: string;
-  /** Set when stored config[output]=choices and multi_choice */
-  output_choices?: string[];
 }
 
 export type AccountsAwsMarketplaceLaunchSoftwareCreateBody = {

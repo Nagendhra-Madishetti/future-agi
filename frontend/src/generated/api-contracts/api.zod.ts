@@ -30238,7 +30238,21 @@ export const SimulateCallExecutionsReadResponse = zod.object({
   "response_time_ms": zod.number().min(simulateCallExecutionsReadResponseResponseTimeMsMin).max(simulateCallExecutionsReadResponseResponseTimeMsMax).optional().describe('Average response time in milliseconds'),
   "audio_url": zod.string().url().min(1).optional(),
   "customer_name": zod.string().min(1).optional(),
-  "eval_outputs": zod.string().optional(),
+  "eval_outputs": zod.record(zod.string(), zod.object({
+  "value": zod.object({
+
+}).passthrough().optional().describe('Verbatim runner output (number | bool | string | list | dict | null)'),
+  "reason": zod.string().optional(),
+  "type": zod.string().optional(),
+  "name": zod.string().optional(),
+  "error": zod.boolean().optional(),
+  "status": zod.string().optional(),
+  "skipped": zod.boolean().optional(),
+  "output_pass": zod.boolean().optional().describe('Set when stored config[output]=Pass\/Fail'),
+  "output_score": zod.number().optional().describe('Set when stored config[output] in (score, numeric)'),
+  "output_choice": zod.string().optional().describe('Set when stored config[output]=choices and not multi_choice'),
+  "output_choices": zod.array(zod.string()).optional().describe('Set when stored config[output]=choices and multi_choice')
+})).optional().describe('Get evaluation outputs in a structured format'),
   "eval_metrics": zod.record(zod.string(), zod.object({
   "id": zod.string().optional(),
   "name": zod.string().optional(),
