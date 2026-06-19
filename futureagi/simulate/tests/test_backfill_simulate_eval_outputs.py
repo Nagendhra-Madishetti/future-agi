@@ -187,7 +187,7 @@ def test_score_dict_with_choice_scores_extracts_score(
     call.refresh_from_db()
     entry = call.eval_outputs[str(cfg.id)]
     assert entry["output_score"] == pytest.approx(0.66)
-    assert entry["output_choice"] is None
+    assert entry["output_choice"] == "frequently"
 
 
 def test_choices_single_dict_with_choice_scores_extracts_choice(
@@ -210,7 +210,7 @@ def test_choices_single_dict_with_choice_scores_extracts_choice(
     call.refresh_from_db()
     entry = call.eval_outputs[str(cfg.id)]
     assert entry["output_choice"] == "always"
-    assert entry["output_score"] is None
+    assert entry["output_score"] == pytest.approx(1.0)
 
 
 def test_choices_multi_dict_with_choice_scores_extracts_choices(
@@ -234,7 +234,7 @@ def test_choices_multi_dict_with_choice_scores_extracts_choices(
     entry = call.eval_outputs[str(cfg.id)]
     assert entry["output_choices"] == ["polite", "concise"]
     assert entry["output_choice"] is None
-    assert entry["output_score"] is None
+    assert entry["output_score"] == pytest.approx(0.5)
 
 
 # ── operational safety ──────────────────────────────────────────────────

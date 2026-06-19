@@ -90,20 +90,31 @@ def extract_pass(value: Any) -> bool | None:
 def resolve_eval_axes(
     value: Any, config_output: str, multi_choice: bool = False
 ) -> dict[str, Any]:
-    """Project ``value`` into the four axis keys, gated by stored
-    ``config_output`` + ``multi_choice``."""
+    """Project ``value`` into the four axis keys.
+
+    ``config_output`` anchors the *primary* filter axis the FE renders;
+    secondary axes are still populated when the value carries them (e.g.
+    ``choice_scores`` templates emit both a score and a choice in one
+    dict). Letting both axes through is what enables FE to colour the
+    choice bubble by the underlying score.
+    """
     axes: dict[str, Any] = empty_axes()
     if value is None:
         return axes
     if config_output == "Pass/Fail":
         axes["output_pass"] = extract_pass(value)
-    elif config_output in ("score", "numeric"):
+        return axes
+    if config_output in ("score", "numeric"):
         axes["output_score"] = extract_score(value)
-    elif config_output == "choices":
+        axes["output_choice"] = extract_choice(value)
+        return axes
+    if config_output == "choices":
+        axes["output_score"] = extract_score(value)
         if multi_choice:
             axes["output_choices"] = extract_choices(value)
         else:
             axes["output_choice"] = extract_choice(value)
+        return axes
     return axes
 
 

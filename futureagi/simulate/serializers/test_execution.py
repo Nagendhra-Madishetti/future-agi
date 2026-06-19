@@ -1230,6 +1230,14 @@ class EvalConfigMetadataSerializer(serializers.Serializer):
             "output='choices', selects single-pick vs multi-pick filter UI."
         ),
     )
+    pass_threshold = serializers.FloatField(
+        required=False,
+        allow_null=True,
+        help_text=(
+            "From EvalTemplate.pass_threshold. FE uses this to colour the "
+            "choice bubble or score chip when the row's output_score is set."
+        ),
+    )
     eval_type_id = serializers.CharField(
         required=False, allow_null=True, allow_blank=True
     )

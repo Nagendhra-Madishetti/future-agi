@@ -233,9 +233,13 @@ def test_resolve_axes_score_plain_float():
 
 
 def test_resolve_axes_score_dict_with_choice_scores():
+    """choice_scores templates emit both score and choice; both axes
+    populate so the FE can render the choice bubble coloured by score."""
     axes = resolve_eval_axes({"score": 0.66, "choice": "frequently"}, "score")
     assert axes["output_score"] == pytest.approx(0.66)
-    assert axes["output_choice"] is None
+    assert axes["output_choice"] == "frequently"
+    assert axes["output_choices"] is None
+    assert axes["output_pass"] is None
 
 
 def test_resolve_axes_numeric_routes_to_output_score():
@@ -251,11 +255,12 @@ def test_resolve_axes_choices_single_plain_string():
 
 
 def test_resolve_axes_choices_single_dict():
+    """Mirror case: choices-config dict carries both; both axes populate."""
     axes = resolve_eval_axes(
         {"score": 1.0, "choice": "always"}, "choices", multi_choice=False
     )
     assert axes["output_choice"] == "always"
-    assert axes["output_score"] is None
+    assert axes["output_score"] == pytest.approx(1.0)
 
 
 def test_resolve_axes_choices_multi_plain_list():
@@ -271,7 +276,8 @@ def test_resolve_axes_choices_multi_dict_shape():
         multi_choice=True,
     )
     assert axes["output_choices"] == ["polite", "concise"]
-    assert axes["output_score"] is None
+    assert axes["output_score"] == pytest.approx(0.5)
+    assert axes["output_choice"] is None
 
 
 def test_resolve_axes_reason_yields_all_none():
@@ -283,21 +289,36 @@ def test_resolve_axes_none_value_yields_all_none():
     assert resolve_eval_axes(None, "choices", multi_choice=True) == empty_axes()
 
 
-def test_resolve_axes_strict_gating_score_dict_with_choice_does_not_set_choice():
-    """A score-typed eval with choice_scores returns a dict containing both
-    score and choice. Strict gating routes only output_score, never
-    output_choice, regardless of what's in the dict."""
+def test_resolve_axes_permissive_score_dict_populates_both_axes():
+    """choice_scores: score-config dict carries both score and choice. Both
+    populate so FE can colour the choice bubble by score."""
     axes = resolve_eval_axes({"score": 0.7, "choice": "always"}, "score")
-    assert axes["output_choice"] is None
+    assert axes["output_score"] == pytest.approx(0.7)
+    assert axes["output_choice"] == "always"
     assert axes["output_choices"] is None
+    assert axes["output_pass"] is None
 
 
-def test_resolve_axes_strict_gating_choices_dict_with_score_does_not_set_score():
-    """Mirror case: a choices-typed eval's dict carries a score, but
-    gating routes only output_choice."""
+def test_resolve_axes_permissive_choices_dict_populates_both_axes():
+    """choice_scores: choices-config dict carries both. Both populate."""
     axes = resolve_eval_axes(
         {"score": 0.7, "choice": "frequently"}, "choices", multi_choice=False
     )
+    assert axes["output_score"] == pytest.approx(0.7)
+    assert axes["output_choice"] == "frequently"
+
+
+def test_resolve_axes_plain_score_does_not_invent_choice():
+    """No dict means no choice — output_choice stays None."""
+    axes = resolve_eval_axes(0.42, "score")
+    assert axes["output_score"] == pytest.approx(0.42)
+    assert axes["output_choice"] is None
+
+
+def test_resolve_axes_plain_choice_does_not_invent_score():
+    """No dict means no score — output_score stays None."""
+    axes = resolve_eval_axes("always", "choices", multi_choice=False)
+    assert axes["output_choice"] == "always"
     assert axes["output_score"] is None
 
 
@@ -347,7 +368,7 @@ def test_payload_success_choices_single_dict():
     )
     assert payload["output_choice"] == "always"
     assert payload["output_choices"] is None
-    assert payload["output_score"] is None
+    assert payload["output_score"] == pytest.approx(1.0)
     assert payload["output"] == {"score": 1.0, "choice": "always"}
 
 
@@ -361,7 +382,7 @@ def test_payload_success_choices_multi_dict():
     )
     assert payload["output_choices"] == ["polite", "concise"]
     assert payload["output_choice"] is None
-    assert payload["output_score"] is None
+    assert payload["output_score"] == pytest.approx(0.5)
 
 
 def test_payload_error_path_all_axes_none():
@@ -404,3 +425,316 @@ def test_payload_always_carries_canonical_keys():
     )
     base_keys = {"output", "reason", "output_type", "name", *AXIS_KEYS}
     assert base_keys.issubset(payload.keys())
+
+
+# ── edge cases: extract_score ────────────────────────────────────────────
+
+
+def test_extract_score_zero():
+    assert extract_score(0) == 0.0
+    assert extract_score(0.0) == 0.0
+
+
+def test_extract_score_negative():
+    assert extract_score(-0.5) == pytest.approx(-0.5)
+
+
+def test_extract_score_int_coerced_to_float():
+    result = extract_score(1)
+    assert isinstance(result, float)
+    assert result == 1.0
+
+
+def test_extract_score_bool_true_is_not_a_score():
+    """``isinstance(True, int)`` is True in Python — must be excluded."""
+    assert extract_score(True) is None
+    assert extract_score(False) is None
+
+
+def test_extract_score_string_numeric_not_coerced():
+    """String '0.5' is a string, not a number. We do not silently coerce."""
+    assert extract_score("0.5") is None
+
+
+def test_extract_score_dict_with_string_score_field_returns_none():
+    assert extract_score({"score": "0.5"}) is None
+
+
+def test_extract_score_dict_with_bool_score_field_returns_none():
+    assert extract_score({"score": True}) is None
+    assert extract_score({"score": False}) is None
+
+
+def test_extract_score_dict_with_none_score_returns_none():
+    assert extract_score({"score": None, "choice": "x"}) is None
+
+
+def test_extract_score_dict_missing_score_key_returns_none():
+    assert extract_score({"choice": "always"}) is None
+
+
+def test_extract_score_empty_dict_returns_none():
+    assert extract_score({}) is None
+
+
+def test_extract_score_nan_and_infinity_pass_through():
+    """NaN / inf are valid floats; the helper does not validate ranges."""
+    import math
+
+    assert math.isnan(extract_score(float("nan")))
+    assert math.isinf(extract_score(float("inf")))
+
+
+def test_extract_score_does_not_extract_from_list():
+    assert extract_score([0.5, 0.6]) is None
+
+
+def test_extract_score_does_not_extract_from_none():
+    assert extract_score(None) is None
+
+
+# ── edge cases: extract_choice ───────────────────────────────────────────
+
+
+def test_extract_choice_empty_string_preserved():
+    """An empty string is still a string — filter UI may render it as
+    'blank'. Caller decides; the helper does not censor."""
+    assert extract_choice("") == ""
+
+
+def test_extract_choice_whitespace_preserved():
+    assert extract_choice("   ") == "   "
+
+
+def test_extract_choice_unicode():
+    assert extract_choice("你好") == "你好"
+
+
+def test_extract_choice_dict_with_none_choice_returns_none():
+    assert extract_choice({"choice": None, "score": 0.5}) is None
+
+
+def test_extract_choice_dict_with_non_string_choice_returns_none():
+    assert extract_choice({"choice": 42}) is None
+    assert extract_choice({"choice": True}) is None
+    assert extract_choice({"choice": ["A"]}) is None
+
+
+def test_extract_choice_dict_missing_choice_key_returns_none():
+    assert extract_choice({"score": 0.5}) is None
+
+
+def test_extract_choice_does_not_extract_from_number():
+    assert extract_choice(0.5) is None
+    assert extract_choice(1) is None
+
+
+def test_extract_choice_does_not_extract_from_list():
+    assert extract_choice(["A"]) is None
+
+
+# ── edge cases: extract_choices ──────────────────────────────────────────
+
+
+def test_extract_choices_empty_list_returns_none():
+    """An empty list has nothing to filter on — treat as unset."""
+    assert extract_choices([]) is None
+
+
+def test_extract_choices_single_element_list():
+    assert extract_choices(["only"]) == ["only"]
+
+
+def test_extract_choices_dedupes_preserving_order():
+    assert extract_choices(["A", "B", "A", "C"]) == ["A", "B", "C"]
+
+
+def test_extract_choices_filters_non_strings():
+    """Mixed list: keep strings, drop the rest. None means strict_total
+    of strings was empty."""
+    assert extract_choices(["A", 1, "B", None]) == ["A", "B"]
+
+
+def test_extract_choices_list_of_only_non_strings_returns_none():
+    assert extract_choices([1, 2, 3]) is None
+    assert extract_choices([None, None]) is None
+
+
+def test_extract_choices_dict_with_empty_choices_list_returns_none():
+    assert extract_choices({"choices": []}) is None
+
+
+def test_extract_choices_dict_with_string_choices_not_a_list_returns_none():
+    """choices key carrying a string — not the multi shape."""
+    assert extract_choices({"choices": "polite"}) is None
+
+
+def test_extract_choices_dict_missing_choices_key_returns_none():
+    assert extract_choices({"choice": "polite"}) is None
+
+
+def test_extract_choices_does_not_extract_from_plain_string():
+    """A single chosen label is extract_choice's job, not extract_choices."""
+    assert extract_choices("polite") is None
+
+
+def test_extract_choices_does_not_extract_from_number():
+    assert extract_choices(0.5) is None
+
+
+# ── edge cases: extract_pass ─────────────────────────────────────────────
+
+
+def test_extract_pass_bool_true_false():
+    assert extract_pass(True) is True
+    assert extract_pass(False) is False
+
+
+def test_extract_pass_passed_failed_strings():
+    assert extract_pass("Passed") is True
+    assert extract_pass("Failed") is False
+
+
+def test_extract_pass_case_sensitive_only_canonical_form():
+    """Only the exact canonical strings convert. Lowercase / uppercase
+    variants stay None so callers can detect upstream label drift."""
+    assert extract_pass("passed") is None
+    assert extract_pass("PASSED") is None
+    assert extract_pass("pass") is None
+    assert extract_pass("fail") is None
+
+
+def test_extract_pass_int_not_extracted():
+    """Integer 1 / 0 are not auto-coerced to True / False."""
+    assert extract_pass(1) is None
+    assert extract_pass(0) is None
+
+
+def test_extract_pass_dict_returns_none():
+    """Pass/Fail surface emits a scalar, not a dict."""
+    assert extract_pass({"output": "Passed"}) is None
+
+
+def test_extract_pass_none_returns_none():
+    assert extract_pass(None) is None
+
+
+# ── edge cases: resolve_eval_axes ────────────────────────────────────────
+
+
+def test_resolve_axes_unknown_config_output_yields_all_none():
+    """Unknown / future output types must not panic and must not invent
+    axes — strict no-op."""
+    assert resolve_eval_axes(0.5, "future_type") == empty_axes()
+    assert resolve_eval_axes({"score": 0.5}, "") == empty_axes()
+
+
+def test_resolve_axes_pass_fail_ignores_dict_score_and_choice():
+    """Pass/Fail surface only emits Pass/Fail. Even if a dict arrives,
+    score/choice must NOT bleed through."""
+    axes = resolve_eval_axes({"score": 0.7, "choice": "x"}, "Pass/Fail")
+    assert axes["output_pass"] is None
+    assert axes["output_score"] is None
+    assert axes["output_choice"] is None
+
+
+def test_resolve_axes_score_dict_choice_only_no_score():
+    """Dict carries only choice. Score is None; choice fills the secondary
+    axis — FE renders the bubble uncoloured."""
+    axes = resolve_eval_axes({"choice": "always"}, "score")
+    assert axes["output_score"] is None
+    assert axes["output_choice"] == "always"
+    assert axes["output_choices"] is None
+
+
+def test_resolve_axes_choices_dict_score_only_no_choice():
+    """Dict carries only score; choice stays None."""
+    axes = resolve_eval_axes({"score": 0.7}, "choices", multi_choice=False)
+    assert axes["output_score"] == pytest.approx(0.7)
+    assert axes["output_choice"] is None
+
+
+def test_resolve_axes_multi_choices_dict_with_score_populates_both():
+    axes = resolve_eval_axes(
+        {"score": 0.5, "choices": ["a", "b"]}, "choices", multi_choice=True
+    )
+    assert axes["output_choices"] == ["a", "b"]
+    assert axes["output_score"] == pytest.approx(0.5)
+    assert axes["output_choice"] is None
+
+
+def test_resolve_axes_multi_choices_plain_list_no_score_invented():
+    axes = resolve_eval_axes(["a", "b"], "choices", multi_choice=True)
+    assert axes["output_choices"] == ["a", "b"]
+    assert axes["output_score"] is None
+
+
+def test_resolve_axes_score_zero_distinguishable_from_none():
+    """A score of exactly 0.0 must surface as 0.0, not None — filter UI
+    treats them differently (`score >= 0` includes vs excludes the row)."""
+    axes = resolve_eval_axes(0.0, "score")
+    assert axes["output_score"] == 0.0
+    assert axes["output_score"] is not None
+
+
+def test_resolve_axes_choices_bool_choice_in_dict_does_not_pollute_choice():
+    axes = resolve_eval_axes(
+        {"choice": True, "score": 0.5}, "choices", multi_choice=False
+    )
+    assert axes["output_choice"] is None
+    assert axes["output_score"] == pytest.approx(0.5)
+
+
+def test_resolve_axes_idempotent():
+    """Running resolve twice with the same inputs gives the same dict —
+    the helper has no hidden state."""
+    value = {"score": 0.7, "choice": "x"}
+    assert resolve_eval_axes(value, "score") == resolve_eval_axes(value, "score")
+
+
+def test_resolve_axes_empty_dict_value():
+    """Dict carrying neither score nor choice nor choices — all axes
+    null. No exception."""
+    assert resolve_eval_axes({}, "score") == empty_axes()
+    assert resolve_eval_axes({}, "choices", multi_choice=True) == empty_axes()
+    assert resolve_eval_axes({}, "choices", multi_choice=False) == empty_axes()
+
+
+# ── edge cases: build_simulate_eval_payload ──────────────────────────────
+
+
+def test_payload_does_not_mutate_input_value():
+    value = {"score": 0.5, "choice": "x"}
+    snapshot = dict(value)
+    build_simulate_eval_payload(value=value, config_output="score")
+    assert value == snapshot
+
+
+def test_payload_carries_timestamp_when_supplied():
+    payload = build_simulate_eval_payload(
+        value=0.5,
+        config_output="score",
+        timestamp="2026-06-19T12:00:00Z",
+    )
+    assert payload["timestamp"] == "2026-06-19T12:00:00Z"
+
+
+def test_payload_omits_optional_fields_when_unset():
+    payload = build_simulate_eval_payload(value=0.5, config_output="score")
+    assert "error" not in payload
+    assert "status" not in payload
+    assert "skipped" not in payload
+    assert "timestamp" not in payload
+
+
+def test_payload_skipped_path_carries_all_axis_keys():
+    payload = build_simulate_eval_payload(
+        value=None,
+        config_output="choices",
+        multi_choice=True,
+        skipped=True,
+    )
+    assert payload["skipped"] is True
+    for key in AXIS_KEYS:
+        assert key in payload
+        assert payload[key] is None

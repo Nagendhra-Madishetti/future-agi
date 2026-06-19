@@ -2208,6 +2208,9 @@ class TestExecutionDetailView(APIView):
                     template_config["multi_choice"] = bool(
                         eval_config.eval_template.multi_choice
                     )
+                    template_config["pass_threshold"] = (
+                        eval_config.eval_template.pass_threshold
+                    )
                     default_columns.append(
                         {
                             "column_name": eval_config.name,
@@ -7084,6 +7087,9 @@ class RunNewEvalsOnTestExecutionView(APIView):
                 template_config["output_type"] = template_config.get("output")
                 template_config["multi_choice"] = bool(
                     eval_config.eval_template.multi_choice
+                )
+                template_config["pass_threshold"] = (
+                    eval_config.eval_template.pass_threshold
                 )
                 return {
                     "column_name": eval_config.name,
