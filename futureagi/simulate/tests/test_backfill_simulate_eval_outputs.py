@@ -10,6 +10,7 @@ from django.core.management import call_command
 from model_hub.models.evals_metric import EvalTemplate
 from simulate.models.eval_config import SimulateEvalConfig
 from simulate.models.run_test import RunTest
+from simulate.models.scenarios import Scenarios
 from simulate.models.test_execution import CallExecution, TestExecution
 
 
@@ -32,9 +33,15 @@ def _eval_config(template, run_test, name: str = "bf cfg"):
     )
 
 
-def _call(test_execution, eval_outputs):
+def _call(test_execution, eval_outputs, *, scenario=None):
+    scenario = scenario or Scenarios.objects.create(
+        name=f"bf scenario {test_execution.id}",
+        organization=test_execution.run_test.organization,
+        workspace=test_execution.run_test.workspace,
+    )
     return CallExecution.objects.create(
         test_execution=test_execution,
+        scenario=scenario,
         eval_outputs=eval_outputs,
     )
 

@@ -76796,14 +76796,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "number",
           "x-nullable": true
         },
-        "output_choice": {
-          "title": "Output choice",
-          "description": "Set when stored config[output]=choices and not multi_choice",
-          "type": "string",
-          "x-nullable": true
-        },
         "output_choices": {
-          "description": "Set when stored config[output]=choices and multi_choice",
+          "description": "List of chosen labels. Always a list — single-pick configs land as [label]; multi-pick as [label1, label2, ...]. FE checks eval_config.multi_choice for rendering (dropdown vs multi-select).",
           "type": "array",
           "items": {
             "type": "string"
@@ -91858,11 +91852,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "type": "number",
           "x-nullable": true
         },
-        "output_choice": {
-          "title": "Output choice",
-          "type": "string",
-          "x-nullable": true
-        },
         "output_choices": {
           "type": "array",
           "items": {
@@ -96976,6 +96965,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Multi choice",
           "description": "From EvalTemplate.multi_choice (not in the config JSON). When output='choices', selects single-pick vs multi-pick filter UI.",
           "type": "boolean"
+        },
+        "pass_threshold": {
+          "title": "Pass threshold",
+          "description": "From EvalTemplate.pass_threshold. FE uses this to colour the choice bubble or score chip when the row's output_score is set.",
+          "type": "number",
+          "x-nullable": true
         },
         "eval_type_id": {
           "title": "Eval type id",

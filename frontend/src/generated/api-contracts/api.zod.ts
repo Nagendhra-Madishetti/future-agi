@@ -17318,7 +17318,6 @@ export const ModelHubDevelopsGetCellDataCreateResponse = zod.object({
   "eval_axes_schema": zod.object({
   "output_pass": zod.boolean().optional(),
   "output_score": zod.number().optional(),
-  "output_choice": zod.string().optional(),
   "output_choices": zod.array(zod.string()).optional()
 }).optional().describe('Documentation-only field that pins the value_infos axis-key schema into the OpenAPI contract. Not present at runtime.')
 })))
@@ -30256,8 +30255,7 @@ export const SimulateCallExecutionsReadResponse = zod.object({
   "skipped": zod.boolean().optional(),
   "output_pass": zod.boolean().optional().describe('Set when stored config[output]=Pass\/Fail'),
   "output_score": zod.number().optional().describe('Set when stored config[output] in (score, numeric)'),
-  "output_choice": zod.string().optional().describe('Set when stored config[output]=choices and not multi_choice'),
-  "output_choices": zod.array(zod.string()).optional().describe('Set when stored config[output]=choices and multi_choice')
+  "output_choices": zod.array(zod.string()).optional().describe('List of chosen labels. Always a list — single-pick configs land as [label]; multi-pick as [label1, label2, ...]. FE checks eval_config.multi_choice for rendering (dropdown vs multi-select).')
 })).optional().describe('Get evaluation outputs in a structured format'),
   "eval_metrics": zod.record(zod.string(), zod.object({
   "id": zod.string().optional(),
@@ -33056,6 +33054,7 @@ export const SimulateTestExecutionsReadResponse = zod.object({
   "output": zod.string().optional().describe('Stored eval_template.config[\'output\']: \'score\' \/ \'choices\' \/ \'Pass\/Fail\' \/ \'numeric\' \/ \'reason\'. Drives which axis field is populated on each per-row eval entry.'),
   "output_type": zod.string().optional().describe('Alias of ``output``. Both fields are always identical.'),
   "multi_choice": zod.boolean().optional().describe('From EvalTemplate.multi_choice (not in the config JSON). When output=\'choices\', selects single-pick vs multi-pick filter UI.'),
+  "pass_threshold": zod.number().optional().describe('From EvalTemplate.pass_threshold. FE uses this to colour the choice bubble or score chip when the row\'s output_score is set.'),
   "eval_type_id": zod.string().optional(),
   "choices": zod.array(zod.string()).optional(),
   "required_keys": zod.array(zod.string().min(1)).optional(),

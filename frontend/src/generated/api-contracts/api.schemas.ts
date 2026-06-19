@@ -8328,7 +8328,6 @@ export interface DatasetCellDataRequestApi {
 export interface CellEvalAxesApi {
   output_pass?: boolean;
   output_score?: number;
-  output_choice?: string;
   output_choices?: string[];
 }
 
@@ -16087,9 +16086,7 @@ export interface CallExecutionEvalOutputApi {
   output_pass?: boolean;
   /** Set when stored config[output] in (score, numeric) */
   output_score?: number;
-  /** Set when stored config[output]=choices and not multi_choice */
-  output_choice?: string;
-  /** Set when stored config[output]=choices and multi_choice */
+  /** List of chosen labels. Always a list — single-pick configs land as [label]; multi-pick as [label1, label2, ...]. FE checks eval_config.multi_choice for rendering (dropdown vs multi-select). */
   output_choices?: string[];
 }
 
@@ -17716,6 +17713,8 @@ export interface EvalConfigMetadataApi {
   output_type?: string;
   /** From EvalTemplate.multi_choice (not in the config JSON). When output='choices', selects single-pick vs multi-pick filter UI. */
   multi_choice?: boolean;
+  /** From EvalTemplate.pass_threshold. FE uses this to colour the choice bubble or score chip when the row's output_score is set. */
+  pass_threshold?: number;
   eval_type_id?: string;
   choices?: string[];
   required_keys?: string[];
