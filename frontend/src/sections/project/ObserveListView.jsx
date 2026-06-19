@@ -73,19 +73,21 @@ const ObserveListView = forwardRef(
       : "updated_at";
     const sortOrder = sorting[0]?.desc ? "desc" : "asc";
 
-    // Build filter params
-    const tagsFilter = useMemo(() => {
-      if (!filters) return null;
-      return (
-        filters
-          .filter((f) => f.field === "tags" && f.value)
-          .map((f) => f.value)
-          .join(",") || null
-      );
-    }, [filters]);
-    const nameFilter = useMemo(() => {
-      if (!filters) return null;
-      return filters.find((f) => f.field === "name" && f.value)?.value || null;
+    // Build the operator-based filters payload. Each UI row is
+    // { field, operator, value }; the API expects
+    // [{ column_id, filter_config: { filter_op, filter_value } }].
+    const apiFilters = useMemo(() => {
+      if (!filters?.length) return null;
+      const out = filters
+        .filter((f) => f.value != null && f.value !== "")
+        .map((f) => ({
+          column_id: f.field, // "name" | "tags"
+          filter_config: {
+            filter_op: f.operator || "contains", // "contains" | "equals"
+            filter_value: f.value,
+          },
+        }));
+      return out.length ? JSON.stringify(out) : null;
     }, [filters]);
 
     const { data: apiData, isLoading } = useQuery({
@@ -97,19 +99,18 @@ const ObserveListView = forwardRef(
           pageSize,
           sortBy,
           sortOrder,
-          tagsFilter,
-          nameFilter,
+          apiFilters,
         },
       ],
       queryFn: () =>
         fetchObserveProjects({
-          name: debouncedSearch || nameFilter || null,
+          name: debouncedSearch || null,
           page_number: page,
           page_size: pageSize,
           sort_by: sortBy,
           sort_direction: sortOrder,
           project_type: "observe",
-          ...(tagsFilter && { tags: tagsFilter }),
+          ...(apiFilters && { filters: apiFilters }),
         }),
       keepPreviousData: true,
       staleTime: 30_000,

@@ -1,8 +1,10 @@
+import json
 from datetime import datetime, timedelta
 
 import structlog
 from django.db import models
-from django.db.models import Count
+from django.db.models import Count, TextField
+from django.db.models.functions import Cast
 from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -57,6 +59,78 @@ from tracer.utils.graphs_optimized import get_all_system_metrics
 from tracer.utils.helper import get_default_project_version_config, get_sort_query
 
 logger = structlog.get_logger(__name__)
+
+
+def _apply_project_list_filters(queryset, filters_param):
+    """Apply name / tag filters from a ``filters`` JSON array to the project
+    list queryset.
+
+    Mirrors the trace/span list filter convention. Shape (one entry per active
+    filter)::
+
+        [{"column_id": "name" | "tags",
+          "filter_config": {"filter_op": "equals" | "contains"
+                                          | "not_equals" | "not_contains",
+                            "filter_value": "<str>"}}]
+
+    name — equals: exact (case-insensitive); contains: substring.
+    tags — equals: the project has that exact tag; contains: the project has a
+           tag whose value contains the substring.
+
+    Best-effort: malformed JSON / unknown columns / blank values are skipped so
+    the list still renders (never 500s on a bad filter param).
+    """
+    if not filters_param:
+        return queryset
+    try:
+        filters = json.loads(filters_param)
+    except (ValueError, TypeError):
+        logger.warning(
+            "project_list_filters_malformed", value=str(filters_param)[:200]
+        )
+        return queryset
+    if not isinstance(filters, list):
+        return queryset
+
+    for idx, f in enumerate(filters):
+        if not isinstance(f, dict):
+            continue
+        column = f.get("column_id")
+        cfg = f.get("filter_config") or {}
+        op = cfg.get("filter_op") or "contains"
+        value = cfg.get("filter_value")
+        if not column or value in (None, ""):
+            continue
+
+        if column == "name":
+            if op == "equals":
+                queryset = queryset.filter(name__iexact=value)
+            elif op == "not_equals":
+                queryset = queryset.exclude(name__iexact=value)
+            elif op == "not_contains":
+                queryset = queryset.exclude(name__icontains=value)
+            else:  # contains (default)
+                queryset = queryset.filter(name__icontains=value)
+
+        elif column in ("tags", "tag"):
+            if op == "equals":
+                queryset = queryset.filter(tags__contains=[value])
+            elif op == "not_equals":
+                queryset = queryset.exclude(tags__contains=[value])
+            elif op in ("contains", "not_contains"):
+                # Substring match on any tag value: cast the array to text and
+                # match the substring. Unique alias per filter avoids collisions
+                # when several tag filters are combined.
+                alias = f"_tags_text_{idx}"
+                queryset = queryset.annotate(**{alias: Cast("tags", TextField())})
+                lookup = {f"{alias}__icontains": value}
+                queryset = (
+                    queryset.filter(**lookup)
+                    if op == "contains"
+                    else queryset.exclude(**lookup)
+                )
+
+    return queryset
 
 
 class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
@@ -436,13 +510,19 @@ class ProjectView(BaseModelViewSetMixinWithUserOrg, ModelViewSet):
                 .only("id", "name", "created_at", "updated_at", "tags")
             )
 
-            # Tag filtering
+            # Tag filtering (legacy flat param: ?tags=a,b -> exact-tag AND)
             tags_param = self.request.query_params.get("tags")
             if tags_param:
                 for tag in tags_param.split(","):
                     tag = tag.strip()
                     if tag:
                         queryset = queryset.filter(tags__contains=[tag])
+
+            # Operator-based name/tag filters (equals/contains/not_*) from the
+            # `filters` JSON array — the trace/span list convention.
+            queryset = _apply_project_list_filters(
+                queryset, self.request.query_params.get("filters")
+            )
 
             ALLOWED_SORT_FIELDS = {"name", "created_at", "updated_at"}
             raw_sort = self.request.query_params.get("sort_by", "created_at")
