@@ -17311,10 +17311,16 @@ export const ModelHubDevelopsGetCellDataCreateResponse = zod.object({
   "status": zod.string().optional(),
   "value_infos": zod.object({
 
-}).passthrough().optional(),
+}).passthrough().optional().describe('Original eval result dict. For eval cells also includes the 4 filter-axis keys; see CellEvalAxesSerializer for that subset.'),
   "feedback_info": zod.object({
 
-}).passthrough().optional()
+}).passthrough().optional(),
+  "eval_axes_schema": zod.object({
+  "output_pass": zod.boolean().optional(),
+  "output_score": zod.number().optional(),
+  "output_choice": zod.string().optional(),
+  "output_choices": zod.array(zod.string()).optional()
+}).optional().describe('Documentation-only field that pins the value_infos axis-key schema into the OpenAPI contract. Not present at runtime.')
 })))
 })
 

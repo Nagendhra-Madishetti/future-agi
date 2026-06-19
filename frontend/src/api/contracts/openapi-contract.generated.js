@@ -78492,6 +78492,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "value_infos": {
           "title": "Value infos",
+          "description": "Original eval result dict. For eval cells also includes the 4 filter-axis keys; see CellEvalAxesSerializer for that subset.",
           "type": "object",
           "x-nullable": true
         },
@@ -78499,6 +78500,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Feedback info",
           "type": "object",
           "x-nullable": true
+        },
+        "eval_axes_schema": {
+          "$ref": "#/definitions/CellEvalAxes"
         }
       }
     },
@@ -91837,6 +91841,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "End",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "CellEvalAxes": {
+      "description": "Documentation-only field that pins the value_infos axis-key schema into the OpenAPI contract. Not present at runtime.",
+      "type": "object",
+      "properties": {
+        "output_pass": {
+          "title": "Output pass",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "output_score": {
+          "title": "Output score",
+          "type": "number",
+          "x-nullable": true
+        },
+        "output_choice": {
+          "title": "Output choice",
+          "type": "string",
+          "x-nullable": true
+        },
+        "output_choices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": true
         }
       }
     },

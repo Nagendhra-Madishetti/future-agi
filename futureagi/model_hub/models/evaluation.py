@@ -111,29 +111,47 @@ class Evaluation(BaseModel):
         return f"Evaluation {self.id} - {template_name} ({self.status})"
 
     def save(self, *args, **kwargs):
-        """
-        Override save to automatically populate type-specific output fields
-        based on the value and output type, following the inline_evals logic.
-        """
+        """Populate typed output columns via the shared eval-engine dispatch.
+        Additive only: never overwrites existing non-None columns."""
         if self.value is not None:
             try:
-                data = self.value
+                from evaluations.engine.normalize import resolve_eval_axes
 
-                if isinstance(data, float) or isinstance(data, int):
-                    self.output_float = float(data)
-                elif isinstance(data, bool) or data in [["Passed"], ["Failed"]]:
-                    self.output_bool = (
-                        True if data == "Passed" or data is True else False
-                    )
-                elif isinstance(data, list):
-                    self.output_str_list = data
-                elif isinstance(data, str) and data in ["Passed", "Failed"]:
-                    self.output_bool = True if data == "Passed" else False
-                else:
-                    self.output_str = str(data)
+                template_config: dict = {}
+                multi_choice = False
+                try:
+                    if self.eval_template_id is not None:
+                        template_config = self.eval_template.config or {}
+                        multi_choice = bool(self.eval_template.multi_choice)
+                except (AttributeError, EvalTemplate.DoesNotExist):
+                    pass
+
+                config_output = (
+                    template_config.get("output") or self.output_type or "score"
+                )
+                axes = resolve_eval_axes(self.value, config_output, multi_choice)
+
+                if self.output_bool is None and axes["output_pass"] is not None:
+                    self.output_bool = axes["output_pass"]
+                if self.output_float is None and axes["output_score"] is not None:
+                    self.output_float = axes["output_score"]
+                if self.output_str_list in (None, []):
+                    if axes["output_choice"] is not None:
+                        self.output_str_list = [axes["output_choice"]]
+                    elif axes["output_choices"] is not None:
+                        self.output_str_list = axes["output_choices"]
+
+                if (
+                    self.output_bool is None
+                    and self.output_float is None
+                    and self.output_str_list in (None, [])
+                    and self.output_str is None
+                ):
+                    self.output_str = str(self.value)
 
             except Exception:
-                self.output_str = str(self.value)
+                if self.output_str is None:
+                    self.output_str = str(self.value)
 
         super().save(*args, **kwargs)
 

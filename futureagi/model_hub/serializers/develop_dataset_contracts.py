@@ -157,11 +157,46 @@ class DatasetColumnsMutationResponseSerializer(serializers.Serializer):
     result = DatasetColumnsMutationResultSerializer()
 
 
+class CellEvalAxesSerializer(serializers.Serializer):
+    """The 4 filter-axis keys inside ``Cell.value_infos`` for eval cells.
+
+    Exactly one is populated per cell based on the column's eval template
+    stored ``config["output"]`` + ``multi_choice``. Mirrors the simulate
+    surface's ``CallExecutionEvalOutput`` axis fields for a unified FE
+    contract across surfaces."""
+
+    output_pass = serializers.BooleanField(required=False, allow_null=True)
+    output_score = serializers.FloatField(required=False, allow_null=True)
+    output_choice = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True
+    )
+    output_choices = serializers.ListField(
+        child=serializers.CharField(allow_blank=True),
+        required=False,
+        allow_null=True,
+    )
+
+
 class DatasetCellValueSerializer(serializers.Serializer):
     cell_value = serializers.JSONField(allow_null=True, required=False)
     status = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    value_infos = serializers.JSONField(required=False, allow_null=True)
+    value_infos = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        help_text=(
+            "Original eval result dict. For eval cells also includes the "
+            "4 filter-axis keys; see CellEvalAxesSerializer for that subset."
+        ),
+    )
     feedback_info = serializers.JSONField(required=False, allow_null=True)
+    eval_axes_schema = CellEvalAxesSerializer(
+        read_only=True,
+        required=False,
+        help_text=(
+            "Documentation-only field that pins the value_infos axis-key "
+            "schema into the OpenAPI contract. Not present at runtime."
+        ),
+    )
 
 
 class DatasetCellDataResponseSerializer(serializers.Serializer):

@@ -8322,8 +8322,21 @@ export interface DatasetCellDataRequestApi {
   column_ids: string[];
 }
 
+/**
+ * Documentation-only field that pins the value_infos axis-key schema into the OpenAPI contract. Not present at runtime.
+ */
+export interface CellEvalAxesApi {
+  output_pass?: boolean;
+  output_score?: number;
+  output_choice?: string;
+  output_choices?: string[];
+}
+
 export type DatasetCellValueApiCellValue = { [key: string]: unknown };
 
+/**
+ * Original eval result dict. For eval cells also includes the 4 filter-axis keys; see CellEvalAxesSerializer for that subset.
+ */
 export type DatasetCellValueApiValueInfos = { [key: string]: unknown };
 
 export type DatasetCellValueApiFeedbackInfo = { [key: string]: unknown };
@@ -8331,8 +8344,10 @@ export type DatasetCellValueApiFeedbackInfo = { [key: string]: unknown };
 export interface DatasetCellValueApi {
   cell_value?: DatasetCellValueApiCellValue;
   status?: string;
+  /** Original eval result dict. For eval cells also includes the 4 filter-axis keys; see CellEvalAxesSerializer for that subset. */
   value_infos?: DatasetCellValueApiValueInfos;
   feedback_info?: DatasetCellValueApiFeedbackInfo;
+  eval_axes_schema?: CellEvalAxesApi;
 }
 
 export type DatasetCellDataResponseApiResult = {[key: string]: {[key: string]: DatasetCellValueApi}};
