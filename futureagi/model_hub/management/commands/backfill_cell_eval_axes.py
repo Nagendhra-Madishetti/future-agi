@@ -28,7 +28,10 @@ def _parse_value(raw: Any) -> Any:
 
 
 class Command(BaseCommand):
-    help = "Backfill axis keys (output_pass / output_score / output_choice / output_choices) inside Cell.value_infos."
+    help = (
+        "Backfill axis keys (output_pass / output_score / output_choice / "
+        "output_choices) inside Cell.value_infos."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true")
