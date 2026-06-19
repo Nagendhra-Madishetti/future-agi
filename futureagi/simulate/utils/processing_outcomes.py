@@ -21,9 +21,17 @@ def build_skipped_eval_output_payload(
     eval_name: str,
     reason: Optional[str],
 ) -> dict:
-    """Build a standardized skipped eval output payload for UI rendering."""
+    """Build a standardized skipped eval output payload for UI rendering.
+
+    Mirrors the canonical shape produced by
+    ``evaluations.engine.normalize.build_simulate_eval_payload`` so every row
+    in ``CallExecution.eval_outputs`` carries the same key set regardless of
+    status.
+    """
     return {
         "output": None,
+        "output_scalar": None,
+        "output_dict": None,
         "reason": reason,
         "output_type": None,
         "name": eval_name,

@@ -275,6 +275,16 @@ def _normalize_eval_value(value, output_type):
     return value
 
 
+def _pick_eval_value(eval_data: dict):
+    """Prefer the canonical ``output_scalar`` written by
+    ``build_simulate_eval_payload``; fall back to ``output`` for rows that
+    haven't been backfilled yet.
+    """
+    if "output_scalar" in eval_data:
+        return eval_data["output_scalar"]
+    return eval_data.get("output")
+
+
 class CallExecutionDetailSerializer(serializers.ModelSerializer):
     """Serializer for CallExecution model with new payload structure"""
 
@@ -679,7 +689,7 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
                 )
                 structured_outputs[eval_id] = {
                     "value": _normalize_eval_value(
-                        eval_data.get("output"),
+                        _pick_eval_value(eval_data),
                         eval_data.get("output_type", ""),
                     ),
                     "reason": eval_data.get("reason", ""),

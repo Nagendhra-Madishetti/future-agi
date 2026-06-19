@@ -4825,7 +4825,9 @@ class UpdateEvalConfigView(APIView):
 
                     # Set placeholder values for the eval config that will be rerun
                     call_execution.eval_outputs[str(eval_config.id)] = {
-                        "status": "pending"
+                        "status": "pending",
+                        "output_scalar": None,
+                        "output_dict": None,
                     }
 
                     call_executions_list.append(call_execution)
@@ -7184,7 +7186,9 @@ class RunNewEvalsOnTestExecutionView(APIView):
                 # Set placeholder values for each eval config that will be run
                 for eval_config in eval_configs:
                     call_execution.eval_outputs[str(eval_config.id)] = {
-                        "status": "pending"
+                        "status": "pending",
+                        "output_scalar": None,
+                        "output_dict": None,
                     }
 
                 call_executions_list.append(call_execution)
