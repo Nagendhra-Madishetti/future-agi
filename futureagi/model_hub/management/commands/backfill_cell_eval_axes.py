@@ -24,7 +24,7 @@ def _parse_value(raw: Any) -> Any:
         return raw
     try:
         return ast.literal_eval(raw)
-    except (ValueError, SyntaxError):
+    except (ValueError, SyntaxError, RecursionError, MemoryError, TypeError):
         return raw
 
 
@@ -160,7 +160,7 @@ class Command(BaseCommand):
                     }
                 )
 
-            cell.value_infos = json.dumps(infos)
+            cell.value_infos = json.dumps(infos, default=str)
             updated_rows += 1
             pending.append(cell)
             if len(pending) >= batch_size:

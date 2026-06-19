@@ -43,6 +43,14 @@ def eval_config_multi_choice(custom_eval_config: Any) -> bool:
 
 
 def extract_score(value: Any) -> float | None:
+    """Project ``value`` into a single float score.
+
+    Mirrors the tracer dispatch's score branch so all surfaces agree on
+    how a list of per-item dicts (`choice_scores` promoted to list shape)
+    or a list of plain numbers collapses to one scalar score: take the
+    mean of every numeric component (skipping bools, which `isinstance`
+    treats as int subclass).
+    """
     if isinstance(value, bool):
         return None
     if isinstance(value, int | float):
@@ -51,6 +59,20 @@ def extract_score(value: Any) -> float | None:
         score = value.get("score")
         if isinstance(score, int | float) and not isinstance(score, bool):
             return float(score)
+        return None
+    if isinstance(value, list):
+        numerics: list[float] = []
+        for v in value:
+            if isinstance(v, bool):
+                continue
+            if isinstance(v, int | float):
+                numerics.append(float(v))
+            elif isinstance(v, dict):
+                inner = v.get("score")
+                if isinstance(inner, int | float) and not isinstance(inner, bool):
+                    numerics.append(float(inner))
+        if numerics:
+            return sum(numerics) / len(numerics)
     return None
 
 
@@ -79,8 +101,22 @@ def extract_choices(value: Any) -> list[str] | None:
             return dedupe_preserve_order(strings) if strings else None
         return None
     if isinstance(value, list):
-        strings = [v for v in value if isinstance(v, str)]
-        return dedupe_preserve_order(strings) if strings else None
+        # Two shapes: plain list of strings, OR list of per-item dicts
+        # carrying ``{"choice": ...}`` / ``{"choices": [...]}`` (tracer
+        # promotes choice_scores into this list-of-dicts shape). Flatten
+        # both into one deduped string list.
+        collected: list[str] = []
+        for v in value:
+            if isinstance(v, str):
+                collected.append(v)
+            elif isinstance(v, dict):
+                inner_choice = v.get("choice")
+                inner_choices = v.get("choices")
+                if isinstance(inner_choice, str):
+                    collected.append(inner_choice)
+                elif isinstance(inner_choices, list):
+                    collected.extend(c for c in inner_choices if isinstance(c, str))
+        return dedupe_preserve_order(collected) if collected else None
     return None
 
 

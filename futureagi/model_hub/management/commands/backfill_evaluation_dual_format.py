@@ -23,7 +23,7 @@ def _parse_value(raw: Any) -> Any:
         return raw
     try:
         return ast.literal_eval(raw)
-    except (ValueError, SyntaxError):
+    except (ValueError, SyntaxError, RecursionError, MemoryError, TypeError):
         return raw
 
 
@@ -108,7 +108,7 @@ class Command(BaseCommand):
             if ev.output_float is None and axes["output_score"] is not None:
                 ev.output_float = axes["output_score"]
                 changed = True
-            if ev.output_str_list in (None, []) and axes["output_choices"] is not None:
+            if ev.output_str_list is None and axes["output_choices"] is not None:
                 ev.output_str_list = axes["output_choices"]
                 changed = True
 

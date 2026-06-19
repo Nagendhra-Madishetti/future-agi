@@ -152,7 +152,18 @@ class Command(BaseCommand):
                             "after_axes": axes,
                         }
                     )
-                entry.update(axes)
+                # Additive: only fill axis keys not already present. Mirrors
+                # the cell backfill's merge semantics; never clobbers a
+                # previously-projected axis even if a partial-state row
+                # exists.
+                entry_changed = False
+                for key, axis_value in axes.items():
+                    if key not in entry:
+                        entry[key] = axis_value
+                        entry_changed = True
+                if not entry_changed:
+                    skipped_entries += 1
+                    continue
                 blob[eval_id] = entry
                 row_changed = True
                 updated_entries += 1

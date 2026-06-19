@@ -1463,9 +1463,10 @@ class EvaluationRunner:
             )
             multi_choice = bool(self.eval_template.multi_choice)
         value_infos_payload = dict(response) if isinstance(response, dict) else {}
-        value_infos_payload.update(
-            resolve_eval_axes(value, config_output, multi_choice)
-        )
+        for key, axis_value in resolve_eval_axes(
+            value, config_output, multi_choice
+        ).items():
+            value_infos_payload.setdefault(key, axis_value)
 
         cell_data = {
             "dataset": dataset,

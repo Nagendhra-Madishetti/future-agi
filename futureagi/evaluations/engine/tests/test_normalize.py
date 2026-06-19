@@ -140,6 +140,54 @@ def test_extract_score_int_coerced_to_float():
     assert isinstance(result, float)
 
 
+# ── extract_score list shapes (mirror tracer's averaging) ────────────────
+
+
+def test_extract_score_list_of_plain_numbers_returns_mean():
+    """Score config that emits a list of numbers (e.g. per-item evals
+    aggregated) collapses to the mean — matches tracer's contract."""
+    assert extract_score([0.3, 0.7, 0.5]) == pytest.approx(0.5)
+
+
+def test_extract_score_list_of_per_item_dicts_returns_mean_of_inner_scores():
+    """choice_scores promoted into per-item list: tracer averages the
+    inner ``score`` fields and discards labels; we do the same."""
+    value = [
+        {"score": 0.5, "choice": "a"},
+        {"score": 0.7, "choice": "b"},
+    ]
+    assert extract_score(value) == pytest.approx(0.6)
+
+
+def test_extract_score_list_skips_bools_in_numerics():
+    """``True``/``False`` are int subclasses; must not pollute the mean."""
+    assert extract_score([0.5, True, False, 0.5]) == pytest.approx(0.5)
+
+
+def test_extract_score_list_mixed_types_extracts_numerics_only():
+    """Strings and other non-numeric entries are ignored."""
+    assert extract_score([0.5, "x", {"score": 1.0}]) == pytest.approx(0.75)
+
+
+def test_extract_score_list_no_numerics_returns_none():
+    assert extract_score(["a", "b"]) is None
+    assert extract_score([True, False]) is None
+    assert extract_score([{"choice": "x"}]) is None
+
+
+def test_extract_choices_list_of_per_item_dicts_flattens_choices():
+    """Tracer-style list of per-item dicts: flatten each item's choice
+    or choices field into one deduped list."""
+    value = [{"choice": "a"}, {"choice": "b"}, {"choices": ["c", "a"]}]
+    assert extract_choices(value) == ["a", "b", "c"]
+
+
+def test_extract_choices_list_of_per_item_dicts_with_only_score_returns_none():
+    """Per-item dicts that carry only a score and no choice → nothing to
+    collect, all-empty list collapses to None."""
+    assert extract_choices([{"score": 0.5}, {"score": 0.7}]) is None
+
+
 # ── extract_choices ──────────────────────────────────────────────────────
 
 
