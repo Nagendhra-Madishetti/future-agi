@@ -15,10 +15,21 @@ rewrite and ``_v2_rewrite_exclude`` stays empty.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import structlog
 
-from tracer.services.clickhouse.query_builders.trace_detail import TraceDetailHandler
+from tracer.services.clickhouse.query_builders.trace_detail import (
+    TraceDetail,
+    TraceDetailHandler,
+)
 from tracer.services.clickhouse.v2.query_builders._rewrite import V2RewriteMixin
+
+if TYPE_CHECKING:
+    from rest_framework.request import Request
+
+    from tracer.services.clickhouse.query_service import AnalyticsQueryService
+    from tracer.views.trace import TraceView
 
 logger = structlog.get_logger(__name__)
 
@@ -26,16 +37,25 @@ logger = structlog.get_logger(__name__)
 class TraceDetailHandlerV2(V2RewriteMixin, TraceDetailHandler):
     """V2 / ClickHouse trace-detail handler."""
 
+    # The handler has no ``build*`` SQL methods for the mixin to rewrite (the
+    # ClickHouse query is hand-written in ``retrieve_trace_detail_ch``); the
+    # mixin is inherited solely because ``test_ch25_builder_contract`` requires
+    # every v2 builder to carry it, so the exclude set is empty.
     _v2_rewrite_exclude = frozenset()
 
-    def fetch(self) -> dict:
+    def fetch(self) -> TraceDetail:
         """Return the assembled trace-detail dict from ClickHouse."""
         return retrieve_trace_detail_ch(
             self.view, self.request, self.pk, self.analytics
         )
 
 
-def retrieve_trace_detail_ch(view, request, trace_id, analytics):
+def retrieve_trace_detail_ch(
+    view: TraceView,
+    request: Request,
+    trace_id: str,
+    analytics: AnalyticsQueryService,
+) -> TraceDetail:
     """V2 trace detail from ClickHouse.
 
     The trace's project is resolved from the CH ``spans`` table (the trace

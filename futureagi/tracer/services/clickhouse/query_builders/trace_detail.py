@@ -16,17 +16,41 @@ here. Both v1 and v2 return the identical response dict
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any, TypedDict
+
+if TYPE_CHECKING:
+    from rest_framework.request import Request
+
+    from tracer.services.clickhouse.query_service import AnalyticsQueryService
+    from tracer.views.trace import TraceView
+
+
+class TraceDetail(TypedDict):
+    """The response envelope both handlers return; the view wraps it verbatim."""
+
+    trace: dict[str, Any]
+    observation_spans: list[dict[str, Any]]
+    summary: dict[str, Any]
+    graph: dict[str, Any]
+
 
 class TraceDetailHandler:
     """V1 / PostgreSQL trace-detail handler (the pre-migration behavior)."""
 
-    def __init__(self, *, view, request, pk, analytics=None, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        view: TraceView,
+        request: Request,
+        pk: str,
+        analytics: AnalyticsQueryService | None = None,
+    ) -> None:
         self.view = view
         self.request = request
         self.pk = pk
         self.analytics = analytics
 
-    def fetch(self) -> dict:
+    def fetch(self) -> TraceDetail:
         """Assemble the trace detail from PostgreSQL.
 
         Cross-store tenant gate = the org/workspace-scoped queryset; the span
