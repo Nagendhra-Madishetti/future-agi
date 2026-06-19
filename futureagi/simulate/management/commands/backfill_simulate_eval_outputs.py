@@ -1,20 +1,4 @@
-"""Backfill the per-axis filter keys on ``CallExecution.eval_outputs`` rows.
-
-Forward-only, idempotent. Mirrors the flag surface of PR #618's
-``backfill_eval_logger_dual_format`` so operators have one mental model:
-``--dry-run``, ``--limit``, ``--batch-size``, ``--since``, plus scoped
-``--test-execution-id`` / ``--eval-config-id`` filters.
-
-Per eval entry, re-derives the four axis keys
-(``output_pass`` / ``output_score`` / ``output_choice`` / ``output_choices``)
-from the verbatim ``output`` field via
-``evaluations.engine.normalize.resolve_eval_axes``. The stored
-``eval_template.config["output"]`` and ``multi_choice`` flag drive the
-dispatch (looked up once per eval_config_id, cached for the run).
-
-Idempotent: an entry that already carries all four axis keys is skipped on
-re-run.
-"""
+"""Backfill the per-axis filter keys on ``CallExecution.eval_outputs`` rows."""
 
 from __future__ import annotations
 
@@ -41,7 +25,7 @@ logger = structlog.get_logger(__name__)
 class Command(BaseCommand):
     help = (
         "Backfill output_pass / output_score / output_choice / output_choices "
-        "on CallExecution.eval_outputs rows that pre-date TH-6044."
+        "on CallExecution.eval_outputs rows."
     )
 
     def add_arguments(self, parser):
@@ -178,10 +162,6 @@ class Command(BaseCommand):
     def _resolve_eval_config(
         eval_id: str, cache: dict[str, tuple[str, bool]]
     ) -> tuple[str, bool]:
-        """Look up the eval config's stored output type and multi_choice flag,
-        cached per command run. Returns ``("score", False)`` as a safe default
-        when the eval_config no longer exists.
-        """
         cached = cache.get(eval_id)
         if cached is not None:
             return cached

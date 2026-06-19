@@ -1,10 +1,4 @@
-"""Integration tests for the ``backfill_simulate_eval_outputs`` command.
-
-Creates real ``SimulateEvalConfig`` + ``CallExecution`` rows with both
-pre-``choice_scores`` (plain scalar / list) and post-``choice_scores``
-(dict) shapes, runs the command, and asserts the four axis keys land on
-the right values per the stored template config.
-"""
+"""Tests for the ``backfill_simulate_eval_outputs`` command."""
 
 from __future__ import annotations
 

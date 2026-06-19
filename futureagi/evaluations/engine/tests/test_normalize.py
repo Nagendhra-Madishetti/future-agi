@@ -1,11 +1,4 @@
-"""Tests for ``evaluations.engine.normalize``.
-
-Covers the four extractors, the central ``resolve_eval_axes`` dispatch,
-``empty_axes`` defaults, ``build_simulate_eval_payload`` payload shape, and
-the config-output / multi-choice accessors. Each assertion is keyed on the
-**stored** ``config_output`` so the strict gating contract is exercised
-directly.
-"""
+"""Tests for ``evaluations.engine.normalize``."""
 
 from __future__ import annotations
 
