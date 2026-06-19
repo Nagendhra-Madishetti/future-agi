@@ -4824,6 +4824,8 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
                 source_id,
                 organization=request.organization,
                 workspace=getattr(request, "workspace", None),
+                # stores the soft id below, so a CH-resolved collector source is fine
+                allow_ch_fallback=True,
             )
             if not source_obj:
                 errors.append(f"Not found: {source_type}={source_id}")
@@ -4836,9 +4838,15 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
                 errors.append(unavailable_reason)
                 continue
 
+            # Soft id, not the FK object (CH source isn't a Django instance;
+            # QueueItem FKs are db_constraint=False). Mirrors the serializer.
+            source_pk = getattr(source_obj, "pk", None) or getattr(
+                source_obj, "id", None
+            )
+
             dup_filter = {
                 "queue": queue,
-                fk_field: source_obj,
+                f"{fk_field}_id": source_pk,
                 "deleted": False,
             }
             if QueueItem.objects.filter(**dup_filter).exists():
@@ -4853,7 +4861,7 @@ class QueueItemViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelViewSet):
                     organization=request.organization,
                     workspace=getattr(request, "workspace", None) or queue.workspace,
                     order=max_order,
-                    **{fk_field: source_obj},
+                    **{f"{fk_field}_id": source_pk},
                 )
             )
 

@@ -556,12 +556,25 @@ class QueueItemSerializer(serializers.ModelSerializer):
             fk_field = get_fk_field_name(source_type)
             if fk_field:
                 request = self.context.get("request")
+                organization = (
+                    getattr(request, "organization", None) if request else None
+                )
                 workspace = getattr(request, "workspace", None) if request else None
                 source_obj = resolve_source_object(
-                    source_type, source_id, workspace=workspace
+                    source_type,
+                    source_id,
+                    organization=organization,
+                    workspace=workspace,
+                    allow_ch_fallback=True,
                 )
                 if source_obj:
-                    validated_data[fk_field] = source_obj
+                    # Store the soft id, not the FK object: a CH-resolved source
+                    # isn't a Django instance. QueueItem FKs are db_constraint=False
+                    # so a bare ``_id`` persists (and Django FKs accept it too).
+                    source_pk = getattr(source_obj, "pk", None) or getattr(
+                        source_obj, "id", None
+                    )
+                    validated_data[f"{fk_field}_id"] = source_pk
                 else:
                     raise serializers.ValidationError(
                         f"Source object not found: {source_type}={source_id}"
@@ -573,7 +586,7 @@ class QueueItemSerializer(serializers.ModelSerializer):
                     and QueueItem.objects.filter(
                         queue=queue,
                         deleted=False,
-                        **{fk_field: source_obj},
+                        **{f"{fk_field}_id": source_pk},
                     ).exists()
                 ):
                     raise serializers.ValidationError(

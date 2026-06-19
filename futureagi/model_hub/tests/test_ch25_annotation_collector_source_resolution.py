@@ -1,0 +1,665 @@
+"""CH25 wave-3 — collector (ClickHouse-only) traces/spans/sessions made usable in
+annotation queues.
+
+WHAT THIS PINS
+--------------
+The ``fi-collector`` writes spans/traces/sessions ONLY to ClickHouse (v2 schema),
+bypassing Django/PG. So a collector source has NO PG ``tracer_observation_span`` /
+``tracer_trace_session`` row. The annotation-queue source-RESOLUTION + render path
+resolved sources through PG, so "Add to queue" silently dropped every collector
+span/session and the annotate view rendered them as ``{"deleted": true}``.
+
+The fix teaches the three central selectors (``resolve_source_object``,
+``resolve_source_preview``, ``resolve_source_content``), the serializer
+``create()`` store, and the ``root_spans`` tenant gate to fall back to CH when the
+PG row is absent — re-checking tenant scope against the PG ``Project`` row (which
+DOES live in PG), fail-closed.
+
+PROOF SHAPE
+-----------
+These are UNIT tests over the REAL selector functions. The ClickHouse boundary
+(``get_reader`` → ``CHSpanReader.get`` and ``resolve_session_fields``) is mocked so
+the test needs no live CH, but the PG ``Project`` tenant gate, the FK-absent
+``RelatedObjectDoesNotExist`` collapse, and the dict-shape mapping are all
+exercised for real against a real test DB.
+
+Each test FAILS if the fix is reverted:
+  • resolve of a collector span: revert → PG ``.get`` raises DoesNotExist → the
+    function returns ``None`` (today's bug) → the "is a CHSpan" assert fails.
+  • preview/content of a collector span: revert → ``item.observation_span`` raises
+    → outer except → ``{"error": ...}`` / ``{"deleted": true}`` → the mapped-dict
+    asserts fail.
+  • root_spans gate: revert → PG ``Trace.objects`` gate returns ``[]`` for the
+    collector trace → ``{}`` → the non-empty-result assert fails.
+  • cross-org deny: the gate must NOT leak — these lock fail-closed behavior.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import UTC, datetime
+from unittest import mock
+
+import pytest
+
+from model_hub.models.annotation_queues import (
+    AnnotationQueue,
+    AnnotationQueueStatusChoices,
+    QueueItem,
+)
+from model_hub.models.choices import QueueItemSourceType, QueueItemStatus
+from model_hub.utils import annotation_queue_helpers as helpers
+from tracer.models.observation_span import ObservationSpan
+from tracer.models.project import Project
+from tracer.services.clickhouse.v2.span_reader import CHSpan
+
+CH_READER_PATH = "tracer.services.clickhouse.v2.get_reader"
+SESSION_FIELDS_PATH = (
+    "tracer.services.clickhouse.v2.trace_session_dict_reader.resolve_session_fields"
+)
+
+
+def _make_project(*, organization, workspace, name="ch25-collector-proj"):
+    return Project.objects.create(
+        name=f"{name} {uuid.uuid4().hex[:8]}",
+        organization=organization,
+        workspace=workspace,
+        model_type="GenerativeLLM",
+        trace_type="observe",
+    )
+
+
+def _make_chspan(*, project_id, span_id=None, trace_id=None, parent_span_id=""):
+    """A fully-populated CHSpan dataclass standing in for a collector span row
+    (the shape ``CHSpanReader.get`` returns). No PG row exists for it."""
+    return CHSpan(
+        id=span_id or f"ch-span-{uuid.uuid4().hex[:12]}",
+        project_id=str(project_id),
+        trace_id=trace_id or str(uuid.uuid4()),
+        parent_span_id=parent_span_id,
+        name="collector root span",
+        observation_type="agent",
+        operation_name="invoke_agent",
+        start_time=datetime(2025, 5, 1, 10, 0, 0, tzinfo=UTC),
+        end_time=datetime(2025, 5, 1, 10, 0, 2, tzinfo=UTC),
+        latency_ms=2000,
+        model="gpt-4o",
+        provider="openai",
+        prompt_tokens=11,
+        completion_tokens=7,
+        total_tokens=18,
+        cost=0.0021,
+        status="OK",
+        status_message="",
+        org_id=None,
+        project_version_id=None,
+        end_user_id=None,
+        trace_session_id=None,
+        prompt_version_id=None,
+        prompt_label_id=None,
+        custom_eval_config_id=None,
+        input='{"messages": [{"role": "user", "content": "hi"}]}',
+        output='{"role": "assistant", "content": "hello"}',
+        tags='["collector"]',
+        span_events='[{"name": "event-a"}]',
+        metadata='{"k": "v"}',
+        resource_attrs='{"service.name": "collector-svc"}',
+        attributes_extra='{"extra.key": "extra-val"}',
+        attrs_string={"gen_ai.request.model": "gpt-4o"},
+        attrs_number={"gen_ai.usage.total_tokens": 18.0},
+        attrs_bool={"gen_ai.stream": 1},
+    )
+
+
+class _ReaderCM:
+    """Context-manager stub mimicking ``get_reader()`` → ``CHSpanReader``."""
+
+    def __init__(self, span):
+        self._span = span
+        self.get_calls = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def get(self, span_id):
+        self.get_calls.append(str(span_id))
+        if self._span is None:
+            return None
+        return self._span if str(span_id) == str(self._span.id) else None
+
+    def list_by_trace_ids(self, trace_ids):
+        if self._span is None:
+            return []
+        return [self._span] if str(self._span.trace_id) in set(trace_ids) else []
+
+
+# ─────────────────────────── observation_span: resolve ───────────────────────
+
+
+@pytest.mark.django_db
+def test_collector_span_resolves_via_ch(organization, workspace):
+    """A collector span (no PG row) resolves through the CH fallback when org +
+    workspace match, returning the CHSpan itself (FAILS if reverted → None)."""
+    project = _make_project(organization=organization, workspace=workspace)
+    span = _make_chspan(project_id=project.id)
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        resolved = helpers.resolve_source_object(
+            QueueItemSourceType.OBSERVATION_SPAN.value,
+            span.id,
+            organization=organization,
+            workspace=workspace,
+            allow_ch_fallback=True,
+        )
+    assert resolved is span
+    assert resolved.id == span.id
+
+
+@pytest.mark.django_db
+def test_collector_span_cross_org_denied(organization, workspace, django_user_model):
+    """A collector span whose project belongs to a DIFFERENT org is denied (the CH
+    fallback re-checks tenant scope against PG). FAILS if the gate is removed."""
+    from accounts.models.organization import Organization
+
+    other_org = Organization.objects.create(name="Other Org")
+    other_project = _make_project(organization=other_org, workspace=None)
+    span = _make_chspan(project_id=other_project.id)
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        resolved = helpers.resolve_source_object(
+            QueueItemSourceType.OBSERVATION_SPAN.value,
+            span.id,
+            organization=organization,  # requesting org != other_org
+            allow_ch_fallback=True,
+        )
+    assert resolved is None
+
+
+@pytest.mark.django_db
+def test_tenant_scoped_project_denies_without_organization(organization, workspace):
+    """Regression (cross-org leak): the CH tenant gate FAILS CLOSED when no
+    organization is supplied. A ``None`` org cannot prove ownership, so even an
+    existing project must NOT resolve — this is the chokepoint that stops a caller
+    (e.g. the single-item serializer) from silently skipping the org filter.
+    FAILS if ``_tenant_scoped_project`` resolves without an org."""
+    project = _make_project(organization=organization, workspace=workspace)
+    # With the org it resolves...
+    assert (
+        helpers._tenant_scoped_project(project.id, organization=organization)
+        is not None
+    )
+    # ...without it, never (the hole the serializer create() previously left open).
+    assert (
+        helpers._tenant_scoped_project(
+            project.id, organization=None, workspace=workspace
+        )
+        is None
+    )
+
+
+@pytest.mark.django_db
+def test_collector_span_org_omitted_denied():
+    """Regression (cross-org leak): resolving a collector span with BOTH org and
+    workspace omitted (the fully-ungated signature the serializer ``create()`` used
+    when the request carried no org) must deny — a foreign-org collector span must
+    NOT resolve when the org gate is absent. Org-gated only (no workspace arg) so
+    it FAILS on revert via the org gate, not a workspace mismatch — the case the
+    org-explicit cross-org test could not reach."""
+    from accounts.models.organization import Organization
+
+    other_org = Organization.objects.create(name="Other Org (org-omitted)")
+    other_project = _make_project(organization=other_org, workspace=None)
+    span = _make_chspan(project_id=other_project.id)
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        resolved = helpers.resolve_source_object(
+            QueueItemSourceType.OBSERVATION_SPAN.value,
+            span.id,
+            # org AND workspace deliberately omitted — mirrors the serializer hole
+            allow_ch_fallback=True,
+        )
+    assert resolved is None
+
+
+@pytest.mark.django_db
+def test_collector_span_empty_project_id_denied(organization):
+    """Deny-on-ambiguity: a CHSpan with no project_id can't be tenant-verified →
+    None (never trust an untenanted span)."""
+    span = _make_chspan(project_id="")  # falsy project_id
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        resolved = helpers.resolve_source_object(
+            QueueItemSourceType.OBSERVATION_SPAN.value,
+            span.id,
+            organization=organization,
+            allow_ch_fallback=True,
+        )
+    assert resolved is None
+
+
+@pytest.mark.django_db
+def test_span_absent_in_both_pg_and_ch_returns_none(organization):
+    """A source id that exists in NEITHER PG NOR CH → None (add denied, no crash)."""
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(None)):
+        resolved = helpers.resolve_source_object(
+            QueueItemSourceType.OBSERVATION_SPAN.value,
+            f"missing-{uuid.uuid4().hex}",
+            organization=organization,
+            allow_ch_fallback=True,
+        )
+    assert resolved is None
+
+
+@pytest.mark.django_db
+def test_pg_span_resolves_without_touching_ch(organization, workspace):
+    """Regression guard: an existing PG ObservationSpan still resolves via the PG
+    branch and the CH reader is NOT called (PG-first)."""
+    project = _make_project(organization=organization, workspace=workspace)
+    from tracer.models.trace import Trace
+
+    trace = Trace.objects.create(project=project, name="pg-trace")
+    pg_span = ObservationSpan.objects.create(
+        id=f"pg-span-{uuid.uuid4().hex[:12]}",
+        project=project,
+        trace=trace,
+        parent_span_id=None,
+        name="pg span",
+        observation_type="agent",
+        start_time=datetime.now(tz=UTC),
+        status="OK",
+    )
+
+    with mock.patch(CH_READER_PATH) as get_reader:
+        resolved = helpers.resolve_source_object(
+            QueueItemSourceType.OBSERVATION_SPAN.value,
+            pg_span.id,
+            organization=organization,
+            workspace=workspace,
+            allow_ch_fallback=True,  # even WITH fallback allowed, PG wins
+        )
+    assert resolved.id == pg_span.id
+    get_reader.assert_not_called()
+
+
+# ───────────────── opt-in CH fallback: out-of-scope callers stay PG-only ──────
+
+
+@pytest.mark.django_db
+def test_ch_fallback_is_opt_in(organization, workspace):
+    """``resolve_source_object`` must NOT return a CH object by default: callers
+    that dereference ``.pk`` / FK relations (scores, span-notes — out of scope)
+    keep the PG-only behavior, so my change can't turn their graceful not-found
+    into a crash. Only ``allow_ch_fallback=True`` reaches CH."""
+    project = _make_project(organization=organization, workspace=workspace)
+    span = _make_chspan(project_id=project.id)
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)) as get_reader:
+        # default (out-of-scope callers): PG-only → None, CH never queried.
+        resolved_default = helpers.resolve_source_object(
+            QueueItemSourceType.OBSERVATION_SPAN.value,
+            span.id,
+            organization=organization,
+            workspace=workspace,
+        )
+        assert resolved_default is None
+        get_reader.assert_not_called()
+
+        # opt-in (in-scope add paths): CH fallback fires.
+        resolved_optin = helpers.resolve_source_object(
+            QueueItemSourceType.OBSERVATION_SPAN.value,
+            span.id,
+            organization=organization,
+            workspace=workspace,
+            allow_ch_fallback=True,
+        )
+        assert resolved_optin is span
+
+
+# ─────────────────────── observation_span: serializer store ──────────────────
+
+
+@pytest.mark.django_db
+def test_serializer_create_persists_collector_span_soft_id(
+    organization, workspace, user
+):
+    """The serializer create() stores the soft id (not the FK object) so a CHSpan
+    persists; the QueueItem carries observation_span_id with NO PG row."""
+    from model_hub.serializers.annotation_queues import QueueItemSerializer
+
+    project = _make_project(organization=organization, workspace=workspace)
+    span = _make_chspan(project_id=project.id)
+    queue = AnnotationQueue.objects.create(
+        name=f"q-{uuid.uuid4().hex[:8]}",
+        status=AnnotationQueueStatusChoices.ACTIVE.value,
+        organization=organization,
+        workspace=workspace,
+        project=project,
+        created_by=user,
+    )
+
+    request = mock.Mock()
+    request.organization = organization
+    request.workspace = workspace
+    serializer = QueueItemSerializer(context={"request": request})
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        item = serializer.create(
+            {
+                "queue": queue,
+                "source_type": QueueItemSourceType.OBSERVATION_SPAN.value,
+                "source_id": span.id,
+                "organization": organization,
+                "workspace": workspace,
+                "status": QueueItemStatus.PENDING.value,
+            }
+        )
+    item.refresh_from_db()
+    assert str(item.observation_span_id) == str(span.id)
+
+
+# ─────────────────────── observation_span: preview/content ────────────────────
+
+
+def _collector_item(*, organization, workspace, queue, span):
+    """A QueueItem whose observation_span_id points at a collector span (NO PG
+    ObservationSpan row exists for it)."""
+    return QueueItem.objects.create(
+        queue=queue,
+        source_type=QueueItemSourceType.OBSERVATION_SPAN.value,
+        observation_span_id=span.id,
+        organization=organization,
+        workspace=workspace,
+        status=QueueItemStatus.PENDING.value,
+    )
+
+
+def _queue(*, organization, workspace, user, project):
+    return AnnotationQueue.objects.create(
+        name=f"q-{uuid.uuid4().hex[:8]}",
+        status=AnnotationQueueStatusChoices.ACTIVE.value,
+        organization=organization,
+        workspace=workspace,
+        project=project,
+        created_by=user,
+    )
+
+
+@pytest.mark.django_db
+def test_collector_span_preview_renders_from_ch(organization, workspace, user):
+    """Preview of a collector span (no PG row) returns the mapped dict, NOT the
+    deleted sentinel. FAILS if reverted (FK access raises → error dict)."""
+    project = _make_project(organization=organization, workspace=workspace)
+    span = _make_chspan(project_id=project.id)
+    queue = _queue(
+        organization=organization, workspace=workspace, user=user, project=project
+    )
+    item = _collector_item(
+        organization=organization, workspace=workspace, queue=queue, span=span
+    )
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        preview = helpers.resolve_source_preview(item)
+
+    assert preview["type"] == "observation_span"
+    assert "deleted" not in preview
+    assert preview["name"] == "collector root span"
+    assert preview["observation_type"] == "agent"
+    assert preview["latency_ms"] == 2000
+
+
+@pytest.mark.django_db
+def test_collector_span_content_renders_from_ch(organization, workspace, user):
+    """Content of a collector span returns the full mapped dict with the CHSpan
+    field renames applied (attrs_* merged, JSON strings parsed to dicts/lists)."""
+    project = _make_project(organization=organization, workspace=workspace)
+    span = _make_chspan(project_id=project.id)
+    queue = _queue(
+        organization=organization, workspace=workspace, user=user, project=project
+    )
+    item = _collector_item(
+        organization=organization, workspace=workspace, queue=queue, span=span
+    )
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        content = helpers.resolve_source_content(item)
+
+    assert content["type"] == "observation_span"
+    assert "deleted" not in content
+    assert content["span_id"] == str(span.id)
+    assert content["status"] == "OK"
+    assert content["cost"] == 0.0021
+    # span_attributes is the merge of attrs_string/number/bool + attributes_extra.
+    assert content["span_attributes"]["gen_ai.request.model"] == "gpt-4o"
+    assert content["span_attributes"]["extra.key"] == "extra-val"
+    # JSON-string columns become Python containers.
+    assert content["metadata"] == {"k": "v"}
+    assert content["resource_attributes"] == {"service.name": "collector-svc"}
+    assert content["events"] == [{"name": "event-a"}]
+    # eval_attributes present (empty dict), not omitted → shape parity.
+    assert content["eval_attributes"] == {}
+
+
+@pytest.mark.django_db
+def test_collector_span_content_deleted_when_ch_missing(organization, workspace, user):
+    """If the span is gone from CH too, content returns the deleted sentinel
+    (semantically correct, same shape as today)."""
+    project = _make_project(organization=organization, workspace=workspace)
+    queue = _queue(
+        organization=organization, workspace=workspace, user=user, project=project
+    )
+    item = QueueItem.objects.create(
+        queue=queue,
+        source_type=QueueItemSourceType.OBSERVATION_SPAN.value,
+        observation_span_id=f"gone-{uuid.uuid4().hex[:12]}",
+        organization=organization,
+        workspace=workspace,
+        status=QueueItemStatus.PENDING.value,
+    )
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(None)):
+        content = helpers.resolve_source_content(item)
+    assert content == {"type": "observation_span", "deleted": True}
+
+
+@pytest.mark.django_db
+def test_malformed_ch_json_does_not_raise(organization, workspace, user):
+    """A CHSpan with malformed metadata/resource_attrs/span_events JSON renders
+    safe defaults ({}/[]) instead of 500-ing the annotate-detail page."""
+    project = _make_project(organization=organization, workspace=workspace)
+    span = _make_chspan(project_id=project.id)
+    bad = {
+        "metadata": "{not json",
+        "resource_attrs": "}}}",
+        "span_events": "[oops",
+    }
+    span = CHSpan(**{**span.__dict__, **bad})
+    queue = _queue(
+        organization=organization, workspace=workspace, user=user, project=project
+    )
+    item = _collector_item(
+        organization=organization, workspace=workspace, queue=queue, span=span
+    )
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        content = helpers.resolve_source_content(item)
+    assert content["metadata"] == {}
+    assert content["resource_attributes"] == {}
+    assert content["events"] == []
+
+
+# ──────────────────────────── root_spans tenant gate ─────────────────────────
+
+
+@pytest.mark.django_db
+def test_allowed_root_spans_returns_collector_trace(organization, workspace):
+    """The root_spans gate returns {trace_id: root_span_id} for a collector trace
+    whose project IS org-accessible (FAILS if reverted → {} via the PG gate)."""
+    from django.db.models import Q
+
+    from tracer.views.observation_span import allowed_root_spans_for_request
+
+    project = _make_project(organization=organization, workspace=workspace)
+    trace_id = str(uuid.uuid4())
+    span = _make_chspan(project_id=project.id, trace_id=trace_id, parent_span_id="")
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        result = allowed_root_spans_for_request(
+            [trace_id], organization=organization, project_scope_q=Q()
+        )
+    assert result == {trace_id: str(span.id)}
+
+
+@pytest.mark.django_db
+def test_allowed_root_spans_cross_org_omitted(organization, workspace):
+    """A collector trace whose root-span project belongs to a DIFFERENT org is
+    omitted (cross-org leak prevented). FAILS if the gate is removed/fail-open."""
+    from django.db.models import Q
+
+    from accounts.models.organization import Organization
+    from tracer.views.observation_span import allowed_root_spans_for_request
+
+    other_org = Organization.objects.create(name="Other Org 2")
+    other_project = _make_project(organization=other_org, workspace=None)
+    trace_id = str(uuid.uuid4())
+    span = _make_chspan(
+        project_id=other_project.id, trace_id=trace_id, parent_span_id=""
+    )
+
+    with mock.patch(CH_READER_PATH, return_value=_ReaderCM(span)):
+        result = allowed_root_spans_for_request(
+            [trace_id], organization=organization, project_scope_q=Q()
+        )
+    assert result == {}
+
+
+@pytest.mark.django_db
+def test_allowed_root_spans_empty_input(organization):
+    """No trace_ids → {} (unchanged shape)."""
+    from django.db.models import Q
+
+    from tracer.views.observation_span import allowed_root_spans_for_request
+
+    assert (
+        allowed_root_spans_for_request(
+            [], organization=organization, project_scope_q=Q()
+        )
+        == {}
+    )
+
+
+# ──────────────────────────── trace_session (Slice 2) ────────────────────────
+
+
+@pytest.mark.django_db
+def test_collector_session_resolves_via_ch(organization, workspace):
+    """A collector trace_session (no PG row) resolves through the CH session
+    reader + PG Project tenant gate, returning a duck-typed source object."""
+    project = _make_project(organization=organization, workspace=workspace)
+    session_id = str(uuid.uuid4())
+    fields = {
+        session_id: {
+            "external_session_id": "ext-session-1",
+            "first_seen": datetime(2025, 5, 1, tzinfo=UTC),
+            "project_id": str(project.id),
+            "bookmarked": False,
+            "display_name": None,
+        }
+    }
+
+    with mock.patch(SESSION_FIELDS_PATH, return_value=fields):
+        resolved = helpers.resolve_source_object(
+            QueueItemSourceType.TRACE_SESSION.value,
+            session_id,
+            organization=organization,
+            workspace=workspace,
+            allow_ch_fallback=True,
+        )
+    assert resolved is not None
+    assert str(resolved.id) == session_id
+    assert str(resolved.project_id) == str(project.id)
+
+
+@pytest.mark.django_db
+def test_collector_session_cross_project_denied(organization, workspace):
+    """A session whose project belongs to a different org is denied (no
+    cross-tenant leak)."""
+    from accounts.models.organization import Organization
+
+    other_org = Organization.objects.create(name="Other Org 3")
+    other_project = _make_project(organization=other_org, workspace=None)
+    session_id = str(uuid.uuid4())
+    fields = {
+        session_id: {
+            "external_session_id": "ext",
+            "first_seen": None,
+            "project_id": str(other_project.id),
+            "bookmarked": False,
+            "display_name": None,
+        }
+    }
+
+    with mock.patch(SESSION_FIELDS_PATH, return_value=fields):
+        resolved = helpers.resolve_source_object(
+            QueueItemSourceType.TRACE_SESSION.value,
+            session_id,
+            organization=organization,
+            allow_ch_fallback=True,
+        )
+    assert resolved is None
+
+
+@pytest.mark.django_db
+def test_collector_session_content_renders_from_ch(organization, workspace, user):
+    """Content of a collector session returns name/project_id/created_at from CH,
+    NOT the deleted sentinel."""
+    project = _make_project(organization=organization, workspace=workspace)
+    queue = _queue(
+        organization=organization, workspace=workspace, user=user, project=project
+    )
+    session_id = str(uuid.uuid4())
+    item = QueueItem.objects.create(
+        queue=queue,
+        source_type=QueueItemSourceType.TRACE_SESSION.value,
+        trace_session_id=session_id,
+        organization=organization,
+        workspace=workspace,
+        status=QueueItemStatus.PENDING.value,
+    )
+    first_seen = datetime(2025, 5, 2, 9, 0, 0, tzinfo=UTC)
+    fields = {
+        session_id: {
+            "external_session_id": "ext-session-9",
+            "first_seen": first_seen,
+            "project_id": str(project.id),
+            "bookmarked": False,
+            "display_name": None,
+        }
+    }
+
+    with mock.patch(SESSION_FIELDS_PATH, return_value=fields):
+        content = helpers.resolve_source_content(item)
+    assert content["type"] == "trace_session"
+    assert "deleted" not in content
+    assert content["session_id"] == session_id
+    assert content["name"] == "ext-session-9"
+    assert content["project_id"] == str(project.id)
+    assert content["created_at"] == first_seen
+
+
+# ─────────────────────────── OSS-with-ee-stripped guard ──────────────────────
+
+
+def test_resolution_path_imports_no_ee():
+    """The annotation source-resolution modules must not couple to ``ee`` — the
+    OSS build (ee/ stripped) must still resolve collector sources."""
+    import inspect
+
+    import tracer.views.observation_span as obs_view
+
+    for mod in (helpers, obs_view):
+        src = inspect.getsource(mod)
+        assert "import ee" not in src
+        assert "from ee" not in src

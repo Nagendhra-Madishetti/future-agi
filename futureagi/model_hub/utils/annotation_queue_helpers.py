@@ -264,6 +264,17 @@ def _resolve_default_queue_scope(source_type, source_obj, organization=None):
                     project = qs.first()
         else:  # trace_session
             project = getattr(source_obj, "project", None)
+            if project is None:
+                # CH trace_session path (_CHTraceSessionSource): no FK, resolve the
+                # PG Project by the carried project_id, org-scoped (fail closed).
+                pid = getattr(source_obj, "project_id", None)
+                if pid:
+                    from tracer.models.project import Project
+
+                    qs = Project.objects.filter(id=pid)
+                    if organization is not None:
+                        qs = qs.filter(organization=organization)
+                    project = qs.first()
         if not project:
             return None, None
         scope_name = (
@@ -462,7 +473,9 @@ def resolve_default_queue_item_for_source(source_type, source_obj, organization,
     return item
 
 
-def resolve_source_object(source_type, source_id, organization=None, workspace=None):
+def resolve_source_object(
+    source_type, source_id, organization=None, workspace=None, *, allow_ch_fallback=False
+):
     """Look up a source model instance by type and ID.
 
     When *organization* is provided the returned object is verified to belong
@@ -475,6 +488,11 @@ def resolve_source_object(source_type, source_id, organization=None, workspace=N
     When *workspace* is provided, an additional check ensures the object
     belongs to that workspace (via direct FK or through a related project /
     dataset).  ``None`` is returned on mismatch.
+
+    ``allow_ch_fallback`` (opt-in): when ``True`` and no PG row exists, fall back
+    to ClickHouse for collector observation_span / trace_session sources, returning
+    a duck-typed CH object (``.id`` / ``.project_id``). Only soft-id-storing add
+    paths opt in; callers that deref ``.pk`` / FKs keep the PG-only default.
     """
     model = get_source_model(source_type)
     if not model:
@@ -482,7 +500,12 @@ def resolve_source_object(source_type, source_id, organization=None, workspace=N
     try:
         obj = model.objects.get(pk=source_id)
     except model.DoesNotExist:
-        return None
+        if not allow_ch_fallback:
+            return None
+        # Collector spans/sessions live only in CH; fall back there (fail closed).
+        return _resolve_ch_source_object(
+            source_type, source_id, organization=organization, workspace=workspace
+        )
 
     if organization is not None:
         obj_org = _get_source_organization(obj)
@@ -512,6 +535,177 @@ def resolve_source_object(source_type, source_id, organization=None, workspace=N
             return None
 
     return obj
+
+
+def _tenant_scoped_project(project_id, *, organization=None, workspace=None):
+    """Tenant gate for CH-resolved collector sources: return the PG ``Project`` for
+    *project_id* iff accessible to the org/workspace, else ``None``. ``organization``
+    is required (a CH source has no tenant of its own — the org distinguishes a
+    same-org null-workspace project from a foreign one). FAIL CLOSED: missing
+    project_id / missing organization / org or workspace mismatch all deny.
+    """
+    if not project_id or organization is None:
+        return None
+    from tracer.models.project import Project
+
+    project = Project.objects.filter(id=project_id, organization=organization).first()
+    if project is None:
+        return None
+    if workspace is not None:
+        proj_ws = getattr(project, "workspace", None)
+        ws_match = proj_ws == workspace or (
+            proj_ws is None and getattr(workspace, "is_default", False)
+        )
+        if not ws_match:
+            return None
+    return project
+
+
+def _resolve_ch_source_object(
+    source_type, source_id, *, organization=None, workspace=None
+):
+    """CH fallback for :func:`resolve_source_object` (collector data, no PG row).
+    Returns a duck-typed CH object (``.id`` / ``.project_id``) or ``None``, tenant-
+    verified against the PG ``Project``. CH errors are logged and denied (fail closed).
+    """
+    if source_type == QueueItemSourceType.OBSERVATION_SPAN.value:
+        from tracer.services.clickhouse.v2 import get_reader
+
+        try:
+            with get_reader() as reader:
+                span = reader.get(str(source_id))
+        except Exception as exc:  # narrow: any CH read failure → deny
+            logger.warning(
+                "ch_source_resolve_error",
+                source_type=source_type,
+                source_id=str(source_id),
+                error=str(exc),
+            )
+            return None
+        if span is None:
+            return None
+        if (
+            _tenant_scoped_project(
+                getattr(span, "project_id", None),
+                organization=organization,
+                workspace=workspace,
+            )
+            is None
+        ):
+            logger.warning(
+                "ch_source_tenant_denied",
+                source_type=source_type,
+                source_id=str(source_id),
+            )
+            return None
+        return span
+
+    if source_type == QueueItemSourceType.TRACE_SESSION.value:
+        return _resolve_ch_trace_session(
+            source_id, organization=organization, workspace=workspace
+        )
+
+    # trace (voice) and other source types are not CH-resolvable in this wave.
+    return None
+
+
+def _resolve_ch_trace_session(source_id, *, organization=None, workspace=None):
+    """CH fallback for a collector ``trace_session`` (no PG row): existence +
+    project_id from the CH reader, tenant-verified against PG. Returns a duck-typed
+    object (``.id`` / ``.project_id`` / ``.name``) or ``None`` (fail closed)."""
+    from tracer.services.clickhouse.v2.trace_session_dict_reader import (
+        resolve_session_fields,
+    )
+
+    try:
+        fields = resolve_session_fields([str(source_id)]).get(str(source_id))
+    except Exception as exc:  # narrow: CH read failure → deny
+        logger.warning(
+            "ch_session_resolve_error",
+            source_id=str(source_id),
+            error=str(exc),
+        )
+        return None
+    if not fields:
+        return None
+    project_id = fields.get("project_id")
+    if (
+        _tenant_scoped_project(
+            project_id, organization=organization, workspace=workspace
+        )
+        is None
+    ):
+        logger.warning("ch_session_tenant_denied", source_id=str(source_id))
+        return None
+    return _CHTraceSessionSource(
+        id=str(source_id),
+        project_id=str(project_id) if project_id else None,
+        name=fields.get("display_name") or fields.get("external_session_id") or "",
+        first_seen=fields.get("first_seen"),
+    )
+
+
+def _safe_related(item, attr):
+    """Read a ``db_constraint=False`` FK whose target row may not exist in PG
+    (collector data lives only in CH). Collapse a missing target
+    (``ObjectDoesNotExist``) to ``None`` so the caller can fall back to CH; other
+    errors propagate."""
+    from django.core.exceptions import ObjectDoesNotExist
+
+    try:
+        return getattr(item, attr)
+    except ObjectDoesNotExist:
+        return None
+
+
+def _ch_span_for_item(span_id):
+    """Best-effort CH point-read for a render path (preview/content). Returns the
+    :class:`CHSpan` or ``None`` (genuinely-gone span OR CH error). FAIL OPEN on the
+    render (None → ``deleted`` sentinel) but logs — never raises into the page."""
+    if not span_id:
+        return None
+    from tracer.services.clickhouse.v2 import get_reader
+
+    try:
+        with get_reader() as reader:
+            return reader.get(str(span_id))
+    except Exception as exc:
+        logger.warning("ch_span_render_error", span_id=str(span_id), error=str(exc))
+        return None
+
+
+def _ch_session_fields_for_item(session_id):
+    """Best-effort CH read of a session's identity fields for a render path.
+    Returns the fields dict or ``None`` (missing session OR CH error). FAIL OPEN on
+    the render but logs."""
+    if not session_id:
+        return None
+    from tracer.services.clickhouse.v2.trace_session_dict_reader import (
+        resolve_session_fields,
+    )
+
+    try:
+        return resolve_session_fields([str(session_id)]).get(str(session_id))
+    except Exception as exc:
+        logger.warning(
+            "ch_session_render_error", session_id=str(session_id), error=str(exc)
+        )
+        return None
+
+
+class _CHTraceSessionSource:
+    """Duck-typed stand-in for a PG ``TraceSession`` resolved from CH. Carries only
+    the attributes the annotation scope/store/render path reads off a session
+    (``id`` / ``project_id`` / ``name`` / ``first_seen``); it is NOT a Django model
+    and must never be assigned to a relation (the store path uses the soft id)."""
+
+    __slots__ = ("id", "project_id", "name", "first_seen")
+
+    def __init__(self, *, id, project_id, name, first_seen):
+        self.id = id
+        self.project_id = project_id
+        self.name = name
+        self.first_seen = first_seen
 
 
 def _get_source_organization(obj):
@@ -634,9 +828,22 @@ def resolve_source_preview(item):
             }
 
         elif item.source_type == QueueItemSourceType.OBSERVATION_SPAN.value:
-            span = item.observation_span
+            span = _safe_related(item, "observation_span")
             if not span:
-                return {"type": "observation_span", "deleted": True}
+                # collector span: no PG row, resolve from CH by the soft id
+                ch_span = _ch_span_for_item(item.observation_span_id)
+                if ch_span is None:
+                    return {"type": "observation_span", "deleted": True}
+                return {
+                    "type": "observation_span",
+                    "name": ch_span.name or "",
+                    "observation_type": ch_span.observation_type or "",
+                    "input_preview": _truncate(str(ch_span.input or ""), 200),
+                    "output_preview": _truncate(str(ch_span.output or ""), 200),
+                    # CH has no response_time column; latency is the only signal.
+                    "latency_ms": ch_span.latency_ms,
+                    "response_time_ms": ch_span.latency_ms,
+                }
             return {
                 "type": "observation_span",
                 "name": span.name or "",
@@ -672,9 +879,22 @@ def resolve_source_preview(item):
             }
 
         elif item.source_type == QueueItemSourceType.TRACE_SESSION.value:
-            session = item.trace_session
+            session = _safe_related(item, "trace_session")
             if not session:
-                return {"type": "trace_session", "deleted": True}
+                # collector session: no PG row, resolve identity from CH
+                fields = _ch_session_fields_for_item(item.trace_session_id)
+                if fields is None:
+                    return {"type": "trace_session", "deleted": True}
+                return {
+                    "type": "trace_session",
+                    "session_id": str(item.trace_session_id),
+                    "name": fields.get("display_name")
+                    or fields.get("external_session_id")
+                    or "",
+                    "project_id": (
+                        str(fields["project_id"]) if fields.get("project_id") else None
+                    ),
+                }
             return {
                 "type": "trace_session",
                 "session_id": str(session.id),
@@ -781,9 +1001,17 @@ def resolve_source_content(item):
             }
 
         elif item.source_type == QueueItemSourceType.OBSERVATION_SPAN.value:
-            span = item.observation_span
+            span = _safe_related(item, "observation_span")
             if not span:
-                return {"type": "observation_span", "deleted": True}
+                # collector span: no PG row, rebuild content from CH via the mapper
+                ch_span = _ch_span_for_item(item.observation_span_id)
+                if ch_span is None:
+                    return {"type": "observation_span", "deleted": True}
+                from tracer.services.clickhouse.v2.span_reader import (
+                    chspan_to_annotation_source_dict,
+                )
+
+                return chspan_to_annotation_source_dict(ch_span)
             return {
                 "type": "observation_span",
                 "span_id": str(span.id),
@@ -881,9 +1109,27 @@ def resolve_source_content(item):
             }
 
         elif item.source_type == QueueItemSourceType.TRACE_SESSION.value:
-            session = item.trace_session
+            session = _safe_related(item, "trace_session")
             if not session:
-                return {"type": "trace_session", "deleted": True}
+                # collector session: no PG row, resolve from CH (first_seen is the
+                # created_at/updated_at proxy — CH has no audit columns)
+                fields = _ch_session_fields_for_item(item.trace_session_id)
+                if fields is None:
+                    return {"type": "trace_session", "deleted": True}
+                first_seen = fields.get("first_seen")
+                return {
+                    "type": "trace_session",
+                    "session_id": str(item.trace_session_id),
+                    "source_id": str(item.trace_session_id),
+                    "name": fields.get("display_name")
+                    or fields.get("external_session_id")
+                    or "",
+                    "project_id": (
+                        str(fields["project_id"]) if fields.get("project_id") else None
+                    ),
+                    "created_at": first_seen,
+                    "updated_at": first_seen,
+                }
             return {
                 "type": "trace_session",
                 "session_id": str(session.id),
