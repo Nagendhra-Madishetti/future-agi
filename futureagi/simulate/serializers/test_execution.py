@@ -691,10 +691,10 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
                     ),
                     "skipped": bool(eval_data.get("skipped", False))
                     or eval_data.get("status") == "skipped",
-                    "pass": eval_data.get("output_pass"),
-                    "score": eval_data.get("output_score"),
-                    "choice": eval_data.get("output_choice"),
-                    "choices": eval_data.get("output_choices"),
+                    "output_pass": eval_data.get("output_pass"),
+                    "output_score": eval_data.get("output_score"),
+                    "output_choice": eval_data.get("output_choice"),
+                    "output_choices": eval_data.get("output_choices"),
                 }
 
         return structured_outputs

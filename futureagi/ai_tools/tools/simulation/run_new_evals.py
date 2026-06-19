@@ -56,11 +56,11 @@ class RunNewEvalsOnSimulationTool(BaseTool):
         self, params: RunNewEvalsOnSimulationInput, context: ToolContext
     ) -> ToolResult:
         import structlog
+        from simulate.models.call_execution import CallExecution
+        from simulate.models.simulate_eval_config import SimulateEvalConfig
 
         from evaluations.engine.normalize import empty_axes
-        from simulate.models.call_execution import CallExecution
         from simulate.models.run_test import RunTest
-        from simulate.models.simulate_eval_config import SimulateEvalConfig
         from simulate.models.test_execution import TestExecution
         from simulate.services.test_executor import (
             run_new_evals_on_call_executions_task,
