@@ -22538,6 +22538,30 @@ export interface StripeWebhookLegacyResponseApi {
   result?: StripeWebhookResultApi;
 }
 
+/**
+ * Verbatim runner output (number | bool | string | list | dict | null)
+ */
+export type CallExecutionEvalOutputApiValue = { [key: string]: unknown };
+
+export interface CallExecutionEvalOutputApi {
+  /** Verbatim runner output (number | bool | string | list | dict | null) */
+  value?: CallExecutionEvalOutputApiValue;
+  reason?: string;
+  type?: string;
+  name?: string;
+  error?: boolean;
+  status?: string;
+  skipped?: boolean;
+  /** Set when stored config[output]=Pass/Fail */
+  output_pass?: boolean;
+  /** Set when stored config[output] in (score, numeric) */
+  output_score?: number;
+  /** Set when stored config[output]=choices and not multi_choice */
+  output_choice?: string;
+  /** Set when stored config[output]=choices and multi_choice */
+  output_choices?: string[];
+}
+
 export type AccountsAwsMarketplaceLaunchSoftwareCreateBody = {
   'x-amzn-marketplace-token': string;
   'x-amzn-marketplace-product-id'?: string;

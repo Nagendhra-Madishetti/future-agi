@@ -234,6 +234,45 @@ class CallExecutionEvalMetricSerializer(serializers.Serializer):
     input_types = serializers.JSONField(required=False, allow_null=True)
 
 
+class CallExecutionEvalOutputSerializer(serializers.Serializer):
+    """One entry of ``eval_outputs``. All fields optional; pending evals emit ``{}``.
+
+    Exactly one of ``output_pass`` / ``output_score`` / ``output_choice`` /
+    ``output_choices`` is populated per row, gated by the eval template's
+    stored ``config["output"]`` and ``multi_choice`` flag.
+    """
+
+    value = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        help_text="Verbatim runner output (number | bool | string | list | dict | null)",
+    )
+    reason = serializers.CharField(allow_blank=True, required=False)
+    type = serializers.CharField(allow_blank=True, required=False)
+    name = serializers.CharField(allow_blank=True, required=False)
+    error = serializers.BooleanField(required=False)
+    status = serializers.CharField(allow_blank=True, required=False)
+    skipped = serializers.BooleanField(required=False)
+    output_pass = serializers.BooleanField(
+        required=False, allow_null=True, help_text="Set when stored config[output]=Pass/Fail"
+    )
+    output_score = serializers.FloatField(
+        required=False, allow_null=True, help_text="Set when stored config[output] in (score, numeric)"
+    )
+    output_choice = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text="Set when stored config[output]=choices and not multi_choice",
+    )
+    output_choices = serializers.ListField(
+        child=serializers.CharField(allow_blank=True),
+        required=False,
+        allow_null=True,
+        help_text="Set when stored config[output]=choices and multi_choice",
+    )
+
+
 class CallExecutionErrorLocalizerTaskSerializer(serializers.Serializer):
     """One entry in ``error_localizer_tasks``."""
 
@@ -651,6 +690,11 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
             return round(response_time_ms / 1000, 3)
         return None
 
+    @swagger_serializer_method(
+        serializer_or_field=serializers.DictField(
+            child=CallExecutionEvalOutputSerializer()
+        )
+    )
     def get_eval_outputs(self, obj):
         """Get evaluation outputs in a structured format"""
         # Handle both model instances and dictionaries (from grouping)

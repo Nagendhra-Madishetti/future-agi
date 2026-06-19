@@ -47921,7 +47921,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "eval_outputs": {
           "title": "Eval outputs",
           "type": "string",
-          "readOnly": true
+          "readOnly": true,
+          "additionalProperties": {
+            "$ref": "#/definitions/CallExecutionEvalOutput"
+          }
         },
         "eval_metrics": {
           "title": "Eval metrics",
@@ -76972,6 +76975,68 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "input_types": {
           "title": "Input types",
           "type": "object",
+          "x-nullable": true
+        }
+      }
+    },
+    "CallExecutionEvalOutput": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "title": "Value",
+          "description": "Verbatim runner output (number | bool | string | list | dict | null)",
+          "type": "object",
+          "x-nullable": true
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "error": {
+          "title": "Error",
+          "type": "boolean"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "skipped": {
+          "title": "Skipped",
+          "type": "boolean"
+        },
+        "output_pass": {
+          "title": "Output pass",
+          "description": "Set when stored config[output]=Pass/Fail",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "output_score": {
+          "title": "Output score",
+          "description": "Set when stored config[output] in (score, numeric)",
+          "type": "number",
+          "x-nullable": true
+        },
+        "output_choice": {
+          "title": "Output choice",
+          "description": "Set when stored config[output]=choices and not multi_choice",
+          "type": "string",
+          "x-nullable": true
+        },
+        "output_choices": {
+          "title": "Output choices",
+          "description": "Set when stored config[output]=choices and multi_choice",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
           "x-nullable": true
         }
       }
