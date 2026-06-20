@@ -53,10 +53,6 @@ const EvalDrawerSection = () => {
 
   const reason = evalView?.metricDetail?.reason;
   const isError = evalView?.metricDetail?.error;
-  // Prefer the canonical axis fields the backend now sends. ``output`` is
-  // the synthesised value we render: a list when output_choices is set, the
-  // pass/fail label for pass/fail rows, or the score for pure score rows.
-  // Falls back to evalView.metricDetail.value for pre-PR rows.
   const canonicalChoices = Array.isArray(evalView?.metricDetail?.output_choices)
     ? evalView.metricDetail.output_choices
     : null;

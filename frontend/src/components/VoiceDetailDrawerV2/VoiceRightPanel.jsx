@@ -218,8 +218,6 @@ const VoiceRightPanel = ({
       let scoreLabel;
       let scoreItems;
 
-      // Prefer the canonical axis fields (TH-6044) when the backend sends
-      // them — these are clean primitives that never need shape rescue.
       const hasCanonicalPass = typeof e?.output_pass === "boolean";
       const hasCanonicalScore = typeof e?.output_score === "number";
       const hasCanonicalChoices =
@@ -236,8 +234,6 @@ const VoiceRightPanel = ({
         scoreItems = e.output_choices.map((v) => String(v));
       }
 
-      // Fall back to legacy rawValue parsing only when none of the canonical
-      // axis fields are populated (pre-PR rows, observe-side traces, etc).
       if (!hasCanonicalPass && !hasCanonicalScore && !hasCanonicalChoices) {
         if (typeof rawValue === "number") {
           // Numbers in [0, 1] → percent. Numbers already in [0, 100] → as-is.

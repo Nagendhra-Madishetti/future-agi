@@ -11,12 +11,8 @@ import { OutputTypes } from "src/sections/common/DevelopCellRenderer/CellRendere
 import { normalizeEvalResult } from "src/sections/develop-detail/DataTab/common";
 
 const EvalCellRenderer = ({ value: evalData }) => {
-  // Numeric output type keeps its dedicated cell.
   const isNumeric = evalData?.type === OutputTypes.NUMERIC;
 
-  // Prefer the canonical axis fields the backend now sends per row
-  // (output_pass / output_score / output_choices). Fall back to parsing
-  // ``value`` only for pre-PR rows that don't carry the canonical keys.
   const canonicalPass =
     typeof evalData?.output_pass === "boolean" ? evalData.output_pass : null;
   const canonicalScore =
@@ -32,19 +28,15 @@ const EvalCellRenderer = ({ value: evalData }) => {
   const result = normalizeEvalResult(evalData?.value, evalData?.type);
 
   const getBgColor = () => {
-    // Pass/Fail wins outright when present.
     if (canonicalPass !== null) {
       return canonicalPass
         ? interpolateColorBasedOnScore(1, 1)
         : interpolateColorBasedOnScore(0, 1);
     }
-    // Score (also colours choice cells when output_score is populated by
-    // choice_scores templates — the permissive secondary axis).
     if (canonicalScore !== null) {
       const maxScore = canonicalScore <= 1 ? 1 : 100;
       return interpolateColorBasedOnScore(canonicalScore, maxScore);
     }
-    // Legacy fallback for pre-PR rows.
     if (result.kind === "score") {
       const maxScore = result.score <= 1 ? 1 : 100;
       return interpolateColorBasedOnScore(result.score, maxScore);
