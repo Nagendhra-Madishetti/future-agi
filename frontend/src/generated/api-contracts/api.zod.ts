@@ -20189,9 +20189,6 @@ export const ModelHubExperimentsUpdateResponse = zod.object({
 
 
 export const ModelHubExperimentsDataListQueryParams = zod.object({
-  "created_at": zod.string().optional(),
-  "status": zod.string().optional(),
-  "dataset_id": zod.string().optional(),
   "ordering": zod.string().optional().describe('Which field to use when ordering the results.'),
   "search": zod.string().optional().describe('A search term.'),
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
@@ -20300,9 +20297,6 @@ export const ModelHubExperimentsV2CreateResponse = zod.object({
  * V2 experiment list with filtering, search, and pagination.
  */
 export const ModelHubExperimentsV2ListListQueryParams = zod.object({
-  "created_at": zod.string().optional(),
-  "status": zod.string().optional(),
-  "dataset_id": zod.string().optional(),
   "search": zod.string().optional().describe('A search term.'),
   "ordering": zod.string().optional().describe('Which field to use when ordering the results.'),
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
@@ -22547,8 +22541,6 @@ export const ModelHubMetricsByColumnListResponse = zod.object({
 
 
 export const ModelHubOptimisationListQueryParams = zod.object({
-  "optimize_type": zod.string().optional(),
-  "status": zod.string().optional(),
   "search": zod.string().optional().describe('A search term.'),
   "ordering": zod.string().optional().describe('Which field to use when ordering the results.'),
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
@@ -23757,7 +23749,6 @@ export const ModelHubPromptBaseTemplatesDeleteParams = zod.object({
 
 
 export const ModelHubPromptExecutionsListQueryParams = zod.object({
-  "name": zod.string().optional(),
   "search": zod.string().optional().describe('A search term.'),
   "ordering": zod.string().optional().describe('Which field to use when ordering the results.'),
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
@@ -23951,9 +23942,6 @@ export const ModelHubPromptFoldersDeleteParams = zod.object({
 
 
 export const ModelHubPromptHistoryExecutionsListQueryParams = zod.object({
-  "template_name": zod.string().optional(),
-  "template_version": zod.string().optional(),
-  "created_at": zod.string().optional(),
   "search": zod.string().optional().describe('A search term.'),
   "ordering": zod.string().optional().describe('Which field to use when ordering the results.'),
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
@@ -24009,9 +23997,6 @@ export const ModelHubPromptHistoryExecutionsGetExecutionDetailsParams = zod.obje
 })
 
 export const ModelHubPromptHistoryExecutionsGetExecutionDetailsQueryParams = zod.object({
-  "template_name": zod.string().optional(),
-  "template_version": zod.string().optional(),
-  "created_at": zod.string().optional(),
   "search": zod.string().optional().describe('A search term.'),
   "ordering": zod.string().optional().describe('Which field to use when ordering the results.'),
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
@@ -24378,9 +24363,6 @@ export const ModelHubPromptLabelsAssignLabelByIdBody = zod.object({
 
 
 export const ModelHubPromptTemplatesListQueryParams = zod.object({
-  "name": zod.string().optional(),
-  "version": zod.string().optional(),
-  "created_at": zod.string().optional(),
   "search": zod.string().optional().describe('A search term.'),
   "ordering": zod.string().optional().describe('Which field to use when ordering the results.'),
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
@@ -24576,9 +24558,6 @@ If no version is specified, returns the default version (is_default=True).
 If a version is specified, returns that specific version.
  */
 export const ModelHubPromptTemplatesGetTemplateByNameQueryParams = zod.object({
-  "name": zod.string().optional(),
-  "version": zod.string().optional(),
-  "created_at": zod.string().optional(),
   "search": zod.string().optional().describe('A search term.'),
   "ordering": zod.string().optional().describe('Which field to use when ordering the results.'),
   "page": zod.number().optional().describe('A page number within the paginated result set.'),
@@ -30282,7 +30261,10 @@ export const SimulateCallExecutionsReadResponse = zod.object({
 }).passthrough().optional(),
   "input_types": zod.object({
 
-}).passthrough().optional()
+}).passthrough().optional(),
+  "output_pass": zod.boolean().optional().describe('Mirrors eval_outputs[...].output_pass; set on Pass\/Fail evals.'),
+  "output_score": zod.number().optional().describe('Mirrors eval_outputs[...].output_score; set on score \/ numeric \/ choice_scores evals.'),
+  "output_choices": zod.array(zod.string()).optional().describe('Mirrors eval_outputs[...].output_choices; one-element list for single-pick, N for multi-pick.')
 })).optional().describe('Get evaluation metrics in a format suitable for the UI'),
   "scenario_columns": zod.string().optional(),
   "ended_reason": zod.string().max(simulateCallExecutionsReadResponseEndedReasonMax).optional().describe('Reason why the call ended'),
