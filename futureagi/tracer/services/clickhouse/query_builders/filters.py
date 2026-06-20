@@ -1039,6 +1039,24 @@ class ClickHouseFilterBuilder:
         }
     )
 
+    # Ops that compare a nullable UUID column against a STRING value. For
+    # these the column is wrapped in toString(...) so substring (LIKE),
+    # equality, and IN work — ClickHouse rejects direct UUID-vs-String
+    # comparisons. Ops absent here (is_null/is_not_null, ranges) operate on
+    # the bare column.
+    _UUID_TEXT_FILTER_OPS = frozenset(
+        {
+            "equals",
+            "not_equals",
+            "contains",
+            "not_contains",
+            "starts_with",
+            "ends_with",
+            "in",
+            "not_in",
+        }
+    )
+
     def _build_column_condition(
         self,
         column: str,
@@ -1059,12 +1077,8 @@ class ClickHouseFilterBuilder:
         if filter_op == "is_null":
             if column in self._NULLABLE_UUID_COLUMNS:
                 return f"{column} IS NULL"
-            if column in self._NULLABLE_UUID_COLUMNS:
-                return f"{column} IS NULL"
             return f"({column} IS NULL OR {column} = '')"
         elif filter_op == "is_not_null":
-            if column in self._NULLABLE_UUID_COLUMNS:
-                return f"{column} IS NOT NULL"
             if column in self._NULLABLE_UUID_COLUMNS:
                 return f"{column} IS NOT NULL"
             return f"({column} IS NOT NULL AND {column} != '')"

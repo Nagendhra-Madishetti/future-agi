@@ -140,6 +140,23 @@ class TestTraceSessionRetrieveAPI:
         response = auth_client.get(f"/tracer/trace-session/{other_session.id}/")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_retrieve_ch_only_session_requires_accessible_project(
+        self, auth_client, observe_project
+    ):
+        session_id = uuid.uuid4()
+        inaccessible_project_id = uuid.uuid4()
+
+        with mock.patch(
+            "tracer.services.clickhouse.v2.trace_session_dict_reader."
+            "resolve_session_fields",
+            return_value={
+                str(session_id): {"project_id": str(inaccessible_project_id)}
+            },
+        ):
+            response = auth_client.get(f"/tracer/trace-session/{session_id}/")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     def test_retrieve_session_has_navigation_fields(self, auth_client, trace_session):
         """Session detail response includes previous/next session IDs in session_metadata."""
         response = auth_client.get(f"/tracer/trace-session/{trace_session.id}/")
@@ -382,6 +399,60 @@ class TestTraceSessionExportAPI:
 class TestTraceSessionGraphAPI:
     """Tests for POST /tracer/trace-session/get_session_graph_data/ endpoint."""
 
+    def test_session_filter_uses_clickhouse_graph(
+        self, auth_client, observe_project
+    ):
+        session_id = "003b76f1-2b4a-4af5-b0dc-224d687374d4"
+        analytics = mock.Mock()
+        analytics.execute_ch_query.return_value = mock.Mock(data=[], columns=[])
+
+        with mock.patch(
+            "tracer.services.clickhouse.query_service.AnalyticsQueryService",
+            return_value=analytics,
+        ):
+            response = auth_client.post(
+                "/tracer/trace-session/get_session_graph_data/",
+                {
+                    "project_id": str(observe_project.id),
+                    "interval": "day",
+                    "property": "average",
+                    "req_data_config": {
+                        "id": "session_count",
+                        "type": "SYSTEM_METRIC",
+                    },
+                    "filters": [
+                        {
+                            "column_id": "created_at",
+                            "filter_config": {
+                                "filter_type": "datetime",
+                                "filter_op": "between",
+                                "filter_value": [
+                                    "2026-06-18T00:00:00Z",
+                                    "2026-06-19T00:00:00Z",
+                                ],
+                            },
+                        },
+                        {
+                            "column_id": "session",
+                            "display_name": "Session",
+                            "filter_config": {
+                                "filter_type": "text",
+                                "filter_op": "in",
+                                "filter_value": [session_id],
+                                "col_type": "SYSTEM_METRIC",
+                            },
+                        },
+                    ],
+                },
+                format="json",
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert get_result(response)["metric_name"] == "session_count"
+        query, params = analytics.execute_ch_query.call_args.args[:2]
+        assert "IN %(session_id_1)s" in query
+        assert params["session_id_1"] == (session_id,)
+
 
 @pytest.mark.integration
 @pytest.mark.api
@@ -474,6 +545,64 @@ class TestTraceSessionWorkspaceScopeAPI:
             format="json",
         )
         assert graph.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_user_filter_values_return_external_user_ids(
+        self, auth_client, observe_project
+    ):
+        analytics = mock.Mock()
+        analytics.execute_ch_query.return_value = mock.Mock(
+            data=[{"val": "alice"}, {"val": "bob"}]
+        )
+
+        with mock.patch(
+            "tracer.services.clickhouse.query_service.AnalyticsQueryService",
+            return_value=analytics,
+        ):
+            response = auth_client.get(
+                "/tracer/trace-session/get_session_filter_values/",
+                {"project_id": str(observe_project.id), "column": "user_id"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert get_result(response)["values"] == ["alice", "bob"]
+        query = analytics.execute_ch_query.call_args.args[0]
+        assert "FROM end_users FINAL" in query
+        assert "user_id AS val" in query
+
+    def test_session_filter_values_use_external_id_as_label(
+        self, auth_client, observe_project
+    ):
+        analytics = mock.Mock()
+        analytics.execute_ch_query.return_value = mock.Mock(
+            data=[{"val": str(uuid.uuid4()), "label": "session-alpha"}]
+        )
+        session_id = analytics.execute_ch_query.return_value.data[0]["val"]
+
+        with (
+            mock.patch(
+                "tracer.services.clickhouse.query_service.AnalyticsQueryService",
+                return_value=analytics,
+            ),
+            mock.patch(
+                "tracer.services.clickhouse.v2.trace_session_dict_reader."
+                "resolve_session_fields",
+                return_value={
+                    session_id: {
+                        "external_session_id": "session-alpha",
+                        "display_name": None,
+                    }
+                },
+            ),
+        ):
+            response = auth_client.get(
+                "/tracer/trace-session/get_session_filter_values/",
+                {"project_id": str(observe_project.id), "column": "session_id"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert get_result(response)["values"] == [
+            {"value": session_id, "label": "session-alpha"}
+        ]
 
     def test_generic_delete_cascades_session_traces_spans_and_eval_logs(
         self, auth_client, observe_project
@@ -681,7 +810,6 @@ class TestTraceSessionOverlayWritePath:
             response = TraceSessionView()._retrieve_clickhouse(
                 mock.Mock(),
                 requested_id,
-                mock.Mock(id=requested_id),
                 observe_project.id,
                 analytics,
                 {"page_number": 0, "page_size": 10},

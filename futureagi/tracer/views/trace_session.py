@@ -36,7 +36,7 @@ from django.db.models.functions import (
     Coalesce,
     Round,
 )
-from django.http import FileResponse
+from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import status as drf_status
 from rest_framework.decorators import action
@@ -161,6 +161,33 @@ def _trace_session_queryset_for_request(request):
         project__deleted=False,
         deleted=False,
     )
+
+
+def _resolve_ch_session_fields(request, trace_session_id):
+    """Resolve a CH-only session (fi-collector ingests to CH, not PG).
+
+    Returns the curated CH ``trace_sessions_dict`` fields (``project_id``,
+    ``display_name``, ``external_session_id``, …) when the session exists
+    AND the caller's workspace can access its project. Returns ``None`` when
+    the session is unknown or out of scope — callers map that to "not found"
+    so the CH fallback enforces the same tenant gate as the PG queryset.
+    """
+    from tracer.services.clickhouse.v2.trace_session_dict_reader import (
+        resolve_session_fields,
+    )
+
+    session_fields = resolve_session_fields([trace_session_id]).get(
+        str(trace_session_id)
+    )
+    if not session_fields:
+        return None
+    if not (
+        _project_queryset_for_request(request)
+        .filter(id=session_fields["project_id"])
+        .exists()
+    ):
+        return None
+    return session_fields
 
 
 def _soft_delete_trace_session_tree(trace_sessions):
@@ -312,323 +339,30 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             query_data = query_serializer.validated_data
 
             trace_session_id = self.kwargs.get("pk")
-            trace_session = self.get_queryset().get(id=trace_session_id)
-            project_id = trace_session.project.id
 
-            # ClickHouse dispatch for session detail
             from tracer.services.clickhouse.query_service import (
                 AnalyticsQueryService,
             )
 
-            # CH-only path post-migration. PG fallback removed; a CH error
-            # propagates so operators see real data-pipeline issues instead
-            # of silently degrading to incomplete legacy session data.
             analytics = AnalyticsQueryService()
+
+            try:
+                trace_session = self.get_queryset().get(id=trace_session_id)
+                project_id = trace_session.project.id
+            except TraceSession.DoesNotExist:
+                session_fields = _resolve_ch_session_fields(
+                    request, trace_session_id
+                )
+                if not session_fields:
+                    return self._gm.bad_request("Session not found.")
+                project_id = session_fields["project_id"]
+
             return self._retrieve_clickhouse(
                 request,
                 trace_session_id,
-                trace_session,
                 project_id,
                 analytics,
                 query_data,
-            )
-
-            serializer = self.get_serializer(trace_session)
-            trace_session = serializer.data
-
-            page_number = query_data["page_number"]
-            page_size = query_data["page_size"]
-            page_start = page_number * page_size
-            page_end = page_start + page_size + 1
-
-            trace_qs = Trace.objects.filter(session_id=trace_session_id)
-            total_traces = trace_qs.count()
-            trace_id_subquery = trace_qs.values("id")
-
-            session_aggregates = ObservationSpan.objects.filter(
-                trace_id__in=trace_id_subquery
-            ).aggregate(
-                start_time=Min("start_time"),
-                end_time=Max("end_time"),
-                total_cost=Coalesce(
-                    Sum("cost", output_field=models.FloatField()),
-                    0.0,
-                ),
-                total_tokens=Coalesce(
-                    Sum("total_tokens", output_field=models.IntegerField()),
-                    0,
-                ),
-            )
-
-            session_start_time = session_aggregates["start_time"]
-            session_end_time = session_aggregates["end_time"]
-            duration = (
-                (session_end_time - session_start_time).total_seconds()
-                if session_end_time and session_start_time
-                else 0
-            )
-
-            session_metadata = {
-                "session_id": str(trace_session_id),
-                "duration": duration,
-                "total_cost": (
-                    round(session_aggregates["total_cost"], 6)
-                    if session_aggregates["total_cost"]
-                    and session_aggregates["total_cost"] > 0
-                    else 0
-                ),
-                "total_traces": total_traces,
-                "start_time": format_datetime_to_iso(session_start_time),
-                "end_time": format_datetime_to_iso(session_end_time),
-                "total_tokens": session_aggregates["total_tokens"],
-            }
-
-            traces = list(
-                Trace.objects.filter(session_id=trace_session_id).order_by(
-                    "created_at"
-                )[page_start:page_end]
-            )
-            has_next = len(traces) > page_size
-            traces = traces[:page_size]
-
-            if not traces:
-                next_session_id, previous_session_id = get_session_navigation(
-                    request, project_id, trace_session_id, query_data
-                )
-                session_metadata["next_session_id"] = next_session_id
-                session_metadata["previous_session_id"] = previous_session_id
-                return self._gm.success_response(
-                    {
-                        "session_metadata": session_metadata,
-                        "response": [],
-                        "next": False,
-                    }
-                )
-
-            paginated_trace_ids = [t.id for t in traces]
-
-            span_aggs = (
-                ObservationSpan.objects.filter(trace_id__in=paginated_trace_ids)
-                .values("trace_id")
-                .annotate(
-                    root_start_time=Min(
-                        Case(When(parent_span_id__isnull=True, then="start_time"))
-                    ),
-                    root_latency_ms=Min(
-                        Case(When(parent_span_id__isnull=True, then="latency_ms"))
-                    ),
-                    total_cost=Coalesce(
-                        Round(Sum("cost", output_field=FloatField()), 6), 0.0
-                    ),
-                    total_tokens=Coalesce(
-                        Sum("total_tokens", output_field=IntegerField()), 0
-                    ),
-                    input_tokens=Coalesce(
-                        Sum("prompt_tokens", output_field=IntegerField()), 0
-                    ),
-                    output_tokens=Coalesce(
-                        Sum("completion_tokens", output_field=IntegerField()), 0
-                    ),
-                )
-            )
-            span_agg_map = {str(row["trace_id"]): row for row in span_aggs}
-
-            eval_configs = list(
-                CustomEvalConfig.objects.filter(
-                    id__in=EvalLogger.objects.filter(
-                        trace_id__in=trace_id_subquery
-                    ).values("custom_eval_config_id"),
-                    deleted=False,
-                ).select_related("eval_template")
-            )
-
-            eval_config_ids = [c.id for c in eval_configs]
-            eval_map = {}  # (trace_id_str, config_id_str) -> score data
-            explanation_map = {}  # config_id_str -> explanation
-
-            if eval_config_ids:
-                eval_aggs = (
-                    EvalLogger.objects.filter(
-                        trace_id__in=paginated_trace_ids,
-                        custom_eval_config_id__in=eval_config_ids,
-                    )
-                    .exclude(Q(output_str="ERROR") | Q(error=True))
-                    .values("trace_id", "custom_eval_config_id")
-                    .annotate(
-                        float_score=Round(Avg("output_float") * 100, 2),
-                        bool_score=Round(
-                            Avg(
-                                Case(
-                                    When(output_bool=True, then=100.0),
-                                    When(output_bool=False, then=0.0),
-                                    default=None,
-                                    output_field=FloatField(),
-                                )
-                            ),
-                            2,
-                        ),
-                        float_count=Count("output_float"),
-                        bool_count=Count("output_bool"),
-                        str_list_count=Count("output_str_list"),
-                    )
-                )
-
-                for row in eval_aggs:
-                    key = (
-                        str(row["trace_id"]),
-                        str(row["custom_eval_config_id"]),
-                    )
-                    if row["float_count"] > 0:
-                        eval_map[key] = {
-                            "score": row["float_score"],
-                            "type": "float",
-                        }
-                    elif row["bool_count"] > 0:
-                        eval_map[key] = {
-                            "score": row["bool_score"],
-                            "type": "bool",
-                        }
-                    elif row["str_list_count"] > 0:
-                        eval_map[key] = {
-                            "type": "str_list",
-                            "str_list_data": {},
-                        }
-
-                str_list_choices = {
-                    str(c.id): c.eval_template.choices
-                    for c in eval_configs
-                    if c.eval_template and c.eval_template.choices
-                }
-                str_list_keys = {
-                    k for k, v in eval_map.items() if v.get("type") == "str_list"
-                }
-
-                if str_list_keys and str_list_choices:
-                    str_list_logs = (
-                        EvalLogger.objects.filter(
-                            trace_id__in=paginated_trace_ids,
-                            custom_eval_config_id__in=[
-                                c.id
-                                for c in eval_configs
-                                if str(c.id) in str_list_choices
-                            ],
-                            output_str_list__isnull=False,
-                        )
-                        .exclude(Q(output_str="ERROR") | Q(error=True))
-                        .values(
-                            "trace_id",
-                            "custom_eval_config_id",
-                            "output_str_list",
-                        )
-                    )
-
-                    grouped = defaultdict(list)
-                    for log in str_list_logs:
-                        key = (
-                            str(log["trace_id"]),
-                            str(log["custom_eval_config_id"]),
-                        )
-                        if log["output_str_list"]:
-                            grouped[key].append(log["output_str_list"])
-
-                    for key, str_lists in grouped.items():
-                        if key not in str_list_keys:
-                            continue
-                        choices = str_list_choices.get(key[1], [])
-                        total = len(str_lists)
-                        breakdown = {}
-                        for choice in choices:
-                            count = sum(1 for sl in str_lists if choice in sl)
-                            breakdown[choice] = {
-                                "score": (
-                                    round(100.0 * count / total, 2) if total > 0 else 0
-                                )
-                            }
-                        eval_map[key]["str_list_data"] = breakdown
-
-                # Pick the most recent explanation per eval config via
-                # Subquery (ordered by -created_at) instead of Min() which
-                # is non-deterministic on text fields.
-                for row in (
-                    EvalLogger.objects.filter(
-                        trace_id__in=paginated_trace_ids,
-                        custom_eval_config_id__in=eval_config_ids,
-                        eval_explanation__isnull=False,
-                    )
-                    .values("custom_eval_config_id")
-                    .annotate(
-                        explanation=Subquery(
-                            EvalLogger.objects.filter(
-                                custom_eval_config_id=OuterRef("custom_eval_config_id"),
-                                trace_id__in=paginated_trace_ids,
-                                eval_explanation__isnull=False,
-                            )
-                            .order_by("-created_at")
-                            .values("eval_explanation")[:1]
-                        )
-                    )
-                ):
-                    explanation_map[str(row["custom_eval_config_id"])] = row[
-                        "explanation"
-                    ]
-
-            response = []
-            for trace in traces:
-                trace_id_str = str(trace.id)
-                agg = span_agg_map.get(trace_id_str, {})
-
-                result = {
-                    "trace_id": trace_id_str,
-                    "input": trace.input,
-                    "output": trace.output,
-                    "system_metrics": {
-                        "total_latency_ms": agg.get("root_latency_ms", 0),
-                        "total_cost": agg.get("total_cost", 0),
-                        "start_time": format_datetime_to_iso(trace.created_at),
-                        "total_tokens": agg.get("total_tokens", 0),
-                        "input_tokens": agg.get("input_tokens", 0),
-                        "output_tokens": agg.get("output_tokens", 0),
-                    },
-                }
-
-                eval_metrics = {}
-                for config in eval_configs:
-                    config_id_str = str(config.id)
-                    key = (trace_id_str, config_id_str)
-                    data = eval_map.get(key)
-                    explanation = explanation_map.get(config_id_str)
-
-                    if data:
-                        if data["type"] in ("float", "bool"):
-                            eval_metrics[config_id_str] = {
-                                "score": data["score"],
-                                "name": config.name,
-                                "explanation": explanation,
-                            }
-                        elif data["type"] == "str_list":
-                            str_data = data.get("str_list_data", {})
-                            for choice_key, value in str_data.items():
-                                eval_metrics[config_id_str + "**" + choice_key] = {
-                                    "score": value["score"],
-                                    "name": config.name + " - " + choice_key,
-                                    "explanation": explanation,
-                                }
-
-                result["evals_metrics"] = eval_metrics
-                response.append(result)
-
-            next_session_id, previous_session_id = get_session_navigation(
-                request, project_id, trace_session_id, query_data
-            )
-            session_metadata["next_session_id"] = next_session_id
-            session_metadata["previous_session_id"] = previous_session_id
-
-            return self._gm.success_response(
-                {
-                    "session_metadata": session_metadata,
-                    "response": response,
-                    "next": has_next,
-                }
             )
         except OperationalError as e:
             logger.exception(
@@ -658,7 +392,6 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         self,
         request,
         trace_session_id,
-        trace_session_obj,
         project_id,
         analytics,
         query_data,
@@ -788,17 +521,21 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         # Resolve eval-config IDs in CH (avoids a tracer_eval_logger PG
         # scan that grows linearly with eval traffic), then fetch the
         # PG metadata by primary key.
+        from tracer.services.clickhouse.eval_logger_table import (
+            eval_logger_source,
+        )
+
+        el_table, el_pred = eval_logger_source()
         trace_ids = [r["trace_id"] for r in traces_data]
         eval_configs: list = []
         if trace_ids:
             try:
                 config_id_result = analytics.execute_ch_query(
-                    """
+                    f"""
                     SELECT DISTINCT toString(custom_eval_config_id) AS config_id
-                    FROM tracer_eval_logger FINAL
+                    FROM {el_table} FINAL
                     WHERE trace_id IN %(trace_ids)s
-                      AND _peerdb_is_deleted = 0
-                      AND (deleted = 0 OR deleted IS NULL)
+                      AND {el_pred}
                     """,
                     {"trace_ids": trace_ids},
                     timeout_ms=3000,
@@ -827,7 +564,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         eval_map = {}
         if eval_configs and trace_ids:
             config_ids = [str(c.id) for c in eval_configs]
-            eval_query = """
+            eval_query = f"""
                 SELECT
                     toString(trace_id) AS trace_id,
                     toString(custom_eval_config_id) AS config_id,
@@ -837,11 +574,10 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                                    ELSE NULL END), 2) AS bool_score,
                     count(output_float) AS float_count,
                     count(output_bool) AS bool_count
-                FROM tracer_eval_logger FINAL
+                FROM {el_table} FINAL
                 WHERE trace_id IN %(trace_ids)s
                   AND custom_eval_config_id IN %(config_ids)s
-                  AND _peerdb_is_deleted = 0
-                  AND (deleted = 0 OR deleted IS NULL)
+                  AND {el_pred}
                   AND output_str != 'ERROR'
                   AND (error = 0 OR error IS NULL)
                 GROUP BY trace_id, custom_eval_config_id
@@ -943,7 +679,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
             # Map frontend column names to ClickHouse expressions
             COLUMN_MAP = {
                 "session_id": "trace_session_id",
-                "user_id": "end_user_id",
+                "user_id": "user_id",
                 "first_message": "first_message",
                 "last_message": "last_message",
             }
@@ -958,21 +694,74 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
 
             analytics = AnalyticsQueryService()
 
-            # P3b step1.5 (DESIGN §3 / id_remap_sql): the value-picker dropdown
-            # reads the soft id straight off raw spans; a cross-cutover straddler
-            # carries BOTH an old random-uuid4 and a new deterministic-UUIDv5 id,
-            # so without resolution the same session/user appears TWICE in the
-            # picker (and first/last message is computed per-split-half). Resolve
-            # `trace_session_id` / `end_user_id` new→old through the remap so the
-            # straddler collapses to its OLD curated id. Pre-flip the remap is a
-            # no-op → byte-identical dropdown (gate B).
+            if ch_column == "trace_session_id":
+                search_clause = (
+                    "AND (external_session_id ILIKE %(search)s "
+                    "OR toString(trace_session_id) ILIKE %(search)s)"
+                    if search
+                    else ""
+                )
+                query = f"""
+                SELECT
+                    toString(trace_session_id) AS val,
+                    external_session_id AS label
+                FROM trace_sessions FINAL
+                WHERE project_id = %(project_id)s
+                  AND is_deleted = 0
+                  {search_clause}
+                ORDER BY label, val
+                LIMIT %(limit)s OFFSET %(offset)s
+                """
+                result = analytics.execute_ch_query(
+                    query,
+                    {
+                        "project_id": project_id,
+                        "limit": page_size,
+                        "offset": page * page_size,
+                        **({"search": f"%{search}%"} if search else {}),
+                    },
+                    timeout_ms=5000,
+                )
+                session_ids = [str(row["val"]) for row in result.data]
+                from tracer.services.clickhouse.v2.trace_session_dict_reader import (
+                    resolve_session_fields,
+                )
+
+                session_fields = resolve_session_fields(session_ids)
+                values = []
+                for row in result.data:
+                    value = str(row["val"])
+                    fields = session_fields.get(value, {})
+                    label = (
+                        fields.get("display_name")
+                        or fields.get("external_session_id")
+                        or row.get("label")
+                        or value
+                    )
+                    values.append({"value": value, "label": str(label)})
+                return self._gm.success_response({"values": values})
+
+            # Session and message values are derived from remap-resolved spans.
+            # User labels come from the curated CH end_users dimension.
             from tracer.services.clickhouse.v2.id_remap_sql import (
                 remap_left_join,
                 resolved_id_expr,
             )
 
+            if ch_column == "user_id":
+                search_clause = "AND user_id ILIKE %(search)s" if search else ""
+                query = f"""
+                SELECT DISTINCT user_id AS val
+                FROM end_users FINAL
+                WHERE project_id = %(project_id)s
+                  AND is_deleted = 0
+                  AND user_id != ''
+                  {search_clause}
+                ORDER BY val
+                LIMIT %(limit)s OFFSET %(offset)s
+                """
             # For firstMessage/lastMessage we need argMin/argMax from root spans
-            if ch_column in ("first_message", "last_message"):
+            elif ch_column in ("first_message", "last_message"):
                 agg_expr = (
                     "argMin(input, start_time)"
                     if ch_column == "first_message"
@@ -1010,14 +799,9 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
                 LIMIT %(limit)s OFFSET %(offset)s
                 """
             else:
-                # Simple distinct on the column (session_id, user_id) — resolved
-                # new→old so a straddler is listed ONCE under its OLD curated id.
-                is_uuid = ch_column in ("trace_session_id", "end_user_id")
-                remap_table = (
-                    "trace_session_id_remap"
-                    if ch_column == "trace_session_id"
-                    else "end_user_id_remap"
-                )
+                # Session IDs are resolved new→old so a straddler is listed once.
+                is_uuid = ch_column == "trace_session_id"
+                remap_table = "trace_session_id_remap"
                 resolved_col = resolved_id_expr(f"rs.{ch_column}", "rmp")
                 col_join = remap_left_join(f"rs.{ch_column}", remap_table, "rmp")
                 select_expr = "toString(val_id)" if is_uuid else "val_id"
@@ -2068,13 +1852,6 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
 
         BuilderCls = get_query_builder_class("SESSION_LIST")  # noqa: N806
 
-        # Resolve `org` once at the top — it's referenced both when injecting
-        # the synthetic end_user_id filter (below) and when decorating the
-        # formatted output with EndUser info (later). Previously only the
-        # later block defined it, so the earlier reference NameError'd as
-        # soon as ``user_id_raw`` was truthy and silently fell through to PG.
-        org = getattr(request, "organization", None) or request.user.organization
-
         org_scope = bool(org_project_ids)
         # Organization in scope — the canonical resolver used across this view
         # (request is a param here; the helper is pure getattr, no query). Needed
@@ -2098,8 +1875,7 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         _remaining = []
         for _f in filters:
             _col, _cfg = FilterEngine._normalize_filter_params(_f)
-            _col_type = _cfg.get("col_type", "NORMAL")
-            if _col == "user_id" and _col_type == "NORMAL":
+            if _col == "user_id":
                 _val = _cfg.get("filter_value")
                 if isinstance(_val, list):
                     _val = _val[0] if _val else None
@@ -2651,97 +2427,163 @@ class TraceSessionView(BaseModelViewSetMixin, ModelViewSet):
         try:
             # get_object() applies the org-scoped queryset filter and
             # raises 404 if the caller can't access the session.
-            session = self.get_object()
+            trace_session_id = self.kwargs.get("pk")
+            try:
+                session = self.get_object()
+                session_id = str(session.id)
+                session_name = session.name or ""
+            except Http404:
+                session_fields = _resolve_ch_session_fields(
+                    request, trace_session_id
+                )
+                if not session_fields:
+                    return self._gm.bad_request("Session not found.")
+                session_id = str(trace_session_id)
+                session_name = (
+                    session_fields.get("display_name")
+                    or session_fields.get("external_session_id")
+                    or ""
+                )
 
             qp = PaginationQuerySerializer(data=request.query_params)
             qp.is_valid(raise_exception=True)
             page = qp.validated_data["page"]
             page_size = qp.validated_data["page_size"]
 
-            logs_qs = (
-                EvalLogger.objects.filter(
-                    trace_session_id=session.id,
-                    target_type=EvalTargetType.SESSION,
-                    deleted=False,
-                )
-                .select_related(
-                    "custom_eval_config",
-                    "custom_eval_config__eval_template",
-                )
-                .order_by("-created_at")
+            # Query CH tracer_eval_logger_v2 for session-level eval logs.
+            from tracer.services.clickhouse.eval_logger_table import (
+                eval_logger_source,
+            )
+            from tracer.services.clickhouse.query_service import (
+                AnalyticsQueryService,
             )
 
-            total = logs_qs.count()
-            start = page * page_size
-            logs_page = logs_qs[start : start + page_size]
+            analytics = AnalyticsQueryService()
+            el_table, el_pred = eval_logger_source()
+
+            count_q = f"""
+                SELECT count() AS cnt
+                FROM {el_table} FINAL
+                WHERE trace_session_id = %(sid)s
+                  AND target_type = 'session'
+                  AND {el_pred}
+            """
+            count_r = analytics.execute_ch_query(
+                count_q, {"sid": session_id}, timeout_ms=3000,
+            )
+            total = count_r.data[0]["cnt"] if count_r.data else 0
 
             items = []
-            for log in logs_page:
-                # Same Pass/Fail derivation as EvalTaskView.get_usage so
-                # the two surfaces render identically.
-                if log.error:
-                    result_label = "Error"
-                    score = None
-                    status = "error"
-                elif log.output_bool is True:
-                    result_label = "Passed"
-                    score = 1.0
-                    status = "success"
-                elif log.output_bool is False:
-                    result_label = "Failed"
-                    score = 0.0
-                    status = "success"
-                elif log.output_float is not None:
-                    score = float(log.output_float)
-                    result_label = "Passed" if score >= 0.5 else "Failed"
-                    status = "success"
-                elif log.output_str:
-                    result_label = log.output_str[:50]
-                    score = None
-                    status = "success"
-                else:
-                    result_label = ""
-                    score = None
-                    status = "success"
+            if total > 0:
+                start = page * page_size
+                logs_q = f"""
+                    SELECT
+                        toString(id) AS id,
+                        toString(custom_eval_config_id) AS custom_eval_config_id,
+                        output_bool,
+                        output_float,
+                        output_str,
+                        error,
+                        error_message,
+                        eval_explanation,
+                        results_explanation,
+                        target_type,
+                        created_at
+                    FROM {el_table} FINAL
+                    WHERE trace_session_id = %(sid)s
+                      AND target_type = 'session'
+                      AND {el_pred}
+                    ORDER BY created_at DESC
+                    LIMIT %(limit)s OFFSET %(offset)s
+                """
+                logs_r = analytics.execute_ch_query(
+                    logs_q,
+                    {"sid": session_id, "limit": page_size, "offset": start},
+                    timeout_ms=5000,
+                )
 
-                config = log.custom_eval_config
-                reason = log.eval_explanation or log.error_message or ""
+                config_ids = {
+                    r["custom_eval_config_id"]
+                    for r in logs_r.data
+                    if r.get("custom_eval_config_id")
+                }
+                config_map = {}
+                if config_ids:
+                    configs = CustomEvalConfig.objects.filter(
+                        id__in=config_ids, deleted=False,
+                    ).select_related("eval_template")
+                    config_map = {str(c.id): c for c in configs}
 
-                items.append(
-                    {
-                        "id": str(log.id),
-                        "input": (session.name or "")[:200],
-                        "result": result_label,
-                        "score": score,
-                        "reason": reason,
-                        "status": status,
-                        "source": "eval_task",
-                        "created_at": (
-                            log.created_at.isoformat() if log.created_at else ""
-                        ),
-                        "session_id": str(session.id),
-                        "eval_id": str(config.id) if config else None,
-                        "eval_name": config.name if config else None,
-                        "model": config.model if config else None,
-                        "detail": {
+                for log in logs_r.data:
+                    error = bool(log.get("error"))
+                    output_bool = log.get("output_bool")
+                    output_float = log.get("output_float")
+                    output_str = log.get("output_str")
+
+                    if error:
+                        result_label = "Error"
+                        score_val = None
+                        status = "error"
+                    elif output_bool == 1:
+                        result_label = "Passed"
+                        score_val = 1.0
+                        status = "success"
+                    elif output_bool == 0 and output_bool is not None:
+                        result_label = "Failed"
+                        score_val = 0.0
+                        status = "success"
+                    elif output_float is not None:
+                        score_val = float(output_float)
+                        result_label = "Passed" if score_val >= 0.5 else "Failed"
+                        status = "success"
+                    elif output_str:
+                        result_label = str(output_str)[:50]
+                        score_val = None
+                        status = "success"
+                    else:
+                        result_label = ""
+                        score_val = None
+                        status = "success"
+
+                    config = config_map.get(log.get("custom_eval_config_id"))
+                    reason = log.get("eval_explanation") or log.get("error_message") or ""
+                    created = log.get("created_at")
+
+                    items.append(
+                        {
+                            "id": log["id"],
+                            "input": session_name[:200],
+                            "result": result_label,
+                            "score": score_val,
+                            "reason": reason,
+                            "status": status,
+                            "source": "eval_task",
+                            "created_at": (
+                                created.isoformat() if hasattr(created, "isoformat") else str(created or "")
+                            ),
+                            "session_id": session_id,
+                            "eval_id": str(config.id) if config else None,
                             "eval_name": config.name if config else None,
                             "model": config.model if config else None,
-                            "output_type": (
-                                config.eval_template.output_type_normalized
-                                if config and config.eval_template
-                                else None
-                            ),
-                            "target_type": log.target_type,
-                            "session_id": str(session.id),
-                            "session_name": session.name,
-                            "output_bool": log.output_bool,
-                            "output_float": log.output_float,
-                            "output_str": log.output_str,
-                            "results_explanation": log.results_explanation,
-                            "error_message": log.error_message,
-                        },
-                    }
-                )
+                            "detail": {
+                                "eval_name": config.name if config else None,
+                                "model": config.model if config else None,
+                                "output_type": (
+                                    config.eval_template.output_type_normalized
+                                    if config and config.eval_template
+                                    else None
+                                ),
+                                "target_type": log.get("target_type"),
+                                "session_id": session_id,
+                                "session_name": session_name,
+                                "output_bool": output_bool,
+                                "output_float": output_float,
+                                "output_str": output_str,
+                                "results_explanation": log.get("results_explanation"),
+                                "error_message": log.get("error_message"),
+                            },
+                        }
+                    )
 
             return self._gm.success_response(
                 {

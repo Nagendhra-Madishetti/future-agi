@@ -316,7 +316,7 @@ const SessionGrid = React.forwardRef(
                   return updateObjRef.current?.[column.field] ?? true;
                 }
 
-                const columnConfig = (res?.config || []).find(
+                const columnConfig = (newCols || []).find(
                   (config) => config.id === column.field,
                 );
                 return columnConfig ? columnConfig.isVisible : true;
