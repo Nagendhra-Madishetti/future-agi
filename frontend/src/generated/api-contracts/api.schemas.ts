@@ -16125,6 +16125,12 @@ export interface CallExecutionEvalMetricApi {
   selected_input_key?: string;
   input_data?: CallExecutionEvalMetricApiInputData;
   input_types?: CallExecutionEvalMetricApiInputTypes;
+  /** Mirrors eval_outputs[...].output_pass; set on Pass/Fail evals. */
+  output_pass?: boolean;
+  /** Mirrors eval_outputs[...].output_score; set on score / numeric / choice_scores evals. */
+  output_score?: number;
+  /** Mirrors eval_outputs[...].output_choices; one-element list for single-pick, N for multi-pick. */
+  output_choices?: string[];
 }
 
 /**

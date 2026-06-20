@@ -76748,6 +76748,26 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Input types",
           "type": "object",
           "x-nullable": true
+        },
+        "output_pass": {
+          "title": "Output pass",
+          "description": "Mirrors eval_outputs[...].output_pass; set on Pass/Fail evals.",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "output_score": {
+          "title": "Output score",
+          "description": "Mirrors eval_outputs[...].output_score; set on score / numeric / choice_scores evals.",
+          "type": "number",
+          "x-nullable": true
+        },
+        "output_choices": {
+          "description": "Mirrors eval_outputs[...].output_choices; one-element list for single-pick, N for multi-pick.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": true
         }
       }
     },

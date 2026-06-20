@@ -30282,7 +30282,10 @@ export const SimulateCallExecutionsReadResponse = zod.object({
 }).passthrough().optional(),
   "input_types": zod.object({
 
-}).passthrough().optional()
+}).passthrough().optional(),
+  "output_pass": zod.boolean().optional().describe('Mirrors eval_outputs[...].output_pass; set on Pass\/Fail evals.'),
+  "output_score": zod.number().optional().describe('Mirrors eval_outputs[...].output_score; set on score \/ numeric \/ choice_scores evals.'),
+  "output_choices": zod.array(zod.string()).optional().describe('Mirrors eval_outputs[...].output_choices; one-element list for single-pick, N for multi-pick.')
 })).optional().describe('Get evaluation metrics in a format suitable for the UI'),
   "scenario_columns": zod.string().optional(),
   "ended_reason": zod.string().max(simulateCallExecutionsReadResponseEndedReasonMax).optional().describe('Reason why the call ended'),
