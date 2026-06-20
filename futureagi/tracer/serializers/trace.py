@@ -163,6 +163,21 @@ class TraceObserveListQuerySerializer(StrictInputSerializer):
     interval = serializers.CharField(required=False, allow_blank=True)
 
 
+class TraceObserveListMetadataSerializer(serializers.Serializer):
+    total_rows = serializers.IntegerField()
+
+
+class TraceObserveListResultSerializer(serializers.Serializer):
+    metadata = TraceObserveListMetadataSerializer()
+    table = serializers.ListField(child=serializers.DictField(child=serializers.JSONField()))
+    config = serializers.ListField(child=serializers.JSONField())
+
+
+class TraceObserveListResponseSerializer(serializers.Serializer):
+    status = serializers.BooleanField()
+    result = TraceObserveListResultSerializer()
+
+
 class TraceExportQuerySerializer(StrictInputSerializer):
     project_id = serializers.UUIDField()
     filters = filter_list_query_param_field(required=False, default=list)

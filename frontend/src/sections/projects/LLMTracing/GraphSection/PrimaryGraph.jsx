@@ -157,6 +157,7 @@ function useGraphMetrics() {
 // ---------------------------------------------------------------------------
 const PrimaryGraph = ({
   filters = [],
+  extraFilters = [],
   dateFilter,
   setDateFilter,
   selectedInterval = "day",
@@ -304,9 +305,16 @@ const PrimaryGraph = ({
     return result;
   }, [metricGroups, pickerSearch]);
 
-  // Combine filters with date filter + eval filter
+  // Combine filters with date filter + eval filter + extra filters from toolbar.
+  // Only the created_at date entry from `filters` (primaryTraceValidatedFilters) is
+  // forwarded to the graph — other column-level filters (name, status, etc.) have
+  // no col_type and the graph endpoint rejects them with "Unsupported col_type: NORMAL".
+  // Metric/eval/annotation graph filters come exclusively from `extraFilters` (toolbar).
   const combinedFilters = useMemo(() => {
-    const base = filters || [];
+    const dateFilters = (filters || []).filter(
+      (f) => f?.column_id === "created_at",
+    );
+    const base = [...dateFilters, ...(extraFilters || [])];
     const hasDateFilter = base.some((f) => f?.column_id === "created_at");
     const startDate = dateFilter?.dateFilter?.[0];
     const endDate = dateFilter?.dateFilter?.[1];
@@ -333,7 +341,7 @@ const PrimaryGraph = ({
       ...(hasEvalFilter ? [FILTER_FOR_HAS_EVAL] : []),
       ...dateEntry,
     ];
-  }, [filters, dateFilter, hasEvalFilter]);
+  }, [filters, extraFilters, dateFilter, hasEvalFilter]);
 
   // Fetch graph data
   const apiEndpoint = graphEndpoint || endpoints.project.getTraceGraphData();
@@ -875,6 +883,7 @@ const PrimaryGraph = ({
 
 PrimaryGraph.propTypes = {
   filters: PropTypes.array,
+  extraFilters: PropTypes.array,
   dateFilter: PropTypes.object,
   setDateFilter: PropTypes.func,
   selectedInterval: PropTypes.string,
