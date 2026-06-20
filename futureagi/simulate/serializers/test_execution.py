@@ -232,6 +232,22 @@ class CallExecutionEvalMetricSerializer(serializers.Serializer):
     )
     input_data = serializers.JSONField(required=False, allow_null=True)
     input_types = serializers.JSONField(required=False, allow_null=True)
+    output_pass = serializers.BooleanField(
+        required=False,
+        allow_null=True,
+        help_text="Mirrors eval_outputs[...].output_pass; set on Pass/Fail evals.",
+    )
+    output_score = serializers.FloatField(
+        required=False,
+        allow_null=True,
+        help_text="Mirrors eval_outputs[...].output_score; set on score / numeric / choice_scores evals.",
+    )
+    output_choices = serializers.ListField(
+        child=serializers.CharField(allow_blank=True),
+        required=False,
+        allow_null=True,
+        help_text="Mirrors eval_outputs[...].output_choices; one-element list for single-pick, N for multi-pick.",
+    )
 
 
 class CallExecutionEvalOutputSerializer(serializers.Serializer):
@@ -804,6 +820,12 @@ class CallExecutionDetailSerializer(serializers.ModelSerializer):
                     "skipped": bool(eval_data.get("skipped", False))
                     or eval_data.get("status") == "skipped",
                     "error_localizer": error_localizer_enabled(eval_config),
+                    # Canonical axis keys (mirrors the eval_outputs entry).
+                    # FE cell + drawer renderers prefer these over ``value``
+                    # for the per-row filter / colour decisions.
+                    "output_pass": eval_data.get("output_pass"),
+                    "output_score": eval_data.get("output_score"),
+                    "output_choices": eval_data.get("output_choices"),
                 }
 
         call_execution_id = getattr(obj, "id", None)
