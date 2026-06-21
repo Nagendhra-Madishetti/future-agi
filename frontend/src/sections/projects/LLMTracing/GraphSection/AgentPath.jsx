@@ -8,6 +8,7 @@ import React, { useMemo, useRef, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import {
   Box,
+  Collapse,
   CircularProgress,
   IconButton,
   Typography,
@@ -557,11 +558,10 @@ const AgentPathInner = ({
         </Box>
       )}
 
-      {!isCollapsed && (
+      <Collapse in={!isCollapsed} timeout="auto" sx={{ flex: 1, minHeight: 0 }}>
         <Box
           sx={{
-            flex: 1,
-            minHeight: 0,
+            height: "100%",
             overflow: "auto",
           }}
         >
@@ -573,7 +573,7 @@ const AgentPathInner = ({
             theme={theme}
           />
         </Box>
-      )}
+      </Collapse>
     </Box>
   );
 };
