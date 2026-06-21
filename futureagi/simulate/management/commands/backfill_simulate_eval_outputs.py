@@ -133,7 +133,7 @@ class Command(BaseCommand):
                 config_output, multi_choice = self._resolve_eval_config(
                     eval_id, eval_cfg_cache
                 )
-                axes = resolve_eval_axes(entry.get("output"), config_output, multi_choice)
+                axes = resolve_eval_axes(entry.get("output"), config_output)
                 # Prefer samples that actually demonstrate a conversion
                 # (non-null runner output AND at least one axis populated).
                 if (

@@ -31,12 +31,8 @@ from django.db import close_old_connections, transaction
 from django.utils import timezone
 from temporalio import activity
 
-from evaluations.engine.normalize import (
-    eval_config_multi_choice,
-    eval_config_output,
-)
+from evaluations.engine.normalize import eval_config_output
 from simulate.models.test_execution import CallExecution
-from simulate.utils.processing_outcomes import build_simulate_eval_payload
 from simulate.temporal.types.activities import (
     RunSimulateEvaluationsInput,
     RunSimulateEvaluationsOutput,
@@ -44,6 +40,7 @@ from simulate.temporal.types.activities import (
     RunToolCallEvaluationOutput,
 )
 from simulate.utils.eval_summary import derive_kpi_output_type
+from simulate.utils.processing_outcomes import build_simulate_eval_payload
 
 logger = structlog.get_logger(__name__)
 
@@ -721,7 +718,6 @@ def _run_single_evaluation(eval_config, call_execution, transcript_data):
                     build_simulate_eval_payload(
                         value=None,
                         config_output=eval_config_output(eval_config),
-                        multi_choice=eval_config_multi_choice(eval_config),
                         reason=error_message,
                         name=eval_config.name,
                         output_type=derive_kpi_output_type(eval_template),
@@ -803,7 +799,6 @@ def _run_single_evaluation(eval_config, call_execution, transcript_data):
                 build_simulate_eval_payload(
                     value=eval_output,
                     config_output=eval_config_output(eval_config),
-                    multi_choice=eval_config_multi_choice(eval_config),
                     reason=eval_reason,
                     name=eval_config.name,
                     output_type=eval_result.get("output_type"),
@@ -845,7 +840,6 @@ def _run_single_evaluation(eval_config, call_execution, transcript_data):
             build_simulate_eval_payload(
                 value=None,
                 config_output=eval_config_output(eval_config),
-                multi_choice=eval_config_multi_choice(eval_config),
                 reason=get_specific_error_message(e),
                 name=eval_config.name,
                 output_type=derive_kpi_output_type(eval_config.eval_template),
@@ -1020,7 +1014,6 @@ def _run_evaluations_standalone(
                     build_simulate_eval_payload(
                         value=None,
                         config_output=eval_config_output(eval_config),
-                        multi_choice=eval_config_multi_choice(eval_config),
                         reason="No transcript data available",
                         name=eval_config.name,
                         output_type=derive_kpi_output_type(eval_config.eval_template),

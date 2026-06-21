@@ -98,43 +98,34 @@ def test_resolve_axes_numeric_routes_to_output_score():
 
 
 def test_resolve_axes_choices_single_plain_string_lands_as_one_element_list():
-    axes = resolve_eval_axes("always", "choices", multi_choice=False)
+    axes = resolve_eval_axes("always", "choices")
     assert axes["output_str_list"] == ["always"]
     assert axes["output_float"] is None
     assert axes["output_bool"] is None
 
 
 def test_resolve_axes_choices_single_dict_lands_as_one_element_list():
-    axes = resolve_eval_axes(
-        {"score": 1.0, "choice": "always"}, "choices", multi_choice=False
-    )
+    axes = resolve_eval_axes({"score": 1.0, "choice": "always"}, "choices")
     assert axes["output_str_list"] == ["always"]
     assert axes["output_float"] == pytest.approx(1.0)
 
 
 def test_resolve_axes_choices_multi_plain_list():
-    axes = resolve_eval_axes(["A", "B"], "choices", multi_choice=True)
+    axes = resolve_eval_axes(["A", "B"], "choices")
     assert axes["output_str_list"] == ["A", "B"]
     assert axes["output_float"] is None
 
 
 def test_resolve_axes_choices_multi_dict():
     axes = resolve_eval_axes(
-        {"score": 0.5, "choices": ["polite", "concise"]},
-        "choices",
-        multi_choice=True,
+        {"score": 0.5, "choices": ["polite", "concise"]}, "choices"
     )
     assert axes["output_str_list"] == ["polite", "concise"]
     assert axes["output_float"] == pytest.approx(0.5)
 
 
 def test_resolve_axes_legacy_single_choice_as_one_element_list():
-    axes = resolve_eval_axes(["frequently"], "choices", multi_choice=False)
-    assert axes["output_str_list"] == ["frequently"]
-
-
-def test_resolve_axes_one_element_list_multi_choice_true():
-    axes = resolve_eval_axes(["frequently"], "choices", multi_choice=True)
+    axes = resolve_eval_axes(["frequently"], "choices")
     assert axes["output_str_list"] == ["frequently"]
 
 
@@ -162,7 +153,7 @@ def test_resolve_axes_plain_score_does_not_invent_choice():
 
 
 def test_resolve_axes_plain_choice_does_not_invent_score():
-    axes = resolve_eval_axes("always", "choices", multi_choice=False)
+    axes = resolve_eval_axes("always", "choices")
     assert axes["output_str_list"] == ["always"]
     assert axes["output_float"] is None
 
@@ -188,13 +179,12 @@ def test_resolve_axes_pass_fail_does_not_bleed_score_or_choice():
 
 def test_resolve_axes_none_value_yields_all_none():
     assert resolve_eval_axes(None, "score") == empty_axes()
-    assert resolve_eval_axes(None, "choices", multi_choice=True) == empty_axes()
+    assert resolve_eval_axes(None, "choices") == empty_axes()
 
 
 def test_resolve_axes_empty_dict_value():
     assert resolve_eval_axes({}, "score") == empty_axes()
-    assert resolve_eval_axes({}, "choices", multi_choice=True) == empty_axes()
-    assert resolve_eval_axes({}, "choices", multi_choice=False) == empty_axes()
+    assert resolve_eval_axes({}, "choices") == empty_axes()
 
 
 def test_resolve_axes_score_zero_distinguishable_from_none():
@@ -247,7 +237,6 @@ def test_payload_success_choices_single_dict():
     payload = build_simulate_eval_payload(
         value={"score": 1.0, "choice": "always"},
         config_output="choices",
-        multi_choice=False,
         name="eval-c",
         output_type="choices",
     )
@@ -260,7 +249,6 @@ def test_payload_success_choices_multi_dict():
     payload = build_simulate_eval_payload(
         value={"score": 0.5, "choices": ["polite", "concise"]},
         config_output="choices",
-        multi_choice=True,
         name="eval-d",
         output_type="choices",
     )
@@ -288,7 +276,6 @@ def test_payload_skipped_path_carries_skipped_flag_and_null_axes():
     payload = build_simulate_eval_payload(
         value=None,
         config_output="choices",
-        multi_choice=True,
         skipped=True,
     )
     assert payload["skipped"] is True

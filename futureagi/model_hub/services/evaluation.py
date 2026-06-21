@@ -4,7 +4,7 @@ from typing import Any
 
 import structlog
 
-from evaluations.engine.normalize import project_eval_value
+from evaluations.engine.normalize import resolve_eval_axes
 from model_hub.models.evals_metric import EvalTemplate
 
 logger = structlog.get_logger(__name__)
@@ -34,7 +34,7 @@ def stamp_evaluation_axes(evaluation: Any) -> None:
         )
 
     try:
-        projected = project_eval_value(
+        projected = resolve_eval_axes(
             evaluation.value, config_output, include_output_str=True
         )
     except Exception:
@@ -49,9 +49,9 @@ def stamp_evaluation_axes(evaluation: Any) -> None:
             evaluation.output_str = str(evaluation.value)
         return
 
-    for col in ("output_bool", "output_float", "output_str_list", "output_str"):
-        if col in projected and getattr(evaluation, col) is None:
-            setattr(evaluation, col, projected[col])
+    for col, projected_value in projected.items():
+        if projected_value is not None and getattr(evaluation, col) is None:
+            setattr(evaluation, col, projected_value)
 
     if (
         evaluation.output_bool is None

@@ -714,13 +714,6 @@ def test_update_column_type_falls_back_to_sync_conversion_when_dispatch_fails():
     assert cell.value == "42"
 
 
-# ============================================================================
-# DatasetCellValueSerializer — storage->API axis-key boundary rename
-# Storage everywhere uses output_bool / output_float / output_str_list.
-# API exposes output_pass / output_score / output_choices on eval cells.
-# ============================================================================
-
-
 def _translate_value_infos(value_infos):
     return DatasetCellValueSerializer().get_value_infos({"value_infos": value_infos})
 

@@ -410,9 +410,6 @@ class PromptConfigEntrySerializer(serializers.Serializer):
     agent_id = serializers.UUIDField(required=False, allow_null=True)
     agent_version = serializers.UUIDField(required=False, allow_null=True)
 
-    # model and configuration are polymorphic across experiment types
-    # (string vs ModelSpec dict; nested tool configs), so they ship as
-    # JsonValueField to publish the shape honestly to the FE.
     model = JsonValueField(required=False, default=None)
     model_params = serializers.DictField(required=False, default=dict)
     configuration = JsonValueField(required=False, default=dict)

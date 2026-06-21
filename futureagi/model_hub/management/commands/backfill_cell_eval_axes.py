@@ -127,7 +127,7 @@ class Command(BaseCommand):
             multi_choice = bool(tpl.multi_choice)
 
             parsed_value = parse_legacy_value(cell.value)
-            axes = resolve_eval_axes(parsed_value, config_output, multi_choice)
+            axes = resolve_eval_axes(parsed_value, config_output)
             before_axes = {k: infos.get(k) for k in AXIS_KEYS}
             for key, axis_value in axes.items():
                 infos.setdefault(key, axis_value)

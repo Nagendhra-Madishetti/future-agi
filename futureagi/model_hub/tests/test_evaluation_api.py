@@ -2091,8 +2091,6 @@ class TestStampEvaluationAxesFallback:
         assert e.output_str_list is None
 
 
-# Mirror of tracer_eval_logger output_str policy (PR #618)
-
 class TestStampEvaluationAxesOutputStrMirror:
     def test_dict_value_on_score_config_dumps_json(self, _stamp):
         e = _mk_eval(value={"score": 1.0, "choice": "Good"}, output_type="score")

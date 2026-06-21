@@ -11,7 +11,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from evaluations.engine.normalize import parse_legacy_value, project_eval_value
+from evaluations.engine.normalize import parse_legacy_value, resolve_eval_axes
 from model_hub.models.evaluation import Evaluation
 
 logger = structlog.get_logger(__name__)
@@ -85,7 +85,7 @@ class Command(BaseCommand):
             multi_choice = bool(tpl.multi_choice) if tpl else False
 
             parsed_value = parse_legacy_value(ev.value)
-            projected = project_eval_value(
+            projected = resolve_eval_axes(
                 parsed_value, config_output, include_output_str=True
             )
 
@@ -96,9 +96,9 @@ class Command(BaseCommand):
                 "output_str": ev.output_str,
             }
             changed = False
-            for col in ("output_bool", "output_float", "output_str_list", "output_str"):
-                if col in projected and getattr(ev, col) is None:
-                    setattr(ev, col, projected[col])
+            for col, projected_value in projected.items():
+                if projected_value is not None and getattr(ev, col) is None:
+                    setattr(ev, col, projected_value)
                     changed = True
 
             if not changed:

@@ -204,13 +204,6 @@ def test_call_execution_serializer_exposes_raw_simulation_metrics(call_execution
     assert data["customer_cost_cents"] == 123
 
 
-# ============================================================================
-# CallExecutionDetailSerializer — storage->API axis-key boundary rename
-# Storage: output_bool / output_float / output_str_list (matches tracer).
-# API:     output_pass / output_score / output_choices (FE-facing).
-# ============================================================================
-
-
 def _outputs(eval_outputs):
     from types import SimpleNamespace
 
@@ -375,12 +368,6 @@ def test_outputs_rename_round_trip(storage_key, api_key, value):
     out = _outputs({"e1": eval_data})
     assert out["e1"][api_key] == value
     assert storage_key not in out["e1"]
-
-
-# ============================================================================
-# xl.py source-level guard: every eval_outputs write must route through the
-# canonical builder. Cheap regex over the module text; no DB required.
-# ============================================================================
 
 
 def test_every_eval_outputs_write_in_xl_uses_canonical_builder():

@@ -37,35 +37,21 @@ def eval_config_multi_choice(custom_eval_config: Any) -> bool:
         return False
 
 
-def project_eval_value(
+def resolve_eval_axes(
     value: Any, config_output: str, *, include_output_str: bool = False
 ) -> dict[str, Any]:
-    """Project ``value`` to typed columns via tracer's ``_dual_write_eval_value``.
-
-    Returns only the keys populated by the helper. ``include_output_str=False``
-    (the default) drops ``output_str`` so callers writing to surfaces that
-    don't carry that column don't need to filter it out themselves.
-    """
+    """Project ``value`` into typed columns; missing keys default to None."""
+    keys = AXIS_KEYS + (("output_str",) if include_output_str else ())
+    axes: dict[str, Any] = dict.fromkeys(keys, None)
     if value is None:
-        return {}
+        return axes
     from tracer.utils.eval import _dual_write_eval_value
 
     projected: dict[str, Any] = {}
     _dual_write_eval_value(
         value, config_output, projected, permissive_secondary_axis=True
     )
-    if not include_output_str:
-        projected.pop("output_str", None)
-    return projected
-
-
-def resolve_eval_axes(
-    value: Any, config_output: str, multi_choice: bool = False
-) -> dict[str, Any]:
-    """Project ``value`` into the 3 axis keys; missing axes default to None."""
-    projected = project_eval_value(value, config_output)
-    axes = empty_axes()
-    for key in AXIS_KEYS:
+    for key in keys:
         if key in projected:
             axes[key] = projected[key]
     return axes

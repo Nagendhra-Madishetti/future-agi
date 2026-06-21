@@ -22,7 +22,6 @@ def build_simulate_eval_payload(
     *,
     value: Any,
     config_output: str,
-    multi_choice: bool = False,
     reason: str = "",
     name: str = "",
     output_type: Optional[str] = None,
@@ -34,7 +33,7 @@ def build_simulate_eval_payload(
     """Canonical ``CallExecution.eval_outputs`` entry shape."""
     payload: dict[str, Any] = {
         "output": value,
-        **resolve_eval_axes(value, config_output, multi_choice),
+        **resolve_eval_axes(value, config_output),
         "reason": reason,
         "output_type": output_type,
         "name": name,
@@ -56,14 +55,15 @@ def build_skipped_eval_output_payload(
     reason: Optional[str],
 ) -> dict:
     """Eval-output entry for a CallExecution skipped before runtime."""
-    return build_simulate_eval_payload(
-        value=None,
-        config_output="score",
-        reason=reason or "",
-        name=eval_name,
-        status="skipped",
-        skipped=True,
-    )
+    return {
+        "output": None,
+        **empty_axes(),
+        "reason": reason,
+        "output_type": None,
+        "name": eval_name,
+        "status": "skipped",
+        "skipped": True,
+    }
 
 
 def pending_eval_entry() -> dict[str, Any]:
