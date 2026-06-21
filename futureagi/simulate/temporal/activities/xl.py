@@ -31,6 +31,11 @@ from django.db import close_old_connections, transaction
 from django.utils import timezone
 from temporalio import activity
 
+from evaluations.engine.normalize import (
+    build_simulate_eval_payload,
+    eval_config_multi_choice,
+    eval_config_output,
+)
 from simulate.models.test_execution import CallExecution
 from simulate.temporal.types.activities import (
     RunSimulateEvaluationsInput,
@@ -199,7 +204,6 @@ def _build_transcript_data(call_execution):
     Assembles transcript text from CallTranscript (VOICE) or ChatMessageModel (TEXT)
     records, and reads recording URLs from call_execution fields.
     """
-    from simulate.models import CallTranscript, ChatMessageModel
 
     transcript_data = {
         "transcript": "",
@@ -534,7 +538,7 @@ def _run_single_evaluation(eval_config, call_execution, transcript_data):
     from model_hub.models.develop_dataset import Cell, Column
     from model_hub.tasks.user_evaluation import trigger_error_localization_for_simulate
     from model_hub.views.utils.evals import run_eval_func
-    from simulate.models import Scenarios, SimulateEvalConfig
+    from simulate.models import Scenarios
     from tfc.utils.error_codes import get_specific_error_message
 
     try:
@@ -713,15 +717,18 @@ def _run_single_evaluation(eval_config, call_execution, transcript_data):
 
                 if not call_execution.eval_outputs:
                     call_execution.eval_outputs = {}
-                error_result = {
-                    "reason": error_message,
-                    "error": "error",
-                    "name": eval_config.name,
-                    "timestamp": timezone.now().isoformat(),
-                    "output": None,
-                    "output_type": derive_kpi_output_type(eval_template),
-                }
-                call_execution.eval_outputs[str(eval_config.id)] = error_result
+                call_execution.eval_outputs[str(eval_config.id)] = (
+                    build_simulate_eval_payload(
+                        value=None,
+                        config_output=eval_config_output(eval_config),
+                        multi_choice=eval_config_multi_choice(eval_config),
+                        reason=error_message,
+                        name=eval_config.name,
+                        output_type=derive_kpi_output_type(eval_template),
+                        error="error",
+                        timestamp=timezone.now().isoformat(),
+                    )
+                )
                 call_execution.save(update_fields=["eval_outputs"])
 
                 eval_config.status = StatusType.FAILED.value
@@ -792,12 +799,16 @@ def _run_single_evaluation(eval_config, call_execution, transcript_data):
             eval_output = eval_result.get("output")
             eval_reason = eval_result.get("reason", "")
 
-            call_execution.eval_outputs[str(eval_config.id)] = {
-                "output": eval_output,
-                "reason": eval_reason,
-                "output_type": eval_result.get("output_type"),
-                "name": eval_config.name,
-            }
+            call_execution.eval_outputs[str(eval_config.id)] = (
+                build_simulate_eval_payload(
+                    value=eval_output,
+                    config_output=eval_config_output(eval_config),
+                    multi_choice=eval_config_multi_choice(eval_config),
+                    reason=eval_reason,
+                    name=eval_config.name,
+                    output_type=eval_result.get("output_type"),
+                )
+            )
             call_execution.save(update_fields=["eval_outputs"])
 
             from model_hub.services.error_localizer_service import (
@@ -830,15 +841,18 @@ def _run_single_evaluation(eval_config, call_execution, transcript_data):
         if not call_execution.eval_outputs:
             call_execution.eval_outputs = {}
 
-        error_result = {
-            "reason": get_specific_error_message(e),
-            "error": "error",
-            "name": eval_config.name,
-            "timestamp": timezone.now().isoformat(),
-            "output": None,
-            "output_type": derive_kpi_output_type(eval_config.eval_template),
-        }
-        call_execution.eval_outputs[str(eval_config.id)] = error_result
+        call_execution.eval_outputs[str(eval_config.id)] = (
+            build_simulate_eval_payload(
+                value=None,
+                config_output=eval_config_output(eval_config),
+                multi_choice=eval_config_multi_choice(eval_config),
+                reason=get_specific_error_message(e),
+                name=eval_config.name,
+                output_type=derive_kpi_output_type(eval_config.eval_template),
+                error="error",
+                timestamp=timezone.now().isoformat(),
+            )
+        )
         call_execution.save(update_fields=["eval_outputs"])
 
         eval_config.status = StatusType.FAILED.value
@@ -1002,12 +1016,16 @@ def _run_evaluations_standalone(
             if not call_execution.eval_outputs:
                 call_execution.eval_outputs = {}
             for eval_config in eval_configs:
-                call_execution.eval_outputs[str(eval_config.id)] = {
-                    "output": None,
-                    "reason": "No transcript data available",
-                    "output_type": derive_kpi_output_type(eval_config.eval_template),
-                    "name": eval_config.name,
-                }
+                call_execution.eval_outputs[str(eval_config.id)] = (
+                    build_simulate_eval_payload(
+                        value=None,
+                        config_output=eval_config_output(eval_config),
+                        multi_choice=eval_config_multi_choice(eval_config),
+                        reason="No transcript data available",
+                        name=eval_config.name,
+                        output_type=derive_kpi_output_type(eval_config.eval_template),
+                    )
+                )
             if not call_execution.call_metadata:
                 call_execution.call_metadata = {}
             call_execution.call_metadata["eval_completed"] = True
@@ -1250,9 +1268,9 @@ def _run_tool_evaluation_standalone(call_execution, test_execution):
     from model_hub.models.choices import EvalOutputType
     from sdk.utils.helpers import _get_api_call_type
     from simulate.models import AgentDefinition
+    from tfc.constants.api_calls import APICallStatusChoices
     from tfc.utils.error_codes import get_specific_error_message
     from tracer.models.observability_provider import ProviderChoices
-    from tfc.constants.api_calls import APICallStatusChoices
     try:
         from ee.usage.utils.usage_entries import log_and_deduct_cost_for_api_request
     except ImportError:

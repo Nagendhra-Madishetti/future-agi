@@ -160,7 +160,16 @@ class DatasetColumnsMutationResponseSerializer(serializers.Serializer):
 class DatasetCellValueSerializer(serializers.Serializer):
     cell_value = serializers.JSONField(allow_null=True, required=False)
     status = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    value_infos = serializers.JSONField(required=False, allow_null=True)
+    value_infos = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        help_text=(
+            "Per-cell metadata. For eval cells, the dict includes the canonical "
+            "axis keys: output_pass (bool|null), output_score (float|null), "
+            "output_choices (list[str]|null). Non-eval cell types carry "
+            "cell-type-specific keys instead."
+        ),
+    )
     feedback_info = serializers.JSONField(required=False, allow_null=True)
 
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from evaluations.engine.normalize import empty_axes
+
 
 def set_processing_skip_metadata(
     call_metadata: Optional[dict],
@@ -24,6 +26,7 @@ def build_skipped_eval_output_payload(
     """Build a standardized skipped eval output payload for UI rendering."""
     return {
         "output": None,
+        **empty_axes(),
         "reason": reason,
         "output_type": None,
         "name": eval_name,

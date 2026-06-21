@@ -1910,3 +1910,182 @@ class TestEvaluationOrganizationIsolation:
             status.HTTP_403_FORBIDDEN,
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         ]
+
+
+from types import SimpleNamespace as _SN  # noqa: E402
+
+
+@pytest.fixture
+def _stamp():
+    from model_hub.services.evaluation import stamp_evaluation_axes
+
+    return stamp_evaluation_axes
+
+
+def _mk_eval(
+    *,
+    value,
+    output_type=None,
+    eval_template_id=None,
+    eval_template=None,
+    output_bool=None,
+    output_float=None,
+    output_str_list=None,
+    output_str=None,
+    eval_id="eval-1",
+):
+    return _SN(
+        id=eval_id,
+        value=value,
+        output_type=output_type,
+        eval_template_id=eval_template_id,
+        eval_template=eval_template,
+        output_bool=output_bool,
+        output_float=output_float,
+        output_str_list=output_str_list,
+        output_str=output_str,
+    )
+
+
+class TestStampEvaluationAxesRouting:
+    def test_passfail_passed_routes_to_output_bool(self, _stamp):
+        e = _mk_eval(value="Passed", output_type="Pass/Fail")
+        _stamp(e)
+        assert e.output_bool is True
+        assert e.output_float is None
+        assert e.output_str_list is None
+
+    def test_passfail_failed_routes_to_output_bool(self, _stamp):
+        e = _mk_eval(value="Failed", output_type="Pass/Fail")
+        _stamp(e)
+        assert e.output_bool is False
+
+    def test_score_float_routes_to_output_float(self, _stamp):
+        e = _mk_eval(value=0.7, output_type="score")
+        _stamp(e)
+        assert e.output_float == 0.7
+        assert e.output_bool is None
+        assert e.output_str_list is None
+
+    def test_score_zero_is_a_real_value(self, _stamp):
+        e = _mk_eval(value=0, output_type="score")
+        _stamp(e)
+        assert e.output_float == 0.0
+
+    def test_choices_string_routes_to_output_str_list(self, _stamp):
+        e = _mk_eval(value="frequently", output_type="choices")
+        _stamp(e)
+        assert e.output_str_list == ["frequently"]
+
+    def test_choices_multi_pick_routes_to_list(self, _stamp):
+        e = _mk_eval(value={"choices": ["a", "b"]}, output_type="choices")
+        _stamp(e)
+        assert e.output_str_list == ["a", "b"]
+
+    def test_choice_scores_dict_populates_both_axes(self, _stamp):
+        e = _mk_eval(value={"score": 0.8, "choice": "good"}, output_type="score")
+        _stamp(e)
+        assert e.output_float == 0.8
+        assert e.output_str_list == ["good"]
+
+    def test_numeric_uses_score_axis(self, _stamp):
+        e = _mk_eval(value=42.0, output_type="numeric")
+        _stamp(e)
+        assert e.output_float == 42.0
+
+
+class TestStampEvaluationAxesAdditiveGuard:
+    def test_existing_output_bool_is_preserved(self, _stamp):
+        e = _mk_eval(value="Passed", output_type="Pass/Fail", output_bool=False)
+        _stamp(e)
+        assert e.output_bool is False
+
+    def test_existing_output_float_is_preserved(self, _stamp):
+        e = _mk_eval(value=0.7, output_type="score", output_float=0.1)
+        _stamp(e)
+        assert e.output_float == 0.1
+
+    def test_existing_output_str_list_is_preserved(self, _stamp):
+        e = _mk_eval(
+            value="ignored", output_type="choices", output_str_list=["pinned"]
+        )
+        _stamp(e)
+        assert e.output_str_list == ["pinned"]
+
+    def test_empty_list_is_preserved_against_none_guard(self, _stamp):
+        e = _mk_eval(value="x", output_type="choices", output_str_list=[])
+        _stamp(e)
+        assert e.output_str_list == []
+
+
+class TestStampEvaluationAxesFallback:
+    def test_none_value_is_noop(self, _stamp):
+        e = _mk_eval(value=None, output_type="score", output_float=0.5)
+        _stamp(e)
+        assert e.output_float == 0.5
+
+    def test_no_output_type_falls_back_to_score_axis(self, _stamp):
+        with patch("model_hub.services.evaluation.logger") as log:
+            e = _mk_eval(value=0.5)
+            _stamp(e)
+            assert e.output_float == 0.5
+            log.warning.assert_called_once()
+            assert log.warning.call_args.kwargs.get("template_lookup_failed") is False
+
+    def test_template_lookup_failure_logs_and_falls_back(self, _stamp):
+        from model_hub.models.evals_metric import EvalTemplate as _Tpl
+
+        class _BrokenEval:
+            id = "eval-broken"
+            value = 0.5
+            output_type = None
+            eval_template_id = "some-id"
+            output_bool = None
+            output_float = None
+            output_str_list = None
+            output_str = None
+
+            @property
+            def eval_template(self):
+                raise _Tpl.DoesNotExist()
+
+        e = _BrokenEval()
+        with patch("model_hub.services.evaluation.logger") as log:
+            _stamp(e)
+            assert e.output_float == 0.5
+            assert log.warning.call_args.kwargs.get("template_lookup_failed") is True
+
+    def test_resolve_failure_logs_and_sets_output_str(self, _stamp):
+        e = _mk_eval(value={"x": object()}, output_type="score")
+        with (
+            patch(
+                "model_hub.services.evaluation.resolve_eval_axes",
+                side_effect=RuntimeError("boom"),
+            ),
+            patch("model_hub.services.evaluation.logger") as log,
+        ):
+            _stamp(e)
+            log.warning.assert_called_once_with(
+                "evaluation_axes_resolve_failed",
+                evaluation_id="eval-1",
+                eval_template_id=None,
+                config_output="score",
+                exc_info=True,
+            )
+            assert e.output_str is not None
+
+    def test_output_str_fallback_when_all_axes_empty(self, _stamp):
+        e = _mk_eval(value="unknown shape", output_type="reason")
+        _stamp(e)
+        assert e.output_str == "unknown shape"
+
+    def test_template_config_overrides_output_type(self, _stamp):
+        e = _mk_eval(
+            value=0.5,
+            output_type="choices",
+            eval_template_id="tpl-1",
+            eval_template=_SN(config={"output": "score"}, multi_choice=False),
+        )
+        _stamp(e)
+        assert e.output_float == 0.5
+        assert e.output_str_list is None

@@ -47772,7 +47772,11 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "eval_outputs": {
           "title": "Eval outputs",
-          "type": "string",
+          "description": "Get evaluation outputs in a structured format",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/CallExecutionEvalOutput"
+          },
           "readOnly": true
         },
         "eval_metrics": {
@@ -70388,6 +70392,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "readOnly": true
         },
         "column_order": {
+          "description": "Heterogeneous column metadata. Entry types: evaluation, system, scenario_dataset_column, persona, tool_evaluation. Evaluation entries carry {id, column_name, type='evaluation', visible, eval_config: {output, output_type, multi_choice, pass_threshold, eval_type_id, choices, required_keys, optional_keys}}; other types carry type-specific shapes.",
           "type": "array",
           "items": {
             "type": "object",
@@ -76740,6 +76745,81 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Input types",
           "type": "object",
           "x-nullable": true
+        },
+        "output_pass": {
+          "title": "Output pass",
+          "description": "Mirrors eval_outputs[...].output_pass; set on Pass/Fail evals.",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "output_score": {
+          "title": "Output score",
+          "description": "Mirrors eval_outputs[...].output_score; set on score / numeric / choice_scores evals.",
+          "type": "number",
+          "x-nullable": true
+        },
+        "output_choices": {
+          "description": "Mirrors eval_outputs[...].output_choices; one-element list for single-pick, N for multi-pick.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": true
+        }
+      }
+    },
+    "CallExecutionEvalOutput": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "title": "Value",
+          "description": "Verbatim runner output (number | bool | string | list | dict | null)",
+          "type": "object",
+          "x-nullable": true
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "error": {
+          "title": "Error",
+          "type": "boolean"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "skipped": {
+          "title": "Skipped",
+          "type": "boolean"
+        },
+        "output_pass": {
+          "title": "Output pass",
+          "description": "Set when stored config[output]=Pass/Fail",
+          "type": "boolean",
+          "x-nullable": true
+        },
+        "output_score": {
+          "title": "Output score",
+          "description": "Set when stored config[output] in (score, numeric)",
+          "type": "number",
+          "x-nullable": true
+        },
+        "output_choices": {
+          "description": "List of chosen labels. Always a list: single-pick configs land as [label]; multi-pick as [label1, label2, ...]. FE checks eval_config.multi_choice for rendering (dropdown vs multi-select).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-nullable": true
         }
       }
     },
@@ -78423,6 +78503,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "value_infos": {
           "title": "Value infos",
+          "description": "Per-cell metadata. For eval cells, the dict includes the canonical axis keys: output_pass (bool|null), output_score (float|null), output_choices (list[str]|null). Non-eval cell types carry cell-type-specific keys instead.",
           "type": "object",
           "x-nullable": true
         },
@@ -80644,7 +80725,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "model": {
           "title": "Model",
-          "type": "object"
+          "type": "object",
+          "x-json-value": true,
+          "description": "Any valid JSON value."
         },
         "model_params": {
           "title": "Model params",
@@ -80658,11 +80741,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "configuration": {
           "title": "Configuration",
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
-          },
-          "default": {}
+          "default": {},
+          "x-json-value": true,
+          "description": "Any valid JSON value."
         },
         "output_format": {
           "title": "Output format",

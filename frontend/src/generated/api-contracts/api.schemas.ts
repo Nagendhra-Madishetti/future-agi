@@ -8324,6 +8324,9 @@ export interface DatasetCellDataRequestApi {
 
 export type DatasetCellValueApiCellValue = { [key: string]: unknown };
 
+/**
+ * Per-cell metadata. For eval cells, the dict includes the canonical axis keys: output_pass (bool|null), output_score (float|null), output_choices (list[str]|null). Non-eval cell types carry cell-type-specific keys instead.
+ */
 export type DatasetCellValueApiValueInfos = { [key: string]: unknown };
 
 export type DatasetCellValueApiFeedbackInfo = { [key: string]: unknown };
@@ -8331,6 +8334,7 @@ export type DatasetCellValueApiFeedbackInfo = { [key: string]: unknown };
 export interface DatasetCellValueApi {
   cell_value?: DatasetCellValueApiCellValue;
   status?: string;
+  /** Per-cell metadata. For eval cells, the dict includes the canonical axis keys: output_pass (bool|null), output_score (float|null), output_choices (list[str]|null). Non-eval cell types carry cell-type-specific keys instead. */
   value_infos?: DatasetCellValueApiValueInfos;
   feedback_info?: DatasetCellValueApiFeedbackInfo;
 }
@@ -10421,11 +10425,17 @@ export const ExperimentCreateV2ApiExperimentType = {
   image: 'image',
 } as const;
 
+/**
+ * Any valid JSON value.
+ */
 export type PromptConfigEntryApiModel = { [key: string]: unknown };
 
 export type PromptConfigEntryApiModelParams = {[key: string]: string};
 
-export type PromptConfigEntryApiConfiguration = {[key: string]: string};
+/**
+ * Any valid JSON value.
+ */
+export type PromptConfigEntryApiConfiguration = { [key: string]: unknown };
 
 export type PromptConfigEntryApiMessagesItem = {[key: string]: string};
 
@@ -10436,8 +10446,10 @@ export interface PromptConfigEntryApi {
   prompt_version?: string;
   agent_id?: string;
   agent_version?: string;
+  /** Any valid JSON value. */
   model?: PromptConfigEntryApiModel;
   model_params?: PromptConfigEntryApiModelParams;
+  /** Any valid JSON value. */
   configuration?: PromptConfigEntryApiConfiguration;
   /** @minLength 1 */
   output_format?: string;
@@ -16055,6 +16067,33 @@ export const CallExecutionDetailApiStatus = {
 } as const;
 
 /**
+ * Verbatim runner output (number | bool | string | list | dict | null)
+ */
+export type CallExecutionEvalOutputApiValue = { [key: string]: unknown };
+
+export interface CallExecutionEvalOutputApi {
+  /** Verbatim runner output (number | bool | string | list | dict | null) */
+  value?: CallExecutionEvalOutputApiValue;
+  reason?: string;
+  type?: string;
+  name?: string;
+  error?: boolean;
+  status?: string;
+  skipped?: boolean;
+  /** Set when stored config[output]=Pass/Fail */
+  output_pass?: boolean;
+  /** Set when stored config[output] in (score, numeric) */
+  output_score?: number;
+  /** List of chosen labels. Always a list: single-pick configs land as [label]; multi-pick as [label1, label2, ...]. FE checks eval_config.multi_choice for rendering (dropdown vs multi-select). */
+  output_choices?: string[];
+}
+
+/**
+ * Get evaluation outputs in a structured format
+ */
+export type CallExecutionDetailApiEvalOutputs = {[key: string]: CallExecutionEvalOutputApi};
+
+/**
  * number | bool | string | list[string] | null
  */
 export type CallExecutionEvalMetricApiValue = { [key: string]: unknown };
@@ -16084,6 +16123,12 @@ export interface CallExecutionEvalMetricApi {
   selected_input_key?: string;
   input_data?: CallExecutionEvalMetricApiInputData;
   input_types?: CallExecutionEvalMetricApiInputTypes;
+  /** Mirrors eval_outputs[...].output_pass; set on Pass/Fail evals. */
+  output_pass?: boolean;
+  /** Mirrors eval_outputs[...].output_score; set on score / numeric / choice_scores evals. */
+  output_score?: number;
+  /** Mirrors eval_outputs[...].output_choices; one-element list for single-pick, N for multi-pick. */
+  output_choices?: string[];
 }
 
 /**
@@ -16149,7 +16194,8 @@ export interface CallExecutionDetailApi {
   readonly audio_url?: string;
   /** @minLength 1 */
   readonly customer_name?: string;
-  readonly eval_outputs?: string;
+  /** Get evaluation outputs in a structured format */
+  readonly eval_outputs?: CallExecutionDetailApiEvalOutputs;
   /** Get evaluation metrics in a format suitable for the UI */
   readonly eval_metrics?: CallExecutionDetailApiEvalMetrics;
   readonly scenario_columns?: string;
@@ -17674,6 +17720,7 @@ export interface TestExecutionDetailResponseApi {
   readonly results?: readonly TestExecutionDetailResponseApiResultsItem[];
   readonly total_pages?: number;
   readonly current_page?: number;
+  /** Heterogeneous column metadata. Entry types: evaluation, system, scenario_dataset_column, persona, tool_evaluation. Evaluation entries carry {id, column_name, type='evaluation', visible, eval_config: {output, output_type, multi_choice, pass_threshold, eval_type_id, choices, required_keys, optional_keys}}; other types carry type-specific shapes. */
   readonly column_order?: readonly TestExecutionDetailResponseApiColumnOrderItem[];
   readonly error_messages?: readonly string[];
   /** @minLength 1 */

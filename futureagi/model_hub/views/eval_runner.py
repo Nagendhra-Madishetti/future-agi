@@ -1453,11 +1453,26 @@ class EvaluationRunner:
         if is_user_eval_stopped(self.user_eval_metric_id):
             return
 
+        from evaluations.engine.normalize import resolve_eval_axes
+
+        config_output = "score"
+        multi_choice = False
+        if self.eval_template is not None:
+            config_output = (
+                (self.eval_template.config or {}).get("output") or "score"
+            )
+            multi_choice = bool(self.eval_template.multi_choice)
+        value_infos_payload = dict(response) if isinstance(response, dict) else {}
+        for key, axis_value in resolve_eval_axes(
+            value, config_output, multi_choice
+        ).items():
+            value_infos_payload.setdefault(key, axis_value)
+
         cell_data = {
             "dataset": dataset,
             "column": column,
             "row": row,
-            "value_infos": json.dumps(response),
+            "value_infos": json.dumps(value_infos_payload),
             "value": value,
             "status": status,
         }

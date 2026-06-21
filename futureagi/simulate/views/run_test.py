@@ -22,6 +22,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from evaluations.engine.normalize import empty_axes
 from model_hub.models.api_key import ApiKey
 from model_hub.models.develop_dataset import Cell, Column, Row
 from model_hub.models.evals_metric import EvalTemplate
@@ -2202,11 +2203,19 @@ class TestExecutionDetailView(APIView):
 
                 # Add evaluation metrics columns
                 for eval_config in eval_configs:
+                    template_config = dict(eval_config.eval_template.config or {})
+                    template_config["output_type"] = template_config.get("output")
+                    template_config["multi_choice"] = bool(
+                        eval_config.eval_template.multi_choice
+                    )
+                    template_config["pass_threshold"] = (
+                        eval_config.eval_template.pass_threshold
+                    )
                     default_columns.append(
                         {
                             "column_name": eval_config.name,
                             "id": str(eval_config.id),
-                            "eval_config": eval_config.eval_template.config,
+                            "eval_config": template_config,
                             "visible": True,
                             "type": "evaluation",
                         }
@@ -4825,7 +4834,8 @@ class UpdateEvalConfigView(APIView):
 
                     # Set placeholder values for the eval config that will be rerun
                     call_execution.eval_outputs[str(eval_config.id)] = {
-                        "status": "pending"
+                        "status": "pending",
+                        **empty_axes(),
                     }
 
                     call_executions_list.append(call_execution)
@@ -7072,15 +7082,25 @@ class RunNewEvalsOnTestExecutionView(APIView):
             # Precompute the eval-config columns once; they are identical
             # for every test_execution so recomputing inside the loop is
             # pure overhead.
-            eval_column_entries = [
-                {
+            def _eval_column_entry(eval_config):
+                template_config = dict(eval_config.eval_template.config or {})
+                template_config["output_type"] = template_config.get("output")
+                template_config["multi_choice"] = bool(
+                    eval_config.eval_template.multi_choice
+                )
+                template_config["pass_threshold"] = (
+                    eval_config.eval_template.pass_threshold
+                )
+                return {
                     "column_name": eval_config.name,
                     "id": str(eval_config.id),
-                    "eval_config": eval_config.eval_template.config,
+                    "eval_config": template_config,
                     "visible": True,
                     "type": "evaluation",
                 }
-                for eval_config in eval_configs
+
+            eval_column_entries = [
+                _eval_column_entry(eval_config) for eval_config in eval_configs
             ]
 
             def _flush_bulk_update(buffer):
@@ -7184,7 +7204,8 @@ class RunNewEvalsOnTestExecutionView(APIView):
                 # Set placeholder values for each eval config that will be run
                 for eval_config in eval_configs:
                     call_execution.eval_outputs[str(eval_config.id)] = {
-                        "status": "pending"
+                        "status": "pending",
+                        **empty_axes(),
                     }
 
                 call_executions_list.append(call_execution)
