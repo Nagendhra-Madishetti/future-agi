@@ -48,6 +48,8 @@ import {
   useUploadGroundTruth,
 } from "../hooks/useGroundTruth";
 import SwitchComponent from "src/components/Switch/SwitchComponent";
+import { useAuthContext } from "src/auth/hooks";
+import { PERMISSIONS, RolePermission } from "src/utils/rolePermissionMapping";
 
 // ═══════════════════════════════════════════════════════════════
 // Status Badge
@@ -111,7 +113,7 @@ const ACCEPTED_TYPES = {
   "application/vnd.ms-excel": [".xls"],
 };
 
-const UploadDrawer = ({ open, onClose, templateId, evalVariables }) => {
+const UploadDrawer = ({ open, onClose, templateId, evalVariables, canEdit = true }) => {
   const { enqueueSnackbar } = useSnackbar();
   const upload = useUploadGroundTruth(templateId);
 
@@ -875,6 +877,7 @@ const UploadDrawer = ({ open, onClose, templateId, evalVariables }) => {
               size="small"
               onClick={step === 1 ? handleFileUpload : handleDatasetUpload}
               disabled={
+                !canEdit ||
                 (step === 1 && (!file || !name)) ||
                 (step === 3 && (!selectedDataset || !name)) ||
                 isSubmitting
@@ -899,9 +902,9 @@ const UploadDrawer = ({ open, onClose, templateId, evalVariables }) => {
 // ═══════════════════════════════════════════════════════════════
 // Empty state
 // ═══════════════════════════════════════════════════════════════
-const EmptyState = ({ onUpload }) => (
+const EmptyState = ({ onUpload, canEdit = true }) => (
   <Box
-    onClick={onUpload}
+    onClick={canEdit ? onUpload : undefined}
     sx={{
       display: "flex",
       flexDirection: "column",
@@ -910,7 +913,8 @@ const EmptyState = ({ onUpload }) => (
       py: 8,
       gap: 2,
       height: "100%",
-      cursor: "pointer",
+      cursor: canEdit ? "pointer" : "not-allowed",
+      opacity: canEdit ? 1 : 0.6,
       borderRadius: "12px",
       border: "1px dashed",
       borderColor: "divider",
@@ -965,7 +969,7 @@ const EmptyState = ({ onUpload }) => (
 // ═══════════════════════════════════════════════════════════════
 // Variable Mapping Section — maps eval {{variables}} to GT columns
 // ═══════════════════════════════════════════════════════════════
-const VariableMappingSection = ({ gt, evalVariables, onUpdate }) => {
+const VariableMappingSection = ({ gt, evalVariables, onUpdate, canEdit = true }) => {
   const [mapping, setMapping] = useState(
     gt.variable_mapping || gt.variableMapping || {},
   );
@@ -1048,7 +1052,7 @@ const VariableMappingSection = ({ gt, evalVariables, onUpdate }) => {
         size="small"
         variant="outlined"
         onClick={handleSave}
-        disabled={updateMapping.isPending}
+        disabled={updateMapping.isPending || !canEdit}
         sx={{ alignSelf: "flex-start", mt: 0.5 }}
       >
         {updateMapping.isPending ? "Saving..." : "Save Mapping"}
@@ -1060,7 +1064,7 @@ const VariableMappingSection = ({ gt, evalVariables, onUpdate }) => {
 // ═══════════════════════════════════════════════════════════════
 // Role Mapping Section — maps semantic roles for few-shot formatting
 // ═══════════════════════════════════════════════════════════════
-const RoleMappingSection = ({ gt, onUpdate }) => {
+const RoleMappingSection = ({ gt, onUpdate, canEdit = true }) => {
   const [roleMapping, setRoleMapping] = useState(
     gt.roleMapping || gt.role_mapping || {},
   );
@@ -1142,7 +1146,7 @@ const RoleMappingSection = ({ gt, onUpdate }) => {
         size="small"
         variant="outlined"
         onClick={handleSave}
-        disabled={updateRole.isPending}
+        disabled={updateRole.isPending || !canEdit}
         sx={{ alignSelf: "flex-start", mt: 0.5 }}
       >
         {updateRole.isPending ? "Saving..." : "Save Mapping"}
@@ -1154,7 +1158,7 @@ const RoleMappingSection = ({ gt, onUpdate }) => {
 // ═══════════════════════════════════════════════════════════════
 // Injection Config
 // ═══════════════════════════════════════════════════════════════
-const ConfigPanel = ({ templateId, gtId }) => {
+const ConfigPanel = ({ templateId, gtId, canEdit = true }) => {
   const { data: config } = useGroundTruthConfig(templateId);
   const updateConfig = useUpdateGroundTruthConfig(templateId);
   const { enqueueSnackbar } = useSnackbar();
@@ -1274,7 +1278,7 @@ const ConfigPanel = ({ templateId, gtId }) => {
         size="small"
         variant="outlined"
         onClick={handleSave}
-        disabled={updateConfig.isPending}
+        disabled={updateConfig.isPending || !canEdit}
         sx={{ alignSelf: "flex-start" }}
       >
         Save Config
@@ -1390,6 +1394,9 @@ const TestRetrieval = ({ gtId }) => {
 // ═══════════════════════════════════════════════════════════════
 const EvalGroundTruthTab = ({ templateId }) => {
   const { enqueueSnackbar } = useSnackbar();
+  const { role } = useAuthContext();
+  const canEdit =
+    RolePermission.EVALS[PERMISSIONS.EDIT_CREATE_DELETE_EVALS][role];
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Eval data — to get required_keys (variables)
@@ -1512,10 +1519,16 @@ const EvalGroundTruthTab = ({ templateId }) => {
         onClose={() => setDrawerOpen(false)}
         templateId={templateId}
         evalVariables={evalVariables}
+        canEdit={canEdit}
       />
 
       {/* Empty state — clicks opens drawer */}
-      {!datasets.length && <EmptyState onUpload={() => setDrawerOpen(true)} />}
+      {!datasets.length && (
+        <EmptyState
+          onUpload={() => setDrawerOpen(true)}
+          canEdit={canEdit}
+        />
+      )}
 
       {/* Dataset header */}
       {activeDataset && (
@@ -1575,7 +1588,7 @@ const EvalGroundTruthTab = ({ templateId }) => {
                   variant="outlined"
                   startIcon={<Iconify icon="mdi:brain" width={14} />}
                   onClick={handleTriggerEmbed}
-                  disabled={triggerEmbed.isPending}
+                  disabled={triggerEmbed.isPending || !canEdit}
                   sx={{ fontSize: "11px", height: 26 }}
                 >
                   Embed
@@ -1584,19 +1597,27 @@ const EvalGroundTruthTab = ({ templateId }) => {
             )}
 
             <Tooltip title="Upload new dataset">
-              <IconButton size="small" onClick={() => setDrawerOpen(true)}>
-                <Iconify icon="mdi:upload" width={16} />
-              </IconButton>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => setDrawerOpen(true)}
+                  disabled={!canEdit}
+                >
+                  <Iconify icon="mdi:upload" width={16} />
+                </IconButton>
+              </span>
             </Tooltip>
             <Tooltip title="Delete dataset">
-              <IconButton
-                size="small"
-                color="error"
-                onClick={handleDelete}
-                disabled={deleteGt.isPending}
-              >
-                <Iconify icon="mdi:delete-outline" width={16} />
-              </IconButton>
+              <span>
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={handleDelete}
+                  disabled={deleteGt.isPending || !canEdit}
+                >
+                  <Iconify icon="mdi:delete-outline" width={16} />
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
 
@@ -1618,11 +1639,20 @@ const EvalGroundTruthTab = ({ templateId }) => {
                 gt={activeDataset}
                 evalVariables={evalVariables}
                 onUpdate={() => {}}
+                canEdit={canEdit}
               />
               {evalVariables.length > 0 && <Divider />}
-              <RoleMappingSection gt={activeDataset} onUpdate={() => {}} />
+              <RoleMappingSection
+                gt={activeDataset}
+                onUpdate={() => {}}
+                canEdit={canEdit}
+              />
               <Divider />
-              <ConfigPanel templateId={templateId} gtId={activeDataset.id} />
+              <ConfigPanel
+                templateId={templateId}
+                gtId={activeDataset.id}
+                canEdit={canEdit}
+              />
               {embeddingStatus === "completed" && (
                 <>
                   <Divider />
