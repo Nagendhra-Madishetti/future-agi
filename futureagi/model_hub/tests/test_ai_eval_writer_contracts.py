@@ -9,9 +9,18 @@ def _assert_field_error(response, field_name):
     assert field_name in response.json()["details"]
 
 
-def _mock_completion(content):
-    """Build a litellm.completion return value carrying `content`."""
-    return MagicMock(choices=[MagicMock(message=MagicMock(content=content))])
+def _patch_llm(content):
+    """Patch the in-house LLM wrapper so _get_completion_content returns `content`.
+
+    The service routes through agentic_eval.core.llm.llm.LLM (the Agentcc
+    gateway wrapper), not litellm directly — so the mock targets the wrapper.
+    """
+    return patch(
+        "agentic_eval.core.llm.llm.LLM",
+        return_value=MagicMock(
+            _get_completion_content=MagicMock(return_value=content)
+        ),
+    )
 
 
 @pytest.mark.django_db
@@ -46,12 +55,10 @@ class TestAIEvalWriterContracts:
 class TestAIEvalWriterGeneration:
     """Behavior of the generation path (litellm mocked — no network)."""
 
-    def test_test_data_format_returns_generated_json(self, auth_client):
-        # The new output_format must be accepted end-to-end and its result
-        # returned verbatim. This is the regression that strict request-contract
-        # enforcement broke when the enum lacked "test_data".
-        generated = '{"output": "Revenue grew 40%.", "context": "Flat YoY."}'
-        with patch("litellm.completion", return_value=_mock_completion(generated)):
+    def test_test_data_format_returns_parsed_object(self, auth_client):
+        # test_data is parsed backend-side and returned under a typed
+        # `test_data` object key — not a raw string under `prompt`.
+        with _patch_llm('{"output": "Revenue grew 40%.", "context": "Flat YoY."}'):
             response = auth_client.post(
                 "/model-hub/ai-eval-writer/",
                 {
@@ -62,11 +69,34 @@ class TestAIEvalWriterGeneration:
             )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["result"]["prompt"] == generated
+        result = response.json()["result"]
+        assert result["test_data"] == {
+            "output": "Revenue grew 40%.",
+            "context": "Flat YoY.",
+        }
+        assert result.get("prompt") is None  # not under the misleading key
 
-    def test_strips_markdown_fence_from_model_output(self, auth_client):
+    def test_messages_format_returns_parsed_array(self, auth_client):
+        # messages is parsed backend-side and returned as a typed `messages`
+        # array (the frontend no longer JSON.parses a string).
+        msgs = '[{"role": "system", "content": "Judge politeness."}, {"role": "user", "content": "{{output}}"}]'
+        with _patch_llm(msgs):
+            response = auth_client.post(
+                "/model-hub/ai-eval-writer/",
+                {"description": "judge politeness", "output_format": "messages"},
+                format="json",
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        result = response.json()["result"]
+        assert result["messages"] == [
+            {"role": "system", "content": "Judge politeness."},
+            {"role": "user", "content": "{{output}}"},
+        ]
+
+    def test_strips_markdown_fence_then_parses(self, auth_client):
         fenced = '```json\n{"output": "x", "context": "y"}\n```'
-        with patch("litellm.completion", return_value=_mock_completion(fenced)):
+        with _patch_llm(fenced):
             response = auth_client.post(
                 "/model-hub/ai-eval-writer/",
                 {"description": "test data please", "output_format": "test_data"},
@@ -74,13 +104,25 @@ class TestAIEvalWriterGeneration:
             )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["result"]["prompt"] == '{"output": "x", "context": "y"}'
+        assert response.json()["result"]["test_data"] == {"output": "x", "context": "y"}
+
+    def test_malformed_model_json_surfaces_as_5xx(self, auth_client):
+        # The model returned non-JSON for a format that requires it — a model
+        # failure, so 5xx, not a 200 with a broken payload.
+        with _patch_llm("not json at all"):
+            response = auth_client.post(
+                "/model-hub/ai-eval-writer/",
+                {"description": "test data please", "output_format": "test_data"},
+                format="json",
+            )
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_prompt_format_still_works(self, auth_client):
         # Regression guard for the pre-existing default format after adding the
         # new branch.
         generated = "You are an expert evaluator. Check {{output}} against {{ground_truth}}."
-        with patch("litellm.completion", return_value=_mock_completion(generated)):
+        with _patch_llm(generated):
             response = auth_client.post(
                 "/model-hub/ai-eval-writer/",
                 {"description": "check factual accuracy"},
@@ -89,3 +131,19 @@ class TestAIEvalWriterGeneration:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["result"]["prompt"] == generated
+
+    def test_llm_failure_surfaces_as_5xx(self, auth_client):
+        # An upstream model/gateway failure is not the client's fault: it must
+        # surface as 5xx (not 400, not a swallowed 200) so monitoring can tell
+        # "model is down" from "bad input".
+        failing_llm = MagicMock(
+            _get_completion_content=MagicMock(side_effect=RuntimeError("model down"))
+        )
+        with patch("agentic_eval.core.llm.llm.LLM", return_value=failing_llm):
+            response = auth_client.post(
+                "/model-hub/ai-eval-writer/",
+                {"description": "anything", "output_format": "test_data"},
+                format="json",
+            )
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -11522,7 +11522,9 @@ export const modelHubAiEvalWriterCreateResponseStatusDefault = true;
 export const ModelHubAiEvalWriterCreateResponse = zod.object({
   "status": zod.boolean().default(modelHubAiEvalWriterCreateResponseStatusDefault),
   "result": zod.object({
-  "prompt": zod.string().min(1)
+  "prompt": zod.string().min(1).optional(),
+  "messages": zod.array(zod.record(zod.string(), zod.string())).optional(),
+  "test_data": zod.record(zod.string(), zod.string()).optional()
 })
 })
 

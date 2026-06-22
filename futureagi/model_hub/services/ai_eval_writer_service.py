@@ -5,9 +5,23 @@ message array, or test data) from a natural-language description by calling
 the LLM. Used by AIEvalWriterView; kept HTTP-free so any caller can reuse it.
 """
 
+import json
+
 import structlog
 
+from agentic_eval.core.utils.json_utils import (
+    extract_dict_from_string,
+    strip_code_fence,
+)
+
 logger = structlog.get_logger(__name__)
+
+
+class MalformedModelOutput(RuntimeError):
+    """The model returned output that couldn't be parsed into the expected shape.
+
+    A model failure (not the caller's fault), so the view maps it to a 5xx.
+    """
 
 SYSTEM_PROMPT = """You are an expert AI evaluation engineer. Given a user's brief description of what they want to evaluate, generate a comprehensive evaluation instruction prompt.
 
@@ -77,16 +91,32 @@ OUTPUT_FORMAT_PROMPTS = {
 }
 
 
-def _strip_markdown_fence(text: str) -> str:
-    """Drop a leading ```/```json fence (and trailing ```) some models add."""
-    if not text.startswith("```"):
-        return text
-    lines = text.split("\n")
-    body = lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
-    return "\n".join(body).strip()
+def _parse_object(text: str) -> dict:
+    """Parse a JSON object from model output, repairing if needed."""
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        try:
+            data = extract_dict_from_string(text)
+        except ValueError as e:
+            raise MalformedModelOutput(str(e)) from e
+    if not isinstance(data, dict):
+        raise MalformedModelOutput("Model did not return a JSON object")
+    return data
 
 
-def generate_eval_prompt(*, description: str, output_format: str = "prompt") -> str:
+def _parse_array(text: str) -> list:
+    """Parse a JSON array from model output."""
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise MalformedModelOutput(f"Model did not return valid JSON: {e}") from e
+    if not isinstance(data, list):
+        raise MalformedModelOutput("Model did not return a JSON array")
+    return data
+
+
+def generate_eval_prompt(*, description: str, output_format: str = "prompt") -> dict:
     """Generate an eval artifact from a description via the LLM.
 
     Args:
@@ -96,11 +126,15 @@ def generate_eval_prompt(*, description: str, output_format: str = "prompt") -> 
             "test_data" (a JSON object of test data).
 
     Returns:
-        The generated text with any markdown fence stripped. For "messages"
-        and "test_data" this is a JSON string the caller parses.
+        A result dict with exactly the key matching output_format, already
+        parsed/validated to its type:
+          - "prompt"    -> {"prompt": str}
+          - "messages"  -> {"messages": list[dict]}
+          - "test_data" -> {"test_data": dict}
 
     Raises:
-        ValueError: description is blank or output_format is unknown.
+        ValueError: description is blank or output_format is unknown (400).
+        MalformedModelOutput: the model's response couldn't be parsed (5xx).
     """
     description = (description or "").strip()
     if not description:
@@ -113,23 +147,33 @@ def generate_eval_prompt(*, description: str, output_format: str = "prompt") -> 
             f"Expected one of: {list(OUTPUT_FORMAT_PROMPTS.keys())}"
         )
 
-    # Use Haiku for speed. Imported lazily to keep module import cheap.
-    import litellm
-
+    # Route through the in-house LLM wrapper (Agentcc usage gateway with
+    # litellm fallback) so the call is metered + org-attributed and retries
+    # are handled for us — same pattern as ai_filter.py, not a raw Bedrock call.
+    from agentic_eval.core.llm.llm import LLM
     from agentic_eval.core.utils.model_config import ModelConfigs
 
     haiku_cfg = ModelConfigs.HAIKU_4_5_BEDROCK_ARN
-
-    response = litellm.completion(
-        model=haiku_cfg.model_name,
+    llm = LLM(
+        provider=haiku_cfg.provider,
+        model_name=haiku_cfg.model_name,
+        temperature=0.3,
+        max_tokens=1500 if output_format == "messages" else 1000,
+    )
+    content = llm._get_completion_content(
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": description},
         ],
-        temperature=0.3,
-        max_tokens=1500 if output_format == "messages" else 1000,
-        num_retries=2,
     )
 
-    prompt_text = response.choices[0].message.content.strip()
-    return _strip_markdown_fence(prompt_text)
+    # strip_code_fence tolerates None and unwraps any ```...``` the model adds.
+    text = strip_code_fence(content)
+
+    # Parse + validate backend-side so the response is a typed object per
+    # format, not an unvalidated string the client has to re-parse.
+    if output_format == "messages":
+        return {"messages": _parse_array(text)}
+    if output_format == "test_data":
+        return {"test_data": _parse_object(text)}
+    return {"prompt": text}

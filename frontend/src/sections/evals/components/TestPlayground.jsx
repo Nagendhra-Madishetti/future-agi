@@ -233,12 +233,9 @@ const CustomJsonInput = ({
         description,
         output_format: "test_data",
       });
-      const raw = data?.result?.prompt;
-      if (raw) {
-        const match = raw.match(/\{[\s\S]*\}/);
-        if (match) return match[0];
-      }
-      return null;
+      // Backend parses + validates the test_data object for us now.
+      const testData = data?.result?.test_data;
+      return testData && typeof testData === "object" ? testData : null;
     },
     [variables, jsonText, instructions, evalName],
   );
@@ -253,8 +250,7 @@ const CustomJsonInput = ({
       try {
         const result = await callAI(prompt.trim());
         if (result) {
-          const parsed = JSON.parse(result);
-          const formatted = JSON.stringify(parsed, null, 2);
+          const formatted = JSON.stringify(result, null, 2);
           handleJsonChange(formatted);
           setHasResult(true);
           setAiPrompt(prompt.trim());

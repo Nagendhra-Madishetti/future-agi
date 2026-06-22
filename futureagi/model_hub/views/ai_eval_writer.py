@@ -36,11 +36,11 @@ class AIEvalWriterView(APIView):
         "output_format": "prompt" | "messages" | "test_data"  # optional, defaults to "prompt"
     }
 
-    Response: { "status": true, "result": { "prompt": "..." } }
-
-    For output_format "messages" / "test_data", the "prompt" field contains a
-    JSON string that callers should JSON.parse (an array of {role, content}
-    messages, or an object of test-data values respectively).
+    Response: { "status": true, "result": { ... } } where result carries the
+    field matching output_format, already parsed/validated backend-side:
+      - "prompt"    -> { "prompt": "<instruction text>" }
+      - "messages"  -> { "messages": [ { "role", "content" }, ... ] }
+      - "test_data" -> { "test_data": { "<var>": "<value>", ... } }
     """
 
     _gm = GeneralMethods()
@@ -53,16 +53,21 @@ class AIEvalWriterView(APIView):
     )
     def post(self, request, *args, **kwargs):
         try:
-            prompt_text = generate_eval_prompt(
+            result = generate_eval_prompt(
                 description=request.validated_data.get("description", ""),
                 output_format=request.validated_data.get("output_format", "prompt"),
             )
-            return self._gm.success_response({"prompt": prompt_text})
+            return self._gm.success_response(result)
 
         except ValueError as e:
+            # Bad input (blank description / unknown output_format) — 400.
             return self._gm.bad_request(str(e))
         except Exception as e:
+            # Upstream/LLM/gateway failure — not the client's fault, so 5xx so
+            # monitoring and callers can tell "bad input" from "model is down".
             logger.error(
                 f"Error in AIEvalWriterView: {str(e)}\n{traceback.format_exc()}"
             )
-            return self._gm.bad_request(f"AI eval writer error: {str(e)}")
+            return self._gm.internal_server_error_response(
+                f"AI eval writer error: {str(e)}"
+            )
