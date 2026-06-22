@@ -19,12 +19,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+import clickhouse_connect
 import structlog
 
-from tracer.services.clickhouse.client import (
-    ClickHouseClient,
-    is_clickhouse_enabled,
-)
+from tracer.services.clickhouse.v2 import get_reader, get_v2_config
+from tracer.services.clickhouse.v2.span_reader import CHSpan
 
 logger = structlog.get_logger(__name__)
 
@@ -64,15 +63,72 @@ def _rows_to_dicts(rows: list, cols: tuple) -> list[dict[str, Any]]:
     return [dict(zip(keys, row, strict=False)) for row in rows]
 
 
+# The agent's dict shape (keys) — derived once from _SPAN_COLS so the two
+# aliasing paths (raw-SQL via _rows_to_dicts, and CHSpan via the helper below)
+# can't drift. test_cluster_rca_spans pins that they stay equal.
+_AGENT_SPAN_KEYS = tuple(c.split(" AS ")[-1].strip() for c in _SPAN_COLS)
+
+
+def _chspan_to_agent_dict(s: CHSpan) -> dict[str, Any]:
+    """Map a CHSpanReader ``CHSpan`` to the agent's column-aliased dict — the
+    exact shape ``_rows_to_dicts(_SPAN_COLS)`` produces (the contract the ee
+    RCA agent consumes). ``span_id`` aliases ``CHSpan.id``; start/end times are
+    stringified to match the prior ``toString(...)`` columns.
+    """
+    return {
+        "span_id": str(s.id),
+        "trace_id": str(s.trace_id),
+        "parent_span_id": s.parent_span_id,
+        "name": s.name,
+        "observation_type": s.observation_type,
+        "operation_name": s.operation_name,
+        "status": s.status,
+        "status_message": s.status_message,
+        "latency_ms": s.latency_ms,
+        "start_time": str(s.start_time) if s.start_time else None,
+        "end_time": str(s.end_time) if s.end_time else None,
+        "input": s.input,
+        "output": s.output,
+        "model": s.model,
+        "provider": s.provider,
+        "prompt_tokens": s.prompt_tokens,
+        "completion_tokens": s.completion_tokens,
+        "total_tokens": s.total_tokens,
+        "cost": s.cost,
+        "tags": s.tags,
+        "trace_name": s.trace_name,
+        "trace_session_id": s.trace_session_id,
+    }
+
+
 def _ids_list(trace_ids: Iterable[str]) -> list[str]:
     return [str(t) for t in trace_ids if t]
 
 
+def _v2_client():
+    """A clickhouse_connect client on the v2 cluster — the SAME connection
+    CHSpanReader uses (``get_v2_config``), so the agent's reads stay on one CH
+    client + convention instead of a second (legacy ``ClickHouseClient``) one.
+    """
+    cfg = get_v2_config()
+    return clickhouse_connect.get_client(
+        host=cfg["host"],
+        port=cfg["http_port"],
+        username=cfg["user"],
+        password=cfg["password"],
+        database=cfg["database"],
+    )
+
+
 def _execute_read(query: str, params: dict) -> list:
+    # IN-clauses bind from tuples on clickhouse_connect; normalize any sequence.
+    norm = {k: tuple(v) if isinstance(v, list | set) else v for k, v in params.items()}
     try:
-        client = ClickHouseClient()
-        rows, _types, _ms = client.execute_read(query, params)
-        return rows
+        client = _v2_client()
+        try:
+            return client.query(query, parameters=norm).result_rows
+        finally:
+            client.close()
     except Exception as e:
         logger.warning("cluster_rca_ch_span_read_failed", error=str(e))
         return []
@@ -84,39 +140,37 @@ def spans_for_trace(project_id: str, trace_id: str) -> list[dict[str, Any]]:
     Powers the trace summarizer's top-down bundle and read(trace)'s span
     skeleton. Empty list when CH is unavailable.
     """
-    if not trace_id or not is_clickhouse_enabled():
+    if not trace_id:
         return []
-    cols = ", ".join(_SPAN_COLS)
-    query = f"""
-        SELECT {cols}
-        FROM spans
-        WHERE project_id = %(pid)s AND is_deleted = 0
-          AND toString(trace_id) = %(tid)s
-        ORDER BY start_time
-        LIMIT 1 BY id
-    """
-    return _rows_to_dicts(
-        _execute_read(query, {"pid": str(project_id), "tid": str(trace_id)}), _SPAN_COLS
-    )
+    # Delegate to the canonical CHSpanReader (v2, FINAL-deduped, project-scoped)
+    # instead of a parallel raw-SQL read; alias CHSpan → the agent dict shape.
+    try:
+        reader = get_reader()
+        try:
+            spans = reader.list_by_trace(str(trace_id), project_id=str(project_id))
+        finally:
+            reader.close()
+    except Exception as e:
+        logger.warning("cluster_rca_ch_span_read_failed", error=str(e))
+        return []
+    return [_chspan_to_agent_dict(s) for s in spans]
 
 
 def read_span(project_id: str, span_id: str) -> dict[str, Any] | None:
-    """One span by id (full columns), or None if absent / CH unavailable."""
-    if not span_id or not is_clickhouse_enabled():
+    """One span by id, or None if absent / CH unavailable. Delegates to the
+    canonical CHSpanReader (v2, FINAL-deduped, project-scoped)."""
+    if not span_id:
         return None
-    cols = ", ".join(_SPAN_COLS)
-    query = f"""
-        SELECT {cols}
-        FROM spans
-        WHERE project_id = %(pid)s AND is_deleted = 0
-          AND toString(id) = %(sid)s
-        LIMIT 1 BY id
-        LIMIT 1
-    """
-    dicts = _rows_to_dicts(
-        _execute_read(query, {"pid": str(project_id), "sid": str(span_id)}), _SPAN_COLS
-    )
-    return dicts[0] if dicts else None
+    try:
+        reader = get_reader()
+        try:
+            span = reader.get(str(span_id), project_id=str(project_id))
+        finally:
+            reader.close()
+    except Exception as e:
+        logger.warning("cluster_rca_ch_span_read_failed", error=str(e))
+        return None
+    return _chspan_to_agent_dict(span) if span else None
 
 
 def list_spans_in_traces(
@@ -128,7 +182,7 @@ def list_spans_in_traces(
 ) -> tuple[list[dict[str, Any]], int]:
     """Paginated span list across a trace set. Returns (page, total_distinct)."""
     ids = _ids_list(trace_ids)
-    if not ids or not is_clickhouse_enabled():
+    if not ids:
         return [], 0
     cols = ", ".join(_SPAN_COLS)
     base = (
@@ -158,7 +212,7 @@ def search_spans_in_traces(
     """Case-insensitive substring search over span input/output/name/
     status_message within a trace set."""
     ids = _ids_list(trace_ids)
-    if not ids or not query_text or not is_clickhouse_enabled():
+    if not ids or not query_text:
         return []
     cols = ", ".join(_SPAN_COLS)
     text_pred = (
@@ -199,7 +253,7 @@ def aggregate_span_field(
     if group_by not in _SPAN_AGG_FIELDS:
         return None
     ids = _ids_list(trace_ids)
-    if not ids or not is_clickhouse_enabled():
+    if not ids:
         return [], 0
     field, extra = _SPAN_AGG_FIELDS[group_by]
     extra_pred = f"AND {extra}" if extra else ""
@@ -228,7 +282,7 @@ def trace_roots(project_id: str, trace_ids: Iterable[str]) -> dict[str, dict[str
     batched query instead of N per-trace fetches.
     """
     ids = _ids_list(trace_ids)
-    if not ids or not is_clickhouse_enabled():
+    if not ids:
         return {}
     query = """
         SELECT
@@ -280,7 +334,7 @@ def aggregate_trace_field(
     if field is None:
         return None
     ids = _ids_list(trace_ids)
-    if not ids or not is_clickhouse_enabled():
+    if not ids:
         return [], 0
     query = f"""
         SELECT k, uniqExact(trace_id) AS c
@@ -308,7 +362,7 @@ def timeline_trace_counts(
         "day": "toStartOfDay",
     }.get(bucket)
     ids = _ids_list(trace_ids)
-    if not bucket_fn or not ids or not is_clickhouse_enabled():
+    if not bucket_fn or not ids:
         return []
     query = f"""
         SELECT {bucket_fn}(first_start) AS b, count() AS c
@@ -333,7 +387,7 @@ def search_trace_ids(
 ) -> list[str]:
     """Distinct trace_ids whose any span matches the text (input/output/name)."""
     ids = _ids_list(trace_ids)
-    if not ids or not query_text or not is_clickhouse_enabled():
+    if not ids or not query_text:
         return []
     query = """
         SELECT DISTINCT toString(trace_id)
@@ -355,7 +409,7 @@ def search_trace_ids(
 def distinct_sessions(project_id: str, trace_ids: Iterable[str]) -> list[str]:
     """Distinct trace_session_id values across a trace set (non-empty)."""
     ids = _ids_list(trace_ids)
-    if not ids or not is_clickhouse_enabled():
+    if not ids:
         return []
     query = """
         SELECT DISTINCT toString(trace_session_id)
@@ -372,7 +426,7 @@ def distinct_sessions(project_id: str, trace_ids: Iterable[str]) -> list[str]:
 def traces_in_session(project_id: str, session_id: str) -> dict[str, dict[str, Any]]:
     """Per-trace root info for all traces in one session (chronological via
     first_start). Powers read(session). Returns {trace_id: root-info}."""
-    if not session_id or not is_clickhouse_enabled():
+    if not session_id:
         return {}
     query = """
         SELECT
@@ -415,7 +469,7 @@ def error_messages_in_traces(
     """Distinct ERROR-status span status_messages with counts. Returns
     (page_items, total_distinct)."""
     ids = _ids_list(trace_ids)
-    if not ids or not is_clickhouse_enabled():
+    if not ids:
         return [], 0
     query = """
         SELECT status_message AS k, count() AS c

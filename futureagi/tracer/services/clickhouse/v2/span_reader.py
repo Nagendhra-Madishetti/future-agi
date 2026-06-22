@@ -110,6 +110,10 @@ class CHSpan:
     semconv_source: str = ""
     is_deleted: int = 0
 
+    # Trace-level fields denormalized onto every span row. Lets a caller derive
+    # trace context (e.g. the cluster-RCA agent) without a separate PG read.
+    trace_name: str = ""
+
 
 # Stable column ordering for the CH query. JSON columns wrapped in toJSONString
 # so clickhouse-connect can decode them (it cannot yet handle the typed JSON
@@ -160,6 +164,7 @@ _READ_COLUMNS: tuple[str, ...] = (
     "eval_status",
     "semconv_source",
     "is_deleted",
+    "trace_name",
 )
 
 _SELECT_SQL = ", ".join(_READ_COLUMNS)
@@ -225,6 +230,7 @@ _DATA_KEYS: tuple[str, ...] = (
     "eval_status",
     "semconv_source",
     "is_deleted",
+    "trace_name",
 )
 
 
@@ -332,30 +338,47 @@ class CHSpanReader:
         return join, predicate
 
     # ─── Single-row by id ────────────────────────────────────────────────────
-    def get(self, span_id: str) -> CHSpan | None:
+    def get(self, span_id: str, *, project_id: str | None = None) -> CHSpan | None:
         """Equivalent to ObservationSpan.objects.get(id=span_id), returns None
-        if absent (matches the pattern most callers wrap with try/except)."""
+        if absent (matches the pattern most callers wrap with try/except).
+
+        ``project_id`` (optional) scopes the read to one tenant — pass it from
+        multi-tenant call sites (e.g. the cluster-RCA agent); omit to keep the
+        prior unscoped behavior the eval runner relies on."""
+        where = ["id = %(span_id)s", "is_deleted = 0"]
+        params: dict[str, Any] = {"span_id": span_id}
+        if project_id:
+            where.append("project_id = %(pid)s")
+            params["pid"] = str(project_id)
         rows = self._client.query(
             f"SELECT {_SELECT_SQL} FROM spans FINAL "
-            "WHERE id = %(span_id)s AND is_deleted = 0 LIMIT 1",
-            parameters={"span_id": span_id},
+            f"WHERE {' AND '.join(where)} LIMIT 1",
+            parameters=params,
         ).result_rows
         if not rows:
             return None
         return _row_to_chspan(rows[0])
 
     # ─── All spans in a trace ────────────────────────────────────────────────
-    def list_by_trace(self, trace_id: str) -> list[CHSpan]:
+    def list_by_trace(
+        self, trace_id: str, *, project_id: str | None = None
+    ) -> list[CHSpan]:
         """Equivalent to ObservationSpan.objects.filter(trace=trace, deleted=False).
 
         Returned in start_time, id order so the eval runner's trace-walking
-        logic sees spans in a deterministic chronological order.
+        logic sees spans in a deterministic chronological order. ``project_id``
+        (optional) scopes the read to one tenant; omit for prior behavior.
         """
+        where = ["trace_id = %(trace_id)s", "is_deleted = 0"]
+        params: dict[str, Any] = {"trace_id": trace_id}
+        if project_id:
+            where.append("project_id = %(pid)s")
+            params["pid"] = str(project_id)
         rows = self._client.query(
             f"SELECT {_SELECT_SQL} FROM spans FINAL "
-            "WHERE trace_id = %(trace_id)s AND is_deleted = 0 "
+            f"WHERE {' AND '.join(where)} "
             "ORDER BY start_time, id",
-            parameters={"trace_id": trace_id},
+            parameters=params,
         ).result_rows
         return [_row_to_chspan(r) for r in rows]
 
@@ -420,7 +443,11 @@ class CHSpanReader:
 
     # ─── Root spans only (parentless) across many traces ─────────────────────
     def roots_by_trace_ids(
-        self, trace_ids: list[str], *, include_heavy: bool = False
+        self,
+        trace_ids: list[str],
+        *,
+        include_heavy: bool = False,
+        project_id: str | None = None,
     ) -> list[CHSpan]:
         """Parentless spans for the given traces, same shape/order as
         list_by_trace_ids. Fetches one row per root instead of every span.
@@ -428,17 +455,30 @@ class CHSpanReader:
         Unless ``include_heavy``, attributes_extra / span_events /
         resource_attrs come back as '' — decoding them dominates the read
         (a voice conversation root carries its whole raw_log in
-        attributes_extra). input/output/attrs_string stay real.
+        attributes_extra). input/output/attrs_string stay real. ``project_id``
+        (optional) scopes the read to one tenant; omit for prior behavior.
+
+        NOTE: this is the *structural* root (parentless span). It is NOT the
+        same as the cluster-RCA agent's "representative trace" (earliest span's
+        I/O via argMin) — those are deliberately different reads.
         """
         if not trace_ids:
             return []
         select = _SELECT_SQL if include_heavy else _LEAN_SELECT_SQL
+        where = [
+            "trace_id IN %(trace_ids)s",
+            "is_deleted = 0",
+            "(parent_span_id IS NULL OR parent_span_id = '')",
+        ]
+        params: dict[str, Any] = {"trace_ids": tuple(trace_ids)}
+        if project_id:
+            where.append("project_id = %(pid)s")
+            params["pid"] = str(project_id)
         rows = self._client.query(
             f"SELECT {select} FROM spans FINAL "
-            "WHERE trace_id IN %(trace_ids)s AND is_deleted = 0 "
-            "AND (parent_span_id IS NULL OR parent_span_id = '') "
+            f"WHERE {' AND '.join(where)} "
             "ORDER BY trace_id, start_time, id",
-            parameters={"trace_ids": tuple(trace_ids)},
+            parameters=params,
         ).result_rows
         return [_row_to_chspan(r) for r in rows]
 
