@@ -5,7 +5,7 @@ import Iconify from "src/components/iconify";
 import PropTypes from "prop-types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams } from "react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import axios, { endpoints } from "src/utils/axios";
 import { enqueueSnackbar } from "src/components/snackbar";
 import { ExtractJsonKeyValidationSchema } from "./validation";
@@ -17,11 +17,10 @@ import { useExtractJsonKeyStore } from "../../states";
 import { useDevelopDetailContext } from "../../Context/DevelopDetailContext";
 import {
   useDatasetColumnConfig,
-  getDatasetQueryOptions,
+  useGetJsonColumnSchema,
 } from "src/api/develop/develop-detail";
 import DynamicColumnSkeleton from "../DynamicColumnSkeleton";
 import { ShowComponent } from "../../../../components/show";
-import { isValidJson } from "src/utils/utils";
 
 const getDefaultValue = () => {
   return {
@@ -54,52 +53,24 @@ export const ExtractJsonKeyChild = ({
 
   const { dataset } = useParams();
   const allColumns = useDatasetColumnConfig(dataset);
+  const { data: jsonSchemas = {} } = useGetJsonColumnSchema(dataset);
 
-  const { data: tableData } = useQuery(
-    getDatasetQueryOptions(dataset, 0, [], [], "", { enabled: false }),
-  );
-  const rows = tableData?.data?.result?.table ?? [];
-
-  // Sample the page-0 unfiltered cache to decide whether an api_call column
-  // looks JSON-shaped. `useGetJsonColumnSchema` is the durable signal for
-  // dataset-level JSON columns, but it doesn't cover api_call response
-  // shapes; until it does, two-row sampling is the cheap stand-in. Fails
-  // OPEN on empty cache — the user landed via a filtered view or the cache
-  // got gc'd — so api_call columns aren't silently dropped from the dropdown.
-  const isApiCallColumnWithValidJson = (column) => {
-    if (rows.length === 0) return true;
-    for (const row of rows.slice(0, 2)) {
-      const cell = row[column.field];
-      const value = cell?.cell_value ?? cell?.cellValue;
-      if (
-        value &&
-        typeof value === "object" &&
-        !Array.isArray(value)
-      ) {
-        return true;
-      }
-      if (typeof value === "string" && isValidJson(value)) return true;
-    }
-    return false;
-  };
-
-  // Memoize so the predicate doesn't re-parse sampled cells on every
-  // keystroke inside the search-select.
+  // Use the same signal as RunPrompt/common.js:475 — a column is JSON-keyed
+  // when its dataType is "json" OR jsonSchemas has recorded keys for it
+  // (which covers api_call columns whose responses contain JSON objects).
   const columnOptions = useMemo(
     () =>
       allColumns
         ?.filter(
           (column) =>
             column.dataType === "json" ||
-            (column.originType === "api_call" &&
-              isApiCallColumnWithValidJson(column)),
+            jsonSchemas?.[column.field]?.keys?.length,
         )
         ?.map((column) => ({
           label: column.headerName,
           value: column.field,
         })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allColumns, rows],
+    [allColumns, jsonSchemas],
   );
 
   useEffect(() => {
