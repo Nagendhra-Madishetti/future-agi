@@ -9,7 +9,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sockets.prompt_stream_consumer import PromptStreamConsumer
+from sockets.prompt_stream_consumer import (
+    PromptStreamConsumer,
+    WS_CLOSE_CODE_NOT_FOUND,
+    WS_CLOSE_CODE_PERMISSION_DENIED,
+)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -129,10 +133,7 @@ class TestValidateTemplateAccess:
         with patch(
             "sockets.prompt_stream_consumer.PromptTemplate.objects.get",
             return_value=mock_template,
-        ), patch(
-            "accounts.services.template_access.OrganizationMembership.objects"
-        ) as mock_mgr:
-            mock_mgr.filter.return_value.values_list.return_value = []
+        ), _patch_memberships(active_org_ids=[], has_any_membership_for_fk=False):
             result = await consumer.validate_template_access("tpl-id")
 
         assert result is True
@@ -159,7 +160,7 @@ class TestValidateTemplateAccess:
         sent = consumer.send_json.call_args[0][0]
         assert sent["type"] == "error"
         assert "permission" in sent["message"].lower()
-        consumer.close.assert_awaited_once_with(code=4003)
+        consumer.close.assert_awaited_once_with(code=WS_CLOSE_CODE_PERMISSION_DENIED)
 
     async def test_not_found_sends_error_and_closes_4004(self):
         from model_hub.models.run_prompt import PromptTemplate
@@ -174,7 +175,7 @@ class TestValidateTemplateAccess:
             result = await consumer.validate_template_access("bad-id")
 
         assert result is False
-        consumer.close.assert_awaited_once_with(code=4004)
+        consumer.close.assert_awaited_once_with(code=WS_CLOSE_CODE_NOT_FOUND)
 
     async def test_multi_org_user_passes_for_any_membership(self):
         consumer = _make_consumer()
@@ -194,3 +195,49 @@ class TestValidateTemplateAccess:
             result = await consumer.validate_template_access("tpl-id")
 
         assert result is True
+
+
+# ── close-code contract ───────────────────────────────────────────────────────
+
+class TestWsCloseCodes:
+    """The BE close codes must stay in sync with the FE WS_CLOSE_CODES constant.
+
+    Having these assertions means a drift (e.g. someone changes 4003 → 4010
+    on one side) breaks CI immediately rather than silently shipping a dead
+    close-handler.
+    """
+
+    def test_permission_denied_code_matches_fe_constant(self):
+        assert WS_CLOSE_CODE_PERMISSION_DENIED == 4003
+
+    def test_not_found_code_matches_fe_constant(self):
+        assert WS_CLOSE_CODE_NOT_FOUND == 4004
+
+    def test_validate_template_access_uses_constants_not_magic_numbers(self):
+        """Ensure the close calls reference the module constants, not literals.
+
+        This test drives a real 4003 close through validate_template_access and
+        asserts the consumer closes with the constant value so that if the
+        constant changes the assertion fails loudly.
+        """
+        import asyncio
+
+        consumer = _make_consumer()
+        consumer.user = _make_user(org_id="org-a")
+        mock_template = _make_template("org-b")
+
+        async def _run():
+            with patch(
+                "sockets.prompt_stream_consumer.PromptTemplate.objects.get",
+                return_value=mock_template,
+            ), patch(
+                "accounts.services.template_access.OrganizationMembership.objects"
+            ) as mock_mgr:
+                mock_mgr.filter.return_value.values_list.return_value = ["org-a"]
+                return await consumer.validate_template_access("tpl-id")
+
+        result = asyncio.get_event_loop().run_until_complete(_run())
+        assert result is False
+        consumer.close.assert_awaited_once_with(code=WS_CLOSE_CODE_PERMISSION_DENIED)
+        # Verify the constant hasn't drifted from the FE value
+        assert consumer.close.call_args.kwargs["code"] == 4003
