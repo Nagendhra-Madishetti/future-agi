@@ -355,6 +355,8 @@ class AgentccGatewayViewSet(ViewSet):
                     "models": p["models_list"] or [],
                     "is_active": p["is_active"],
                     "timeout": p["default_timeout_seconds"],
+                    # Deprecated alias; emitted for back-compat, drop next release.
+                    "default_timeout": p["default_timeout_seconds"],
                     "max_concurrent": p["max_concurrent"],
                     "conn_pool_size": p["conn_pool_size"],
                 }

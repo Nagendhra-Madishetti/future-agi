@@ -1,11 +1,12 @@
 from rest_framework import serializers
 
+from tfc.utils.serializer_fields import JsonValueField
+
 from tfc.utils.api_serializers import (
     ApiErrorResponseSerializer,
     EmptyRequestSerializer,
     StrictInputSerializer,
 )
-from tfc.utils.serializer_fields import JsonValueField
 
 API_FORMAT_HELP_TEXT = (
     "Gateway protocol adapter name. This intentionally remains a string because "
@@ -286,16 +287,24 @@ class GatewayMutationResponseSerializer(serializers.Serializer):
 
 
 class GatewayConfigPatchRequestSerializer(serializers.Serializer):
-    guardrails = serializers.DictField(child=serializers.JSONField(), required=False)
+    guardrails = serializers.DictField(
+        child=serializers.JSONField(), required=False
+    )
     routing = serializers.DictField(child=serializers.JSONField(), required=False)
     cache = serializers.DictField(child=serializers.JSONField(), required=False)
-    rate_limiting = serializers.DictField(child=serializers.JSONField(), required=False)
+    rate_limiting = serializers.DictField(
+        child=serializers.JSONField(), required=False
+    )
     budgets = serializers.DictField(child=serializers.JSONField(), required=False)
-    cost_tracking = serializers.DictField(child=serializers.JSONField(), required=False)
+    cost_tracking = serializers.DictField(
+        child=serializers.JSONField(), required=False
+    )
     ip_acl = serializers.DictField(child=serializers.JSONField(), required=False)
     alerting = serializers.DictField(child=serializers.JSONField(), required=False)
     privacy = serializers.DictField(child=serializers.JSONField(), required=False)
-    tool_policy = serializers.DictField(child=serializers.JSONField(), required=False)
+    tool_policy = serializers.DictField(
+        child=serializers.JSONField(), required=False
+    )
     mcp = serializers.DictField(child=serializers.JSONField(), required=False)
     a2a = serializers.DictField(child=serializers.JSONField(), required=False)
     audit = serializers.DictField(child=serializers.JSONField(), required=False)

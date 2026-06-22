@@ -309,8 +309,6 @@ type AlertRuleConfig struct {
 	Window    *string  `json:"window,omitempty"`
 	Cooldown  *string  `json:"cooldown,omitempty"`
 	Channels  []string `json:"channels,omitempty"`
-	Severity  *string  `json:"severity,omitempty"`
-	Enabled   *bool    `json:"enabled,omitempty"`
 }
 
 type AlertChannelConfig struct {
@@ -318,7 +316,6 @@ type AlertChannelConfig struct {
 	Type    *string           `json:"type,omitempty"`
 	URL     *string           `json:"url,omitempty"`
 	Headers map[string]string `json:"headers,omitempty"`
-	Enabled *bool             `json:"enabled,omitempty"`
 }
 
 type AlertingConfig struct {
