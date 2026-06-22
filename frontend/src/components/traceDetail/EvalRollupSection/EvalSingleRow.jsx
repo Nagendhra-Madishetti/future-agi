@@ -12,7 +12,7 @@ const EvalSingleRow = ({ ev, onFixWithFalcon }) => {
   const span = (ev.spans || [])[0] || {};
   const canExpand = spanHasDetail(span);
   const [open, setOpen] = useState(false);
-  const chip = spanResultChip(span, ev.output_type);
+  const chip = spanResultChip(span, ev.output_type, ev.choices_map);
 
   return (
     <>

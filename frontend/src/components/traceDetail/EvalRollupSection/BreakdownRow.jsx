@@ -10,13 +10,14 @@ import { spanResultChip, spanHasDetail } from "./utils";
 const BreakdownRow = ({
   span,
   outputType,
+  choicesMap,
   evalConfigId,
   evalName,
   onSelectSpan,
   onFixWithFalcon,
 }) => {
   const [open, setOpen] = useState(false);
-  const chip = spanResultChip(span, outputType);
+  const chip = spanResultChip(span, outputType, choicesMap);
   const canExpand = spanHasDetail(span);
 
   return (
@@ -99,6 +100,7 @@ const BreakdownRow = ({
 BreakdownRow.propTypes = {
   span: PropTypes.object.isRequired,
   outputType: PropTypes.string,
+  choicesMap: PropTypes.object,
   evalConfigId: PropTypes.string,
   evalName: PropTypes.string,
   onSelectSpan: PropTypes.func,

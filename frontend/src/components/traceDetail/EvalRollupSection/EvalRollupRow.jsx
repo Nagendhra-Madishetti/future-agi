@@ -66,6 +66,7 @@ const EvalRollupRow = ({ ev, onSelectSpan, onFixWithFalcon }) => {
             key={span.span_id || i}
             span={span}
             outputType={ev.output_type}
+            choicesMap={ev.choices_map}
             evalConfigId={ev.eval_config_id}
             evalName={ev.eval_name}
             onSelectSpan={onSelectSpan}

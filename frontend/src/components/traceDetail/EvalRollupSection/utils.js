@@ -13,10 +13,10 @@ export const colFromEval = (ev) => ({
   id: ev.eval_config_id,
   name: ev.eval_name,
   outputType: ev.output_type,
-  choicesMap: {},
+  choicesMap: ev.choices_map ?? {},
 });
 
-export const spanResultChip = (span, outputType) => {
+export const spanResultChip = (span, outputType, choicesMap = {}) => {
   if (span.error) return { label: "Errored", tone: "errored" };
   const kind = resolveEvalKind({ outputType });
   if (kind === EVAL_KIND.CHOICE) {
@@ -27,7 +27,7 @@ export const spanResultChip = (span, outputType) => {
         : [];
     return {
       label: labels.length ? labels.join(", ") : "—",
-      tone: choiceTone(labels[0] || "", {}),
+      tone: choiceTone(labels[0] || "", { choicesMap }),
     };
   }
   if (kind === EVAL_KIND.PASS_FAIL) {

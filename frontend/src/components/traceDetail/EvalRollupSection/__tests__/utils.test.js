@@ -47,6 +47,12 @@ describe("spanResultChip", () => {
       tone: "neutral",
     });
   });
+
+  it("colors a choice label from the passed choicesMap", () => {
+    expect(
+      spanResultChip({ value: ["anger"] }, "choices", { anger: "fail" }),
+    ).toEqual({ label: "anger", tone: "fail" });
+  });
 });
 
 describe("spanPassed", () => {
@@ -71,5 +77,21 @@ describe("colFromEval", () => {
     expect(
       colFromEval({ eval_config_id: "c1", eval_name: "tone", output_type: "choices" }),
     ).toEqual({ id: "c1", name: "tone", outputType: "choices", choicesMap: {} });
+  });
+
+  it("carries the eval's choices_map through when present", () => {
+    expect(
+      colFromEval({
+        eval_config_id: "c1",
+        eval_name: "tone",
+        output_type: "choices",
+        choices_map: { anger: "fail", joy: "pass" },
+      }),
+    ).toEqual({
+      id: "c1",
+      name: "tone",
+      outputType: "choices",
+      choicesMap: { anger: "fail", joy: "pass" },
+    });
   });
 });
