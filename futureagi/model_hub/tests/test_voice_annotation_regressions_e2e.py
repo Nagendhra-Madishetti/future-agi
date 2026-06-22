@@ -1398,13 +1398,13 @@ class TestVoiceAnnotationRegressionE2E:
         assert cells["review_status"] == "approved"
         assert cells["reviewer_email"] == reviewer.email
         assert cells["review_notes"] == "review export note"
-        assert cells["thumbs_annotation_1_score"] == json.dumps({"value": "up"})
+        assert cells["thumbs_annotation_1_score"] == "up"
         assert cells["thumbs_annotation_1_notes"] == "label export note"
         assert cells["thumbs_annotation_1_annotator_email"] == user.email
         assert json.loads(cells["thumbs_annotation_1_record"])["notes"] == (
             "label export note"
         )
-        assert cells["thumbs_annotation_2_score"] == json.dumps({"value": "down"})
+        assert cells["thumbs_annotation_2_score"] == "down"
         assert cells["thumbs_annotation_2_notes"] == "second annotator note"
         assert (
             json.loads(cells["annotation_metrics"])[thumbs_label.name][0]["notes"]
@@ -1459,9 +1459,9 @@ class TestVoiceAnnotationRegressionE2E:
         assert csv_rows[0]["reviewer_id"] == str(reviewer.id)
         assert csv_rows[0]["reviewed_at"]
         assert csv_rows[0]["review_notes"] == "review export note"
-        assert json.loads(csv_rows[0]["value"]) == {"value": "up"}
+        assert csv_rows[0]["value"] == "up"
         assert csv_rows[1]["review_status"] == "approved"
-        assert json.loads(csv_rows[1]["value"]) == {"value": "down"}
+        assert csv_rows[1]["value"] == "down"
 
         duplicate_resp = auth_client.post(
             f"/model-hub/annotation-queues/{queue.id}/export-to-dataset/",
@@ -1629,9 +1629,7 @@ class TestVoiceAnnotationRegressionE2E:
             for cell in Cell.objects.filter(row=exported_row).select_related("column")
         }
         assert exported_cells["source_identifier"] == root_conversation_span.id
-        assert exported_cells["thumbs_annotation_1_score"] == json.dumps(
-            {"value": "up"}
-        )
+        assert exported_cells["thumbs_annotation_1_score"] == "up"
         assert exported_cells["customer_score"] == "7"
         assert exported_cells["existing_only"] == ""
         assert exported_row.metadata["queue_item_id"] == str(item.id)
@@ -1989,7 +1987,7 @@ class TestVoiceAnnotationRegressionE2E:
         # in the export. The older inline (orphan) score belongs to no
         # queue and is excluded — pre-revamp it would have filled slot 2,
         # which is what this regression test originally guarded against.
-        assert cells["slot_1_value"] == json.dumps({"value": "up"})
+        assert cells["slot_1_value"] == "up"
         assert cells["slot_1_notes"] == "queue label note"
         assert cells["slot_1_annotator"] == user.email
         # Slot 2 is empty because nothing else was scored *in this queue*.
@@ -2008,3 +2006,183 @@ class TestVoiceAnnotationRegressionE2E:
         assert row.metadata["annotations"][str(thumbs_label.id)][0]["notes"] == (
             "queue label note"
         )
+
+
+# Unit tests for call_execution-side annotation queue export helpers
+
+from types import SimpleNamespace
+
+from model_hub.utils.annotation_queue_helpers import (
+    canonical_score_value,
+    eval_metrics_from_call_execution,
+    eval_output_value,
+)
+
+
+def _label(type_value):
+    return SimpleNamespace(type=type_value, id="lbl-1")
+
+
+class TestCanonicalScoreValue:
+    def test_text_label_extracts_text_key(self):
+        assert canonical_score_value(
+            _label(AnnotationTypeChoices.TEXT.value), {"text": "hello"}
+        ) == "hello"
+
+    def test_numeric_label_extracts_value_key(self):
+        assert canonical_score_value(
+            _label(AnnotationTypeChoices.NUMERIC.value), {"value": 7}
+        ) == 7
+
+    def test_star_label_extracts_rating_key(self):
+        assert canonical_score_value(
+            _label(AnnotationTypeChoices.STAR.value), {"rating": 4}
+        ) == 4
+
+    def test_thumbs_label_extracts_value_key(self):
+        assert canonical_score_value(
+            _label(AnnotationTypeChoices.THUMBS_UP_DOWN.value), {"value": "up"}
+        ) == "up"
+
+    def test_categorical_label_extracts_selected_key(self):
+        assert canonical_score_value(
+            _label(AnnotationTypeChoices.CATEGORICAL.value), {"selected": ["a", "b"]}
+        ) == ["a", "b"]
+
+    def test_none_raw_returns_none(self):
+        assert canonical_score_value(_label(AnnotationTypeChoices.STAR.value), None) is None
+
+    def test_scalar_raw_passes_through(self):
+        assert canonical_score_value(_label(AnnotationTypeChoices.NUMERIC.value), 5) == 5
+
+    def test_missing_label_returns_raw_dict(self):
+        assert canonical_score_value(None, {"value": 1}) == {"value": 1}
+
+    def test_unknown_label_type_falls_back_to_raw(self):
+        unknown = SimpleNamespace(type="future_type", id="lbl-fut")
+        assert canonical_score_value(unknown, {"value": 1}) == {"value": 1}
+
+    def test_dict_missing_expected_key_returns_raw(self):
+        assert canonical_score_value(
+            _label(AnnotationTypeChoices.STAR.value), {"value": 1}
+        ) == {"value": 1}
+
+
+class TestEvalOutputValue:
+    def test_typed_dict_output_float(self):
+        assert eval_output_value({"output_float": 0.75}) == 0.75
+
+    def test_typed_dict_output_bool(self):
+        assert eval_output_value({"output_bool": True}) is True
+
+    def test_typed_dict_output_str(self):
+        assert eval_output_value({"output_str": "good"}) == "good"
+
+    def test_typed_dict_output_str_list(self):
+        assert eval_output_value({"output_str_list": ["a", "b"]}) == ["a", "b"]
+
+    def test_legacy_output_score_dict(self):
+        assert eval_output_value({"output": {"score": 0.5}}) == 0.5
+
+    def test_legacy_output_choice_dict(self):
+        assert eval_output_value({"output": {"choice": "pass"}}) == "pass"
+
+    def test_legacy_scalar_output(self):
+        assert eval_output_value({"output": 1.0}) == 1.0
+
+    def test_none_source(self):
+        assert eval_output_value(None) is None
+
+    def test_eval_logger_row_prefers_typed_columns(self):
+        row = SimpleNamespace(
+            output_float=0.9,
+            output_bool=None,
+            output_str=None,
+            output_str_list=[],
+        )
+        assert eval_output_value(row) == 0.9
+
+
+class TestEvalMetricsFromCallExecution:
+    def test_returns_empty_when_call_missing(self):
+        assert eval_metrics_from_call_execution(None) == {}
+
+    def test_returns_empty_when_eval_outputs_empty(self):
+        call = SimpleNamespace(eval_outputs={})
+        assert eval_metrics_from_call_execution(call) == {}
+
+    def test_legacy_output_dict_with_score(self):
+        call = SimpleNamespace(
+            eval_outputs={
+                "evt-1": {
+                    "name": "Helpfulness",
+                    "output": {"score": 0.8},
+                    "reason": "looked helpful",
+                }
+            }
+        )
+        result = eval_metrics_from_call_execution(call)
+        assert result == {
+            "Helpfulness": [
+                {
+                    "score": 0.8,
+                    "explanation": "looked helpful",
+                    "tags": None,
+                    "error": None,
+                    "error_message": None,
+                    "created_at": None,
+                }
+            ]
+        }
+
+    def test_typed_axis_sibling_keys_preferred_over_legacy_output(self):
+        call = SimpleNamespace(
+            eval_outputs={
+                "evt-1": {
+                    "name": "Score",
+                    "output_float": 0.42,
+                    "output": {"score": 0.99},
+                }
+            }
+        )
+        assert eval_metrics_from_call_execution(call)["Score"][0]["score"] == 0.42
+
+    def test_error_field_preserved_raw_not_coerced(self):
+        call = SimpleNamespace(
+            eval_outputs={
+                "evt-1": {
+                    "name": "Failing",
+                    "output": None,
+                    "error": "error",
+                    "error_message": "boom",
+                }
+            }
+        )
+        entry = eval_metrics_from_call_execution(call)["Failing"][0]
+        assert entry["error"] == "error"
+        assert entry["error_message"] == "boom"
+
+    def test_error_message_none_when_no_error(self):
+        call = SimpleNamespace(
+            eval_outputs={
+                "evt-1": {
+                    "name": "OK",
+                    "output": {"score": 1.0},
+                    "error_message": "stale",
+                }
+            }
+        )
+        entry = eval_metrics_from_call_execution(call)["OK"][0]
+        assert entry["error"] is None
+        assert entry["error_message"] is None
+
+    def test_non_dict_entry_skipped(self):
+        call = SimpleNamespace(
+            eval_outputs={"evt-1": "not-a-dict", "evt-2": {"name": "Real", "output": 1}}
+        )
+        result = eval_metrics_from_call_execution(call)
+        assert "Real" in result and len(result) == 1
+
+    def test_falls_back_to_eval_id_when_name_missing(self):
+        call = SimpleNamespace(eval_outputs={"evt-id": {"output": {"score": 0.1}}})
+        assert "evt-id" in eval_metrics_from_call_execution(call)

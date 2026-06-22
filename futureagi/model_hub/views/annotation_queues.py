@@ -114,6 +114,9 @@ from model_hub.services.bulk_selection import (
     resolve_filtered_trace_ids,
 )
 from model_hub.utils.annotation_queue_helpers import (
+    canonical_score_value,
+    eval_metrics_from_call_execution,
+    eval_output_value,
     assign_items_to_all_annotators,
     auto_assign_items,
     calculate_agreement,
@@ -1634,7 +1637,7 @@ def _serialize_score_for_export(score):
     return {
         "label_id": str(score.label_id),
         "label_name": score.label.name if score.label else None,
-        "value": score.value,
+        "value": canonical_score_value(score.label, score.value),
         "notes": score.notes,
         "annotator_id": str(score.annotator_id) if score.annotator_id else None,
         "annotator_name": annotator.name if annotator else None,
@@ -1668,7 +1671,7 @@ def _label_export_value(scores, label_id, kind):
         return [_serialize_score_for_export(score) for score in label_scores]
 
     value_getters = {
-        "value": lambda score: score.value,
+        "value": lambda score: canonical_score_value(score.label, score.value),
         "notes": lambda score: score.notes,
         "annotator_id": lambda score: (
             str(score.annotator_id) if score.annotator_id else None
@@ -1711,16 +1714,6 @@ def _annotation_metrics_for_scores(scores):
     }
 
 
-def _eval_output_value(log):
-    if log.output_float is not None:
-        return log.output_float
-    if log.output_bool is not None:
-        return log.output_bool
-    if log.output_str not in (None, ""):
-        return log.output_str
-    return log.output_str_list
-
-
 def _eval_metric_key(log):
     if log.custom_eval_config_id and getattr(log.custom_eval_config, "name", None):
         return log.custom_eval_config.name
@@ -1729,7 +1722,7 @@ def _eval_metric_key(log):
 
 def _serialize_eval_log(log):
     return {
-        "score": _eval_output_value(log),
+        "score": eval_output_value(log),
         "explanation": log.results_explanation or log.eval_explanation,
         "tags": log.results_tags or log.eval_tags,
         "error": log.error,
@@ -1744,13 +1737,28 @@ def _eval_metrics_for_queue_items(items):
     if not items:
         return {}
 
+    metrics_by_item = {item.id: {} for item in items}
+
     span_item_ids = defaultdict(list)
     trace_item_ids = defaultdict(list)
     for item in items:
-        if item.source_type == "observation_span" and item.observation_span_id:
+        if (
+            item.source_type == QueueItemSourceType.OBSERVATION_SPAN.value
+            and item.observation_span_id
+        ):
             span_item_ids[str(item.observation_span_id)].append(item.id)
-        elif item.source_type == "trace" and item.trace_id:
+        elif (
+            item.source_type == QueueItemSourceType.TRACE.value
+            and item.trace_id
+        ):
             trace_item_ids[str(item.trace_id)].append(item.id)
+        elif (
+            item.source_type == QueueItemSourceType.CALL_EXECUTION.value
+            and item.call_execution_id
+        ):
+            metrics_by_item[item.id] = eval_metrics_from_call_execution(
+                item.call_execution
+            )
 
     eval_filter = Q()
     if span_item_ids:
@@ -1758,9 +1766,8 @@ def _eval_metrics_for_queue_items(items):
     if trace_item_ids:
         eval_filter |= Q(trace_id__in=list(trace_item_ids))
     if not eval_filter:
-        return {}
+        return metrics_by_item
 
-    metrics_by_item = {item.id: {} for item in items}
     seen_by_item = {item.id: set() for item in items}
     eval_logs = (
         EvalLogger.objects.filter(eval_filter, deleted=False)
@@ -1805,7 +1812,6 @@ LABEL_TYPE_TO_DATA_TYPE = {
     AnnotationTypeChoices.STAR.value: DataTypeChoices.FLOAT.value,
     AnnotationTypeChoices.THUMBS_UP_DOWN.value: DataTypeChoices.TEXT.value,
 }
-
 
 def _unique_export_column_name(name, used):
     base = (name or "column").strip() or "column"
