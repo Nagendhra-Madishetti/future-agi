@@ -793,8 +793,9 @@ def _emit_eval_billing(
         _llm_cost = (result.cost or {}).get("total_cost", 0)
         _per_run_fee = 0
         try:
-            from ee.usage.services.config import BillingConfig
-            _per_run_fee = BillingConfig.get().get_eval_per_run_fee()
+            from tfc.billing.boundary import get_billing
+            billing = get_billing()
+            _per_run_fee = billing.eval_per_run_fee()
         except Exception:
             pass
         _actual_cost = _llm_cost + _per_run_fee

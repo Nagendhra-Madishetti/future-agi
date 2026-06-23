@@ -125,6 +125,10 @@ class Billing:
         """Data retention in days.  Returns 0 (no enforcement) in OSS."""
         raise NotImplementedError
 
+    def eval_per_run_fee(self) -> float:
+        """Per-run platform fee for evals.  Returns 0.0 in OSS."""
+        raise NotImplementedError
+
 
 # ---------------------------------------------------------------------------
 # _NoopBilling — OSS fallback
@@ -159,6 +163,9 @@ class _NoopBilling(Billing):
 
     def get_retention_days(self, org_id, data_type):
         return 0
+
+    def eval_per_run_fee(self) -> float:
+        return 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +239,11 @@ class _EeBilling(Billing):
         from ee.usage.services.entitlements import Entitlements
 
         return Entitlements.get_retention_days(str(org_id), data_type)
+
+    def eval_per_run_fee(self) -> float:
+        from ee.usage.services.config import BillingConfig
+
+        return BillingConfig.get().get_eval_per_run_fee()
 
 
 # ---------------------------------------------------------------------------

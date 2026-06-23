@@ -414,8 +414,9 @@ def run_eval_func(
 
             per_run_fee = 0
             try:
-                from ee.usage.services.config import BillingConfig
-                _billing_config = BillingConfig.get()
+                from tfc.billing.boundary import get_billing
+                billing = get_billing()
+                _billing_config = billing
                 per_run_fee = _billing_config.get_eval_per_run_fee()
             except Exception:
                 pass

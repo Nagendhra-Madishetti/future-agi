@@ -285,8 +285,9 @@ def _run_eval(eval_template, inputs, model, user, workspace, eval_config=None):
 
         per_run_fee = 0
         try:
-            from ee.usage.services.config import BillingConfig
-            _billing_config = BillingConfig.get()
+            from tfc.billing.boundary import get_billing
+            billing = get_billing()
+            _billing_config = billing
             per_run_fee = _billing_config.get_eval_per_run_fee()
         except Exception:
             pass
@@ -545,8 +546,9 @@ def _run_protect(
 
             per_run_fee = 0
             try:
-                from ee.usage.services.config import BillingConfig
-                _billing_config = BillingConfig.get()
+                from tfc.billing.boundary import get_billing
+                billing = get_billing()
+                _billing_config = billing
                 per_run_fee = _billing_config.get_eval_per_run_fee()
             except Exception:
                 pass
