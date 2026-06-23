@@ -2186,3 +2186,132 @@ class TestEvalMetricsFromCallExecution:
     def test_falls_back_to_eval_id_when_name_missing(self):
         call = SimpleNamespace(eval_outputs={"evt-id": {"output": {"score": 0.1}}})
         assert "evt-id" in eval_metrics_from_call_execution(call)
+
+    def test_shape_pin_matches_typed_dict(self):
+        from model_hub.utils.annotation_queue_helpers import EvalMetricEntry
+
+        call = SimpleNamespace(
+            eval_outputs={
+                "evt-1": {
+                    "name": "Pinned",
+                    "output": {"score": 0.5},
+                    "reason": "explain",
+                    "tags": ["x"],
+                    "created_at": "2026-01-01T00:00:00Z",
+                }
+            }
+        )
+        entries = eval_metrics_from_call_execution(call)["Pinned"]
+        assert len(entries) == 1
+        assert set(entries[0].keys()) == set(EvalMetricEntry.__annotations__.keys())
+
+
+@pytest.mark.django_db
+class TestQueueExportQueryCount:
+    def _seed_call(self, organization, workspace, base_call, turns=2):
+        from simulate.models.test_execution import CallExecution, CallTranscript
+
+        call = CallExecution.objects.create(
+            test_execution=base_call.test_execution,
+            scenario=base_call.scenario,
+            status=CallExecution.CallStatus.COMPLETED,
+            duration_seconds=10,
+        )
+        for i in range(turns):
+            role = (
+                CallTranscript.SpeakerRole.USER
+                if i % 2 == 0
+                else CallTranscript.SpeakerRole.ASSISTANT
+            )
+            CallTranscript.objects.create(
+                call_execution=call,
+                speaker_role=role,
+                content=f"turn {i}",
+                start_time_ms=i * 500,
+            )
+        return call
+
+    def _seed_queue_with_calls(
+        self, organization, workspace, user, calls, queue_name="prefetch guard"
+    ):
+        queue = _queue(queue_name, organization, workspace, user)
+        for call in calls:
+            QueueItem.objects.create(
+                queue=queue,
+                source_type=QueueItemSourceType.CALL_EXECUTION.value,
+                call_execution=call,
+                organization=organization,
+                workspace=workspace,
+                status=QueueItemStatus.COMPLETED.value,
+            )
+        return queue
+
+    def _run_export(self, queue):
+        from model_hub.utils.annotation_queue_helpers import _call_transcript_turns
+        from model_hub.views.annotation_queues import _queue_item_export_prefetches
+
+        items_qs = (
+            QueueItem.objects.filter(queue=queue, deleted=False)
+            .select_related("call_execution")
+            .prefetch_related(*_queue_item_export_prefetches())
+        )
+        items = list(items_qs)
+        for item in items:
+            _ = _call_transcript_turns(item.call_execution)
+        return items
+
+    def test_export_queryset_does_not_scale_with_call_items(
+        self,
+        organization,
+        workspace,
+        user,
+        simulation_call_execution,
+    ):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        from simulate.models.test_execution import CallTranscript
+
+        for i in range(2):
+            CallTranscript.objects.create(
+                call_execution=simulation_call_execution,
+                speaker_role=(
+                    CallTranscript.SpeakerRole.USER
+                    if i % 2 == 0
+                    else CallTranscript.SpeakerRole.ASSISTANT
+                ),
+                content=f"fixture turn {i}",
+                start_time_ms=i * 500,
+            )
+
+        call_b = self._seed_call(organization, workspace, simulation_call_execution)
+        queue_2 = self._seed_queue_with_calls(
+            organization,
+            workspace,
+            user,
+            [simulation_call_execution, call_b],
+            queue_name="prefetch guard 2-item",
+        )
+        with CaptureQueriesContext(connection) as ctx_2:
+            self._run_export(queue_2)
+        baseline = len(ctx_2.captured_queries)
+
+        call_c = self._seed_call(organization, workspace, simulation_call_execution)
+        call_d = self._seed_call(organization, workspace, simulation_call_execution)
+        queue_3 = self._seed_queue_with_calls(
+            organization,
+            workspace,
+            user,
+            [simulation_call_execution, call_c, call_d],
+            queue_name="prefetch guard 3-item",
+        )
+        with CaptureQueriesContext(connection) as ctx_3:
+            self._run_export(queue_3)
+
+        assert len(ctx_3.captured_queries) == baseline, (
+            f"Query count grew with item count: {baseline} -> "
+            f"{len(ctx_3.captured_queries)}. The transcripts fetch is "
+            f"running per-item; the Prefetch is missing or _call_transcript_turns "
+            f"is bypassing the prefetched attribute.\n"
+            + "\n".join(q["sql"][:200] for q in ctx_3.captured_queries)
+        )

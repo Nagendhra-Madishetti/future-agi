@@ -127,6 +127,8 @@ from model_hub.utils.annotation_queue_helpers import (
     resolve_source_content,
     resolve_source_object,
 )
+from simulate.models.test_execution import CallTranscript
+from simulate.utils.stored_transcript_roles import get_displayable_transcript_roles
 from model_hub.utils.utils import send_message_to_channel
 from tfc.utils.api_contracts import validated_request
 from tfc.utils.api_serializers import (
@@ -156,6 +158,26 @@ ERROR_RESPONSES = {
 # path for selections exceeding this; until then, the endpoint errors with
 # ``selection_too_large`` so the UI can prompt the user to narrow the filter.
 MAX_SELECTION_CAP = 10_000
+
+
+def _queue_item_export_prefetches():
+    return (
+        Prefetch(
+            "trace__observation_spans",
+            queryset=ObservationSpan.objects.filter(deleted=False).order_by(
+                "start_time", "created_at"
+            ),
+            to_attr="_queue_export_spans",
+        ),
+        Prefetch(
+            "call_execution__transcripts",
+            queryset=CallTranscript.objects.filter(
+                speaker_role__in=get_displayable_transcript_roles(),
+                deleted=False,
+            ).order_by("start_time_ms"),
+            to_attr="_displayable_transcripts",
+        ),
+    )
 
 SOURCE_TYPE_EXPORT_LABELS = {
     QueueItemSourceType.DATASET_ROW.value: "dataset row",
@@ -2162,15 +2184,7 @@ def _build_annotation_queue_export_fields(queue, sample_items=None):
                 "call_execution",
                 "trace_session",
             )
-            .prefetch_related(
-                Prefetch(
-                    "trace__observation_spans",
-                    queryset=ObservationSpan.objects.filter(deleted=False).order_by(
-                        "start_time", "created_at"
-                    ),
-                    to_attr="_queue_export_spans",
-                )
-            )
+            .prefetch_related(*_queue_item_export_prefetches())
             .order_by("order", "created_at")[:100]
         )
     sample_items = list(sample_items)
@@ -3355,15 +3369,7 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
                 "call_execution",
                 "trace_session",
             )
-            .prefetch_related(
-                Prefetch(
-                    "trace__observation_spans",
-                    queryset=ObservationSpan.objects.filter(deleted=False).order_by(
-                        "start_time", "created_at"
-                    ),
-                    to_attr="_queue_export_spans",
-                )
-            )
+            .prefetch_related(*_queue_item_export_prefetches())
         )
 
         status_filter = _normalize_query_filter_value(query_params.get("status"))
@@ -3681,15 +3687,7 @@ class AnnotationQueueViewSet(BaseModelViewSetMixinWithUserOrg, viewsets.ModelVie
                 "call_execution",
                 "trace_session",
             )
-            .prefetch_related(
-                Prefetch(
-                    "trace__observation_spans",
-                    queryset=ObservationSpan.objects.filter(deleted=False).order_by(
-                        "start_time", "created_at"
-                    ),
-                    to_attr="_queue_export_spans",
-                )
-            )
+            .prefetch_related(*_queue_item_export_prefetches())
         )
         if status_filter:
             items_qs = items_qs.filter(status=status_filter)

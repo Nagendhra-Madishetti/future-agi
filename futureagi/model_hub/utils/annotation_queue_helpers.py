@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Any, TypedDict
 
 import structlog
 from django.core.exceptions import ObjectDoesNotExist
@@ -115,13 +116,17 @@ def _call_execution_metric_payload(call):
     return {key: value for key, value in payload.items() if value is not None}
 
 
-def _call_transcript_turns(call):
+def _call_transcript_turns(call: Any) -> list[dict[str, Any]]:
     if not call:
         return []
     try:
-        rows = call.transcripts.filter(
-            speaker_role__in=get_displayable_transcript_roles()
-        ).order_by("start_time_ms")
+        rows = getattr(call, "_displayable_transcripts", None)
+        if rows is None:
+            rows = list(
+                call.transcripts.filter(
+                    speaker_role__in=get_displayable_transcript_roles()
+                ).order_by("start_time_ms")
+            )
         return list(CallTranscriptSerializer(rows, many=True).data)
     except (ObjectDoesNotExist, AttributeError, DatabaseError) as exc:
         logger.warning(
@@ -2652,7 +2657,19 @@ def send_rule_completion_email(
         )
 
 
-def eval_output_value(source):
+EvalOutputScalar = bool | float | int | str | list[str] | dict[str, Any] | None
+
+
+class EvalMetricEntry(TypedDict):
+    score: EvalOutputScalar
+    explanation: str | None
+    tags: list[str] | None
+    error: bool | str | None
+    error_message: str | None
+    created_at: str | None
+
+
+def eval_output_value(source: Any) -> EvalOutputScalar:
     """Resolve score scalar from an EvalLogger row or a call_execution eval_outputs entry."""
     if source is None:
         return None
@@ -2680,30 +2697,31 @@ def eval_output_value(source):
     return source.output_str_list
 
 
-def eval_metrics_from_call_execution(call):
+def eval_metrics_from_call_execution(
+    call: Any,
+) -> dict[str, list[EvalMetricEntry]]:
     if not call:
         return {}
     raw = getattr(call, "eval_outputs", {}) or {}
-    metrics = {}
+    metrics: dict[str, list[EvalMetricEntry]] = {}
     for eval_id, entry in raw.items():
         if not isinstance(entry, dict):
             continue
         key = entry.get("name") or str(eval_id)
         error = entry.get("error")
-        metrics.setdefault(key, []).append(
-            {
-                "score": eval_output_value(entry),
-                "explanation": entry.get("reason") or entry.get("explanation"),
-                "tags": entry.get("tags"),
-                "error": error,
-                "error_message": entry.get("error_message") if error else None,
-                "created_at": entry.get("created_at"),
-            }
-        )
+        metric: EvalMetricEntry = {
+            "score": eval_output_value(entry),
+            "explanation": entry.get("reason") or entry.get("explanation"),
+            "tags": entry.get("tags"),
+            "error": error,
+            "error_message": entry.get("error_message") if error else None,
+            "created_at": entry.get("created_at"),
+        }
+        metrics.setdefault(key, []).append(metric)
     return metrics
 
 
-def canonical_score_value(label, raw):
+def canonical_score_value(label: Any, raw: Any) -> Any:
     if raw is None or not isinstance(raw, dict):
         return raw
     label_type = getattr(label, "type", None) if label else None
