@@ -1,4 +1,4 @@
-from django.db import migrations, models
+from django.db import migrations
 
 BATCH_SIZE = 500
 CREDENTIAL_FIELDS = frozenset({"api_key", "livekit_api_key", "livekit_api_secret"})
