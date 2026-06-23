@@ -1326,53 +1326,49 @@ class RunPrompts:
                         config=api_call_config,
                         workspace=row.dataset.workspace,
                     )
-                        logger.info(
-                            "RunPrompts_process_row_api_call_logged",
-                            run_prompt_id=str(self.run_prompt_id),
-                            row_id=row_id,
-                            api_call_log_row_id=(
-                                str(api_call_log_row.id) if api_call_log_row else None
-                            ),
-                        )
-                    except Exception as api_err:
-                        logger.error(
-                            "RunPrompts_process_row_api_call_validation_error",
-                            run_prompt_id=str(self.run_prompt_id),
-                            row_id=row_id,
-                            error=str(api_err),
-                        )
-                        raise ValueError("Error in API call validation")  # noqa: B904
-                    if not api_call_log_row:
-                        logger.error(
-                            "RunPrompts_process_row_api_call_log_row_none",
-                            run_prompt_id=str(self.run_prompt_id),
-                            row_id=row_id,
-                        )
-                        raise ValueError("Error in API call validation")
-                    elif (
-                        api_call_log_row.status != APICallStatusChoices.PROCESSING.value
-                    ):
-                        error_message = get_error_for_api_status(
-                            api_call_log_row.status
-                        )
-                        logger.error(
-                            "RunPrompts_process_row_api_call_status_invalid",
-                            run_prompt_id=str(self.run_prompt_id),
-                            row_id=row_id,
-                            status=api_call_log_row.status,
-                            error_message=error_message,
-                        )
-                        raise ValueError(error_message)
-                    elif (
-                        api_call_log_row.status == APICallStatusChoices.PROCESSING.value
-                    ):
-                        api_call_log_row.status = APICallStatusChoices.SUCCESS.value
-                        api_call_log_row.save()
-                        logger.info(
-                            "RunPrompts_process_row_api_call_status_set_success",
-                            run_prompt_id=str(self.run_prompt_id),
-                            row_id=row_id,
-                        )
+                    logger.info(
+                        "RunPrompts_process_row_api_call_logged",
+                        run_prompt_id=str(self.run_prompt_id),
+                        row_id=row_id,
+                        api_call_log_row_id=(
+                            str(api_call_log_row.id) if api_call_log_row else None
+                        ),
+                    )
+                except Exception as api_err:
+                    logger.error(
+                        "RunPrompts_process_row_api_call_validation_error",
+                        run_prompt_id=str(self.run_prompt_id),
+                        row_id=row_id,
+                        error=str(api_err),
+                    )
+                    raise ValueError("Error in API call validation")  # noqa: B904
+                if not api_call_log_row:
+                    logger.error(
+                        "RunPrompts_process_row_api_call_log_row_none",
+                        run_prompt_id=str(self.run_prompt_id),
+                        row_id=row_id,
+                    )
+                    raise ValueError("Error in API call validation")
+                elif api_call_log_row.status != APICallStatusChoices.PROCESSING.value:
+                    error_message = get_error_for_api_status(
+                        api_call_log_row.status
+                    )
+                    logger.error(
+                        "RunPrompts_process_row_api_call_status_invalid",
+                        run_prompt_id=str(self.run_prompt_id),
+                        row_id=row_id,
+                        status=api_call_log_row.status,
+                        error_message=error_message,
+                    )
+                    raise ValueError(error_message)
+                elif api_call_log_row.status == APICallStatusChoices.PROCESSING.value:
+                    api_call_log_row.status = APICallStatusChoices.SUCCESS.value
+                    api_call_log_row.save()
+                    logger.info(
+                        "RunPrompts_process_row_api_call_status_set_success",
+                        run_prompt_id=str(self.run_prompt_id),
+                        row_id=row_id,
+                    )
 
                 # Dual-write: emit usage event for new billing system
                 try:

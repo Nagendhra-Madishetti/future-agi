@@ -377,13 +377,8 @@ def _falcon_analyze_single_trace(trace_id: str, project_id: str):
     # Falcon is gated on deployment mode (EE / Cloud) AND code presence.
     # In OSS mode or when ee/falcon_ai/ isn't installed, skip cleanly so
     # the enclosing task doesn't surface an ImportError.
-    try:
-from tfc.ee_gating import is_oss as _is_oss
-        _is_oss = DeploymentMode.is_oss()
-    except ImportError:
-        _is_oss = True
-
-    if _is_oss:
+    from tfc.ee_gating import is_oss as _is_oss_fn
+    if _is_oss_fn():
         logger.warning(
             "falcon_trace_analysis_skipped_no_ee",
             trace_id=trace_id,

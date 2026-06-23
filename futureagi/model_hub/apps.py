@@ -95,12 +95,9 @@ class ModelHubConfig(AppConfig):
         logger.info("ClickHouse analytics schema ensured")
 
         # Warm CH page cache in background (prod only — skip in local dev)
-        try:
-from tfc.ee_gating import is_oss as _is_oss
-        except ImportError:
-            DeploymentMode = None
+        from tfc.ee_gating import is_cloud as _is_cloud
 
-        if DeploymentMode.is_cloud():
+        if _is_cloud():
             import threading
 
             threading.Thread(

@@ -136,30 +136,30 @@ class DevelopOptimizer:
 
     def _update_api_call_log_row(self):
         try:
-            # get the optimisation object by id
+            from tfc.billing.boundary import get_billing
             from tfc.constants.api_calls import APICallStatusChoices
             try:
                 from ee.usage.models.usage import APICallLog
             except ImportError:
                 APICallLog = None
-                        optimizer_row = OptimizationDataset.objects.get(id=self.optimize_dataset.id)
+
+            optimizer_row = OptimizationDataset.objects.get(id=self.optimize_dataset.id)
             optimisation_id = str(optimizer_row.id)
-            # get the api call log row by reference id
+            api_call_log_row = None
             if APICallLog is not None:
                 api_call_log_row = APICallLog.objects.filter(
-                reference_id=optimisation_id, deleted=False
-            ).first()
+                    reference_id=optimisation_id, deleted=False
+                ).first()
             if optimizer_row.status == StatusType.FAILED.value:
-                # refund the cost
-                # update the api call log row
-                api_call_log_row.status = APICallStatusChoices.ERROR.value
-                api_call_log_row.save()
-                refund_config = {"reference_id": str(optimizer_row.id)}
-                billing.refund(api_call_log_row, config=refund_config)
+                if api_call_log_row:
+                    api_call_log_row.status = APICallStatusChoices.ERROR.value
+                    api_call_log_row.save()
+                    refund_config = {"reference_id": str(optimizer_row.id)}
+                    get_billing().refund(api_call_log_row, config=refund_config)
             else:
-                # update the api call log row
-                api_call_log_row.status = APICallStatusChoices.SUCCESS.value
-                api_call_log_row.save()
+                if api_call_log_row:
+                    api_call_log_row.status = APICallStatusChoices.SUCCESS.value
+                    api_call_log_row.save()
 
         except Exception as e:
             logger.exception(f"error in refunding cost : {e}")
