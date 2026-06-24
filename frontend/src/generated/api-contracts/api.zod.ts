@@ -17021,12 +17021,8 @@ export const ModelHubDevelopsAddRunPromptColumnCreateBody = zod.object({
   "name": zod.string().min(1),
   "config": zod.object({
   "model": zod.string().max(modelHubDevelopsAddRunPromptColumnCreateBodyConfigModelMax).optional(),
-  "run_prompt_config": zod.record(zod.string(), zod.object({
-
-}).passthrough().describe('Any valid JSON value.')).optional(),
-  "messages": zod.array(zod.record(zod.string(), zod.object({
-
-}).passthrough().describe('Any valid JSON value.'))).optional().describe('List of messages with format [{\'role\': \'user\/assistant\', \'content\': \'text\'}]'),
+  "run_prompt_config": zod.record(zod.string(), zod.string()).optional(),
+  "messages": zod.array(zod.record(zod.string(), zod.string())).optional().describe('List of messages with format [{\'role\': \'user\/assistant\', \'content\': \'text\'}]'),
   "temperature": zod.number().min(modelHubDevelopsAddRunPromptColumnCreateBodyConfigTemperatureMin).max(modelHubDevelopsAddRunPromptColumnCreateBodyConfigTemperatureMax).optional().describe('Controls the randomness. Value between 0 and 2.'),
   "frequency_penalty": zod.number().min(modelHubDevelopsAddRunPromptColumnCreateBodyConfigFrequencyPenaltyMin).max(modelHubDevelopsAddRunPromptColumnCreateBodyConfigFrequencyPenaltyMax).optional().describe('Penalty for word repetition. Value between -2 and 2.'),
   "presence_penalty": zod.number().min(modelHubDevelopsAddRunPromptColumnCreateBodyConfigPresencePenaltyMin).max(modelHubDevelopsAddRunPromptColumnCreateBodyConfigPresencePenaltyMax).optional().describe('Penalty for new word usage. Value between -2 and 2.'),
@@ -17275,12 +17271,8 @@ export const ModelHubDevelopsEditRunPromptColumnCreateBody = zod.object({
   "name": zod.string().min(1).optional(),
   "config": zod.object({
   "model": zod.string().max(modelHubDevelopsEditRunPromptColumnCreateBodyConfigModelMax).optional(),
-  "run_prompt_config": zod.record(zod.string(), zod.object({
-
-}).passthrough().describe('Any valid JSON value.')).optional(),
-  "messages": zod.array(zod.record(zod.string(), zod.object({
-
-}).passthrough().describe('Any valid JSON value.'))).optional().describe('List of messages with format [{\'role\': \'user\/assistant\', \'content\': \'text\'}]'),
+  "run_prompt_config": zod.record(zod.string(), zod.string()).optional(),
+  "messages": zod.array(zod.record(zod.string(), zod.string())).optional().describe('List of messages with format [{\'role\': \'user\/assistant\', \'content\': \'text\'}]'),
   "temperature": zod.number().min(modelHubDevelopsEditRunPromptColumnCreateBodyConfigTemperatureMin).max(modelHubDevelopsEditRunPromptColumnCreateBodyConfigTemperatureMax).optional().describe('Controls the randomness. Value between 0 and 2.'),
   "frequency_penalty": zod.number().min(modelHubDevelopsEditRunPromptColumnCreateBodyConfigFrequencyPenaltyMin).max(modelHubDevelopsEditRunPromptColumnCreateBodyConfigFrequencyPenaltyMax).optional().describe('Penalty for word repetition. Value between -2 and 2.'),
   "presence_penalty": zod.number().min(modelHubDevelopsEditRunPromptColumnCreateBodyConfigPresencePenaltyMin).max(modelHubDevelopsEditRunPromptColumnCreateBodyConfigPresencePenaltyMax).optional().describe('Penalty for new word usage. Value between -2 and 2.'),
@@ -17487,12 +17479,8 @@ export const ModelHubDevelopsPreviewRunPromptColumnCreateBody = zod.object({
   "name": zod.string().min(1),
   "config": zod.object({
   "model": zod.string().max(modelHubDevelopsPreviewRunPromptColumnCreateBodyConfigModelMax).optional(),
-  "run_prompt_config": zod.record(zod.string(), zod.object({
-
-}).passthrough().describe('Any valid JSON value.')).optional(),
-  "messages": zod.array(zod.record(zod.string(), zod.object({
-
-}).passthrough().describe('Any valid JSON value.'))).optional().describe('List of messages with format [{\'role\': \'user\/assistant\', \'content\': \'text\'}]'),
+  "run_prompt_config": zod.record(zod.string(), zod.string()).optional(),
+  "messages": zod.array(zod.record(zod.string(), zod.string())).optional().describe('List of messages with format [{\'role\': \'user\/assistant\', \'content\': \'text\'}]'),
   "temperature": zod.number().min(modelHubDevelopsPreviewRunPromptColumnCreateBodyConfigTemperatureMin).max(modelHubDevelopsPreviewRunPromptColumnCreateBodyConfigTemperatureMax).optional().describe('Controls the randomness. Value between 0 and 2.'),
   "frequency_penalty": zod.number().min(modelHubDevelopsPreviewRunPromptColumnCreateBodyConfigFrequencyPenaltyMin).max(modelHubDevelopsPreviewRunPromptColumnCreateBodyConfigFrequencyPenaltyMax).optional().describe('Penalty for word repetition. Value between -2 and 2.'),
   "presence_penalty": zod.number().min(modelHubDevelopsPreviewRunPromptColumnCreateBodyConfigPresencePenaltyMin).max(modelHubDevelopsPreviewRunPromptColumnCreateBodyConfigPresencePenaltyMax).optional().describe('Penalty for new word usage. Value between -2 and 2.'),
@@ -25564,9 +25552,7 @@ export const ModelHubRunPromptCreateBody = zod.object({
   "model": zod.string().min(1).max(modelHubRunPromptCreateBodyModelMax),
   "name": zod.string().min(1).max(modelHubRunPromptCreateBodyNameMax),
   "concurrency": zod.number().default(modelHubRunPromptCreateBodyConcurrencyDefault),
-  "messages": zod.array(zod.record(zod.string(), zod.object({
-
-}).passthrough().describe('Any valid JSON value.'))).describe('List of messages with format [{\'role\': \'user\/assistant\', \'content\': \'text\'}]'),
+  "messages": zod.array(zod.record(zod.string(), zod.string().min(1))).describe('List of messages with format [{\'role\': \'user\/assistant\', \'content\': \'text\'}]'),
   "output_format": zod.enum(['array', 'string', 'number', 'object', 'audio', 'image']).default(modelHubRunPromptCreateBodyOutputFormatDefault).describe('Output format type. Defaults to \'string\'.'),
   "temperature": zod.number().min(modelHubRunPromptCreateBodyTemperatureMin).max(modelHubRunPromptCreateBodyTemperatureMax).optional().describe('Controls the randomness. Value between 0 and 1.'),
   "frequency_penalty": zod.number().min(modelHubRunPromptCreateBodyFrequencyPenaltyMin).max(modelHubRunPromptCreateBodyFrequencyPenaltyMax).optional().describe('Penalty for word repetition. Value between -2 and 2.'),
