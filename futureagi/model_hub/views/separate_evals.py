@@ -19,6 +19,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from accounts.authentication import workspace_read_only
 from agentic_eval.core.embeddings.embedding_manager import EmbeddingManager
 from model_hub.constants import (
     EVAL_PLAYGROUND_CURL_CODE,
@@ -1125,6 +1126,7 @@ class EvalMetricView(APIView):
             return self._gm.bad_request(str(e))
 
 
+@workspace_read_only
 class GetEvalTemplateNameView(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
@@ -1186,6 +1188,7 @@ class GetEvalTemplateNameView(APIView):
             return self._gm.bad_request(str(e))
 
 
+@workspace_read_only
 class GetEvalTemplates(APIView):
     _gm = GeneralMethods()
     permission_classes = [IsAuthenticated]
@@ -1467,6 +1470,7 @@ class GetEvalTemplates(APIView):
             return self._gm.bad_request(str(e))
 
 
+@workspace_read_only
 class EvalTemplateListView(APIView):
     """
     POST /model-hub/eval-templates/list/
@@ -1643,6 +1647,7 @@ class EvalTemplateListView(APIView):
             return self._gm.bad_request(str(e))
 
 
+@workspace_read_only
 class EvalTemplateListChartsView(APIView):
     """
     POST /model-hub/eval-templates/list-charts/
@@ -4900,6 +4905,7 @@ class GroundTruthConfigView(APIView):
             return self._gm.bad_request(str(e))
 
 
+@workspace_read_only
 class GroundTruthSearchView(APIView):
     """POST /model-hub/ground-truth/<id>/search/ — test retrieval with a query."""
 
