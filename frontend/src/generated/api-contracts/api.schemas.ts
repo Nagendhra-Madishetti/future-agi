@@ -23705,6 +23705,7 @@ export type ModelHubEvalGroupsList200 = {
 export type ModelHubEvalTemplatesFeedbackListListParams = {
 /**
  * @minimum 0
+ * @maximum 10000
  */
 page?: number;
 /**
@@ -23732,6 +23733,7 @@ export const ModelHubEvalTemplatesFeedbackListListPeriod = {
 export type ModelHubEvalTemplatesUsageListParams = {
 /**
  * @minimum 0
+ * @maximum 10000
  */
 page?: number;
 /**

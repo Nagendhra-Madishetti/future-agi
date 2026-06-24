@@ -482,7 +482,9 @@ def execute_evaluation():
 def process_evaluation_single_task(evaluation):
     close_old_connections()
 
-    eval_obj = UserEvalMetric.objects.get(id=evaluation["eval_id"])
+    eval_obj = UserEvalMetric.objects.select_related(
+        "dataset", "template", "pinned_version"
+    ).get(id=evaluation["eval_id"])
     logger.info(f"Processing evaluation {eval_obj.id}")
 
     if evaluation["type"] == "single":

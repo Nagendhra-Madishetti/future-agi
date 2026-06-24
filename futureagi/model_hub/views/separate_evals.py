@@ -5518,22 +5518,27 @@ class EvalFeedbackListView(APIView):
             page = query["page"]
             page_size = query["page_size"]
 
-            # Get log IDs for this template as strings (Feedback.source_id is CharField)
-            log_ids = list(
-                APICallLog.objects.filter(
-                    source_id=str(template_id),
-                    organization=organization,
-                    deleted=False,
-                ).values_list("log_id", flat=True)[:1000]
-            )
-            log_id_strs = [str(lid) for lid in log_ids]
+            # Join feedback via eval_template_id (direct) or source_id matching
+            # an APICallLog.log_id for this template.  Use a subquery so there
+            # is no hard cap on the number of logs (the old [:1000] silently
+            # dropped feedback beyond position 1000).
+            from django.db.models import Subquery, OuterRef
+
+            log_id_subquery = APICallLog.objects.filter(
+                source_id=str(template_id),
+                organization=organization,
+                deleted=False,
+            ).values("log_id")
 
             base_qs = (
                 Feedback.objects.filter(
                     organization=organization,
                     deleted=False,
                 )
-                .filter(Q(eval_template_id=template_id) | Q(source_id__in=log_id_strs))
+                .filter(
+                    Q(eval_template_id=template_id)
+                    | Q(source_id__in=Subquery(log_id_subquery.values("log_id")))
+                )
                 .select_related("user")
                 .order_by("-created_at")
             )

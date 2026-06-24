@@ -2972,7 +2972,7 @@ class ExperimentAdditionalEvaluationsRequestSerializer(serializers.Serializer):
 
 
 class EvalUsageQuerySerializer(serializers.Serializer):
-    page = serializers.IntegerField(required=False, default=0, min_value=0)
+    page = serializers.IntegerField(required=False, default=0, min_value=0, max_value=10_000)
     page_size = serializers.IntegerField(
         required=False, default=25, min_value=1, max_value=100
     )

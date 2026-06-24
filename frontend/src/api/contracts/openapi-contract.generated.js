@@ -17731,6 +17731,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "schema": {
               "type": "integer",
               "minimum": 0,
+              "maximum": 10000,
               "default": 0
             }
           },
@@ -17962,6 +17963,7 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "schema": {
               "type": "integer",
               "minimum": 0,
+              "maximum": 10000,
               "default": 0
             }
           },

@@ -61,7 +61,10 @@ def _resolve_uem_version(uem):
     the three tracer paths all call this or _resolve_eval_version below.
     """
     if getattr(uem, "pinned_version_id", None):
-        return uem.pinned_version
+        # Guard against soft-deleted pinned versions — fall through to default
+        pv = uem.pinned_version
+        if pv and not getattr(pv, "deleted", False):
+            return pv
     return EvalTemplateVersion.objects.get_default(uem.template)
 
 
