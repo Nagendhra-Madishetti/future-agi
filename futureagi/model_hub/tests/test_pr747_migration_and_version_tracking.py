@@ -466,3 +466,59 @@ class TestPinnedChildVersionTracking:
             f"Expected default version_number={default_version.version_number} (v2), "
             f"got {recorded.get('version_number')}"
         )
+
+
+# ── Eval usage response shape contract ───────────────────────────────────────
+
+class TestEvalUsageResponseContract:
+    """Verify the EvalUsageStatsView response validates against its serializer.
+
+    The table rows have dynamic input_var_X columns plus known scalar fields
+    (row_id: string, composite: bool). The contract must accept scalars — not
+    only objects — in cell values. This test drives a real response through the
+    serializer and asserts it validates without error.
+    """
+
+    def test_eval_usage_table_accepts_scalar_cell_values(self):
+        from model_hub.serializers.contracts import EvalUsageStatsResponseSerializer
+        import uuid
+
+        # Minimal response matching the real EvalUsageStatsView shape.
+        # table cells include strings (row_id), booleans (composite), floats (score),
+        # and strings in dynamic input_var_X columns.
+        # DictField(child=JSONField()) (additionalProperties: {type: object}) would
+        # reject these scalars — DictField(child=JsonValueField()) must accept them.
+        payload = {
+            "status": True,
+            "result": {
+                "template_id": str(uuid.uuid4()),
+                "is_composite": False,
+                "stats": {
+                    "total_runs": 10,
+                    "runs_period": 7,
+                    "success_count": 7,
+                    "error_count": 3,
+                    "pass_rate": 0.7,
+                },
+                "chart": [],
+                "table": [
+                    {
+                        "row_id": "abc-123",           # string scalar
+                        "composite": False,             # bool scalar
+                        "score": 0.9,                  # float scalar
+                        "input_var_0": "hello world",  # dynamic column, string
+                    }
+                ],
+                "logs": {
+                    "total": 1,
+                    "page": 0,
+                    "page_size": 25,
+                },
+            },
+        }
+
+        serializer = EvalUsageStatsResponseSerializer(data=payload)
+        assert serializer.is_valid(), (
+            f"EvalUsageStatsResponse serializer rejected valid payload: "
+            f"{serializer.errors}"
+        )

@@ -226,13 +226,8 @@ def process_single_evaluation(user_eval_metric):
         "source": "dataset",
     }
     try:
-        from model_hub.models.evals_metric import EvalTemplateVersion
-        _pinned_id = getattr(user_eval_metric, "pinned_version_id", None)
-        _ver = (
-            user_eval_metric.pinned_version
-            if _pinned_id
-            else EvalTemplateVersion.objects.get_default(user_eval_metric.template)
-        )
+        from tracer.utils.eval import _resolve_uem_version
+        _ver = _resolve_uem_version(user_eval_metric)
         if _ver:
             _source_configs["version_id"] = str(_ver.id)
             _source_configs["version_number"] = _ver.version_number

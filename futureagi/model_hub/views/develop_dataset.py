@@ -11815,20 +11815,11 @@ def run_evaluation_task(evaluation_data):
                     runner_source_configs.setdefault("source", "dataset")
                     # Track which eval version produced this result — prefer pinned over default
                     try:
-                        from model_hub.models.evals_metric import EvalTemplateVersion
-                        _pinned_id = getattr(metric, "pinned_version_id", None)
-                        _ver = (
-                            metric.pinned_version
-                            if _pinned_id
-                            else EvalTemplateVersion.objects.get_default(metric.template)
-                        )
+                        from tracer.utils.eval import _resolve_uem_version
+                        _ver = _resolve_uem_version(metric)
                         if _ver:
-                            runner_source_configs.setdefault(
-                                "version_id", str(_ver.id)
-                            )
-                            runner_source_configs.setdefault(
-                                "version_number", _ver.version_number
-                            )
+                            runner_source_configs.setdefault("version_id", str(_ver.id))
+                            runner_source_configs.setdefault("version_number", _ver.version_number)
                     except Exception:
                         logger.warning("version_tracking_failed", metric_id=str(metric_id), exc_info=True)
                     runner_args["source_configs"] = runner_source_configs

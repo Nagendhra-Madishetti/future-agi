@@ -53,6 +53,18 @@ OBSERVE = "observe"
 from tracer.utils.eval_helpers import resolve_eval_config_id  # noqa: F401, E402
 
 
+def _resolve_uem_version(uem):
+    """Return the pinned EvalTemplateVersion for a UserEvalMetric, or the default.
+
+    Single authoritative helper for all UserEvalMetric stamping sites so the
+    pin logic is never duplicated: user_evaluation.py, develop_dataset.py, and
+    the three tracer paths all call this or _resolve_eval_version below.
+    """
+    if getattr(uem, "pinned_version_id", None):
+        return uem.pinned_version
+    return EvalTemplateVersion.objects.get_default(uem.template)
+
+
 def _resolve_eval_version(custom_eval_config, eval_template):
     """Return the pinned EvalTemplateVersion or the template's default, or None.
 
@@ -68,8 +80,8 @@ def _resolve_eval_version(custom_eval_config, eval_template):
         .select_related("pinned_version")
         .first()
     )
-    if uem and uem.pinned_version_id:
-        return uem.pinned_version
+    if uem:
+        return _resolve_uem_version(uem)
     return EvalTemplateVersion.objects.get_default(eval_template)
 
 
