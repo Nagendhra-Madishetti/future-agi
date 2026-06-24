@@ -81,6 +81,7 @@ def _resolve_eval_version(custom_eval_config, eval_template):
             custom_eval_config_id=custom_eval_config.id, deleted=False
         )
         .select_related("pinned_version")
+        .order_by("-updated_at")  # most-recently configured pin wins
         .first()
     )
     if uem:

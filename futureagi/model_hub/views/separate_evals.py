@@ -5519,16 +5519,22 @@ class EvalFeedbackListView(APIView):
             page_size = query["page_size"]
 
             # Join feedback via eval_template_id (direct) or source_id matching
-            # an APICallLog.log_id for this template.  Use a subquery so there
-            # is no hard cap on the number of logs (the old [:1000] silently
-            # dropped feedback beyond position 1000).
-            from django.db.models import Subquery, OuterRef
+            # an APICallLog.log_id for this template.  Pass the queryset directly
+            # to __in so Django generates a SQL subquery — no hard cap, no memory
+            # load.  Cast log_id (UUID) to text explicitly to avoid implicit-cast
+            # type mismatches against source_id (CharField).
+            from django.db.models.functions import Cast
+            from django.db.models import TextField
 
-            log_id_subquery = APICallLog.objects.filter(
-                source_id=str(template_id),
-                organization=organization,
-                deleted=False,
-            ).values("log_id")
+            log_id_qs = (
+                APICallLog.objects.filter(
+                    source_id=str(template_id),
+                    organization=organization,
+                    deleted=False,
+                )
+                .annotate(log_id_str=Cast("log_id", TextField()))
+                .values("log_id_str")
+            )
 
             base_qs = (
                 Feedback.objects.filter(
@@ -5537,7 +5543,7 @@ class EvalFeedbackListView(APIView):
                 )
                 .filter(
                     Q(eval_template_id=template_id)
-                    | Q(source_id__in=Subquery(log_id_subquery.values("log_id")))
+                    | Q(source_id__in=log_id_qs)
                 )
                 .select_related("user")
                 .order_by("-created_at")
