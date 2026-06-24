@@ -19,6 +19,7 @@ import { getSessionListColumnDef } from "./common";
 import { Events, trackEvent } from "src/utils/Mixpanel";
 import { useUrlState } from "src/routes/hooks/use-url-state";
 import { userTraceRowHeightMapping } from "../UsersView/common";
+import { normalizeConfigKeys } from "src/sections/projects/LLMTracing/common";
 import { useSessionsGridStoreShallow } from "./ReplaySessions/store";
 import { APP_CONSTANTS } from "src/utils/constants";
 
@@ -37,16 +38,6 @@ const getSessionGridThemeParams = (theme) => ({
 });
 
 const DATASET_ROWS_LIMIT = 30;
-
-// Normalize config object keys from snake_case to camelCase while preserving id values as snake_case
-const normalizeConfigKeys = (config) =>
-  config?.map((obj) => {
-    const result = {};
-    for (const [key, value] of Object.entries(obj)) {
-      result[key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = value;
-    }
-    return result;
-  });
 
 const LoadingHeader = () => {
   return <Skeleton variant="text" width={100} height={20} />;
