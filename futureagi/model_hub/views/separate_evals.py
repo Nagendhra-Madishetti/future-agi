@@ -5067,7 +5067,15 @@ class EvalUsageStatsView(APIView):
     def get(self, request, template_id, *args, **kwargs):
         try:
             if APICallLog is None:
-                return self._gm.success_response([])
+                # OSS: return correct empty shape so frontend doesn't crash
+                return self._gm.success_response({
+                    "template_id": str(template_id),
+                    "is_composite": False,
+                    "stats": {"total_runs": 0, "runs_period": 0, "success_count": 0, "error_count": 0, "pass_rate": 0.0},
+                    "chart": [],
+                    "table": [],
+                    "logs": {"total": 0, "page": 0, "page_size": 25},
+                })
             try:
                 template = EvalTemplate.no_workspace_objects.get(
                     id=template_id, deleted=False
@@ -5509,7 +5517,14 @@ class EvalFeedbackListView(APIView):
 
             try:
                 if APICallLog is None:
-                    return self._gm.success_response([])
+                    # OSS: return correct empty shape so frontend doesn't crash
+                    return self._gm.success_response({
+                        "template_id": str(template_id),
+                        "items": [],
+                        "total": 0,
+                        "page": 0,
+                        "page_size": 25,
+                    })
                 _get_accessible_eval_template(template_id, organization)
             except EvalTemplate.DoesNotExist:
                 return self._gm.not_found("Eval template not found.")
