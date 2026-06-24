@@ -54,9 +54,22 @@ from tracer.utils.eval_helpers import resolve_eval_config_id  # noqa: F401, E402
 
 
 def _resolve_eval_version(custom_eval_config, eval_template):
-    """Return the pinned EvalTemplateVersion or the template's default, or None."""
-    if custom_eval_config.pinned_version_id:
-        return custom_eval_config.pinned_version
+    """Return the pinned EvalTemplateVersion or the template's default, or None.
+
+    pinned_version lives on UserEvalMetric, not on CustomEvalConfig.
+    Look up the owning UserEvalMetric to read the pin.
+    """
+    from model_hub.models.evals_metric import UserEvalMetric
+
+    uem = (
+        UserEvalMetric.objects.filter(
+            custom_eval_config_id=custom_eval_config.id, deleted=False
+        )
+        .select_related("pinned_version")
+        .first()
+    )
+    if uem and uem.pinned_version_id:
+        return uem.pinned_version
     return EvalTemplateVersion.objects.get_default(eval_template)
 
 

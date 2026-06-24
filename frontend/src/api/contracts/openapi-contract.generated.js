@@ -58493,8 +58493,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "type": "object",
             "additionalProperties": {
-              "type": "string",
-              "minLength": 1
+              "type": "object",
+              "x-json-value": true,
+              "description": "Any valid JSON value."
             }
           }
         },
@@ -75188,8 +75189,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Run prompt config",
           "type": "object",
           "additionalProperties": {
-            "type": "string",
-            "x-nullable": true
+            "type": "object",
+            "x-json-value": true,
+            "description": "Any valid JSON value."
           }
         },
         "messages": {
@@ -75198,8 +75200,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "type": "object",
             "additionalProperties": {
-              "type": "string",
-              "x-nullable": true
+              "type": "object",
+              "x-json-value": true,
+              "description": "Any valid JSON value."
             }
           }
         },
@@ -79599,7 +79602,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "type": "object",
             "additionalProperties": {
-              "type": "object"
+              "type": "object",
+              "x-json-value": true,
+              "description": "Any valid JSON value."
             }
           }
         },
@@ -80533,7 +80538,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "type": "object",
             "additionalProperties": {
-              "type": "object"
+              "type": "object",
+              "x-json-value": true,
+              "description": "Any valid JSON value."
             }
           }
         },
@@ -85785,7 +85792,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "items": {
             "type": "object",
             "additionalProperties": {
-              "type": "object"
+              "type": "object",
+              "x-json-value": true,
+              "description": "Any valid JSON value."
             }
           }
         },

@@ -8106,9 +8106,9 @@ export const PromptConfigApiOutputFormat = {
   image: 'image',
 } as const;
 
-export type PromptConfigApiRunPromptConfig = {[key: string]: string};
+export type PromptConfigApiRunPromptConfig = {[key: string]: { [key: string]: unknown }};
 
-export type PromptConfigApiMessagesItem = {[key: string]: string};
+export type PromptConfigApiMessagesItem = {[key: string]: { [key: string]: unknown }};
 
 /**
  * JSON schema for response format if required. Can be a JSON object or string. Defaults to None.
@@ -12603,7 +12603,7 @@ export interface ModelHubSuccessMessageResponseApi {
   result: ModelHubSuccessMessageResultApi;
 }
 
-export type LitellmApiMessagesItem = {[key: string]: string};
+export type LitellmApiMessagesItem = {[key: string]: { [key: string]: unknown }};
 
 /**
  * Output format type. Defaults to 'string'.

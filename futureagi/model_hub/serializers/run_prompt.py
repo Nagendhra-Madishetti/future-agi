@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from model_hub.models.api_key import ApiKey
+from tfc.utils.serializer_fields import JsonValueField
 
 
 class ApiKeyCreateSerializer(serializers.Serializer):
@@ -76,7 +77,7 @@ class LitellmSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     concurrency = serializers.IntegerField(default=5)
     messages = serializers.ListField(
-        child=serializers.DictField(child=serializers.CharField()),
+        child=serializers.DictField(child=JsonValueField()),
         help_text="List of messages with format [{'role': 'user/assistant', 'content': 'text'}]",
     )
 
@@ -162,9 +163,12 @@ class LitellmSerializer(serializers.Serializer):
 
 class PromptConfigSerializer(serializers.Serializer):
     model = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    run_prompt_config = serializers.DictField(required=False)
+    # run_prompt_config values can be any JSON (strings, numbers, nested dicts)
+    run_prompt_config = serializers.DictField(child=JsonValueField(), required=False)
+    # message.content can be a plain string OR an array of content-parts
+    # (multi-part OpenAI format) — JsonValueField accepts both
     messages = serializers.ListField(
-        child=serializers.DictField(),
+        child=serializers.DictField(child=JsonValueField()),
         required=False,
         help_text="List of messages with format [{'role': 'user/assistant', 'content': 'text'}]",
     )

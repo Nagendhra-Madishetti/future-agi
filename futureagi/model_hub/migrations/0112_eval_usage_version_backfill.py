@@ -29,10 +29,16 @@ def backfill_apicalllog_version_info(apps, schema_editor):
     from django.db import connection
 
     with connection.cursor() as cursor:
+        # Only unwrap rows whose inner text is a JSON object or array.
+        # A plain scalar string (e.g. "foo") would make (config #>> '{}')::jsonb
+        # raise a syntax error and abort the migration, so we guard with
+        # LEFT(..., 1) IN ('{', '[').
         cursor.execute(
             "UPDATE usage_apicalllog "
             "SET config = (config #>> '{}')::jsonb "
-            "WHERE deleted = false AND jsonb_typeof(config) = 'string'"
+            "WHERE deleted = false "
+            "  AND jsonb_typeof(config) = 'string' "
+            "  AND LEFT(config #>> '{}', 1) IN ('{', '[')"
         )
         unwrapped = cursor.rowcount
         if unwrapped:
