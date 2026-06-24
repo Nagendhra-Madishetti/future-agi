@@ -1,4 +1,7 @@
-const TRACE_GLYPH = { code: "T", label: "Trace-level eval — one result per trace" };
+const TRACE_GLYPH = {
+  code: "T",
+  label: "Trace-level eval — one result per trace",
+};
 const SPAN_GLYPH = {
   code: "S",
   label: "Span-level eval — rolled up across this trace's spans",
@@ -13,19 +16,24 @@ const GLYPH_BY_ROW_TYPE = {
 
 // Each task is emitted as one block at its first eval's array position so
 // user reorder sticks.
+const taskKeyOf = (col) => col?.evalTaskId || col?.evalTaskName;
+
 export const buildColumnBlocks = (cols = []) => {
   const byTask = new Map();
   for (const col of cols) {
     if (!col?.evalTaskName) continue;
-    let group = byTask.get(col.evalTaskName);
+    const key = taskKeyOf(col);
+    let group = byTask.get(key);
     if (!group) {
       group = {
+        key,
+        taskId: col.evalTaskId || null,
         taskName: col.evalTaskName,
         createdAt: col.evalTaskCreatedAt || null,
         rowType: col.rowType || col.targetType || null,
         evals: [],
       };
-      byTask.set(col.evalTaskName, group);
+      byTask.set(key, group);
     }
     group.evals.push(col);
   }
@@ -34,9 +42,10 @@ export const buildColumnBlocks = (cols = []) => {
   for (const col of cols) {
     if (!col) continue;
     if (col.evalTaskName) {
-      if (!emitted.has(col.evalTaskName)) {
-        emitted.add(col.evalTaskName);
-        blocks.push({ type: "task", group: byTask.get(col.evalTaskName) });
+      const key = taskKeyOf(col);
+      if (!emitted.has(key)) {
+        emitted.add(key);
+        blocks.push({ type: "task", group: byTask.get(key) });
       }
     } else {
       blocks.push({ type: "col", col });

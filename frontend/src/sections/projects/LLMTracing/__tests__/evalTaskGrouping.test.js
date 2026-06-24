@@ -22,7 +22,11 @@ describe("getGlyphMeta — target_type glyph", () => {
 
 describe("buildColumnBlocks", () => {
   const flat = (id) => ({ id, name: id });
-  const taskCol = (id, evalTaskName, extra = {}) => ({ id, evalTaskName, ...extra });
+  const taskCol = (id, evalTaskName, extra = {}) => ({
+    id,
+    evalTaskName,
+    ...extra,
+  });
 
   it("returns [] for no columns", () => {
     expect(buildColumnBlocks()).toEqual([]);
@@ -71,7 +75,9 @@ describe("buildColumnBlocks", () => {
   });
 
   it("derives rowType from rowType ?? targetType and createdAt from evalTaskCreatedAt", () => {
-    const viaTarget = buildColumnBlocks([taskCol("e1", "T1", { targetType: "trace" })]);
+    const viaTarget = buildColumnBlocks([
+      taskCol("e1", "T1", { targetType: "trace" }),
+    ]);
     expect(viaTarget[0].group.rowType).toBe("trace");
     const rowTypeWins = buildColumnBlocks([
       taskCol("e2", "T2", { rowType: "span", targetType: "trace" }),
@@ -89,5 +95,43 @@ describe("buildColumnBlocks", () => {
     expect(buildColumnBlocks([null, flat("a"), null])).toEqual([
       { type: "col", col: { id: "a", name: "a" } },
     ]);
+  });
+
+  it("groups by evalTaskId when present, exposing key + taskId", () => {
+    const c1 = taskCol("e1", "Quality", { evalTaskId: "task-1" });
+    const c2 = taskCol("e2", "Quality", { evalTaskId: "task-1" });
+    const blocks = buildColumnBlocks([c1, c2]);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].group).toMatchObject({
+      key: "task-1",
+      taskId: "task-1",
+      taskName: "Quality",
+      evals: [c1, c2],
+    });
+  });
+
+  it("keeps two distinct tasks that share a display name in separate groups", () => {
+    // Eval task names aren't unique within a project — same name, different id
+    // must not merge (regression for the group-by-name bug).
+    const blocks = buildColumnBlocks([
+      taskCol("e1", "Quality", { evalTaskId: "task-1" }),
+      taskCol("e2", "Quality", { evalTaskId: "task-2" }),
+    ]);
+    expect(blocks).toHaveLength(2);
+    expect(blocks.map((x) => x.group.key)).toEqual(["task-1", "task-2"]);
+    expect(blocks.map((x) => x.group.taskName)).toEqual(["Quality", "Quality"]);
+  });
+
+  it("falls back to grouping by name when no evalTaskId is present", () => {
+    const blocks = buildColumnBlocks([
+      taskCol("e1", "T1"),
+      taskCol("e2", "T1"),
+    ]);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].group).toMatchObject({
+      key: "T1",
+      taskId: null,
+      taskName: "T1",
+    });
   });
 });

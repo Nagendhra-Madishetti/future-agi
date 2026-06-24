@@ -208,11 +208,11 @@ const ColumnConfigureDropDown = ({
   const [collapsedTasks, setCollapsedTasks] = useState(() => new Set());
   const debouncedSearchQuery = useDebounce(searchQuery.trim(), 300);
 
-  const toggleTaskCollapse = (taskName) =>
+  const toggleTaskCollapse = (taskKey) =>
     setCollapsedTasks((prev) => {
       const next = new Set(prev);
-      if (next.has(taskName)) next.delete(taskName);
-      else next.add(taskName);
+      if (next.has(taskKey)) next.delete(taskKey);
+      else next.add(taskKey);
       return next;
     });
 
@@ -236,7 +236,7 @@ const ColumnConfigureDropDown = ({
         ? { type: "col", ids: b.col?.id ? [b.col.id] : [] }
         : {
             type: "task",
-            headerId: `task:${b.group?.taskName}`,
+            headerId: `task:${b.group?.key}`,
             ids: (b.group?.evals || []).map((c) => c?.id).filter(Boolean),
           },
     );
@@ -271,7 +271,7 @@ const ColumnConfigureDropDown = ({
   };
 
   // Drags map displayed (grouped) order back onto the flat columns array;
-  // cross-task eval drops are ignored — membership comes from evalTaskName.
+  // cross-task eval drops are ignored — membership comes from the eval task id.
   function handleDragEnd(event) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -445,17 +445,19 @@ const ColumnConfigureDropDown = ({
               const task = block.group;
               const evals = task?.evals || [];
               const state = aggregateState(evals);
-              const isCollapsed = collapsedTasks.has(task?.taskName);
+              const isCollapsed = collapsedTasks.has(task?.key);
               return (
-                <React.Fragment key={task?.taskName}>
+                <React.Fragment key={task?.key}>
                   <TaskGroupHeader
-                    dragId={`task:${task?.taskName}`}
+                    dragId={`task:${task?.key}`}
                     label={task?.taskName}
                     checked={state === SELECTION_STATE.ALL}
                     indeterminate={state === SELECTION_STATE.SOME}
-                    onToggle={(value) => onColumnChange(toggleMap(evals, value))}
+                    onToggle={(value) =>
+                      onColumnChange(toggleMap(evals, value))
+                    }
                     collapsed={isCollapsed}
-                    onCollapseToggle={() => toggleTaskCollapse(task?.taskName)}
+                    onCollapseToggle={() => toggleTaskCollapse(task?.key)}
                   />
                   {!isCollapsed &&
                     evals.map((column) =>

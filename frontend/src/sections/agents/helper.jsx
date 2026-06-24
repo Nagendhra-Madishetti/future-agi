@@ -387,6 +387,7 @@ export const generateEvalColumnsFromConfig = (items = []) => {
     return {
       headerName: displayName,
       field: `eval_outputs.${evalId}`,
+      evalTaskId: item.eval_task_id || null,
       evalTaskName: item.eval_task_name || null,
       evalTaskCreatedAt: item.eval_task_created_at || null,
       flex: 1,
@@ -448,7 +449,12 @@ export const generateEvalColumnsFromConfig = (items = []) => {
           >
             {chips.length
               ? chips.map((c) => (
-                  <ResultChip key={c.label} label={c.label} tone={c.tone} dense />
+                  <ResultChip
+                    key={c.label}
+                    label={c.label}
+                    tone={c.tone}
+                    dense
+                  />
                 ))
               : "-"}
           </Box>
