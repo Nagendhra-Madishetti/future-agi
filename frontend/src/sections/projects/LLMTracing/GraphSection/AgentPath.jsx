@@ -561,7 +561,11 @@ const AgentPathInner = ({
         </Box>
       )}
 
-      <Collapse in={!isCollapsed} timeout="auto" sx={{ flex: 1, minHeight: 0 }}>
+      <Collapse
+        in={!isCollapsed}
+        timeout="auto"
+        sx={isFullscreen ? { flex: 1, minHeight: 0 } : { minHeight: 0 }}
+      >
         <Box
           sx={{
             height: "100%",
