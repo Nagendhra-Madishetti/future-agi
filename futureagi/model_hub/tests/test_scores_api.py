@@ -1370,3 +1370,173 @@ class TestAnnotationTypeRoundtrip:
         )
         score = Score.objects.get(label=text_label, deleted=False)
         assert score.value == {"text": "This response is very helpful"}
+
+
+@pytest.mark.django_db
+class TestScoreOnCollectorOnlySpan:
+    """TH-5642: annotating a collector-only span (sim/SDK) — no PG ObservationSpan
+    row, exists only in CH — must NOT 404. The CH fallback resolves it, the queue
+    scope resolves from CHSpan.project_id, and trace_id is stamped for rollup."""
+
+    def _fake_reader(self, monkeypatch, ch_span_id, project, organization, trace):
+        from types import SimpleNamespace
+
+        fake = SimpleNamespace(
+            id=ch_span_id,
+            pk=ch_span_id,
+            project_id=str(project.id),
+            org_id=str(organization.id),
+            trace_id=str(trace.id),
+        )
+
+        class _R:
+            def get(self, sid):
+                return fake if str(sid) == ch_span_id else None
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr("tracer.services.clickhouse.v2.get_reader", lambda: _R())
+
+    def _fake_reader_with_org(self, monkeypatch, ch_span_id, project, org_id, trace):
+        """Like _fake_reader but with an explicit (possibly foreign/empty) org_id
+        on the CH span, to exercise the org-scope gate."""
+        from types import SimpleNamespace
+
+        fake = SimpleNamespace(
+            id=ch_span_id,
+            pk=ch_span_id,
+            project_id=str(project.id),
+            org_id=org_id,
+            trace_id=str(trace.id),
+        )
+
+        class _R:
+            def get(self, sid):
+                return fake if str(sid) == ch_span_id else None
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr("tracer.services.clickhouse.v2.get_reader", lambda: _R())
+
+    @pytest.mark.parametrize("foreign_org", ["", str(uuid.uuid4())])
+    def test_ch_only_span_denied_cross_org(
+        self,
+        auth_client,
+        observe_project,
+        trace,
+        organization,
+        star_label,
+        monkeypatch,
+        foreign_org,
+    ):
+        """Regression (TH-5642, authz): a CH span whose org_id is empty or belongs
+        to another org must NOT resolve under this org's request — annotating it
+        404s, not 200. (An ``if ch_org and ...`` guard failed OPEN on empty org.)
+        """
+        ch_span_id = "ch_" + uuid.uuid4().hex[:16]
+        self._fake_reader_with_org(
+            monkeypatch, ch_span_id, observe_project, foreign_org, trace
+        )
+        payload = {
+            "source_type": "observation_span",
+            "source_id": ch_span_id,
+            "label_id": str(star_label.id),
+            "value": {"rating": 4},
+        }
+        resp = auth_client.post(SCORE_URL, payload, format="json")
+        assert resp.status_code == status.HTTP_404_NOT_FOUND, resp.content
+        assert not Score.objects.filter(observation_span_id=ch_span_id).exists()
+
+    def test_create_score_on_ch_only_span(
+        self, auth_client, observe_project, trace, organization, star_label, monkeypatch
+    ):
+        ch_span_id = "ch_" + uuid.uuid4().hex[:16]
+        self._fake_reader(monkeypatch, ch_span_id, observe_project, organization, trace)
+        payload = {
+            "source_type": "observation_span",
+            "source_id": ch_span_id,
+            "label_id": str(star_label.id),
+            "value": {"rating": 4},
+        }
+        resp = auth_client.post(SCORE_URL, payload, format="json")
+        assert resp.status_code == status.HTTP_200_OK, resp.content  # NOT 404
+        s = Score.objects.get(observation_span_id=ch_span_id, deleted=False)
+        assert s.source_type == "observation_span"
+        # denormalized trace locator stamped so it rolls up to the trace
+        assert str(s.trace_id) == str(trace.id)
+
+    def test_bulk_score_and_spannote_on_ch_only_span(
+        self, auth_client, observe_project, trace, organization, star_label, monkeypatch
+    ):
+        from tracer.models.span_notes import SpanNotes
+
+        ch_span_id = "ch_" + uuid.uuid4().hex[:16]
+        self._fake_reader(monkeypatch, ch_span_id, observe_project, organization, trace)
+        payload = {
+            "source_type": "observation_span",
+            "source_id": ch_span_id,
+            "span_notes": "looks correct",
+            "scores": [{"label_id": str(star_label.id), "value": {"rating": 5}}],
+        }
+        resp = auth_client.post(SCORE_URL + "bulk/", payload, format="json")
+        assert resp.status_code == status.HTTP_200_OK, resp.content  # NOT 404/500
+        assert Score.objects.filter(
+            observation_span_id=ch_span_id, deleted=False
+        ).exists()
+        # SpanNotes written by id (the FK rejects a CHSpan OBJECT) on the CH span id
+        assert SpanNotes.objects.filter(span_id=ch_span_id).exists()
+
+
+@pytest.mark.django_db
+class TestDeleteLabelMirrorsScores:
+    """TH-5642 review (C1): the delete_label tool soft-deletes Scores via a
+    queryset .update(), which emits no post_save — so the CH mirror never fires.
+    CDC-off that leaves the deleted annotations live in CH (the filters keep
+    returning them). The tool must mirror the affected ids explicitly."""
+
+    def test_delete_label_mirrors_soft_deleted_scores_to_ch(
+        self,
+        organization,
+        user,
+        workspace,
+        observation_span,
+        star_label,
+        django_capture_on_commit_callbacks,
+        monkeypatch,
+    ):
+        import tracer.services.clickhouse.v2.score_writer as sw
+        from ai_tools.base import ToolContext
+        from ai_tools.tools.annotations.delete_label import (
+            DeleteLabelInput,
+            DeleteLabelTool,
+        )
+
+        score = Score.objects.create(
+            source_type="observation_span",
+            observation_span=observation_span,
+            label=star_label,
+            annotator=user,
+            value={"rating": 4},
+            score_source="human",
+            organization=organization,
+        )
+        captured: list[str] = []
+        monkeypatch.setattr(
+            sw,
+            "mirror_scores_to_clickhouse",
+            lambda ids: captured.extend(str(i) for i in ids),
+        )
+
+        ctx = ToolContext(user=user, organization=organization, workspace=workspace)
+        with django_capture_on_commit_callbacks(execute=True):
+            DeleteLabelTool().execute(DeleteLabelInput(label_id=star_label.id), ctx)
+
+        score.refresh_from_db()
+        assert score.deleted is True  # soft-deleted by the queryset .update()
+        assert str(score.id) in captured, (
+            "soft-deleted Score must be mirrored to CH so the tombstone "
+            "(deleted=1) reaches the read layer (post_save does not fire for "
+            "queryset .update())"
+        )

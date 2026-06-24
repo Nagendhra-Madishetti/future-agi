@@ -7,8 +7,6 @@ from django.db import transaction
 from requests.exceptions import HTTPError
 
 from accounts.models.organization import Organization
-
-logger = structlog.get_logger(__name__)
 from simulate.models import AgentDefinition
 from tfc.temporal import temporal_activity
 from tracer.models.observability_provider import ObservabilityProvider, ProviderChoices
@@ -24,11 +22,15 @@ from tracer.tasks.recordings_rehost import (
     RECORDING_KEYS_BY_PROVIDER,
     rehost_external_recordings,
 )
+from tracer.utils.bland import normalize_bland_data
 from tracer.utils.eleven_labs import normalize_eleven_labs_data
 from tracer.utils.otel import ResourceLimitError, get_or_create_project
 from tracer.utils.retell import normalize_retell_data
+from tracer.utils.twilio_calls import normalize_twilio_data
 from tracer.utils.usage_emit import emit_span_ingestion_usage
 from tracer.utils.vapi import normalize_vapi_data
+
+logger = structlog.get_logger(__name__)
 
 
 @temporal_activity(
@@ -244,6 +246,129 @@ def _create_observation_span(project, provider, normalized_data, metadata):
     )
 
 
+_PROVIDER_SPAN_NS = uuid.UUID("4d61d4e2-7b3c-4a1e-9f02-2c6a5b8e1d70")
+
+
+def _provider_collector_span_id(provider: str, provider_log_id: str) -> str:
+    """Deterministic 64-bit (16 hex) span id for a pulled call, stable across
+    re-polls so the CH ``spans`` ReplacingMergeTree upserts in place."""
+    return uuid.uuid5(_PROVIDER_SPAN_NS, f"{provider}:{provider_log_id}").hex[:16]
+
+
+def _to_epoch_ns(value) -> int | None:
+    """Coerce a datetime / epoch-seconds / epoch-ns value to epoch nanoseconds."""
+    if value is None:
+        return None
+    if hasattr(value, "timestamp"):
+        return int(value.timestamp() * 1e9)
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    # Heuristic: < 1e12 is seconds, else already ns/ms — normalize to ns.
+    if v < 1e12:
+        return int(v * 1e9)
+    if v < 1e15:  # milliseconds
+        return int(v * 1e6)
+    return int(v)
+
+
+def _export_provider_call_to_collector(span, provider: str, provider_log_id: str):
+    """Dual-write a pulled call's CONVERSATION span to the fi-collector so it
+    reaches CH ``spans`` (the table the voice-call/trace UI reads). PG remains
+    the source of truth for evals/annotations; this best-effort export is the
+    CH-only-reads replacement for the dropped PeerDB CDC. Never raises.
+    """
+    try:
+        project = span.project
+        organization_id = str(getattr(project, "organization_id", "") or "")
+        if not organization_id:
+            return
+        # Gate the whole export on dual_write_enabled(): CDC-off (the default,
+        # CH25_DROP_LEGACY_CDC_CHAIN) this collector emit is how the PG
+        # conversation span reaches CH; CDC-on, PeerDB already replicates that
+        # PG row, so emitting here too would write a SECOND conversation root for
+        # the same call. Matches the langfuse emit's gating.
+        from tracer.services.clickhouse.v2.trace_writer import dual_write_enabled
+
+        if not dual_write_enabled():
+            return
+        # OTLP can't carry the nested provider raw_log; drop it so the read
+        # path's empty-raw_log branch derives status/duration/recording from the
+        # call.* scalar attrs the provider processors already set.
+        attrs = {
+            k: v for k, v in (span.span_attributes or {}).items() if k != "raw_log"
+        }
+        attrs["gen_ai.span.kind"] = "CONVERSATION"
+        attrs["gen_ai.system"] = provider
+        if span.input not in (None, "", [], {}):
+            attrs["input.value"] = span.input
+        if span.output not in (None, "", [], {}):
+            attrs["output.value"] = span.output
+        # The detail drawer builds the transcript from raw_log, which we drop —
+        # compute the normalized transcript now and stash it for the
+        # CH-only-reads detail path (trace.py reads fi.conversation.transcript).
+        raw_log = (span.span_attributes or {}).get("raw_log") or {}
+        try:
+            processed = ObservabilityService.process_raw_logs(
+                raw_log, provider, span_attributes=span.span_attributes or {}
+            )
+            if processed.get("transcript"):
+                attrs["fi.conversation.transcript"] = processed["transcript"]
+        except Exception:
+            logger.warning(
+                "provider_transcript_compute_failed", provider=provider, exc_info=True
+            )
+        start_ns = _to_epoch_ns(span.start_time)
+        span_dict = {
+            "trace_id": span.trace.id.hex,
+            "span_id": _provider_collector_span_id(provider, provider_log_id),
+            "parent_span_id": None,
+            "parent_id": None,
+            "name": span.name,
+            "attributes": attrs,
+        }
+        if start_ns is not None:
+            span_dict["start_time"] = start_ns
+        end_ns = _to_epoch_ns(span.end_time)
+        if end_ns is not None:
+            span_dict["end_time"] = end_ns
+        from tracer.services.collector_ingest import emit_spans_to_collector
+
+        emit_spans_to_collector(
+            [span_dict],
+            project_name=project.name,
+            project_type=project.trace_type,
+            organization_id=organization_id,
+            workspace_id=str(project.workspace_id) if project.workspace_id else None,
+            service_name="fi-provider",
+        )
+        # The collector writes CH `spans` (and curated end_users/trace_sessions)
+        # but NOT CH `traces`. trace_dict — which resolves a span/eval back to its
+        # project (e.g. the voice-call-list eval column does
+        # `dictGet('trace_dict','project_id', trace_id)`) — is fed only by the
+        # app-side trace mirror. The app's own SDK ingestion paths already mirror
+        # (create_otel_span / trace_ingestion); collector-routed provider pulls
+        # must too, else evals (and any trace_dict-keyed read) never resolve to a
+        # project for provider calls. Post-commit + best-effort, self-gated on
+        # dual_write_enabled() (no-op when CDC is on / PG trace absent).
+        from django.db import transaction
+
+        from tracer.services.clickhouse.v2.trace_writer import (
+            mirror_traces_to_clickhouse,
+        )
+
+        transaction.on_commit(
+            lambda tid=str(span.trace_id): mirror_traces_to_clickhouse([tid])
+        )
+    except Exception:
+        logger.exception(
+            "provider_collector_export_failed",
+            provider=provider,
+            provider_log_id=provider_log_id,
+        )
+
+
 def _update_observation_span(existing_span, normalized_data):
     """Updates an existing ObservationSpan and its associated Trace.
 
@@ -303,6 +428,8 @@ def process_and_store_logs(logs: list, provider: ObservabilityProvider):
         "vapi": normalize_vapi_data,
         "retell": normalize_retell_data,
         "eleven_labs": normalize_eleven_labs_data,
+        "bland": normalize_bland_data,
+        "twilio": normalize_twilio_data,
     }
 
     if provider.provider not in normalization_functions:
@@ -319,9 +446,7 @@ def process_and_store_logs(logs: list, provider: ObservabilityProvider):
             normalized_data = normalize_fn(log)
             provider_log_id = normalized_data.get("id")
         except Exception:
-            logger.exception(
-                f"Failed to normalize log for {provider.provider}"
-            )
+            logger.exception(f"Failed to normalize log for {provider.provider}")
 
         if not provider_log_id:
             logger.error(f"No provider log id found for {provider.provider}")
@@ -393,6 +518,10 @@ def process_and_store_logs(logs: list, provider: ObservabilityProvider):
                 f"Error updating or creating observation span for {provider.provider}: {e}"
             )
             continue
+
+        # Dual-write the pulled call to the fi-collector AFTER the PG commit so
+        # it reaches CH `spans` (the read store) without the dropped PeerDB CDC.
+        _export_provider_call_to_collector(span, provider.provider, provider_log_id)
 
         if was_created:
             created_count += 1
@@ -509,7 +638,7 @@ def normalize_and_store_logs(body, agent_definition_id) -> None:
         logger.info(f"normalize_and_store_logs started {agent_definition.assistant_id}")
         provider = agent_definition.observability_provider
         if not provider:
-            logger.warning(f"normalize_and_store_logs: No provider")
+            logger.warning("normalize_and_store_logs: No provider")
             return
 
         call_log = body.get("call")

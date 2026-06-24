@@ -79,6 +79,8 @@ import type {
   AgentPlaygroundGraphsVersionsReadParams,
   AgentPlaygroundNodeTemplatesList200,
   AgentPlaygroundNodeTemplatesListParams,
+  AgentPromptOptimiserApplyTrialRequestApi,
+  AgentPromptOptimiserApplyTrialResponseApi,
   AgentPromptOptimiserGraphResponseApi,
   AgentPromptOptimiserRunApi,
   AgentPromptOptimiserRunCreateApi,
@@ -52217,6 +52219,71 @@ export const simulateApiAgentPromptOptimiserSteps = async (id: string, options?:
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export type simulateApiAgentPromptOptimiserTrialApplyTrialResponse200 = {
+  data: AgentPromptOptimiserApplyTrialResponseApi
+  status: 200
+}
+
+export type simulateApiAgentPromptOptimiserTrialApplyTrialResponse400 = {
+  data: ApiTextErrorResponseApi
+  status: 400
+}
+
+export type simulateApiAgentPromptOptimiserTrialApplyTrialResponse404 = {
+  data: ApiTextErrorResponseApi
+  status: 404
+}
+
+export type simulateApiAgentPromptOptimiserTrialApplyTrialResponse500 = {
+  data: ApiTextErrorResponseApi
+  status: 500
+}
+
+export type simulateApiAgentPromptOptimiserTrialApplyTrialResponseDefault = {
+  data: ManagementAPIErrorResponseApi
+  status: Exclude<HTTPStatusCodes, 200 | 400 | 404 | 500>
+}
+
+export type simulateApiAgentPromptOptimiserTrialApplyTrialResponseSuccess = (simulateApiAgentPromptOptimiserTrialApplyTrialResponse200) & {
+  headers: Headers;
+};
+export type simulateApiAgentPromptOptimiserTrialApplyTrialResponseError = (simulateApiAgentPromptOptimiserTrialApplyTrialResponse400 | simulateApiAgentPromptOptimiserTrialApplyTrialResponse404 | simulateApiAgentPromptOptimiserTrialApplyTrialResponse500 | simulateApiAgentPromptOptimiserTrialApplyTrialResponseDefault) & {
+  headers: Headers;
+};
+
+export type simulateApiAgentPromptOptimiserTrialApplyTrialResponse = (simulateApiAgentPromptOptimiserTrialApplyTrialResponseSuccess | simulateApiAgentPromptOptimiserTrialApplyTrialResponseError)
+
+export const getSimulateApiAgentPromptOptimiserTrialApplyTrialUrl = (id: string,
+    trialId: string,) => {
+
+
+
+
+  return `/simulate/api/agent-prompt-optimiser/${id}/trial/${trialId}/apply/`
+}
+
+/**
+ * "Directly apply the fix" = create a new, non-destructive version carrying
+the trial's optimised prompt; the POST is the user's confirmation, so the
+new version goes live as the template's default. The baseline is untouched.
+ * @summary Apply an optimised trial as a NEW PromptVersion (TH-5642).
+ */
+export const simulateApiAgentPromptOptimiserTrialApplyTrial = async (id: string,
+    trialId: string,
+    agentPromptOptimiserApplyTrialRequestApi: AgentPromptOptimiserApplyTrialRequestApi, options?: RequestInit): Promise<simulateApiAgentPromptOptimiserTrialApplyTrialResponse> => {
+
+  return apiMutator<simulateApiAgentPromptOptimiserTrialApplyTrialResponse>(getSimulateApiAgentPromptOptimiserTrialApplyTrialUrl(id,trialId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      agentPromptOptimiserApplyTrialRequestApi,)
   }
 );}
 

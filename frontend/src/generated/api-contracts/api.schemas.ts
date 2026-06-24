@@ -14670,6 +14670,7 @@ export const AgentPromptOptimiserRunListApiOptimiserType = {
   bayesian: 'bayesian',
   metaprompt: 'metaprompt',
   promptwizard: 'promptwizard',
+  agent_learning_kit: 'agent_learning_kit',
 } as const;
 
 export type AgentPromptOptimiserRunListApiStatus = typeof AgentPromptOptimiserRunListApiStatus[keyof typeof AgentPromptOptimiserRunListApiStatus];
@@ -14712,6 +14713,7 @@ export const AgentPromptOptimiserRunCreateApiOptimiserType = {
   bayesian: 'bayesian',
   metaprompt: 'metaprompt',
   promptwizard: 'promptwizard',
+  agent_learning_kit: 'agent_learning_kit',
 } as const;
 
 export type AgentPromptOptimiserRunCreateApiConfiguration = { [key: string]: unknown };
@@ -14828,6 +14830,7 @@ export const AgentPromptOptimiserRunApiOptimiserType = {
   bayesian: 'bayesian',
   metaprompt: 'metaprompt',
   promptwizard: 'promptwizard',
+  agent_learning_kit: 'agent_learning_kit',
 } as const;
 
 export type AgentPromptOptimiserRunApiStatus = typeof AgentPromptOptimiserRunApiStatus[keyof typeof AgentPromptOptimiserRunApiStatus];
@@ -14871,6 +14874,7 @@ export const AgentPromptOptimiserRunModelResponseApiOptimiserType = {
   bayesian: 'bayesian',
   metaprompt: 'metaprompt',
   promptwizard: 'promptwizard',
+  agent_learning_kit: 'agent_learning_kit',
 } as const;
 
 export type AgentPromptOptimiserRunModelResponseApiStatus = typeof AgentPromptOptimiserRunModelResponseApiStatus[keyof typeof AgentPromptOptimiserRunModelResponseApiStatus];
@@ -14992,6 +14996,50 @@ export interface AgentPromptOptimiserRunStepApi {
 export interface AgentPromptOptimiserRunStepsResponseApi {
   status?: boolean;
   result: AgentPromptOptimiserRunStepApi[];
+}
+
+export interface AgentPromptOptimiserApplyTrialRequestApi {
+  /** Prompt-template runs only: make the new PromptVersion the default. */
+  make_default?: boolean;
+}
+
+export type AgentPromptOptimiserApplyTrialResultApiTarget = typeof AgentPromptOptimiserApplyTrialResultApiTarget[keyof typeof AgentPromptOptimiserApplyTrialResultApiTarget];
+
+
+export const AgentPromptOptimiserApplyTrialResultApiTarget = {
+  provider_agent: 'provider_agent',
+  agent_version: 'agent_version',
+} as const;
+
+export type AgentPromptOptimiserApplyTrialResultApiPreviousConfig = {[key: string]: string};
+
+export interface AgentPromptOptimiserApplyTrialResultApi {
+  readonly applied?: boolean;
+  readonly source_trial_id?: string;
+  readonly target?: AgentPromptOptimiserApplyTrialResultApiTarget;
+  /** @minLength 1 */
+  readonly provider?: string;
+  /** @minLength 1 */
+  readonly assistant_id?: string;
+  readonly applied_fields?: readonly string[];
+  readonly skipped_fields?: readonly string[];
+  /** @minLength 1 */
+  readonly previous_prompt?: string;
+  readonly previous_config?: AgentPromptOptimiserApplyTrialResultApiPreviousConfig;
+  /** @minLength 1 */
+  readonly reason?: string;
+  readonly new_agent_version_id?: string;
+  readonly version_number?: number;
+  readonly new_prompt_version_id?: string;
+  /** @minLength 1 */
+  readonly template_version?: string;
+  readonly original_template_id?: string;
+  readonly is_default?: boolean;
+}
+
+export interface AgentPromptOptimiserApplyTrialResponseApi {
+  status?: boolean;
+  result: AgentPromptOptimiserApplyTrialResultApi;
 }
 
 export interface AgentPromptOptimiserTrialEvaluationRowApi {
@@ -19333,6 +19381,11 @@ export const ObservabilityProviderApiProvider = {
   retell: 'retell',
   livekit: 'livekit',
   others: 'others',
+  deepgram: 'deepgram',
+  agora: 'agora',
+  pipecat: 'pipecat',
+  bland: 'bland',
+  twilio: 'twilio',
 } as const;
 
 export type ObservabilityProviderApiMetadata = { [key: string]: unknown };
@@ -20809,6 +20862,8 @@ export const UserAlertMonitorApiMetricType = {
   daily_tokens_spent: 'daily_tokens_spent',
   monthly_tokens_spent: 'monthly_tokens_spent',
   evaluation_metrics: 'evaluation_metrics',
+  sim_eval_score: 'sim_eval_score',
+  sim_failure_rate: 'sim_failure_rate',
 } as const;
 
 export type UserAlertMonitorApiThresholdOperator = typeof UserAlertMonitorApiThresholdOperator[keyof typeof UserAlertMonitorApiThresholdOperator];
@@ -20945,6 +21000,8 @@ export const UserAlertMonitorPreviewGraphApiMetricType = {
   daily_tokens_spent: 'daily_tokens_spent',
   monthly_tokens_spent: 'monthly_tokens_spent',
   evaluation_metrics: 'evaluation_metrics',
+  sim_eval_score: 'sim_eval_score',
+  sim_failure_rate: 'sim_failure_rate',
 } as const;
 
 export type UserAlertMonitorPreviewGraphApiThresholdOperator = typeof UserAlertMonitorPreviewGraphApiThresholdOperator[keyof typeof UserAlertMonitorPreviewGraphApiThresholdOperator];
@@ -23744,9 +23801,6 @@ export type ModelHubExperimentDetailList200 = {
 };
 
 export type ModelHubExperimentsDataListParams = {
-created_at?: string;
-status?: string;
-dataset_id?: string;
 /**
  * Which field to use when ordering the results.
  */
@@ -23773,9 +23827,6 @@ export type ModelHubExperimentsDataList200 = {
 };
 
 export type ModelHubExperimentsV2ListListParams = {
-created_at?: string;
-status?: string;
-dataset_id?: string;
 /**
  * A search term.
  */
@@ -23962,8 +24013,6 @@ limit?: number;
 };
 
 export type ModelHubOptimisationListParams = {
-optimize_type?: string;
-status?: string;
 /**
  * A search term.
  */
@@ -24141,7 +24190,6 @@ export type ModelHubPromptBaseTemplatesGetAllCategories200 = {
 };
 
 export type ModelHubPromptExecutionsListParams = {
-name?: string;
 /**
  * A search term.
  */
@@ -24186,9 +24234,6 @@ export type ModelHubPromptFoldersList200 = {
 };
 
 export type ModelHubPromptHistoryExecutionsListParams = {
-template_name?: string;
-template_version?: string;
-created_at?: string;
 /**
  * A search term.
  */
@@ -24215,9 +24260,6 @@ export type ModelHubPromptHistoryExecutionsList200 = {
 };
 
 export type ModelHubPromptHistoryExecutionsGetExecutionDetailsParams = {
-template_name?: string;
-template_version?: string;
-created_at?: string;
 /**
  * A search term.
  */
@@ -24298,9 +24340,6 @@ export type ModelHubPromptLabelsTemplateLabels200 = {
 };
 
 export type ModelHubPromptTemplatesListParams = {
-name?: string;
-version?: string;
-created_at?: string;
 /**
  * A search term.
  */
@@ -24327,9 +24366,6 @@ export type ModelHubPromptTemplatesList200 = {
 };
 
 export type ModelHubPromptTemplatesGetTemplateByNameParams = {
-name?: string;
-version?: string;
-created_at?: string;
 /**
  * A search term.
  */

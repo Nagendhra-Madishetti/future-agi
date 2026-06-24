@@ -5,7 +5,7 @@
 export const OPENAPI_CONTRACT = Object.freeze({
   "generatedFrom": "api_contracts/openapi/swagger.json",
   "swaggerVersion": "2.0",
-  "endpointCount": 971,
+  "endpointCount": 977,
   "endpoints": {
     "/accounts/2fa/recovery-codes/": {
       "get": {
@@ -18313,24 +18313,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "created_at": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "status": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "dataset_id": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           "ordering": {
             "required": false,
             "schema": {
@@ -18494,24 +18476,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "created_at": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "status": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "dataset_id": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           "search": {
             "required": false,
             "schema": {
@@ -21059,18 +21023,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "optimize_type": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "status": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           "search": {
             "required": false,
             "schema": {
@@ -22573,12 +22525,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "name": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           "search": {
             "required": false,
             "schema": {
@@ -22798,24 +22744,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "template_name": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "template_version": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "created_at": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           "search": {
             "required": false,
             "schema": {
@@ -22883,24 +22811,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "template_name": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "template_version": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "created_at": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           "search": {
             "required": false,
             "schema": {
@@ -23520,24 +23430,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "name": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "version": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "created_at": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           "search": {
             "required": false,
             "schema": {
@@ -23751,24 +23643,6 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "runtimeResponseValidation": false,
         "requestBody": null,
         "queryParameters": {
-          "name": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "version": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          "created_at": {
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
           "search": {
             "required": false,
             "schema": {
@@ -27123,6 +26997,34 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "responses": {
           "200": {
             "$ref": "#/definitions/AgentPromptOptimiserRunStepsResponse"
+          },
+          "400": {
+            "$ref": "#/definitions/ApiTextErrorResponse"
+          },
+          "404": {
+            "$ref": "#/definitions/ApiTextErrorResponse"
+          },
+          "500": {
+            "$ref": "#/definitions/ApiTextErrorResponse"
+          },
+          "default": {
+            "$ref": "#/definitions/ManagementAPIErrorResponse"
+          }
+        }
+      }
+    },
+    "/simulate/api/agent-prompt-optimiser/{id}/trial/{trial_id}/apply/": {
+      "post": {
+        "operationId": "simulate_api_agent-prompt-optimiser_trial_apply_trial",
+        "runtimeRequestValidation": false,
+        "runtimeResponseValidation": false,
+        "requestBody": {
+          "$ref": "#/definitions/AgentPromptOptimiserApplyTrialRequest"
+        },
+        "queryParameters": {},
+        "responses": {
+          "200": {
+            "$ref": "#/definitions/AgentPromptOptimiserApplyTrialResponse"
           },
           "400": {
             "$ref": "#/definitions/ApiTextErrorResponse"
@@ -43487,6 +43389,33 @@ export const OPENAPI_CONTRACT = Object.freeze({
         }
       }
     },
+    "AgentPromptOptimiserApplyTrialRequest": {
+      "type": "object",
+      "properties": {
+        "make_default": {
+          "title": "Make default",
+          "description": "Prompt-template runs only: make the new PromptVersion the default.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "AgentPromptOptimiserApplyTrialResponse": {
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "boolean",
+          "default": true
+        },
+        "result": {
+          "$ref": "#/definitions/AgentPromptOptimiserApplyTrialResult"
+        }
+      }
+    },
     "AgentPromptOptimiserGraphResponse": {
       "required": [
         "result"
@@ -43548,7 +43477,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "protegi",
             "bayesian",
             "metaprompt",
-            "promptwizard"
+            "promptwizard",
+            "agent_learning_kit"
           ]
         },
         "model": {
@@ -43615,7 +43545,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "protegi",
             "bayesian",
             "metaprompt",
-            "promptwizard"
+            "promptwizard",
+            "agent_learning_kit"
           ]
         },
         "model": {
@@ -43699,7 +43630,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "protegi",
             "bayesian",
             "metaprompt",
-            "promptwizard"
+            "promptwizard",
+            "agent_learning_kit"
           ]
         },
         "status": {
@@ -43767,7 +43699,8 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "protegi",
             "bayesian",
             "metaprompt",
-            "promptwizard"
+            "promptwizard",
+            "agent_learning_kit"
           ],
           "readOnly": true
         },
@@ -60506,7 +60439,12 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "eleven_labs",
             "retell",
             "livekit",
-            "others"
+            "others",
+            "deepgram",
+            "agora",
+            "pipecat",
+            "bland",
+            "twilio"
           ]
         },
         "enabled": {
@@ -72548,7 +72486,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "token_usage",
             "daily_tokens_spent",
             "monthly_tokens_spent",
-            "evaluation_metrics"
+            "evaluation_metrics",
+            "sim_eval_score",
+            "sim_failure_rate"
           ]
         },
         "metric": {
@@ -73061,7 +73001,9 @@ export const OPENAPI_CONTRACT = Object.freeze({
             "token_usage",
             "daily_tokens_spent",
             "monthly_tokens_spent",
-            "evaluation_metrics"
+            "evaluation_metrics",
+            "sim_eval_score",
+            "sim_failure_rate"
           ]
         },
         "metric": {
@@ -75508,6 +75450,115 @@ export const OPENAPI_CONTRACT = Object.freeze({
         "created": {
           "title": "Created",
           "type": "boolean"
+        }
+      }
+    },
+    "AgentPromptOptimiserApplyTrialResult": {
+      "type": "object",
+      "properties": {
+        "applied": {
+          "title": "Applied",
+          "type": "boolean",
+          "readOnly": true
+        },
+        "source_trial_id": {
+          "title": "Source trial id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "target": {
+          "title": "Target",
+          "type": "string",
+          "enum": [
+            "provider_agent",
+            "agent_version"
+          ],
+          "readOnly": true
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "assistant_id": {
+          "title": "Assistant id",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "applied_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "readOnly": true
+        },
+        "skipped_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "readOnly": true
+        },
+        "previous_prompt": {
+          "title": "Previous prompt",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1,
+          "x-nullable": true
+        },
+        "previous_config": {
+          "title": "Previous config",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "x-nullable": true
+          },
+          "readOnly": true
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "new_agent_version_id": {
+          "title": "New agent version id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "version_number": {
+          "title": "Version number",
+          "type": "integer",
+          "readOnly": true
+        },
+        "new_prompt_version_id": {
+          "title": "New prompt version id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "template_version": {
+          "title": "Template version",
+          "type": "string",
+          "readOnly": true,
+          "minLength": 1
+        },
+        "original_template_id": {
+          "title": "Original template id",
+          "type": "string",
+          "format": "uuid",
+          "readOnly": true
+        },
+        "is_default": {
+          "title": "Is default",
+          "type": "boolean",
+          "readOnly": true
         }
       }
     },
