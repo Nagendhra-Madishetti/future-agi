@@ -1291,7 +1291,21 @@ def process_single_error_localization(task_id):
                     try:
                         if APICallLog is not None:
                             log = APICallLog.objects.get(log_id=metadata.get("log_id"))
-                        config = json.loads(log.config)
+                        config = log.config
+
+                        if isinstance(config, str):
+
+                            try:
+
+                                config = json.loads(config)
+
+                            except Exception:
+
+                                config = {}
+
+                        if not isinstance(config, dict):
+
+                            config = {}
                         config["error_localizer"] = {
                             "error_analysis": error_analysis,
                             "selected_input_key": selected_input_key,
@@ -1329,7 +1343,21 @@ def process_single_error_localization(task_id):
                     try:
                         if APICallLog is not None:
                             log = APICallLog.objects.get(log_id=metadata.get("log_id"))
-                        config = json.loads(log.config)
+                        config = log.config
+
+                        if isinstance(config, str):
+
+                            try:
+
+                                config = json.loads(config)
+
+                            except Exception:
+
+                                config = {}
+
+                        if not isinstance(config, dict):
+
+                            config = {}
                         config["error_localizer"] = {
                             "error_analysis": error_analysis,
                             "selected_input_key": selected_input_key,
@@ -1351,7 +1379,21 @@ def process_single_error_localization(task_id):
             try:
                 if APICallLog is not None:
                     eval_logger = APICallLog.objects.get(log_id=task.source_id)
-                config = json.loads(eval_logger.config) or {}
+                config = eval_logger.config
+
+                if isinstance(config, str):
+
+                    try:
+
+                        config = json.loads(config)
+
+                    except Exception:
+
+                        config = {}
+
+                if not isinstance(config, dict):
+
+                    config = {}  # or {}
                 config["error_localizer"] = {
                     "error_analysis": error_analysis,
                     "selected_input_key": selected_input_key,
