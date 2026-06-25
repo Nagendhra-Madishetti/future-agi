@@ -253,8 +253,25 @@ def validate_file_url(
     # Generic types that carry no useful file-type signal.
     _GENERIC_CONTENT_TYPES = {"application/octet-stream", "binary/octet-stream"}
 
+    # SSRF guard: resolve hostname and block private/loopback/link-local ranges.
+    import socket as _socket, ipaddress as _ipaddress
     try:
-        response = requests.head(url, timeout=5, allow_redirects=True)
+        _host = url.split("://", 1)[-1].split("/")[0].split(":")[0]
+        _ip = _ipaddress.ip_address(_socket.gethostbyname(_host))
+        if _ip.is_private or _ip.is_loopback or _ip.is_link_local:
+            raise ValueError("URL resolves to a private or reserved address — not allowed.")
+    except ValueError:
+        raise
+    except _socket.gaierror as _e:
+        raise ValueError(f"Cannot resolve {file_type} URL host: {_e}") from None
+
+    try:
+        response = requests.head(url, timeout=5, allow_redirects=False)
+        # Follow at most one redirect, re-validating each hop for SSRF.
+        if response.status_code in (301, 302, 303, 307, 308):
+            location = response.headers.get("Location", "")
+            if location and is_valid_url(location):
+                response = requests.head(location, timeout=5, allow_redirects=False)
         if response.status_code >= 400:
             raise ValueError(
                 f"{file_type.capitalize()} URL returned status code {response.status_code}"
@@ -272,13 +289,17 @@ def validate_file_url(
             if content_type.startswith(expected_prefix):
                 pass  # explicit content-type match — accept
             elif not content_type or content_type in _GENERIC_CONTENT_TYPES:
-                # Server returned no useful type signal (empty, octet-stream,
-                # etc.). Fall back to extension. S3/CDN URLs routinely carry
-                # neither extension nor content-type — allow them deliberately
-                # so that our own exported image URLs are not rejected; a
-                # magic-byte check downstream is the last line of defence.
-                if url_path and not any(url_path.endswith(ext) for ext in valid_extensions):
-                    pass  # no extension, no content-type — allow (deliberate)
+                # Server returned no useful type signal (empty, octet-stream, etc.).
+                # Use extension as the signal:
+                #   - known good extension → accept
+                #   - no extension at all  → accept (S3/CDN URLs; magic-byte check downstream)
+                #   - explicit bad extension (.exe, .txt …) → reject
+                url_path_lower = url.lower().split("?")[0]
+                has_any_ext = "." in url_path_lower.rsplit("/", 1)[-1]
+                if has_any_ext and not any(url_path_lower.endswith(ext) for ext in valid_extensions):
+                    raise ValueError(
+                        f"URL has a non-{file_type} extension and no content-type signal."
+                    )
             else:
                 # Server returned an explicit, non-generic content-type that
                 # doesn't match — reject outright, no extension fallback.
