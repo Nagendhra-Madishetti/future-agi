@@ -2025,14 +2025,11 @@ class TestStampEvaluationAxesFallback:
         assert e.output_float == 0.5
 
     def test_no_output_type_falls_back_to_score_axis(self, _stamp):
-        with patch("model_hub.services.evaluation.logger") as log:
-            e = _mk_eval(value=0.5)
-            _stamp(e)
-            assert e.output_float == 0.5
-            log.warning.assert_called_once()
-            assert log.warning.call_args.kwargs.get("template_lookup_failed") is False
+        e = _mk_eval(value=0.5)
+        _stamp(e)
+        assert e.output_float == 0.5
 
-    def test_template_lookup_failure_logs_and_falls_back(self, _stamp):
+    def test_template_lookup_failure_falls_back_to_score_axis(self, _stamp):
         from model_hub.models.evals_metric import EvalTemplate as _Tpl
 
         class _BrokenEval:
@@ -2050,10 +2047,8 @@ class TestStampEvaluationAxesFallback:
                 raise _Tpl.DoesNotExist()
 
         e = _BrokenEval()
-        with patch("model_hub.services.evaluation.logger") as log:
-            _stamp(e)
-            assert e.output_float == 0.5
-            assert log.warning.call_args.kwargs.get("template_lookup_failed") is True
+        _stamp(e)
+        assert e.output_float == 0.5
 
     def test_resolve_failure_logs_and_sets_output_str(self, _stamp):
         e = _mk_eval(value={"x": object()}, output_type="score")

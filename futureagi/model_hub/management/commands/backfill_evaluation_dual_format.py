@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from typing import Any
 
 import structlog
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.utils import timezone
 
 from evaluations.engine.normalize import parse_legacy_value, resolve_eval_axes
 from model_hub.models.evaluation import Evaluation
 
 logger = structlog.get_logger(__name__)
+
+_BATCH_SIZE = 500
+_SAMPLE_COUNT = 5
+_UPDATE_FIELDS = ["output_bool", "output_float", "output_str_list", "output_str"]
 
 
 class Command(BaseCommand):
@@ -23,46 +25,18 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--limit", type=int, default=0)
-        parser.add_argument("--batch-size", type=int, default=500)
-        parser.add_argument("--since", type=str, default=None)
-        parser.add_argument("--eval-template-id", type=str, default=None)
-        parser.add_argument("--evaluation-id", type=str, default=None)
-        parser.add_argument(
-            "--sample-count",
-            type=int,
-            default=5,
-            help="Print first N before/after conversion samples (0 disables).",
-        )
 
     def handle(self, *args, **options):
         dry_run: bool = options["dry_run"]
         limit: int = options["limit"]
-        batch_size: int = options["batch_size"]
-        since_raw: str | None = options.get("since")
-        eval_template_id: str | None = options.get("eval_template_id")
-        evaluation_id: str | None = options.get("evaluation_id")
-        sample_count: int = options.get("sample_count", 5)
         samples: list[dict[str, Any]] = []
 
-        since: datetime | None = None
-        if since_raw:
-            try:
-                since = datetime.strptime(since_raw, "%Y-%m-%d").replace(
-                    tzinfo=timezone.get_current_timezone()
-                )
-            except ValueError as exc:
-                raise CommandError(
-                    f"--since must be YYYY-MM-DD, got {since_raw!r}"
-                ) from exc
-
-        qs = Evaluation.objects.exclude(value__isnull=True).exclude(value="")
-        if since is not None:
-            qs = qs.filter(created_at__gte=since)
-        if eval_template_id:
-            qs = qs.filter(eval_template_id=eval_template_id)
-        if evaluation_id:
-            qs = qs.filter(id=evaluation_id)
-        qs = qs.select_related("eval_template").order_by("created_at", "id")
+        qs = (
+            Evaluation.objects.exclude(value__isnull=True)
+            .exclude(value="")
+            .select_related("eval_template")
+            .order_by("created_at", "id")
+        )
         if limit:
             qs = qs[:limit]
 
@@ -70,19 +44,12 @@ class Command(BaseCommand):
         updated_rows = 0
         skipped_rows = 0
         pending: list[Evaluation] = []
-        update_fields = [
-            "output_bool",
-            "output_float",
-            "output_str_list",
-            "output_str",
-        ]
 
-        for ev in qs.iterator(chunk_size=batch_size):
+        for ev in qs.iterator(chunk_size=_BATCH_SIZE):
             processed += 1
             tpl = ev.eval_template
             template_config = tpl.config if tpl else {}
             config_output = template_config.get("output") or ev.output_type or "score"
-            multi_choice = bool(tpl.multi_choice) if tpl else False
 
             parsed_value = parse_legacy_value(ev.value)
             projected = resolve_eval_axes(
@@ -105,13 +72,12 @@ class Command(BaseCommand):
                 skipped_rows += 1
                 continue
 
-            if len(samples) < sample_count:
+            if len(samples) < _SAMPLE_COUNT:
                 samples.append(
                     {
                         "evaluation_id": str(ev.id),
                         "eval_template_id": str(tpl.id) if tpl else None,
                         "config_output": config_output,
-                        "multi_choice": multi_choice,
                         "value": parsed_value,
                         "before": before,
                         "after": {
@@ -126,12 +92,12 @@ class Command(BaseCommand):
 
             updated_rows += 1
             pending.append(ev)
-            if len(pending) >= batch_size:
-                self._flush(pending, update_fields, dry_run=dry_run)
+            if len(pending) >= _BATCH_SIZE:
+                self._flush(pending, dry_run=dry_run)
                 pending.clear()
 
         if pending:
-            self._flush(pending, update_fields, dry_run=dry_run)
+            self._flush(pending, dry_run=dry_run)
             pending.clear()
 
         if samples:
@@ -139,10 +105,7 @@ class Command(BaseCommand):
             for i, s in enumerate(samples, 1):
                 self.stdout.write(f">>> [{i}] evaluation_id   ={s['evaluation_id']}")
                 self.stdout.write(f">>>     eval_template_id={s['eval_template_id']}")
-                self.stdout.write(
-                    f">>>     config_output   ={s['config_output']!r}"
-                    f"  multi_choice={s['multi_choice']}"
-                )
+                self.stdout.write(f">>>     config_output   ={s['config_output']!r}")
                 self.stdout.write(f">>>     value           ={json.dumps(s['value'], default=str)}")
                 self.stdout.write(f">>>     projected       ={json.dumps(s['projected'], default=str)}")
                 self.stdout.write(f">>>     before_columns  ={json.dumps(s['before'], default=str)}")
@@ -163,8 +126,8 @@ class Command(BaseCommand):
         )
 
     @staticmethod
-    def _flush(rows: list[Evaluation], fields: list[str], *, dry_run: bool) -> None:
+    def _flush(rows: list[Evaluation], *, dry_run: bool) -> None:
         if dry_run or not rows:
             return
         with transaction.atomic():
-            Evaluation.objects.bulk_update(rows, fields)
+            Evaluation.objects.bulk_update(rows, _UPDATE_FIELDS)

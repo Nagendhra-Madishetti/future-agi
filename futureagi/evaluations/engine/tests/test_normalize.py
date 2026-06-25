@@ -9,19 +9,15 @@ import pytest
 from evaluations.engine.normalize import (
     AXIS_KEYS,
     empty_axes,
-    eval_config_multi_choice,
     eval_config_output,
     resolve_eval_axes,
 )
 from simulate.utils.processing_outcomes import build_simulate_eval_payload
 
 
-def _custom_eval_config(*, stored_output=None, multi_choice=None):
+def _custom_eval_config(*, stored_output=None):
     config = {"output": stored_output} if stored_output is not None else {}
-    template = SimpleNamespace(config=config)
-    if multi_choice is not None:
-        template.multi_choice = multi_choice
-    return SimpleNamespace(eval_template=template)
+    return SimpleNamespace(eval_template=SimpleNamespace(config=config))
 
 
 # AXIS_KEYS + empty_axes
@@ -56,21 +52,6 @@ def test_eval_config_output_defaults_to_score_when_missing():
 
 def test_eval_config_output_defaults_when_no_template():
     assert eval_config_output(SimpleNamespace()) == "score"
-
-
-# eval_config_multi_choice
-
-def test_eval_config_multi_choice_reads_flag():
-    assert eval_config_multi_choice(_custom_eval_config(multi_choice=True)) is True
-    assert eval_config_multi_choice(_custom_eval_config(multi_choice=False)) is False
-
-
-def test_eval_config_multi_choice_defaults_false_when_missing():
-    assert eval_config_multi_choice(_custom_eval_config()) is False
-
-
-def test_eval_config_multi_choice_defaults_when_no_template():
-    assert eval_config_multi_choice(SimpleNamespace()) is False
 
 
 # resolve_eval_axes: primary axis routing

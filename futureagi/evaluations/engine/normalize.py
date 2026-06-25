@@ -43,13 +43,6 @@ def eval_config_output(custom_eval_config: Any) -> str:
         return "score"
 
 
-def eval_config_multi_choice(custom_eval_config: Any) -> bool:
-    try:
-        return bool(custom_eval_config.eval_template.multi_choice)
-    except AttributeError:
-        return False
-
-
 def resolve_eval_axes(
     value: Any, config_output: str, *, include_output_str: bool = False
 ) -> EvalAxes:

@@ -16,22 +16,13 @@ def stamp_evaluation_axes(evaluation: Any) -> None:
         return
 
     template_config: dict = {}
-    template_lookup_failed = False
-    try:
-        if evaluation.eval_template_id is not None:
+    if evaluation.eval_template_id is not None:
+        try:
             template_config = evaluation.eval_template.config or {}
-    except (AttributeError, EvalTemplate.DoesNotExist):
-        template_lookup_failed = True
+        except (AttributeError, EvalTemplate.DoesNotExist):
+            pass
 
-    config_output = template_config.get("output") or evaluation.output_type
-    if config_output is None:
-        config_output = "score"
-        logger.warning(
-            "evaluation_axes_output_fallback",
-            evaluation_id=str(getattr(evaluation, "id", "")) or None,
-            eval_template_id=str(evaluation.eval_template_id or "") or None,
-            template_lookup_failed=template_lookup_failed,
-        )
+    config_output = template_config.get("output") or evaluation.output_type or "score"
 
     try:
         projected = resolve_eval_axes(

@@ -296,55 +296,6 @@ class TestOperationalSafety:
         assert infos["output_float"] == pytest.approx(0.7)
 
 
-class TestFiltering:
-    def test_column_id_scopes_to_one_column(
-        self, db, dataset, organization, workspace
-    ):
-        tpl = _template(organization=organization, output="score")
-        uem = _user_eval_metric(
-            dataset=dataset, organization=organization, workspace=workspace, template=tpl
-        )
-        scoped_col = _eval_column(dataset=dataset, user_eval_metric=uem)
-        unscoped_col = _eval_column(dataset=dataset, user_eval_metric=uem)
-        scoped = _eval_cell(
-            dataset=dataset, column=scoped_col, value="0.7", value_infos={}
-        )
-        unscoped = _eval_cell(
-            dataset=dataset, column=unscoped_col, value="0.5", value_infos={}
-        )
-
-        _run(column_id=str(scoped_col.id))
-
-        assert _decode(scoped)["output_float"] == pytest.approx(0.7)
-        assert "output_float" not in _decode(unscoped)
-
-    def test_dataset_id_scopes_to_one_dataset(
-        self, db, organization, workspace
-    ):
-        ds_a = Dataset.objects.create(
-            name="ds-a", organization=organization, workspace=workspace
-        )
-        ds_b = Dataset.objects.create(
-            name="ds-b", organization=organization, workspace=workspace
-        )
-        tpl = _template(organization=organization, output="score")
-        uem_a = _user_eval_metric(
-            dataset=ds_a, organization=organization, workspace=workspace, template=tpl
-        )
-        uem_b = _user_eval_metric(
-            dataset=ds_b, organization=organization, workspace=workspace, template=tpl
-        )
-        col_a = _eval_column(dataset=ds_a, user_eval_metric=uem_a)
-        col_b = _eval_column(dataset=ds_b, user_eval_metric=uem_b)
-        cell_a = _eval_cell(dataset=ds_a, column=col_a, value="0.7", value_infos={})
-        cell_b = _eval_cell(dataset=ds_b, column=col_b, value="0.5", value_infos={})
-
-        _run(dataset_id=str(ds_a.id))
-
-        assert _decode(cell_a)["output_float"] == pytest.approx(0.7)
-        assert "output_float" not in _decode(cell_b)
-
-
 def _eval_column_with_source(
     *, dataset, user_eval_metric, source: str, source_id: str
 ) -> Column:

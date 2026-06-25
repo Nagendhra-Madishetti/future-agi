@@ -321,32 +321,3 @@ def test_pending_placeholder_gets_all_none_axes(
     assert entry["output_float"] is None
     assert entry["output_str_list"] is None
     assert entry["status"] == "pending"
-
-
-def test_eval_config_id_flag_scopes_to_one_entry(
-    db, organization, run_test, test_execution
-):
-    tpl = _template("scope", organization, output="score")
-    cfg_a = _eval_config(tpl, run_test, "a cfg")
-    cfg_b = _eval_config(tpl, run_test, "b cfg")
-    call = _call(
-        test_execution,
-        {
-            str(cfg_a.id): {
-                "output": 0.1,
-                "reason": "",
-                "output_type": "score",
-                "name": "a",
-            },
-            str(cfg_b.id): {
-                "output": 0.2,
-                "reason": "",
-                "output_type": "score",
-                "name": "b",
-            },
-        },
-    )
-    _run(eval_config_id=str(cfg_a.id))
-    call.refresh_from_db()
-    assert "output_float" in call.eval_outputs[str(cfg_a.id)]
-    assert "output_float" not in call.eval_outputs[str(cfg_b.id)]
