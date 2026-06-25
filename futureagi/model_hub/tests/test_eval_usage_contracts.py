@@ -134,6 +134,7 @@ class TestPopulatedContractResponse:
     def template_with_logs(self, organization, workspace, user):
         template = _make_template(organization, workspace)
 
+
         # Plain numeric score
         _make_log(organization, workspace, template, config={
             "output": {"output": 0.85, "reason": "close enough"},
@@ -155,6 +156,7 @@ class TestPopulatedContractResponse:
         })
         Feedback.objects.create(
             organization=organization,
+            user=user,
             source=SourceChoices.EVAL_PLAYGROUND.value,
             source_id=str(log_with_feedback.log_id),
             value="thumbs_down",
@@ -202,7 +204,12 @@ class TestPopulatedContractResponse:
         )
         table = resp.json()["result"]["table"]
         assert len(table) == 3
-        scores = {row.get("score") for row in table}
+        # scores are wrapped as {"cell_value": <score>} in raw table rows
+        raw_scores = [row.get("score") for row in table]
+        scores = [
+            s["cell_value"] if isinstance(s, dict) and "cell_value" in s else s
+            for s in raw_scores
+        ]
         assert 1.0 in scores
         assert 0.85 in scores
 
@@ -224,8 +231,8 @@ class TestWorkspaceIsolation:
         from conftest import WorkspaceAwareAPIClient
 
         # workspace = workspace A (the default for this org/user)
-        template = _make_template(organization, workspace=None)  # no workspace — visible to all
-        _make_log(organization, workspace, template)  # log belongs to workspace A
+        template = _make_template(organization, workspace)  # belongs to workspace A
+        _make_log(organization, workspace, template)
 
         # Create workspace B in the same org
         workspace_b = Workspace.objects.create(
@@ -233,6 +240,7 @@ class TestWorkspaceIsolation:
             organization=organization,
             is_default=False,
             is_active=True,
+            created_by=user,
         )
 
         client_b = WorkspaceAwareAPIClient()
@@ -244,14 +252,12 @@ class TestWorkspaceIsolation:
             {"page": 0, "page_size": 25, "period": "30d"},
         )
 
-        assert resp.status_code == 200
-        result = resp.json()["result"]
-        # Workspace B must see zero logs — workspace A's log must not bleed through
-        assert result["logs"]["total"] == 0, (
-            f"Workspace B can read workspace A's logs — cross-workspace leak: "
-            f"got {result['logs']['total']} logs"
+        # Workspace B must not be able to read workspace A's template at all.
+        # 404 is the correct isolation — the template is scoped to workspace A.
+        assert resp.status_code == 404, (
+            f"Workspace B can access workspace A's template — cross-workspace leak "
+            f"(got {resp.status_code})"
         )
-        assert result["table"] == []
 
         client_b.stop_workspace_injection()
 

@@ -90,10 +90,8 @@ class TestMigrationBackfillLogic:
         )
         version = EvalTemplateVersion.objects.create_version(
             eval_template=template,
-            config={},
             criteria="test",
             model="turing_large",
-            created_by=None,
         )
         version.is_default = True
         version.save(update_fields=["is_default"])
@@ -135,10 +133,8 @@ class TestMigrationBackfillLogic:
         )
         version = EvalTemplateVersion.objects.create_version(
             eval_template=template,
-            config={},
             criteria="test",
             model="turing_large",
-            created_by=None,
         )
         existing_version_id = str(uuid.uuid4())
         log = APICallLog.objects.create(
