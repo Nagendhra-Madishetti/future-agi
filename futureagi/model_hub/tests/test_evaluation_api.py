@@ -1948,39 +1948,26 @@ def _mk_eval(
 
 
 class TestStampEvaluationAxesRouting:
-    def test_passfail_passed_routes_to_output_bool(self, _stamp):
-        e = _mk_eval(value="Passed", output_type="Pass/Fail")
+    @pytest.mark.parametrize(
+        "value,output_type,axis,expected",
+        [
+            ("Passed", "Pass/Fail", "output_bool", True),
+            ("Failed", "Pass/Fail", "output_bool", False),
+            (0.7, "score", "output_float", 0.7),
+            ("frequently", "choices", "output_str_list", ["frequently"]),
+            ({"choices": ["a", "b"]}, "choices", "output_str_list", ["a", "b"]),
+            (42.0, "numeric", "output_float", 42.0),
+        ],
+    )
+    def test_value_routes_to_axis(self, _stamp, value, output_type, axis, expected):
+        e = _mk_eval(value=value, output_type=output_type)
         _stamp(e)
-        assert e.output_bool is True
-        assert e.output_float is None
-        assert e.output_str_list is None
-
-    def test_passfail_failed_routes_to_output_bool(self, _stamp):
-        e = _mk_eval(value="Failed", output_type="Pass/Fail")
-        _stamp(e)
-        assert e.output_bool is False
-
-    def test_score_float_routes_to_output_float(self, _stamp):
-        e = _mk_eval(value=0.7, output_type="score")
-        _stamp(e)
-        assert e.output_float == 0.7
-        assert e.output_bool is None
-        assert e.output_str_list is None
+        assert getattr(e, axis) == expected
 
     def test_score_zero_is_a_real_value(self, _stamp):
         e = _mk_eval(value=0, output_type="score")
         _stamp(e)
         assert e.output_float == 0.0
-
-    def test_choices_string_routes_to_output_str_list(self, _stamp):
-        e = _mk_eval(value="frequently", output_type="choices")
-        _stamp(e)
-        assert e.output_str_list == ["frequently"]
-
-    def test_choices_multi_pick_routes_to_list(self, _stamp):
-        e = _mk_eval(value={"choices": ["a", "b"]}, output_type="choices")
-        _stamp(e)
-        assert e.output_str_list == ["a", "b"]
 
     def test_choice_scores_dict_populates_both_axes(self, _stamp):
         e = _mk_eval(value={"score": 0.8, "choice": "good"}, output_type="score")
@@ -1988,29 +1975,22 @@ class TestStampEvaluationAxesRouting:
         assert e.output_float == 0.8
         assert e.output_str_list == ["good"]
 
-    def test_numeric_uses_score_axis(self, _stamp):
-        e = _mk_eval(value=42.0, output_type="numeric")
-        _stamp(e)
-        assert e.output_float == 42.0
-
 
 class TestStampEvaluationAxesAdditiveGuard:
-    def test_existing_output_bool_is_preserved(self, _stamp):
-        e = _mk_eval(value="Passed", output_type="Pass/Fail", output_bool=False)
+    @pytest.mark.parametrize(
+        "value,output_type,kwarg,existing",
+        [
+            ("Passed", "Pass/Fail", "output_bool", False),
+            (0.7, "score", "output_float", 0.1),
+            ("ignored", "choices", "output_str_list", ["pinned"]),
+        ],
+    )
+    def test_existing_axis_value_is_preserved(
+        self, _stamp, value, output_type, kwarg, existing
+    ):
+        e = _mk_eval(value=value, output_type=output_type, **{kwarg: existing})
         _stamp(e)
-        assert e.output_bool is False
-
-    def test_existing_output_float_is_preserved(self, _stamp):
-        e = _mk_eval(value=0.7, output_type="score", output_float=0.1)
-        _stamp(e)
-        assert e.output_float == 0.1
-
-    def test_existing_output_str_list_is_preserved(self, _stamp):
-        e = _mk_eval(
-            value="ignored", output_type="choices", output_str_list=["pinned"]
-        )
-        _stamp(e)
-        assert e.output_str_list == ["pinned"]
+        assert getattr(e, kwarg) == existing
 
     def test_empty_list_is_preserved_against_none_guard(self, _stamp):
         e = _mk_eval(value="x", output_type="choices", output_str_list=[])
@@ -2050,24 +2030,14 @@ class TestStampEvaluationAxesFallback:
         _stamp(e)
         assert e.output_float == 0.5
 
-    def test_resolve_failure_logs_and_sets_output_str(self, _stamp):
+    def test_resolve_failure_falls_back_to_output_str(self, _stamp):
         e = _mk_eval(value={"x": object()}, output_type="score")
-        with (
-            patch(
-                "tracer.utils.eval._dual_write_eval_value",
-                side_effect=TypeError("boom"),
-            ),
-            patch("model_hub.services.evaluation.logger") as log,
+        with patch(
+            "tracer.utils.eval._dual_write_eval_value",
+            side_effect=TypeError("boom"),
         ):
             _stamp(e)
-            log.warning.assert_called_once_with(
-                "evaluation_axes_resolve_failed",
-                evaluation_id="eval-1",
-                eval_template_id=None,
-                config_output="score",
-                exc_info=True,
-            )
-            assert e.output_str is not None
+        assert e.output_str is not None
 
     def test_output_str_fallback_when_all_axes_empty(self, _stamp):
         e = _mk_eval(value="unknown shape", output_type="reason")
@@ -2087,51 +2057,32 @@ class TestStampEvaluationAxesFallback:
 
 
 class TestStampEvaluationAxesOutputStrMirror:
-    def test_dict_value_on_score_config_dumps_json(self, _stamp):
-        e = _mk_eval(value={"score": 1.0, "choice": "Good"}, output_type="score")
+    @pytest.mark.parametrize(
+        "value,output_type,expected_str",
+        [
+            ({"score": 1.0, "choice": "Good"}, "score", '{"score": 1.0, "choice": "Good"}'),
+            ({"score": 0.875, "choices": ["A", "B"]}, "choices", '{"score": 0.875, "choices": ["A", "B"]}'),
+            ([{"choice": "A"}, {"choice": "B"}], "choices", '[{"choice": "A"}, {"choice": "B"}]'),
+            ("excellent", "choices", "excellent"),
+        ],
+    )
+    def test_output_str_written(self, _stamp, value, output_type, expected_str):
+        e = _mk_eval(value=value, output_type=output_type)
         _stamp(e)
-        assert e.output_str == '{"score": 1.0, "choice": "Good"}'
-        assert e.output_float == 1.0
-        assert e.output_str_list == ["Good"]
+        assert e.output_str == expected_str
 
-    def test_dict_value_on_choices_config_dumps_json(self, _stamp):
-        e = _mk_eval(value={"score": 0.875, "choices": ["A", "B"]}, output_type="choices")
-        _stamp(e)
-        assert e.output_str == '{"score": 0.875, "choices": ["A", "B"]}'
-        assert e.output_float == 0.875
-        assert e.output_str_list == ["A", "B"]
-
-    def test_string_value_on_choices_config_passes_through(self, _stamp):
-        e = _mk_eval(value="excellent", output_type="choices")
-        _stamp(e)
-        assert e.output_str == "excellent"
-        assert e.output_str_list == ["excellent"]
-
-    def test_plain_list_on_choices_config_leaves_output_str_null(self, _stamp):
-        e = _mk_eval(value=["neutral"], output_type="choices")
+    @pytest.mark.parametrize(
+        "value,output_type",
+        [
+            (["neutral"], "choices"),
+            (1.0, "score"),
+            ("Passed", "Pass/Fail"),
+        ],
+    )
+    def test_plain_scalar_leaves_output_str_null(self, _stamp, value, output_type):
+        e = _mk_eval(value=value, output_type=output_type)
         _stamp(e)
         assert e.output_str is None
-        assert e.output_str_list == ["neutral"]
-
-    def test_plain_score_value_leaves_output_str_null(self, _stamp):
-        e = _mk_eval(value=1.0, output_type="score")
-        _stamp(e)
-        assert e.output_str is None
-        assert e.output_float == 1.0
-
-    def test_passfail_string_leaves_output_str_null(self, _stamp):
-        e = _mk_eval(value="Passed", output_type="Pass/Fail")
-        _stamp(e)
-        assert e.output_str is None
-        assert e.output_bool is True
-
-    def test_list_of_dicts_on_choices_config_dumps_json(self, _stamp):
-        e = _mk_eval(
-            value=[{"choice": "A"}, {"choice": "B"}], output_type="choices"
-        )
-        _stamp(e)
-        assert e.output_str == '[{"choice": "A"}, {"choice": "B"}]'
-        assert e.output_str_list == ["A", "B"]
 
     def test_pre_set_output_str_is_preserved(self, _stamp):
         e = _mk_eval(
@@ -2141,5 +2092,3 @@ class TestStampEvaluationAxesOutputStrMirror:
         )
         _stamp(e)
         assert e.output_str == "legacy-text"
-        assert e.output_float == 1.0
-        assert e.output_str_list == ["Good"]

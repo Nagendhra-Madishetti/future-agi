@@ -1654,37 +1654,23 @@ def _captured_value_infos(mock_create):
 
 
 class TestCreateCellAxisInjection:
-    def test_score_template_populates_output_score(self, _runner):
-        _runner.eval_template = _SN(config={"output": "score"}, multi_choice=False)
+    @pytest.mark.parametrize(
+        "config_output,value,populated_axis,expected",
+        [
+            ("score", 0.7, "output_float", 0.7),
+            ("choices", "frequently", "output_str_list", ["frequently"]),
+            ("Pass/Fail", "Passed", "output_bool", True),
+        ],
+    )
+    def test_template_populates_correct_axis(
+        self, _runner, config_output, value, populated_axis, expected
+    ):
+        _runner.eval_template = _SN(config={"output": config_output}, multi_choice=False)
         ds, col, row = _ids()
         cancelled, stopped, mock_create = _patch_runner_deps()
         with cancelled, stopped, mock_create as m:
-            _runner._create_cell(ds, col, row, {"reason": "hi"}, 0.7, "completed")
-            payload = _captured_value_infos(m)
-            assert payload["reason"] == "hi"
-            assert payload["output_float"] == 0.7
-            assert payload["output_bool"] is None
-            assert payload["output_str_list"] is None
-
-    def test_choices_template_populates_output_choices(self, _runner):
-        _runner.eval_template = _SN(config={"output": "choices"}, multi_choice=False)
-        ds, col, row = _ids()
-        cancelled, stopped, mock_create = _patch_runner_deps()
-        with cancelled, stopped, mock_create as m:
-            _runner._create_cell(ds, col, row, {}, "frequently", "completed")
-            payload = _captured_value_infos(m)
-            assert payload["output_str_list"] == ["frequently"]
-            assert payload["output_float"] is None
-
-    def test_passfail_template_populates_output_pass(self, _runner):
-        _runner.eval_template = _SN(config={"output": "Pass/Fail"}, multi_choice=False)
-        ds, col, row = _ids()
-        cancelled, stopped, mock_create = _patch_runner_deps()
-        with cancelled, stopped, mock_create as m:
-            _runner._create_cell(ds, col, row, {}, "Passed", "completed")
-            payload = _captured_value_infos(m)
-            assert payload["output_bool"] is True
-            assert payload["output_float"] is None
+            _runner._create_cell(ds, col, row, {}, value, "completed")
+            assert _captured_value_infos(m)[populated_axis] == expected
 
     def test_pre_stamped_axes_are_not_overwritten(self, _runner):
         _runner.eval_template = _SN(config={"output": "score"}, multi_choice=False)

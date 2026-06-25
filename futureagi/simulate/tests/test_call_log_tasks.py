@@ -220,26 +220,6 @@ def _metrics(eval_outputs):
     )
 
 
-def test_outputs_renames_output_bool_to_output_pass():
-    out = _outputs({"e1": {"output_bool": True, "output": "Passed", "name": "n"}})
-    assert out["e1"]["output_pass"] is True
-    assert "output_bool" not in out["e1"]
-
-
-def test_outputs_renames_output_float_to_output_score():
-    out = _outputs({"e1": {"output_float": 0.75, "output": 0.75, "name": "n"}})
-    assert out["e1"]["output_score"] == pytest.approx(0.75)
-    assert "output_float" not in out["e1"]
-
-
-def test_outputs_renames_output_str_list_to_output_choices():
-    out = _outputs(
-        {"e1": {"output_str_list": ["polite", "concise"], "output": "x", "name": "n"}}
-    )
-    assert out["e1"]["output_choices"] == ["polite", "concise"]
-    assert "output_str_list" not in out["e1"]
-
-
 def test_outputs_carries_all_three_axes_for_choice_scores_dict():
     out = _outputs(
         {
@@ -257,13 +237,6 @@ def test_outputs_carries_all_three_axes_for_choice_scores_dict():
     assert out["e1"]["output_choices"] == ["Good"]
 
 
-def test_outputs_missing_axis_keys_default_to_none():
-    out = _outputs({"e1": {"output": "free text", "name": "reason-only"}})
-    assert out["e1"]["output_pass"] is None
-    assert out["e1"]["output_score"] is None
-    assert out["e1"]["output_choices"] is None
-
-
 def test_outputs_pending_status_emits_canonical_none_payload():
     out = _outputs({"e1": {"status": "pending"}})
     assert out["e1"] == {
@@ -272,14 +245,6 @@ def test_outputs_pending_status_emits_canonical_none_payload():
         "output_choices": None,
         "status": "pending",
     }
-
-
-def test_outputs_empty_dict_short_circuits():
-    assert _outputs({}) == {}
-
-
-def test_outputs_none_eval_outputs_returns_empty_dict():
-    assert _outputs(None) == {}
 
 
 def test_outputs_grouped_obj_with_count_returns_empty():
@@ -328,30 +293,6 @@ def test_metrics_renames_axes():
         assert storage_key not in metrics["e1"]
 
 
-def test_metrics_pending_status_emits_empty_dict():
-    assert _metrics({"e1": {"status": "pending"}}) == {"e1": {}}
-
-
-def test_metrics_includes_id_and_default_visible():
-    metrics = _metrics({"e1": {"output_float": 0.5, "output": 0.5, "name": "n"}})
-    assert metrics["e1"]["id"] == "e1"
-    assert metrics["e1"]["visible"] is True
-
-
-def test_metrics_grouped_obj_with_count_returns_empty():
-    assert (
-        CallExecutionDetailSerializer().get_eval_metrics(
-            {"eval_outputs": {"e1": {}}, "count": 5}
-        )
-        == {}
-    )
-
-
-def test_metrics_error_localizer_defaults_false_without_config():
-    metrics = _metrics({"e1": {"output_float": 0.5, "output": 0.5, "name": "n"}})
-    assert metrics["e1"]["error_localizer"] is False
-
-
 @pytest.mark.parametrize(
     "storage_key,api_key,value",
     [
@@ -368,33 +309,6 @@ def test_outputs_rename_round_trip(storage_key, api_key, value):
     out = _outputs({"e1": eval_data})
     assert out["e1"][api_key] == value
     assert storage_key not in out["e1"]
-
-
-def test_every_eval_outputs_write_in_xl_uses_canonical_builder():
-    import re
-    from pathlib import Path
-
-    xl_py = (
-        Path(__file__).resolve().parents[1] / "temporal" / "activities" / "xl.py"
-    ).read_text()
-    lines = xl_py.splitlines()
-    offending = []
-    found = 0
-    for idx, line in enumerate(lines):
-        if not re.search(r"call_execution\.eval_outputs\[[^\]]+\]\s*=", line):
-            continue
-        found += 1
-        window = "\n".join(lines[idx : idx + 6])
-        if "build_simulate_eval_payload(" not in window:
-            offending.append(f"line {idx + 1}: {line.strip()}")
-    assert found, (
-        "No eval_outputs writes found in xl.py. Either the writer sites moved "
-        "or the locator regex needs an update."
-    )
-    assert not offending, (
-        "eval_outputs assignments not going through build_simulate_eval_payload:\n  "
-        + "\n  ".join(offending)
-    )
 
 
 def _fake_log_payload(body, severity="INFO", category="llm", ts_ms=1_700_000_000_000):

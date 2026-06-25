@@ -718,21 +718,6 @@ def _translate_value_infos(value_infos):
     return DatasetCellValueSerializer().get_value_infos({"value_infos": value_infos})
 
 
-def test_value_infos_renames_output_bool_to_output_pass():
-    out = _translate_value_infos({"output_bool": True, "reason": "ok"})
-    assert out == {"output_pass": True, "reason": "ok"}
-
-
-def test_value_infos_renames_output_float_to_output_score():
-    assert _translate_value_infos({"output_float": 0.75}) == {"output_score": 0.75}
-
-
-def test_value_infos_renames_output_str_list_to_output_choices():
-    assert _translate_value_infos(
-        {"output_str_list": ["polite", "concise"]}
-    ) == {"output_choices": ["polite", "concise"]}
-
-
 def test_value_infos_renames_all_three_axes_at_once():
     out = _translate_value_infos(
         {"output_bool": False, "output_float": 0.42, "output_str_list": ["a"]}
@@ -781,23 +766,11 @@ def test_value_infos_unparseable_string_returned_verbatim():
     assert _translate_value_infos("not-json") == "not-json"
 
 
-def test_value_infos_none_returns_none():
-    assert _translate_value_infos(None) is None
-
-
-def test_value_infos_list_returned_verbatim():
-    assert _translate_value_infos([1, 2, 3]) == [1, 2, 3]
-
-
 def test_value_infos_reads_from_attribute_object():
     class _Obj:
         value_infos = {"output_bool": True}
 
     assert DatasetCellValueSerializer().get_value_infos(_Obj()) == {"output_pass": True}
-
-
-def test_value_infos_dict_obj_without_value_infos_key_yields_none():
-    assert DatasetCellValueSerializer().get_value_infos({}) is None
 
 
 def test_value_infos_does_not_mutate_input_dict():

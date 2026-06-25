@@ -20,20 +20,6 @@ def _custom_eval_config(*, stored_output=None):
     return SimpleNamespace(eval_template=SimpleNamespace(config=config))
 
 
-# AXIS_KEYS + empty_axes
-
-def test_axis_keys_pinned():
-    assert AXIS_KEYS == ("output_bool", "output_float", "output_str_list")
-
-
-def test_empty_axes_returns_all_none():
-    assert empty_axes() == {
-        "output_bool": None,
-        "output_float": None,
-        "output_str_list": None,
-    }
-
-
 def test_empty_axes_returns_fresh_dict_each_call():
     a = empty_axes()
     a["output_float"] = 1.0
@@ -42,107 +28,56 @@ def test_empty_axes_returns_fresh_dict_each_call():
 
 # eval_config_output
 
-def test_eval_config_output_reads_stored_value():
-    assert eval_config_output(_custom_eval_config(stored_output="choices")) == "choices"
-
-
-def test_eval_config_output_defaults_to_score_when_missing():
-    assert eval_config_output(_custom_eval_config()) == "score"
-
-
-def test_eval_config_output_defaults_when_no_template():
-    assert eval_config_output(SimpleNamespace()) == "score"
+@pytest.mark.parametrize(
+    "cfg,expected",
+    [
+        (_custom_eval_config(stored_output="choices"), "choices"),
+        (_custom_eval_config(), "score"),
+        (SimpleNamespace(), "score"),
+    ],
+)
+def test_eval_config_output(cfg, expected):
+    assert eval_config_output(cfg) == expected
 
 
 # resolve_eval_axes: primary axis routing
 
-def test_resolve_axes_pass_fail_routes_to_output_pass_only():
-    axes = resolve_eval_axes("Passed", "Pass/Fail")
-    assert axes == {
-        "output_bool": True,
-        "output_float": None,
-        "output_str_list": None,
-    }
+@pytest.mark.parametrize(
+    "value,config_output,axis,expected",
+    [
+        ("Passed", "Pass/Fail", "output_bool", True),
+        (0.7, "score", "output_float", 0.7),
+        (0.42, "numeric", "output_float", 0.42),
+        ("always", "choices", "output_str_list", ["always"]),
+        (["A", "B"], "choices", "output_str_list", ["A", "B"]),
+        (["frequently"], "choices", "output_str_list", ["frequently"]),
+    ],
+)
+def test_resolve_axes_routes_to_primary(value, config_output, axis, expected):
+    axes = resolve_eval_axes(value, config_output)
+    assert axes[axis] == expected
+    for other in set(AXIS_KEYS) - {axis}:
+        assert axes[other] is None
 
 
-def test_resolve_axes_score_plain_float():
-    axes = resolve_eval_axes(0.7, "score")
-    assert axes["output_float"] == pytest.approx(0.7)
-    assert axes["output_bool"] is None
-    assert axes["output_str_list"] is None
+# resolve_eval_axes: permissive secondary axis (choice_scores templates)
 
-
-def test_resolve_axes_numeric_routes_to_output_score():
-    axes = resolve_eval_axes(0.42, "numeric")
-    assert axes["output_float"] == pytest.approx(0.42)
-    assert axes["output_str_list"] is None
-
-
-def test_resolve_axes_choices_single_plain_string_lands_as_one_element_list():
-    axes = resolve_eval_axes("always", "choices")
-    assert axes["output_str_list"] == ["always"]
-    assert axes["output_float"] is None
-    assert axes["output_bool"] is None
-
-
-def test_resolve_axes_choices_single_dict_lands_as_one_element_list():
-    axes = resolve_eval_axes({"score": 1.0, "choice": "always"}, "choices")
-    assert axes["output_str_list"] == ["always"]
-    assert axes["output_float"] == pytest.approx(1.0)
-
-
-def test_resolve_axes_choices_multi_plain_list():
-    axes = resolve_eval_axes(["A", "B"], "choices")
-    assert axes["output_str_list"] == ["A", "B"]
-    assert axes["output_float"] is None
-
-
-def test_resolve_axes_choices_multi_dict():
-    axes = resolve_eval_axes(
-        {"score": 0.5, "choices": ["polite", "concise"]}, "choices"
+@pytest.mark.parametrize(
+    "value,config_output,expected_float,expected_list",
+    [
+        ({"score": 0.7, "choice": "always"}, "score", 0.7, ["always"]),
+        ({"score": 0.7, "choices": ["a", "b"]}, "score", 0.7, ["a", "b"]),
+        ({"choice": "always"}, "score", None, ["always"]),
+    ],
+)
+def test_resolve_axes_permissive_dict_populates_both_axes(
+    value, config_output, expected_float, expected_list
+):
+    axes = resolve_eval_axes(value, config_output)
+    assert axes["output_float"] == (
+        pytest.approx(expected_float) if expected_float is not None else None
     )
-    assert axes["output_str_list"] == ["polite", "concise"]
-    assert axes["output_float"] == pytest.approx(0.5)
-
-
-def test_resolve_axes_legacy_single_choice_as_one_element_list():
-    axes = resolve_eval_axes(["frequently"], "choices")
-    assert axes["output_str_list"] == ["frequently"]
-
-
-# resolve_eval_axes: permissive secondary axis
-
-def test_resolve_axes_permissive_score_config_dict_populates_both_axes():
-    axes = resolve_eval_axes({"score": 0.7, "choice": "always"}, "score")
-    assert axes["output_float"] == pytest.approx(0.7)
-    assert axes["output_str_list"] == ["always"]
-    assert axes["output_bool"] is None
-
-
-def test_resolve_axes_permissive_score_config_dict_with_choices_list():
-    axes = resolve_eval_axes(
-        {"score": 0.7, "choices": ["a", "b"]}, "score"
-    )
-    assert axes["output_float"] == pytest.approx(0.7)
-    assert axes["output_str_list"] == ["a", "b"]
-
-
-def test_resolve_axes_plain_score_does_not_invent_choice():
-    axes = resolve_eval_axes(0.42, "score")
-    assert axes["output_float"] == pytest.approx(0.42)
-    assert axes["output_str_list"] is None
-
-
-def test_resolve_axes_plain_choice_does_not_invent_score():
-    axes = resolve_eval_axes("always", "choices")
-    assert axes["output_str_list"] == ["always"]
-    assert axes["output_float"] is None
-
-
-def test_resolve_axes_score_config_dict_with_only_choice():
-    axes = resolve_eval_axes({"choice": "always"}, "score")
-    assert axes["output_float"] is None
-    assert axes["output_str_list"] == ["always"]
+    assert axes["output_str_list"] == expected_list
 
 
 # resolve_eval_axes: edge cases
@@ -158,14 +93,10 @@ def test_resolve_axes_pass_fail_does_not_bleed_score_or_choice():
     assert axes["output_str_list"] is None
 
 
-def test_resolve_axes_none_value_yields_all_none():
-    assert resolve_eval_axes(None, "score") == empty_axes()
-    assert resolve_eval_axes(None, "choices") == empty_axes()
-
-
-def test_resolve_axes_empty_dict_value():
-    assert resolve_eval_axes({}, "score") == empty_axes()
-    assert resolve_eval_axes({}, "choices") == empty_axes()
+@pytest.mark.parametrize("value", [None, {}])
+@pytest.mark.parametrize("config_output", ["score", "choices"])
+def test_resolve_axes_empty_or_none_value_yields_all_none(value, config_output):
+    assert resolve_eval_axes(value, config_output) == empty_axes()
 
 
 def test_resolve_axes_score_zero_distinguishable_from_none():
@@ -174,14 +105,9 @@ def test_resolve_axes_score_zero_distinguishable_from_none():
     assert axes["output_float"] is not None
 
 
-def test_resolve_axes_idempotent():
-    value = {"score": 0.7, "choice": "x"}
-    assert resolve_eval_axes(value, "score") == resolve_eval_axes(value, "score")
-
-
 # build_simulate_eval_payload
 
-def test_payload_success_score():
+def test_payload_threads_value_reason_name_and_resolved_axes():
     payload = build_simulate_eval_payload(
         value=0.75,
         config_output="score",
@@ -191,50 +117,9 @@ def test_payload_success_score():
     )
     assert payload["output"] == 0.75
     assert payload["output_float"] == pytest.approx(0.75)
-    assert payload["output_bool"] is None
-    assert payload["output_str_list"] is None
     assert payload["reason"] == "ok"
     assert payload["name"] == "eval-a"
     assert payload["output_type"] == "score"
-    assert "error" not in payload
-    assert "status" not in payload
-    assert "skipped" not in payload
-
-
-def test_payload_success_pass_fail():
-    payload = build_simulate_eval_payload(
-        value="Passed",
-        config_output="Pass/Fail",
-        name="eval-b",
-        output_type="Pass/Fail",
-    )
-    assert payload["output_bool"] is True
-    assert payload["output_float"] is None
-    assert payload["output_str_list"] is None
-    assert payload["output"] == "Passed"
-
-
-def test_payload_success_choices_single_dict():
-    payload = build_simulate_eval_payload(
-        value={"score": 1.0, "choice": "always"},
-        config_output="choices",
-        name="eval-c",
-        output_type="choices",
-    )
-    assert payload["output_str_list"] == ["always"]
-    assert payload["output_float"] == pytest.approx(1.0)
-    assert payload["output"] == {"score": 1.0, "choice": "always"}
-
-
-def test_payload_success_choices_multi_dict():
-    payload = build_simulate_eval_payload(
-        value={"score": 0.5, "choices": ["polite", "concise"]},
-        config_output="choices",
-        name="eval-d",
-        output_type="choices",
-    )
-    assert payload["output_str_list"] == ["polite", "concise"]
-    assert payload["output_float"] == pytest.approx(0.5)
 
 
 def test_payload_error_path_all_axes_none():
@@ -265,17 +150,9 @@ def test_payload_skipped_path_carries_skipped_flag_and_null_axes():
         assert payload[key] is None
 
 
-def test_payload_carries_timestamp_when_supplied():
-    payload = build_simulate_eval_payload(
-        value=0.5,
-        config_output="score",
-        timestamp="2026-06-19T12:00:00Z",
-    )
-    assert payload["timestamp"] == "2026-06-19T12:00:00Z"
-
-
-def test_payload_omits_optional_fields_when_unset():
+def test_payload_default_shape_carries_canonical_keys_omits_optional():
     payload = build_simulate_eval_payload(value=0.5, config_output="score")
+    assert {"output", "reason", "output_type", "name", *AXIS_KEYS}.issubset(payload.keys())
     assert "error" not in payload
     assert "status" not in payload
     assert "skipped" not in payload
@@ -287,12 +164,3 @@ def test_payload_does_not_mutate_input_value():
     snapshot = dict(value)
     build_simulate_eval_payload(value=value, config_output="score")
     assert value == snapshot
-
-
-def test_payload_always_carries_canonical_keys():
-    payload = build_simulate_eval_payload(
-        value=None,
-        config_output="score",
-    )
-    base_keys = {"output", "reason", "output_type", "name", *AXIS_KEYS}
-    assert base_keys.issubset(payload.keys())

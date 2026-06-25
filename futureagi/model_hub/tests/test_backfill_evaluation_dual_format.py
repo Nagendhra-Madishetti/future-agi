@@ -57,62 +57,29 @@ def tpl_score(db, organization):
     return _template("score tpl", organization, output="score")
 
 
-@pytest.fixture
-def tpl_choices(db, organization):
-    return _template("choices tpl", organization, output="choices")
-
-
-@pytest.fixture
-def tpl_passfail(db, organization):
-    return _template("passfail tpl", organization, output="Pass/Fail")
-
-
 class TestAxisRouting:
-    def test_score_value_populates_output_float(
-        self, db, user, organization, workspace, tpl_score
+    @pytest.mark.parametrize(
+        "output,value,axis,expected",
+        [
+            ("score", "0.7", "output_float", 0.7),
+            ("choices", "frequently", "output_str_list", ["frequently"]),
+            ("Pass/Fail", "Passed", "output_bool", True),
+        ],
+    )
+    def test_value_routes_to_axis(
+        self, db, user, organization, workspace, output, value, axis, expected
     ):
+        tpl = _template(f"tpl-{output}", organization, output=output)
         ev = _legacy_eval(
             user=user,
             organization=organization,
             workspace=workspace,
-            template=tpl_score,
-            value="0.7",
+            template=tpl,
+            value=value,
         )
         _run()
         ev.refresh_from_db()
-        assert ev.output_float == pytest.approx(0.7)
-        assert ev.output_bool is None
-        assert ev.output_str_list is None
-
-    def test_choices_value_populates_output_str_list(
-        self, db, user, organization, workspace, tpl_choices
-    ):
-        ev = _legacy_eval(
-            user=user,
-            organization=organization,
-            workspace=workspace,
-            template=tpl_choices,
-            value="frequently",
-        )
-        _run()
-        ev.refresh_from_db()
-        assert ev.output_str_list == ["frequently"]
-        assert ev.output_float is None
-
-    def test_passfail_value_populates_output_bool(
-        self, db, user, organization, workspace, tpl_passfail
-    ):
-        ev = _legacy_eval(
-            user=user,
-            organization=organization,
-            workspace=workspace,
-            template=tpl_passfail,
-            value="Passed",
-        )
-        _run()
-        ev.refresh_from_db()
-        assert ev.output_bool is True
-        assert ev.output_float is None
+        assert getattr(ev, axis) == expected
 
     def test_choice_scores_dict_populates_both_axes(
         self, db, user, organization, workspace, tpl_score

@@ -76,168 +76,71 @@ def test_execution(db, run_test):
 # ── pre-choice_scores shapes (old data) ──────────────────────────────────
 
 
-def test_old_score_plain_float_lands_on_output_score(
-    db, organization, run_test, test_execution
+@pytest.mark.parametrize(
+    "output,multi_choice,raw_output,axis,expected",
+    [
+        ("score", False, 0.75, "output_float", 0.75),
+        ("Pass/Fail", False, "Passed", "output_bool", True),
+        ("choices", False, "always", "output_str_list", ["always"]),
+        ("choices", True, ["polite", "concise"], "output_str_list", ["polite", "concise"]),
+    ],
+)
+def test_old_runner_output_routes_to_axis(
+    db, organization, run_test, test_execution,
+    output, multi_choice, raw_output, axis, expected,
 ):
-    tpl = _template("score old", organization, output="score")
-    cfg = _eval_config(tpl, run_test, "score old cfg")
+    tpl = _template(f"tpl-{output}-{multi_choice}", organization, output=output, multi_choice=multi_choice)
+    cfg = _eval_config(tpl, run_test, "cfg")
     call = _call(
         test_execution,
         {
             str(cfg.id): {
-                "output": 0.75,
+                "output": raw_output,
                 "reason": "",
-                "output_type": "score",
-                "name": "score old cfg",
+                "output_type": output,
+                "name": "cfg",
             },
         },
     )
     _run()
     call.refresh_from_db()
     entry = call.eval_outputs[str(cfg.id)]
-    assert entry["output_float"] == pytest.approx(0.75)
-    assert entry["output_bool"] is None
-    assert entry["output_str_list"] is None
-
-
-def test_old_pass_fail_string_lands_on_output_pass(
-    db, organization, run_test, test_execution
-):
-    tpl = _template("pf old", organization, output="Pass/Fail")
-    cfg = _eval_config(tpl, run_test, "pf old cfg")
-    call = _call(
-        test_execution,
-        {
-            str(cfg.id): {
-                "output": "Passed",
-                "reason": "",
-                "output_type": "Pass/Fail",
-                "name": "pf old cfg",
-            },
-        },
-    )
-    _run()
-    call.refresh_from_db()
-    entry = call.eval_outputs[str(cfg.id)]
-    assert entry["output_bool"] is True
-    assert entry["output_float"] is None
-
-
-def test_old_choices_single_plain_string_lands_on_output_choice(
-    db, organization, run_test, test_execution
-):
-    tpl = _template("ch1 old", organization, output="choices", multi_choice=False)
-    cfg = _eval_config(tpl, run_test, "ch1 old cfg")
-    call = _call(
-        test_execution,
-        {
-            str(cfg.id): {
-                "output": "always",
-                "reason": "",
-                "output_type": "choices",
-                "name": "ch1 old cfg",
-            },
-        },
-    )
-    _run()
-    call.refresh_from_db()
-    entry = call.eval_outputs[str(cfg.id)]
-    assert entry["output_str_list"] == ["always"]
-    assert entry["output_float"] is None
-
-
-def test_old_choices_multi_plain_list_lands_on_output_choices(
-    db, organization, run_test, test_execution
-):
-    tpl = _template("chm old", organization, output="choices", multi_choice=True)
-    cfg = _eval_config(tpl, run_test, "chm old cfg")
-    call = _call(
-        test_execution,
-        {
-            str(cfg.id): {
-                "output": ["polite", "concise"],
-                "reason": "",
-                "output_type": "choices",
-                "name": "chm old cfg",
-            },
-        },
-    )
-    _run()
-    call.refresh_from_db()
-    entry = call.eval_outputs[str(cfg.id)]
-    assert entry["output_str_list"] == ["polite", "concise"]
+    assert entry[axis] == expected
 
 
 # ── post-choice_scores shapes (new dict format) ──────────────────────────
 
 
-def test_score_dict_with_choice_scores_extracts_score(
-    db, organization, run_test, test_execution
+@pytest.mark.parametrize(
+    "output,multi_choice,dict_output,expected_float,expected_list",
+    [
+        ("score", False, {"score": 0.66, "choice": "frequently"}, 0.66, ["frequently"]),
+        ("choices", False, {"score": 1.0, "choice": "always"}, 1.0, ["always"]),
+        ("choices", True, {"score": 0.5, "choices": ["polite", "concise"]}, 0.5, ["polite", "concise"]),
+    ],
+)
+def test_choice_scores_dict_populates_both_axes(
+    db, organization, run_test, test_execution,
+    output, multi_choice, dict_output, expected_float, expected_list,
 ):
-    tpl = _template("score new", organization, output="score")
-    cfg = _eval_config(tpl, run_test, "score new cfg")
+    tpl = _template(f"tpl-cs-{output}-{multi_choice}", organization, output=output, multi_choice=multi_choice)
+    cfg = _eval_config(tpl, run_test, "cfg")
     call = _call(
         test_execution,
         {
             str(cfg.id): {
-                "output": {"score": 0.66, "choice": "frequently"},
+                "output": dict_output,
                 "reason": "",
                 "output_type": "choices",
-                "name": "score new cfg",
+                "name": "cfg",
             },
         },
     )
     _run()
     call.refresh_from_db()
     entry = call.eval_outputs[str(cfg.id)]
-    assert entry["output_float"] == pytest.approx(0.66)
-    assert entry["output_str_list"] == ["frequently"]
-
-
-def test_choices_single_dict_with_choice_scores_extracts_choice(
-    db, organization, run_test, test_execution
-):
-    tpl = _template("ch1 new", organization, output="choices", multi_choice=False)
-    cfg = _eval_config(tpl, run_test, "ch1 new cfg")
-    call = _call(
-        test_execution,
-        {
-            str(cfg.id): {
-                "output": {"score": 1.0, "choice": "always"},
-                "reason": "",
-                "output_type": "choices",
-                "name": "ch1 new cfg",
-            },
-        },
-    )
-    _run()
-    call.refresh_from_db()
-    entry = call.eval_outputs[str(cfg.id)]
-    assert entry["output_str_list"] == ["always"]
-    assert entry["output_float"] == pytest.approx(1.0)
-
-
-def test_choices_multi_dict_with_choice_scores_extracts_choices(
-    db, organization, run_test, test_execution
-):
-    tpl = _template("chm new", organization, output="choices", multi_choice=True)
-    cfg = _eval_config(tpl, run_test, "chm new cfg")
-    call = _call(
-        test_execution,
-        {
-            str(cfg.id): {
-                "output": {"score": 0.5, "choices": ["polite", "concise"]},
-                "reason": "",
-                "output_type": "choices",
-                "name": "chm new cfg",
-            },
-        },
-    )
-    _run()
-    call.refresh_from_db()
-    entry = call.eval_outputs[str(cfg.id)]
-    assert entry["output_str_list"] == ["polite", "concise"]
-    assert entry["output_float"] == pytest.approx(0.5)
+    assert entry["output_float"] == pytest.approx(expected_float)
+    assert entry["output_str_list"] == expected_list
 
 
 # ── operational safety ──────────────────────────────────────────────────

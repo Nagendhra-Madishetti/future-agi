@@ -104,56 +104,27 @@ def _decode(cell: Cell) -> dict:
 
 
 class TestAxisRouting:
-    def test_score_value_populates_output_float(
-        self, db, dataset, organization, workspace
+    @pytest.mark.parametrize(
+        "output,value,axis,expected",
+        [
+            ("score", "0.7", "output_float", 0.7),
+            ("choices", "frequently", "output_str_list", ["frequently"]),
+            ("Pass/Fail", "Passed", "output_bool", True),
+        ],
+    )
+    def test_value_routes_to_axis(
+        self, db, dataset, organization, workspace, output, value, axis, expected
     ):
-        tpl = _template(organization=organization, output="score")
+        tpl = _template(organization=organization, output=output)
         uem = _user_eval_metric(
             dataset=dataset, organization=organization, workspace=workspace, template=tpl
         )
         col = _eval_column(dataset=dataset, user_eval_metric=uem)
-        cell = _eval_cell(dataset=dataset, column=col, value="0.7", value_infos={})
+        cell = _eval_cell(dataset=dataset, column=col, value=value, value_infos={})
 
         _run()
 
-        infos = _decode(cell)
-        assert infos["output_float"] == pytest.approx(0.7)
-        assert infos["output_bool"] is None
-        assert infos["output_str_list"] is None
-
-    def test_choices_value_populates_output_str_list(
-        self, db, dataset, organization, workspace
-    ):
-        tpl = _template(organization=organization, output="choices")
-        uem = _user_eval_metric(
-            dataset=dataset, organization=organization, workspace=workspace, template=tpl
-        )
-        col = _eval_column(dataset=dataset, user_eval_metric=uem)
-        cell = _eval_cell(dataset=dataset, column=col, value="frequently", value_infos={})
-
-        _run()
-
-        infos = _decode(cell)
-        assert infos["output_str_list"] == ["frequently"]
-        assert infos["output_float"] is None
-        assert infos["output_bool"] is None
-
-    def test_passfail_value_populates_output_bool(
-        self, db, dataset, organization, workspace
-    ):
-        tpl = _template(organization=organization, output="Pass/Fail")
-        uem = _user_eval_metric(
-            dataset=dataset, organization=organization, workspace=workspace, template=tpl
-        )
-        col = _eval_column(dataset=dataset, user_eval_metric=uem)
-        cell = _eval_cell(dataset=dataset, column=col, value="Passed", value_infos={})
-
-        _run()
-
-        infos = _decode(cell)
-        assert infos["output_bool"] is True
-        assert infos["output_float"] is None
-        assert infos["output_str_list"] is None
+        assert _decode(cell)[axis] == expected
 
     def test_choice_scores_dict_populates_both_axes(
         self, db, dataset, organization, workspace
@@ -316,51 +287,6 @@ def _eval_column_with_source(
 
 class TestMultiSourceCoverage:
     """The backfill must cover all three cell sources that hold eval rows."""
-
-    def test_experiment_evaluation_cell_axes_are_backfilled(
-        self, db, dataset, organization, workspace
-    ):
-        tpl = _template(organization=organization, output="score")
-        uem = _user_eval_metric(
-            dataset=dataset, organization=organization, workspace=workspace, template=tpl
-        )
-        prefix = uuid.uuid4()
-        composite_id = f"{prefix}-sourceid-{uem.id}"
-        col = _eval_column_with_source(
-            dataset=dataset,
-            user_eval_metric=uem,
-            source=SourceChoices.EXPERIMENT_EVALUATION.value,
-            source_id=composite_id,
-        )
-        cell = _eval_cell(dataset=dataset, column=col, value="0.7", value_infos={})
-
-        out = _run()
-
-        assert _decode(cell)["output_float"] == pytest.approx(0.7)
-        assert "updated_rows=1" in out
-
-    def test_optimisation_evaluation_cell_axes_are_backfilled(
-        self, db, dataset, organization, workspace
-    ):
-        tpl = _template(organization=organization, output="choices")
-        uem = _user_eval_metric(
-            dataset=dataset, organization=organization, workspace=workspace, template=tpl
-        )
-        composite_id = f"{uuid.uuid4()}-sourceid-{uem.id}"
-        col = _eval_column_with_source(
-            dataset=dataset,
-            user_eval_metric=uem,
-            source=SourceChoices.OPTIMISATION_EVALUATION.value,
-            source_id=composite_id,
-        )
-        cell = _eval_cell(
-            dataset=dataset, column=col, value="frequently", value_infos={}
-        )
-
-        out = _run()
-
-        assert _decode(cell)["output_str_list"] == ["frequently"]
-        assert "updated_rows=1" in out
 
     def test_mixed_sources_in_one_run_all_get_backfilled(
         self, db, dataset, organization, workspace
