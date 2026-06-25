@@ -5224,14 +5224,18 @@ class EvalUsageStatsView(APIView):
                                 buckets_fail[bucket_key] += 1
                                 buckets_scores[bucket_key].append(0.0)
 
-                # Zero-fill: generate all buckets in the range
-                current_bucket = start_date.replace(
-                    minute=0,
-                    second=0,
-                    microsecond=0,
-                )
+                # Zero-fill: generate all buckets in the range.
+                # Must apply the same rounding as the per-log bucket_ts computation
+                # so that keys produced here match keys produced from log timestamps.
                 if bucket_minutes >= 1440:
-                    current_bucket = current_bucket.replace(hour=0)
+                    current_bucket = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                elif bucket_minutes >= 60:
+                    _hour_size = bucket_minutes // 60
+                    _rounded_hour = (start_date.hour // _hour_size) * _hour_size
+                    current_bucket = start_date.replace(hour=_rounded_hour, minute=0, second=0, microsecond=0)
+                else:
+                    _rounded_minute = (start_date.minute // bucket_minutes) * bucket_minutes
+                    current_bucket = start_date.replace(minute=_rounded_minute, second=0, microsecond=0)
                 all_bucket_keys = []
                 while current_bucket <= end_date:
                     all_bucket_keys.append(current_bucket.isoformat())

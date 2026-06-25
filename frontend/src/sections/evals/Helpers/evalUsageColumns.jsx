@@ -132,7 +132,7 @@ export const DATE_OPTION_TO_PERIOD = {
   "30 mins": "30m",
   "6 hrs": "6h",
   Today: "1d",
-  Yesterday: "2d",
+  Yesterday: "1d",
   "7D": "7d",
   "30D": "30d",
   "3M": "90d",
