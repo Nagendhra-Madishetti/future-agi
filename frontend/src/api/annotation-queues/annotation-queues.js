@@ -768,6 +768,7 @@ export const useAnnotateDetail = (
     viewMode,
     reviewStatus,
     excludeReviewStatus,
+    reserve,
     ...options
   } = {},
 ) => {
@@ -779,6 +780,7 @@ export const useAnnotateDetail = (
     ...(excludeReviewStatus
       ? { exclude_review_status: excludeReviewStatus }
       : {}),
+    ...(reserve ? { reserve: true } : {}),
   };
   const requestOptions = Object.keys(params).length ? { params } : undefined;
   const detailFilters = {
