@@ -181,7 +181,7 @@ class TestOperationalSafety:
         second = _decode(cell)
 
         assert first == second
-        assert "skipped_rows=1" in out
+        assert "skipped_already_canonical=1" in out
 
     def test_pre_populated_axes_are_preserved(
         self, db, dataset, organization, workspace
@@ -206,7 +206,7 @@ class TestOperationalSafety:
 
         infos = _decode(cell)
         assert infos["output_float"] == pytest.approx(0.1)
-        assert "skipped_rows=1" in out
+        assert "skipped_already_canonical=1" in out
 
     def test_cell_without_resolvable_template_is_skipped(
         self, db, dataset, organization, workspace
@@ -224,7 +224,7 @@ class TestOperationalSafety:
 
         infos = _decode(cell)
         assert "output_float" not in infos
-        assert "skipped_rows=1" in out
+        assert "skipped_no_template=1" in out
 
     def test_malformed_value_infos_is_skipped(
         self, db, dataset, organization, workspace
@@ -242,7 +242,7 @@ class TestOperationalSafety:
 
         cell.refresh_from_db()
         assert cell.value_infos == "not-json"
-        assert "skipped_rows=1" in out
+        assert "skipped_malformed=1" in out
 
     def test_existing_non_axis_keys_are_preserved(
         self, db, dataset, organization, workspace
@@ -377,4 +377,4 @@ class TestMultiSourceCoverage:
 
         infos = _decode(cell)
         assert "output_float" not in infos
-        assert "skipped_rows=1" in out
+        assert "skipped_no_template=1" in out

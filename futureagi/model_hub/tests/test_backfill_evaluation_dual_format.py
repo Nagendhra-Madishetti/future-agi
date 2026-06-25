@@ -148,4 +148,4 @@ class TestOperationalSafety:
         out = _run()
         ev.refresh_from_db()
         assert ev.output_float == pytest.approx(0.1)
-        assert "skipped_rows=1" in out
+        assert "skipped_unchanged=1" in out

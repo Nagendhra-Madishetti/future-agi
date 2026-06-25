@@ -8,11 +8,15 @@ eval grid), ``optimisation_evaluation`` (optimisation eval grid).
 from __future__ import annotations
 
 import json
+import time
+from datetime import datetime
 from typing import Any
 
 import structlog
-from django.core.management.base import BaseCommand
+from django.core.exceptions import ValidationError
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 
 from evaluations.engine.normalize import (
     AXIS_KEYS,
@@ -24,8 +28,9 @@ from model_hub.models.evals_metric import EvalTemplate, UserEvalMetric
 
 logger = structlog.get_logger(__name__)
 
-_BATCH_SIZE = 500
+_DEFAULT_BATCH_SIZE = 1000
 _SAMPLE_COUNT = 5
+_PROGRESS_EVERY_N_BATCHES = 10
 _EVAL_CELL_SOURCES = (
     "evaluation",
     "experiment_evaluation",
@@ -50,22 +55,39 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--limit", type=int, default=0)
+        parser.add_argument("--batch-size", type=int, default=_DEFAULT_BATCH_SIZE)
+        parser.add_argument("--since", type=str, default=None,
+                            help="Only consider rows created on/after YYYY-MM-DD.")
+        parser.add_argument("--column-id", type=str, default=None,
+                            help="Restrict to one column (pre-flight smoke test).")
 
     def handle(self, *args, **options):
         dry_run: bool = options["dry_run"]
         limit: int = options["limit"]
+        batch_size: int = options["batch_size"]
+        since: datetime | None = _parse_since(options.get("since"))
+        column_id: str | None = options.get("column_id")
         samples: list[dict[str, Any]] = []
 
         qs = (
             Cell.objects.exclude(value_infos__isnull=True)
             .exclude(value_infos="")
-            .exclude(deleted=True)
             .filter(column__source__in=_EVAL_CELL_SOURCES)
             .select_related("column")
-            .order_by("created_at", "id")
+            .order_by("id")
         )
+        if since is not None:
+            qs = qs.filter(created_at__gte=since)
+        if column_id:
+            qs = qs.filter(column_id=column_id)
         if limit:
             qs = qs[:limit]
+
+        total_in_scope = qs.count()
+        self.stdout.write(
+            f">>> Pre-flight: {total_in_scope} cells in scope "
+            f"(batch_size={batch_size}, dry_run={dry_run})"
+        )
 
         template_cache: dict[str, EvalTemplate | None] = {}
 
@@ -82,17 +104,26 @@ class Command(BaseCommand):
                     .get(id=metric_id)
                     .template
                 )
-            except (UserEvalMetric.DoesNotExist, EvalTemplate.DoesNotExist, ValueError):
+            except (
+                UserEvalMetric.DoesNotExist,
+                EvalTemplate.DoesNotExist,
+                ValueError,
+                ValidationError,
+            ):
                 tpl = None
             template_cache[source_id] = tpl
             return tpl
 
         processed = 0
         updated_rows = 0
-        skipped_rows = 0
+        skipped_malformed = 0
+        skipped_already_canonical = 0
+        skipped_no_template = 0
         pending: list[Cell] = []
+        start = time.monotonic()
+        batches_flushed = 0
 
-        for cell in qs.iterator(chunk_size=_BATCH_SIZE):
+        for cell in qs.iterator(chunk_size=batch_size):
             processed += 1
 
             try:
@@ -102,18 +133,18 @@ class Command(BaseCommand):
                     else dict(cell.value_infos or {})
                 )
             except (json.JSONDecodeError, TypeError):
-                skipped_rows += 1
+                skipped_malformed += 1
                 continue
             if not isinstance(infos, dict):
-                skipped_rows += 1
+                skipped_malformed += 1
                 continue
             if all(k in infos for k in AXIS_KEYS):
-                skipped_rows += 1
+                skipped_already_canonical += 1
                 continue
 
             tpl = _resolve_template(getattr(cell.column, "source_id", None))
             if tpl is None:
-                skipped_rows += 1
+                skipped_no_template += 1
                 continue
             template_config = tpl.config or {}
             config_output = template_config.get("output") or "score"
@@ -142,9 +173,16 @@ class Command(BaseCommand):
             cell.value_infos = json.dumps(infos, default=str)
             updated_rows += 1
             pending.append(cell)
-            if len(pending) >= _BATCH_SIZE:
+            if len(pending) >= batch_size:
                 self._flush(pending, dry_run=dry_run)
                 pending.clear()
+                batches_flushed += 1
+                if batches_flushed % _PROGRESS_EVERY_N_BATCHES == 0:
+                    _emit_progress(
+                        self, processed, total_in_scope, updated_rows,
+                        skipped_malformed + skipped_already_canonical + skipped_no_template,
+                        start,
+                    )
 
         if pending:
             self._flush(pending, dry_run=dry_run)
@@ -162,17 +200,24 @@ class Command(BaseCommand):
                 self.stdout.write(f">>>     before_axes     ={json.dumps(s['before_axes'])}")
                 self.stdout.write(f">>>     after_axes      ={json.dumps(s['after_axes'])}")
 
+        elapsed = time.monotonic() - start
         self.stdout.write(
             self.style.SUCCESS(
                 f"processed={processed} updated_rows={updated_rows} "
-                f"skipped_rows={skipped_rows} dry_run={dry_run}"
+                f"skipped_malformed={skipped_malformed} "
+                f"skipped_already_canonical={skipped_already_canonical} "
+                f"skipped_no_template={skipped_no_template} "
+                f"elapsed={elapsed:.1f}s dry_run={dry_run}"
             )
         )
         logger.info(
             "backfill_cell_eval_axes_done",
             processed=processed,
             updated_rows=updated_rows,
-            skipped_rows=skipped_rows,
+            skipped_malformed=skipped_malformed,
+            skipped_already_canonical=skipped_already_canonical,
+            skipped_no_template=skipped_no_template,
+            elapsed_s=round(elapsed, 1),
             dry_run=dry_run,
         )
 
@@ -182,3 +227,25 @@ class Command(BaseCommand):
             return
         with transaction.atomic():
             Cell.objects.bulk_update(rows, ["value_infos"])
+
+
+def _parse_since(raw: str | None) -> datetime | None:
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").replace(
+            tzinfo=timezone.get_current_timezone()
+        )
+    except ValueError as exc:
+        raise CommandError(f"--since must be YYYY-MM-DD, got {raw!r}") from exc
+
+
+def _emit_progress(cmd, processed, total, updated, skipped, start):
+    elapsed = time.monotonic() - start
+    rate = processed / elapsed if elapsed > 0 else 0
+    eta = (total - processed) / rate if rate > 0 else 0
+    cmd.stdout.write(
+        f">>> progress: {processed}/{total} "
+        f"updated={updated} skipped={skipped} "
+        f"elapsed={elapsed:.0f}s eta={eta:.0f}s"
+    )
