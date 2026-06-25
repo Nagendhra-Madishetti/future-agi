@@ -217,17 +217,15 @@ async function runGeneration(schemaPath) {
   normalizeGeneratedQueryParamSerialization();
   // x-string-or-object fields: orval can't read the custom extension so it
   // generates zod.object({}).passthrough() instead of the correct string|object
-  // union. Replace all occurrences matched by the unique description string.
+  // union. Replace all occurrences matched by the unique description string,
+  // handling .optional(), .default(...), and bare variants.
   if (fs.existsSync(zodOutputPath)) {
     let zod = fs.readFileSync(zodOutputPath, "utf8");
-    zod = zod.replaceAll(
-      `zod.object({\n\n}).passthrough().optional().describe('String or JSON object.')`,
-      `zod.union([zod.string(), zod.object({\n\n}).passthrough()]).optional().describe('String or JSON object.')`,
-    );
-    // Also handle non-optional variants
-    zod = zod.replaceAll(
-      `zod.object({\n\n}).passthrough().describe('String or JSON object.')`,
-      `zod.union([zod.string(), zod.object({\n\n}).passthrough()]).describe('String or JSON object.')`,
+    // Use regex to handle all variants: .optional(), .default(...), or bare
+    zod = zod.replace(
+      /zod\.object\(\{\s*\}\)\.passthrough\(\)((?:\.optional\(\))?(?:\.default\([^)]+\))?(?:\.optional\(\))?)\.describe\('String or JSON object\.'\)/g,
+      (match, middle) =>
+        `zod.union([zod.string(), zod.object({\n\n}).passthrough()])${middle}.describe('String or JSON object.')`,
     );
     fs.writeFileSync(zodOutputPath, zod);
   }

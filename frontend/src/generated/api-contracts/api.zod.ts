@@ -3201,9 +3201,9 @@ export const AgentPlaygroundGraphsVersionsNodesCreateBody = zod.object({
   "pdf_url": zod.string().url().min(1).optional().describe('PDF URL (required when type=pdf_url)')
 }).describe('Array of content items')).describe('Array of content items')
 }).describe('Array of message objects with id, role, and content array')).describe('Array of message objects with id, role, and content array'),
-  "response_format": zod.object({
+  "response_format": zod.union([zod.string(), zod.object({
 
-}).passthrough().default(agentPlaygroundGraphsVersionsNodesCreateBodyPromptTemplateResponseFormatDefault).describe('String or JSON object.'),
+}).passthrough()]).default(agentPlaygroundGraphsVersionsNodesCreateBodyPromptTemplateResponseFormatDefault).describe('String or JSON object.'),
   "response_schema": zod.object({
 
 }).passthrough().optional().describe('JSON Schema (Draft 7) for structured outputs. Required when response_format=\'json_schema\'. Example: {\'type\': \'object\', \'properties\': {...}, \'required\': [...]}'),
@@ -3338,9 +3338,9 @@ export const AgentPlaygroundGraphsVersionsNodesPartialUpdateBody = zod.object({
   "pdf_url": zod.string().url().min(1).optional().describe('PDF URL (required when type=pdf_url)')
 }).describe('Array of content items')).describe('Array of content items')
 }).describe('Array of message objects with id, role, and content array')).describe('Array of message objects with id, role, and content array'),
-  "response_format": zod.object({
+  "response_format": zod.union([zod.string(), zod.object({
 
-}).passthrough().default(agentPlaygroundGraphsVersionsNodesPartialUpdateBodyPromptTemplateResponseFormatDefault).describe('String or JSON object.'),
+}).passthrough()]).default(agentPlaygroundGraphsVersionsNodesPartialUpdateBodyPromptTemplateResponseFormatDefault).describe('String or JSON object.'),
   "response_schema": zod.object({
 
 }).passthrough().optional().describe('JSON Schema (Draft 7) for structured outputs. Required when response_format=\'json_schema\'. Example: {\'type\': \'object\', \'properties\': {...}, \'required\': [...]}'),
@@ -3414,9 +3414,9 @@ export const AgentPlaygroundGraphsVersionsNodesPartialUpdateResponse = zod.objec
   "pdf_url": zod.string().url().min(1).optional().describe('PDF URL (required when type=pdf_url)')
 }).describe('Array of content items')).describe('Array of content items')
 }).describe('Array of message objects with id, role, and content array')).describe('Array of message objects with id, role, and content array'),
-  "response_format": zod.object({
+  "response_format": zod.union([zod.string(), zod.object({
 
-}).passthrough().default(agentPlaygroundGraphsVersionsNodesPartialUpdateResponsePromptTemplateResponseFormatDefault).describe('String or JSON object.'),
+}).passthrough()]).default(agentPlaygroundGraphsVersionsNodesPartialUpdateResponsePromptTemplateResponseFormatDefault).describe('String or JSON object.'),
   "response_schema": zod.object({
 
 }).passthrough().optional().describe('JSON Schema (Draft 7) for structured outputs. Required when response_format=\'json_schema\'. Example: {\'type\': \'object\', \'properties\': {...}, \'required\': [...]}'),
