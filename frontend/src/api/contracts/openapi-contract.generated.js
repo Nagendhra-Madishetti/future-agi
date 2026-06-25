@@ -77843,10 +77843,10 @@ export const OPENAPI_CONTRACT = Object.freeze({
         },
         "response_format": {
           "title": "Response format",
-          "description": "Any valid JSON value.",
+          "description": "String or JSON object.",
           "type": "object",
           "default": "text",
-          "x-json-value": true
+          "x-string-or-object": true
         },
         "response_schema": {
           "title": "Response schema",

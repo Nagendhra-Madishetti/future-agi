@@ -215,6 +215,34 @@ async function runGeneration(schemaPath) {
   });
 
   normalizeGeneratedQueryParamSerialization();
+  // x-string-or-object fields: orval can't read the custom extension so it
+  // generates zod.object({}).passthrough() instead of the correct string|object
+  // union. Replace all occurrences matched by the unique description string.
+  if (fs.existsSync(zodOutputPath)) {
+    let zod = fs.readFileSync(zodOutputPath, "utf8");
+    zod = zod.replaceAll(
+      `zod.object({\n\n}).passthrough().optional().describe('String or JSON object.')`,
+      `zod.union([zod.string(), zod.object({\n\n}).passthrough()]).optional().describe('String or JSON object.')`,
+    );
+    // Also handle non-optional variants
+    zod = zod.replaceAll(
+      `zod.object({\n\n}).passthrough().describe('String or JSON object.')`,
+      `zod.union([zod.string(), zod.object({\n\n}).passthrough()]).describe('String or JSON object.')`,
+    );
+    fs.writeFileSync(zodOutputPath, zod);
+  }
+  // Fix api.schemas.ts: x-string-or-object fields show as { [key: string]: unknown }
+  // but should be string | { [key: string]: unknown }
+  const schemasOutputPath = path.join(outputDir, "api.schemas.ts");
+  if (fs.existsSync(schemasOutputPath)) {
+    let schemas = fs.readFileSync(schemasOutputPath, "utf8");
+    // response_format and similar string-or-object fields use this description
+    schemas = schemas.replaceAll(
+      "{ [key: string]: unknown } /** String or JSON object. */",
+      "string | { [key: string]: unknown } /** String or JSON object. */",
+    );
+    fs.writeFileSync(schemasOutputPath, schemas);
+  }
   normalizeGeneratedFileEndings();
 }
 

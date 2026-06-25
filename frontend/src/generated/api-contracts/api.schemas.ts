@@ -1932,7 +1932,7 @@ export interface MessageApi {
 }
 
 /**
- * Any valid JSON value.
+ * String or JSON object.
  */
 export type PromptTemplateDataApiResponseFormat = { [key: string]: unknown };
 
@@ -1956,7 +1956,7 @@ export interface PromptTemplateDataApi {
   prompt_version_id?: string;
   /** Array of message objects with id, role, and content array */
   messages: MessageApi[];
-  /** Any valid JSON value. */
+  /** String or JSON object. */
   response_format?: PromptTemplateDataApiResponseFormat;
   /** JSON Schema (Draft 7) for structured outputs. Required when response_format='json_schema'. Example: {'type': 'object', 'properties': {...}, 'required': [...]} */
   response_schema?: PromptTemplateDataApiResponseSchema;
