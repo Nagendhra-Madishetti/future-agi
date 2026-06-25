@@ -214,6 +214,20 @@ class TestApplyProjectListFiltersEdgeCases:
         )
         assert _names(qs) == ["Billing API", "Checkout Service", "Search Service"]
 
+    def test_non_string_value_is_skipped(self, organization, filter_projects):
+        # A non-string filter_value (e.g. a number) is skipped, never coerced
+        # into a query that could 500.
+        raw = json.dumps(
+            [
+                {
+                    "column_id": "name",
+                    "filter_config": {"filter_op": "equals", "filter_value": 123},
+                }
+            ]
+        )
+        qs = apply_project_list_filters(_base_qs(organization), raw)
+        assert _names(qs) == ["Billing API", "Checkout Service", "Search Service"]
+
 
 @pytest.mark.integration
 @pytest.mark.api
@@ -259,3 +273,36 @@ class TestProjectListAlertCount:
         table = (resp.json().get("result") or resp.json())["table"]
         issues = {row["name"]: row["issues"] for row in table}
         assert issues["Checkout Service"] == 0
+
+
+@pytest.mark.integration
+@pytest.mark.api
+class TestProjectListFilterEndpoint:
+    """The `filters` param works through the full endpoint (pagination + the
+    trace_count / run_count aggregates), not just the helper in isolation —
+    guards the RawSQL tag annotation coexisting with the view's Count()s.
+    """
+
+    def test_tags_contains_filter_returns_matching_projects(
+        self, auth_client, filter_projects
+    ):
+        filters = json.dumps(
+            [
+                {
+                    "column_id": "tags",
+                    "filter_config": {
+                        "filter_type": "text",
+                        "filter_op": "contains",
+                        "filter_value": "prod",
+                    },
+                }
+            ]
+        )
+        resp = auth_client.get(
+            LIST_URL,
+            {"project_type": "observe", "page_size": 25, "filters": filters},
+        )
+        assert resp.status_code == status.HTTP_200_OK
+        table = (resp.json().get("result") or resp.json())["table"]
+        names = sorted(row["name"] for row in table)
+        assert names == ["Checkout Service", "Search Service"]

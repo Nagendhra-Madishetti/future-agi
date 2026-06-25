@@ -18,7 +18,13 @@ from tracer.utils.filters import normalize_filter_item
 logger = structlog.get_logger(__name__)
 
 
-def _tag_substring_filter(queryset, value, *, negate, alias):
+def _tag_substring_filter(
+    queryset: QuerySet[Project],
+    value: str,
+    *,
+    negate: bool,
+    alias: str,
+) -> QuerySet[Project]:
     """Match projects whose JSONB ``tags`` array has any element containing
     ``value`` as a substring (case-insensitive).
 
@@ -93,7 +99,7 @@ def apply_project_list_filters(
             else:  # contains (default)
                 queryset = queryset.filter(name__icontains=value)
 
-        elif column in ("tags", "tag"):
+        elif column == "tags":
             if op == "equals":
                 queryset = queryset.filter(tags__contains=[value])
             elif op == "not_equals":
