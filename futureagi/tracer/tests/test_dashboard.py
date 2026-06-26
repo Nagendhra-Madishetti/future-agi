@@ -799,9 +799,7 @@ class TestMetricsEndpoint:
     # suggestions for Trace Name / Span Name filters.
     # ------------------------------------------------------------------
 
-    @pytest.mark.parametrize(
-        "metric_name", ["name", "span_name", "service_name"]
-    )
+    @pytest.mark.parametrize("metric_name", ["name", "span_name", "service_name"])
     @pytest.mark.django_db
     @patch("tracer.views.dashboard.is_clickhouse_enabled", return_value=True)
     @patch("tracer.views.dashboard.AnalyticsQueryService")
@@ -2083,6 +2081,58 @@ class TestDashboardQueryExecution:
         assert "trace_session_id_remap" in sql
         assert "ts_remap.survivor_id" in sql
         assert "sp.trace_session_id" in sql
+
+    @pytest.mark.django_db
+    def test_filter_values_session_search_adds_ilike_and_limits_to_20(
+        self, _mock_enabled, mock_analytics_cls, auth_client, observe_project
+    ):
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.data = []
+        mock_service.execute_ch_query.return_value = mock_result
+        mock_analytics_cls.return_value = mock_service
+
+        auth_client.get(
+            "/tracer/dashboard/filter_values/",
+            {
+                "source": "traces",
+                "metric_name": "session",
+                "metric_type": "system_metric",
+                "project_ids": str(observe_project.id),
+                "search": "abc123",
+            },
+        )
+
+        sql, params = mock_service.execute_ch_query.call_args.args[:2]
+        assert "ILIKE %(search_pattern)s" in sql
+        assert params["search_pattern"] == "%abc123%"
+        assert "LIMIT 20" in sql
+        assert "LIMIT 500" not in sql
+
+    @pytest.mark.django_db
+    def test_filter_values_session_no_search_uses_limit_500_without_ilike(
+        self, _mock_enabled, mock_analytics_cls, auth_client, observe_project
+    ):
+        mock_service = MagicMock()
+        mock_result = MagicMock()
+        mock_result.data = []
+        mock_service.execute_ch_query.return_value = mock_result
+        mock_analytics_cls.return_value = mock_service
+
+        auth_client.get(
+            "/tracer/dashboard/filter_values/",
+            {
+                "source": "traces",
+                "metric_name": "session",
+                "metric_type": "system_metric",
+                "project_ids": str(observe_project.id),
+            },
+        )
+
+        sql, params = mock_service.execute_ch_query.call_args.args[:2]
+        assert "ILIKE" not in sql
+        assert "search_pattern" not in params
+        assert "LIMIT 500" in sql
 
     @pytest.mark.django_db
     def test_filter_values_annotation_annotator_returns_project_annotators(

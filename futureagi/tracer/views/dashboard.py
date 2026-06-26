@@ -1177,7 +1177,6 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                 from model_hub.models.develop_annotations import AnnotationsLabels
 
                 if filter_by_project:
-
                     from model_hub.models.score import Score
 
                     used_label_ids = list(
@@ -2229,6 +2228,14 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                             "sp.trace_session_id", "ts_remap"
                         )
                         col_expr = f"toString({ts_resolved})"
+                        limit = 20 if search else 500
+                        if search:
+                            ch_params["search_pattern"] = f"%{search}%"
+                        search_clause = (
+                            f"AND {col_expr} ILIKE %(search_pattern)s "
+                            if search
+                            else ""
+                        )
                         sql = (
                             f"SELECT DISTINCT {col_expr} AS val "
                             f"FROM spans AS sp "
@@ -2236,8 +2243,9 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                             f"WHERE sp.project_id IN %(project_ids)s "
                             f"AND sp.is_deleted = 0 "
                             f"AND {col_expr} NOT IN ('', '{null_uuid}') "
+                            f"{search_clause}"
                             f"ORDER BY val "
-                            f"LIMIT 500"
+                            f"LIMIT {limit}"
                         )
                     else:
                         limit = 20 if search else 500
@@ -2259,9 +2267,7 @@ class DashboardViewSet(BaseModelViewSetMixin, ModelViewSet):
                             f"ORDER BY val "
                             f"LIMIT {limit}"
                         )
-                    result = analytics.execute_ch_query(
-                        sql, ch_params, timeout_ms=5000
-                    )
+                    result = analytics.execute_ch_query(sql, ch_params, timeout_ms=5000)
                     values = [row["val"] for row in result.data]
                 except Exception as e:
                     logger.warning(
