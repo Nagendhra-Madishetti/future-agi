@@ -395,20 +395,6 @@ class EvalMetricEntrySerializer(serializers.Serializer):
     )
 
 
-class MessageItemSerializer(serializers.Serializer):
-    """A single prompt message: role + content (string or content-parts array)."""
-
-    role = serializers.CharField()
-    # content is either a plain text string or an array of content-part objects
-    # (OpenAI multi-part format). StringOrArrayField emits x-string-or-array
-    # so orval generates z.union([z.string(), z.array(z.unknown())]) — the
-    # correct union type instead of narrowing to object.
-    content = StringOrArrayField()
-    name = serializers.CharField(required=False)
-    tool_calls = JsonValueField(required=False)
-    tool_call_id = serializers.CharField(required=False)
-
-
 class _ExtraFieldsMixin:
     """Pass unknown keys through to_internal_value unchanged.
 
@@ -422,6 +408,27 @@ class _ExtraFieldsMixin:
             if key not in self.fields:
                 validated[key] = value
         return validated
+
+
+class MessageItemSerializer(_ExtraFieldsMixin, serializers.Serializer):
+    """A single prompt message: role + content (string or content-parts array)."""
+
+    role = serializers.CharField()
+    # content is either a plain text string or an array of content-part objects
+    # (OpenAI multi-part format). StringOrArrayField emits x-string-or-array
+    # so orval generates z.union([z.string(), z.array(z.unknown())]) — the
+    # correct union type instead of narrowing to object.
+    content = StringOrArrayField()
+    name = serializers.CharField(required=False)
+    tool_calls = JsonValueField(required=False)
+    tool_call_id = serializers.CharField(required=False)
+    # Client-side id (getRandomId) used as React key on messages list.
+    # Declared explicitly so DRF passes it through to_internal_value instead
+    # of stripping it, which would cause duplicate keys on reload.
+    id = serializers.CharField(required=False)
+
+    class Meta:
+        swagger_schema_fields = {"additionalProperties": True}
 
 
 class PromptModelParamsSerializer(_ExtraFieldsMixin, serializers.Serializer):

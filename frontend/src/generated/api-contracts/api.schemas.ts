@@ -10455,7 +10455,7 @@ export const ExperimentCreateV2ApiExperimentType = {
 /**
  * String or JSON object.
  */
-export type PromptModelParamsApiResponseFormat = { [key: string]: unknown };
+export type PromptModelParamsApiResponseFormat = string | { [key: string]: unknown };
 
 export interface PromptModelParamsApi {
   temperature?: number;
@@ -10511,12 +10511,14 @@ export interface MessageItemApi {
   tool_calls?: MessageItemApiToolCalls;
   /** @minLength 1 */
   tool_call_id?: string;
-}
+  id?: string;
+  [key: string]: unknown;
+ }
 
 /**
  * String or JSON object.
  */
-export type PromptConfigEntryApiModel = { [key: string]: unknown };
+export type PromptConfigEntryApiModel = string | { [key: string]: unknown };
 
 export interface PromptConfigEntryApi {
   id?: string;

@@ -215,44 +215,57 @@ async function runGeneration(schemaPath) {
   });
 
   normalizeGeneratedQueryParamSerialization();
-  // Fix MessageItemApiContent in api.schemas.ts: orval generates
-  // { [key: string]: unknown } but content is string | unknown[].
+
   const schemasOutputPath = path.join(outputDir, "api.schemas.ts");
   if (fs.existsSync(schemasOutputPath)) {
-    const schemas = fs.readFileSync(schemasOutputPath, "utf8");
-    fs.writeFileSync(
-      schemasOutputPath,
-      schemas.replace(
-        "export type MessageItemApiContent = { [key: string]: unknown };",
-        "export type MessageItemApiContent = string | unknown[];",
-      ),
+    let schemas = fs.readFileSync(schemasOutputPath, "utf8");
+
+    // x-string-or-array: content type alias is { [key: string]: unknown } but
+    // must be string | unknown[].
+    schemas = schemas.replace(
+      "export type MessageItemApiContent = { [key: string]: unknown };",
+      "export type MessageItemApiContent = string | unknown[];",
     );
+
+    // x-string-or-object: type aliases preceded by "String or JSON object."
+    // are generated as { [key: string]: unknown } but must be string | { ... }.
+    schemas = schemas.replace(
+      /\/\*\*\n \* String or JSON object\.\n \*\/\nexport type (\w+) = \{ \[key: string\]: unknown \};/g,
+      "/**\n * String or JSON object.\n */\nexport type $1 = string | { [key: string]: unknown };",
+    );
+
+    fs.writeFileSync(schemasOutputPath, schemas);
   }
-  // Fix two schema generation gaps that orval cannot resolve from Swagger 2.0:
+
   if (fs.existsSync(zodOutputPath)) {
     let zod = fs.readFileSync(zodOutputPath, "utf8");
 
-    // 1. x-string-or-array: orval generates zod.object({}).passthrough() — fix
-    //    to the correct string|array union using the unique description as anchor.
+    // x-string-or-array: orval generates zod.object({}).passthrough() for these
+    // fields. Use the unique description emitted by StringOrArrayField as anchor.
     zod = zod.replaceAll(
       `zod.object({\n\n}).passthrough().describe('Plain text string or array of content-part objects.')`,
       `zod.union([zod.string(), zod.array(zod.unknown())]).describe('Plain text string or array of content-part objects.')`,
     );
 
-    // 2. additionalProperties:true on PromptModelParams / PromptConfiguration:
-    //    orval does not add .passthrough() for inline schemas even when the
-    //    swagger declares additionalProperties. Use unique constant names as anchors.
-    for (const name of [
-      "modelHubExperimentsV2CreateBodyPromptConfigItemModelParamsDefault",
-      "modelHubExperimentsV2CreateBodyPromptConfigItemConfigurationDefault",
-      "modelHubExperimentsV2UpdateBodyPromptConfigItemModelParamsDefault",
-      "modelHubExperimentsV2UpdateBodyPromptConfigItemConfigurationDefault",
-    ]) {
-      zod = zod.replaceAll(
-        `}).default(${name}),`,
-        `}).passthrough().default(${name}),`,
-      );
-    }
+    // x-string-or-object: orval generates zod.object({}).passthrough() for these
+    // fields too. Use the unique description emitted by StringOrObjectField as anchor.
+    zod = zod.replaceAll(
+      `zod.object({\n\n}).passthrough().optional().describe('String or JSON object.')`,
+      `zod.union([zod.string(), zod.object({}).passthrough()]).optional().describe('String or JSON object.')`,
+    );
+    zod = zod.replaceAll(
+      `zod.object({\n\n}).passthrough().describe('String or JSON object.')`,
+      `zod.union([zod.string(), zod.object({}).passthrough()]).describe('String or JSON object.')`,
+    );
+
+    // additionalProperties:true on PromptModelParams / PromptConfiguration and
+    // MessageItem: orval does not add .passthrough() for inline object schemas.
+    // Match any }).default(CONSTANT) where the constant follows the orval naming
+    // convention for these serializers, so renaming a field doesn't silently break this.
+    zod = zod.replace(
+      /\}\)\.default\((modelHubExperimentsV2(?:Create|Update)Body[A-Za-z]+(?:ModelParams|Configuration|Messages)[A-Za-z]*Default)\),/g,
+      "}).passthrough().default($1),",
+    );
 
     fs.writeFileSync(zodOutputPath, zod);
   }

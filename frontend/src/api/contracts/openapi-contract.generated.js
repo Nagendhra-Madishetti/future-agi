@@ -93139,8 +93139,13 @@ export const OPENAPI_CONTRACT = Object.freeze({
           "title": "Tool call id",
           "type": "string",
           "minLength": 1
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
         }
-      }
+      },
+      "additionalProperties": true
     },
     "PromptConfiguration": {
       "type": "object",

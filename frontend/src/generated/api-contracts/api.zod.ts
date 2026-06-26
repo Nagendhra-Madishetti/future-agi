@@ -20246,18 +20246,14 @@ export const ModelHubExperimentsV2CreateBody = zod.object({
   "prompt_version": zod.string().uuid().optional(),
   "agent_id": zod.string().uuid().optional(),
   "agent_version": zod.string().uuid().optional(),
-  "model": zod.object({
-
-}).passthrough().optional().describe('String or JSON object.'),
+  "model": zod.union([zod.string(), zod.object({}).passthrough()]).optional().describe('String or JSON object.'),
   "model_params": zod.object({
   "temperature": zod.number().optional(),
   "max_tokens": zod.number().optional(),
   "top_p": zod.number().optional(),
   "frequency_penalty": zod.number().optional(),
   "presence_penalty": zod.number().optional(),
-  "response_format": zod.object({
-
-}).passthrough().optional().describe('String or JSON object.')
+  "response_format": zod.union([zod.string(), zod.object({}).passthrough()]).optional().describe('String or JSON object.')
 }).passthrough().default(modelHubExperimentsV2CreateBodyPromptConfigItemModelParamsDefault),
   "configuration": zod.object({
   "tool_choice": zod.string().optional(),
@@ -20280,7 +20276,8 @@ export const ModelHubExperimentsV2CreateBody = zod.object({
   "tool_calls": zod.object({
 
 }).passthrough().optional().describe('Any valid JSON value.'),
-  "tool_call_id": zod.string().min(1).optional()
+  "tool_call_id": zod.string().min(1).optional(),
+  "id": zod.string().optional()
 })).optional(),
   "voice_input_column_id": zod.string().uuid().optional()
 })),
@@ -20484,18 +20481,14 @@ export const ModelHubExperimentsV2UpdateBody = zod.object({
   "prompt_version": zod.string().uuid().optional(),
   "agent_id": zod.string().uuid().optional(),
   "agent_version": zod.string().uuid().optional(),
-  "model": zod.object({
-
-}).passthrough().optional().describe('String or JSON object.'),
+  "model": zod.union([zod.string(), zod.object({}).passthrough()]).optional().describe('String or JSON object.'),
   "model_params": zod.object({
   "temperature": zod.number().optional(),
   "max_tokens": zod.number().optional(),
   "top_p": zod.number().optional(),
   "frequency_penalty": zod.number().optional(),
   "presence_penalty": zod.number().optional(),
-  "response_format": zod.object({
-
-}).passthrough().optional().describe('String or JSON object.')
+  "response_format": zod.union([zod.string(), zod.object({}).passthrough()]).optional().describe('String or JSON object.')
 }).passthrough().default(modelHubExperimentsV2UpdateBodyPromptConfigItemModelParamsDefault),
   "configuration": zod.object({
   "tool_choice": zod.string().optional(),
@@ -20518,7 +20511,8 @@ export const ModelHubExperimentsV2UpdateBody = zod.object({
   "tool_calls": zod.object({
 
 }).passthrough().optional().describe('Any valid JSON value.'),
-  "tool_call_id": zod.string().min(1).optional()
+  "tool_call_id": zod.string().min(1).optional(),
+  "id": zod.string().optional()
 })).optional(),
   "voice_input_column_id": zod.string().uuid().optional()
 })).optional(),
