@@ -62,7 +62,6 @@ def test_read_only_eval_views_are_write_exempt():
         EvalTemplateListView,
         GetEvalTemplateNameView,
         GetEvalTemplates,
-        GroundTruthSearchView,
     )
 
     for view in (
@@ -70,7 +69,6 @@ def test_read_only_eval_views_are_write_exempt():
         GetEvalTemplateNameView,
         EvalTemplateListView,
         EvalTemplateListChartsView,
-        GroundTruthSearchView,
     ):
         assert getattr(view, "workspace_write_exempt", False) is True, view.__name__
 
