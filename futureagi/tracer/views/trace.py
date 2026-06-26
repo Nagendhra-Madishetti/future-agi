@@ -4659,9 +4659,11 @@ class UsersView(APIView):
                     manager.iter_export_csv(),
                     content_type="text/csv",
                 )
-                response["Content-Disposition"] = (
-                    f'attachment; filename="{manager.export_filename()}"'
-                )
+                # Mark it a download but DON'T name it: the frontend owns the
+                # filename (UsersView grid label + suffix). Keeping a server-side
+                # name here would be dead weight cross-origin anyway — the browser
+                # can't read Content-Disposition without CORS_EXPOSE_HEADERS.
+                response["Content-Disposition"] = "attachment"
                 return response
 
             payload = manager.list_payload(

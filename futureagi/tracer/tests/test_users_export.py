@@ -157,8 +157,10 @@ class TestUsersExport:
         # actually keeps the socket warm is asserted in the dedicated tests below.
         assert isinstance(response, StreamingHttpResponse)
         assert response["Content-Type"].startswith("text/csv")
-        assert "attachment;" in response["Content-Disposition"]
-        assert f"users_{observe_project.id}_" in response["Content-Disposition"]
+        # The backend marks it a download but does NOT name it — the frontend
+        # owns the filename, so there must be no server-side `filename=`.
+        assert response["Content-Disposition"] == "attachment"
+        assert "filename=" not in response["Content-Disposition"]
 
         assert csv_rows[0] == _EXPECTED_HEADER
         data_rows = [r for r in csv_rows[1:] if r]
@@ -168,7 +170,7 @@ class TestUsersExport:
         assert target[_EXPECTED_HEADER.index("Input Tokens")] == "11"
         assert target[_EXPECTED_HEADER.index("Output Tokens")] == "7"
         assert target[_EXPECTED_HEADER.index("No. of Traces")] == "1"
-        # Datetimes go through _format_users_export_cell → isoformat().
+        # Datetimes go through _format_export_cell → isoformat().
         assert target[_EXPECTED_HEADER.index("First Active")] == activated.isoformat()
         assert target[_EXPECTED_HEADER.index("Last Active")] == now.isoformat()
 
@@ -338,24 +340,6 @@ class TestUsersExport:
         cell = data_row[_EXPECTED_HEADER.index("User ID")]
         assert cell == "'" + raw_user_id
         assert cell[0] == "'"
-
-    def test_export_filename_defaults_to_all_when_no_project(
-        self, auth_client, organization, workspace, observe_project
-    ):
-        with (
-            patch.object(
-                AnalyticsQueryService,
-                "execute_ch_query",
-                return_value=_ch_stub([]),
-            ),
-        ):
-            response = auth_client.get(
-                "/tracer/users/",
-                {"export": "true"},
-            )
-
-        assert response.status_code == status.HTTP_200_OK
-        assert "users_all_" in response["Content-Disposition"]
 
     def test_export_returns_only_header_when_project_out_of_scope(
         self, auth_client, organization, workspace, observe_project

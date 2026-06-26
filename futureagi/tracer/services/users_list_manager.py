@@ -9,7 +9,7 @@ import csv
 import io
 import json
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -171,11 +171,15 @@ class UsersListManager:
         formatted = builder.format_rows(result.data)
         return formatted["table"], formatted["total_count"]
 
-    def _enrich_with_span_attributes(self, rows: list[dict]) -> list[dict]:
-        """Fold aggregated span attributes into each user row (fail-open)."""
+    def _enrich_with_span_attributes(self, rows: list[dict]) -> None:
+        """Fold aggregated span attributes into each user row, in place (fail-open).
+
+        Mutates ``rows`` and returns nothing — callers read the same list they
+        passed in, so there is a single source of truth for the enriched rows.
+        """
         end_user_ids = [r.get("end_user_id") for r in rows if r.get("end_user_id")]
         if not end_user_ids:
-            return rows
+            return
         try:
             analytics = AnalyticsQueryService()
             attr_query, attr_params = _users_attr_enrichment_query(
@@ -229,7 +233,6 @@ class UsersListManager:
                             entry[key] = values
         except Exception as e:
             logger.warning(f"User span attribute enrichment failed: {e}")
-        return rows
 
     def list_payload(self, *, page_size: int, current_page: int) -> dict:
         """Paginated list response: rows + span enrichment + page totals."""
@@ -309,9 +312,3 @@ class UsersListManager:
         if truncated:
             writer.writerow([f"# export truncated at {MAX_EXPORT_ROWS} rows"])
             yield _drain()
-
-    def export_filename(self) -> str:
-        return (
-            f"users_{self.project_id or 'all'}_"
-            f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.csv"
-        )
