@@ -6370,7 +6370,7 @@ class EvalPlayGroundFeedbackAPIView(APIView):
                     action_type=action_type,
                     organization=getattr(request, "organization", None)
                     or request.user.organization,
-                    workspace=None,
+                    workspace=getattr(request, "workspace", None),
                 )
                 print(
                     f"[FEEDBACK] Created new feedback id={feedback.id} source_id={log_id} eval_template={eval_template.id if eval_template else None} value='{value}' explanation='{explanation}' action_type='{action_type}'",
@@ -6383,7 +6383,10 @@ class EvalPlayGroundFeedbackAPIView(APIView):
             org_for_embedding = str(
                 (getattr(request, "organization", None) or request.user.organization).id
             )
-            # print(f"[FEEDBACK] Storing embedding for eval_id={log.source_id} org_id={org_for_embedding} required_keys={required_keys} row_dict_keys={list(row_dict.keys())} feedback_value='{value}' feedback_comment='{explanation}'", flush=True)
+            workspace_for_embedding = getattr(request, "workspace", None)
+            workspace_for_embedding = (
+                str(workspace_for_embedding.id) if workspace_for_embedding else None
+            )
             embedding_manager = EmbeddingManager()
             try:
                 embedding_manager.data_formatter(
@@ -6392,7 +6395,7 @@ class EvalPlayGroundFeedbackAPIView(APIView):
                     inputs_formater=required_keys,
                     insert=True,
                     organization_id=org_for_embedding,
-                    workspace_id=None,
+                    workspace_id=workspace_for_embedding,
                 )
             except Exception:
                 import traceback

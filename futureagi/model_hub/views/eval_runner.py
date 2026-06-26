@@ -879,7 +879,7 @@ class EvaluationRunner:
                 inputs=mapping,
                 input_cols=required_field,
                 organization_id=self.organization_id,
-                workspace_id=None,  # feedback is stored without workspace_id in all write paths
+                workspace_id=self.workspace_id,
             )
             # print(f"[FEEDBACK RAG] Retrieved {len(examples)} examples", flush=True)
             end_time = datetime.now()

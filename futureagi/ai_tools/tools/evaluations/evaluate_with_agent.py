@@ -108,10 +108,12 @@ class EvaluateWithAgentTool(BaseTool):
             )
 
         # Gather external resources (KB, feedback examples, MCP tools)
+        ctx_workspace = getattr(context, "workspace", None)
         available_resources = gather_available_resources(
             organization_id=str(context.organization_id),
             eval_template_id=params.eval_template_id,
             kb_id=params.kb_id,
+            workspace_id=str(ctx_workspace.id) if ctx_workspace else None,
         )
 
         # Build a lightweight input summary for the Scout pre-pass

@@ -116,11 +116,29 @@ class ClickHouseVectorDB:
         logger.info(f"create query took {elapsed_time:.2f} seconds to execute")
 
     def create_table(self, table_name: str) -> None:
+        """Create a vector table if it does not exist.
+
+        ``CH_VECTOR_REPLICATED=true`` switches to ``ReplicatedReplacingMergeTree``
+        + ``ON CLUSTER 'cluster'``, matching the convention every other
+        production table on the same cluster uses. Without it, writes land on
+        whichever replica the k8s Service picked and never reach the other two
+        (see ``_product_docs/evals-end-to-end/33-ch-vector-tables-non-replicated.md``).
         """
-        Creates a table in ClickHouse if it does not already exist.
-        """
+        replicated = (os.getenv("CH_VECTOR_REPLICATED") or "").strip().lower() == "true"
+
+        if replicated:
+            engine = (
+                f"ReplicatedReplacingMergeTree("
+                f"'/clickhouse/tables/{{shard}}/{table_name}', '{{replica}}'"
+                f")"
+            )
+            on_cluster = " ON CLUSTER 'cluster'"
+        else:
+            engine = "MergeTree()"
+            on_cluster = ""
+
         create_table_query = f"""
-        CREATE TABLE IF NOT EXISTS {table_name} (
+        CREATE TABLE IF NOT EXISTS {table_name}{on_cluster} (
             id UUID,
             eval_id UUID,
             vector Array(Float32),
@@ -129,7 +147,7 @@ class ClickHouseVectorDB:
                 value Nullable(String)
             ),
             deleted UInt8 DEFAULT 0
-        ) ENGINE = MergeTree()
+        ) ENGINE = {engine}
         ORDER BY id
         """
         start_time = datetime.now()
@@ -140,7 +158,12 @@ class ClickHouseVectorDB:
         )
         end_time = datetime.now()
         elapsed_time = (end_time - start_time).total_seconds()
-        logger.info(f"create query took {elapsed_time:.2f} seconds to execute")
+        logger.info(
+            "ch_vector_create_table_done",
+            table=table_name,
+            engine="ReplicatedReplacingMergeTree" if replicated else "MergeTree",
+            elapsed_sec=round(elapsed_time, 3),
+        )
 
     def get_or_create_collection(self, table_name: str) -> None:
         """
