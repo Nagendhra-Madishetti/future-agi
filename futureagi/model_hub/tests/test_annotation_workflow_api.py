@@ -683,6 +683,119 @@ class TestSubmitAnnotations:
         ).exists()
         annotator_client.stop_workspace_injection()
 
+    def test_submit_allows_org_admin_with_reviewer_role_to_annotate(
+        self, auth_client, dataset_rows, organization, workspace, user, label
+    ):
+        """Org/workspace admins can annotate even with a non-annotator queue role.
+
+        ``auth_client`` is the org owner. On a queue created by someone else
+        where the owner is only a reviewer, admin access grants
+        manager-equivalent rights so they may submit annotations on an
+        unassigned manual item.
+        """
+        from accounts.models.user import User
+        from tfc.constants.roles import OrganizationRoles
+
+        dataset, rows = dataset_rows
+        creator = User.objects.create_user(
+            email=f"admin-annotate-owner-{uuid.uuid4().hex[:8]}@futureagi.com",
+            password="testpassword123",
+            name="Admin Annotate Owner",
+            organization=organization,
+            organization_role=OrganizationRoles.MEMBER,
+        )
+        queue = AnnotationQueue.objects.create(
+            name="Admin Annotate Queue",
+            dataset=dataset,
+            status=AnnotationQueueStatusChoices.ACTIVE.value,
+            created_by=creator,
+            organization=organization,
+            workspace=workspace,
+        )
+        AnnotationQueueLabel.objects.create(
+            queue=queue,
+            label=label,
+            order=0,
+            required=True,
+        )
+        AnnotationQueueAnnotator.objects.update_or_create(
+            queue=queue,
+            user=creator,
+            deleted=False,
+            defaults={
+                "role": AnnotatorRole.MANAGER.value,
+                "roles": [AnnotatorRole.MANAGER.value],
+            },
+        )
+        # auth_client's org-owner user is only a reviewer on this queue.
+        admin_user = user
+        AnnotationQueueAnnotator.objects.update_or_create(
+            queue=queue,
+            user=admin_user,
+            deleted=False,
+            defaults={
+                "role": AnnotatorRole.REVIEWER.value,
+                "roles": [AnnotatorRole.REVIEWER.value],
+            },
+        )
+        item = QueueItem.objects.create(
+            queue=queue,
+            source_type=QueueItemSourceType.DATASET_ROW.value,
+            dataset_row=rows[0],
+            organization=organization,
+            workspace=workspace,
+        )
+
+        resp = auth_client.post(
+            submit_annotations_url(queue.id, item.id),
+            {"annotations": [{"label_id": str(label.id), "value": "positive"}]},
+            format="json",
+        )
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert _result(resp)["submitted"] == 1
+        assert Score.objects.filter(
+            queue_item_id=item.id,
+            annotator=admin_user,
+            deleted=False,
+        ).exists()
+
+    def test_submit_allows_manager_unassigned_item_when_queue_has_assignments(
+        self, auth_client, queue_with_items, user, second_user, organization
+    ):
+        """Managers can annotate an unassigned manual item even once other items
+        in the queue are assigned to someone else."""
+        queue_id, item_ids, label = queue_with_items
+        AnnotationQueue.objects.filter(pk=queue_id).update(auto_assign=False)
+        AnnotationQueueAnnotator.objects.get_or_create(
+            queue_id=queue_id,
+            user=second_user,
+            defaults={
+                "role": AnnotatorRole.ANNOTATOR.value,
+                "roles": [AnnotatorRole.ANNOTATOR.value],
+            },
+        )
+        # Assign a different item so the queue has at least one assignment.
+        QueueItemAssignment.objects.create(
+            queue_item=QueueItem.objects.get(pk=item_ids[1]),
+            user=second_user,
+        )
+
+        # The first item stays unassigned; the manager (queue creator) submits.
+        resp = auth_client.post(
+            submit_annotations_url(queue_id, item_ids[0]),
+            {"annotations": [{"label_id": str(label.id), "value": "positive"}]},
+            format="json",
+        )
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert _result(resp)["submitted"] == 1
+        assert Score.objects.filter(
+            queue_item_id=item_ids[0],
+            annotator=user,
+            deleted=False,
+        ).exists()
+
     def test_reviewer_assigned_item_can_add_missing_annotation_during_review(
         self,
         auth_client,
@@ -5517,10 +5630,15 @@ class TestAssignItems:
 
         assert denied.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_custom_queue_assignment_rejects_admin_without_queue_membership(
+    def test_custom_queue_assignment_allows_org_admin_without_queue_membership(
         self, auth_client, dataset_rows, organization, workspace
     ):
-        """Workspace/org admins cannot manage custom queue assignments by default."""
+        """Org/workspace admins can manage custom queue assignments via admin access.
+
+        ``auth_client`` is the org owner. Even without an explicit queue
+        membership row, admin access grants manager-equivalent rights, so they
+        may assign items on a queue created by someone else.
+        """
         from accounts.models.user import User
         from tfc.constants.roles import OrganizationRoles
 
@@ -5567,10 +5685,76 @@ class TestAssignItems:
             format="json",
         )
 
+        assert resp.status_code == status.HTTP_200_OK
+        item.refresh_from_db()
+        assert item.assigned_to_id == manager.id
+
+    def test_custom_queue_assignment_rejects_non_admin_non_member(
+        self, dataset_rows, organization, workspace
+    ):
+        """Plain members without admin access or a queue manager role cannot assign."""
+        from accounts.models.user import User
+        from conftest import WorkspaceAwareAPIClient
+        from tfc.constants.roles import OrganizationRoles
+
+        dataset, rows = dataset_rows
+        manager = User.objects.create_user(
+            email=f"assignment-owner-{uuid.uuid4().hex[:8]}@futureagi.com",
+            password="testpassword123",
+            name="Assignment Queue Owner",
+            organization=organization,
+            organization_role=OrganizationRoles.MEMBER,
+        )
+        outsider = User.objects.create_user(
+            email=f"assignment-outsider-{uuid.uuid4().hex[:8]}@futureagi.com",
+            password="testpassword123",
+            name="Assignment Queue Outsider",
+            organization=organization,
+            organization_role=OrganizationRoles.MEMBER,
+        )
+        queue = AnnotationQueue.objects.create(
+            name="Non Member Assignment Queue",
+            dataset=dataset,
+            status=AnnotationQueueStatusChoices.ACTIVE.value,
+            created_by=manager,
+            organization=organization,
+            workspace=workspace,
+        )
+        AnnotationQueueAnnotator.objects.update_or_create(
+            queue=queue,
+            user=manager,
+            deleted=False,
+            defaults={
+                "role": AnnotatorRole.MANAGER.value,
+                "roles": [AnnotatorRole.MANAGER.value],
+            },
+        )
+        item = QueueItem.objects.create(
+            queue=queue,
+            source_type=QueueItemSourceType.DATASET_ROW.value,
+            dataset_row=rows[0],
+            organization=organization,
+            workspace=workspace,
+        )
+
+        outsider_client = WorkspaceAwareAPIClient()
+        outsider_client.force_authenticate(user=outsider)
+        outsider_client.set_workspace(workspace)
+        resp = outsider_client.post(
+            assign_url(queue.id),
+            {
+                "item_ids": [str(item.id)],
+                "user_ids": [str(manager.id)],
+                "action": "set",
+            },
+            format="json",
+        )
+
         assert resp.status_code == status.HTTP_403_FORBIDDEN
         assert "Only queue managers can manage queue item assignments" in str(resp.data)
         item.refresh_from_db()
         assert item.assigned_to_id is None
+        outsider_client.stop_workspace_injection()
 
     def test_assign_empty_item_ids(self, auth_client, queue_with_items):
         """Empty item_ids returns 400."""
