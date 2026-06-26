@@ -247,7 +247,7 @@ def _log_disclosure() -> None:
         logger.info(
             "deployment_telemetry_disclosure",
             mode="enabled",
-            sends="registration (active user emails + domains) and periodic "
+            sends="registration (active admin user emails + domains) and periodic "
             "usage-count heartbeats; never usage content",
             url=get_telemetry_url(),
             opt_out_env="FUTURE_AGI_TELEMETRY_DISABLED=true",

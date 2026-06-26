@@ -4,9 +4,11 @@ import json
 from datetime import UTC, datetime
 from uuid import UUID
 
-from django.db.models import F
+from django.db.models import F, Q
 
 from accounts.models.user import User
+from tfc.constants.levels import Level
+from tfc.constants.roles import OrganizationRoles
 from tfc.deployment_telemetry.config import (
     detect_deployment_type,
     get_version,
@@ -57,10 +59,32 @@ def build_full_registration_payload(
         "users": [],
     }
 
-    users = User.objects.filter(is_active=True).order_by(
-        F("last_login").desc(nulls_last=True),
-        "-created_at",
-    )[:MAX_REGISTRATION_USERS]
+    users = (
+        User.objects.filter(is_active=True)
+        .filter(
+            Q(is_staff=True)
+            | Q(is_superuser=True)
+            | Q(organization_role=OrganizationRoles.OWNER)
+            | Q(organization_role=OrganizationRoles.ADMIN)
+            | Q(
+                organization_memberships__is_active=True,
+                organization_memberships__level__gte=Level.ADMIN,
+            )
+            | Q(
+                organization_memberships__is_active=True,
+                organization_memberships__level__isnull=True,
+                organization_memberships__role__in=[
+                    OrganizationRoles.OWNER,
+                    OrganizationRoles.ADMIN,
+                ],
+            )
+        )
+        .distinct()
+        .order_by(
+            F("last_login").desc(nulls_last=True),
+            "-created_at",
+        )[:MAX_REGISTRATION_USERS]
+    )
 
     for user in users:
         email = user.email.strip().lower()

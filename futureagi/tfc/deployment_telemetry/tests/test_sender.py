@@ -4,8 +4,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.utils import timezone
 
+from accounts.models.organization import Organization
+from accounts.models.organization_membership import OrganizationMembership
 from accounts.models.user import User
 from accounts.utils import _fire_deployment_telemetry_registration
+from tfc.constants.levels import Level
+from tfc.constants.roles import OrganizationRoles
 from tfc.deployment_telemetry.buffer import store_window
 from tfc.deployment_telemetry.models import DeploymentTelemetryState
 from tfc.deployment_telemetry.payloads import (
@@ -518,17 +522,32 @@ def test_disabling_telemetry_clears_buffer(monkeypatch, telemetry_buffer_dir):
 
 
 @pytest.mark.django_db
-def test_registration_caps_users_at_500(monkeypatch):
+def test_registration_caps_users_at_500():
     state = get_or_create_telemetry_state()
+    org = Organization.objects.create(name="Example Org")
     users = [
         User(
             email=f"user-{index}@example.com",
             name=f"User {index}",
             password="",
+            organization=org,
+            organization_role=OrganizationRoles.ADMIN,
         )
         for index in range(501)
     ]
     User.objects.bulk_create(users)
+    OrganizationMembership.objects.bulk_create(
+        [
+            OrganizationMembership(
+                user=user,
+                organization=org,
+                role=OrganizationRoles.ADMIN,
+                level=Level.ADMIN,
+                is_active=True,
+            )
+            for user in User.objects.filter(organization=org)
+        ]
+    )
 
     payload = build_full_registration_payload(state.instance_id)
 
@@ -537,17 +556,40 @@ def test_registration_caps_users_at_500(monkeypatch):
 
 
 @pytest.mark.django_db
-def test_user_selection_prefers_recent_login(monkeypatch):
+def test_user_selection_prefers_recent_login():
     state = get_or_create_telemetry_state()
+    org = Organization.objects.create(name="Example Org")
     older = User.objects.create_user(
         email="older@example.com",
         name="Older",
         password="password",
+        organization=org,
+        organization_role=OrganizationRoles.ADMIN,
     )
     newer = User.objects.create_user(
         email="newer@example.com",
         name="Newer",
         password="password",
+        organization=org,
+        organization_role=OrganizationRoles.ADMIN,
+    )
+    OrganizationMembership.objects.bulk_create(
+        [
+            OrganizationMembership(
+                user=older,
+                organization=org,
+                role=OrganizationRoles.ADMIN,
+                level=Level.ADMIN,
+                is_active=True,
+            ),
+            OrganizationMembership(
+                user=newer,
+                organization=org,
+                role=OrganizationRoles.ADMIN,
+                level=Level.ADMIN,
+                is_active=True,
+            ),
+        ]
     )
     older.last_login = timezone.now()
     older.save(update_fields=["last_login"])
@@ -561,6 +603,49 @@ def test_user_selection_prefers_recent_login(monkeypatch):
         "older@example.com",
         "newer@example.com",
     ]
+
+
+@pytest.mark.django_db
+def test_registration_excludes_active_non_admin_users():
+    state = get_or_create_telemetry_state()
+    org = Organization.objects.create(name="Example Org")
+    admin = User.objects.create_user(
+        email="admin@example.com",
+        name="Admin",
+        password="password",
+        organization=org,
+        organization_role=OrganizationRoles.ADMIN,
+    )
+    member = User.objects.create_user(
+        email="member@example.com",
+        name="Member",
+        password="password",
+        organization=org,
+        organization_role=OrganizationRoles.MEMBER,
+    )
+    OrganizationMembership.objects.bulk_create(
+        [
+            OrganizationMembership(
+                user=admin,
+                organization=org,
+                role=OrganizationRoles.ADMIN,
+                level=Level.ADMIN,
+                is_active=True,
+            ),
+            OrganizationMembership(
+                user=member,
+                organization=org,
+                role=OrganizationRoles.MEMBER,
+                level=Level.MEMBER,
+                is_active=True,
+            ),
+        ]
+    )
+
+    payload = build_full_registration_payload(state.instance_id)
+
+    assert payload is not None
+    assert [user["email"] for user in payload["users"]] == ["admin@example.com"]
 
 
 def test_cycle_failures_are_silent():
