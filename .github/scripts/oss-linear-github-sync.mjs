@@ -196,11 +196,32 @@ async function main() {
   const tickets = await fetchOssTickets()
   log(`[oss-sync] ${tickets.length} OSS tickets with GitHub PR links`)
 
+  // Deduplicate: when multiple tickets point to the same PR, newest ticket wins.
+  // Older issue-tracking tickets can have stale assignees that would fight newer
+  // ossprattacher tickets for the same PR.
+  const prKey = pr => `${pr.owner}/${pr.repo}#${pr.number}`
+  const newestByPr = new Map()
+  for (const ticket of tickets) {
+    for (const pr of ticket.prLinks) {
+      const key = prKey(pr)
+      const existing = newestByPr.get(key)
+      const ticketNum = n => parseInt(n.identifier.split('-')[1], 10)
+      if (!existing || ticketNum(ticket) > ticketNum(existing.ticket)) {
+        newestByPr.set(key, { ticket, pr })
+      }
+    }
+  }
+  const deduped = [...newestByPr.values()]
+  if (deduped.length < tickets.flatMap(t => t.prLinks).length) {
+    const dropped = tickets.flatMap(t => t.prLinks).length - deduped.length
+    log(`[oss-sync] deduped ${dropped} older ticket(s) pointing to same PRs`)
+  }
+
   let linearUpdates = 0
   let githubUpdates = 0
 
   // Process all ticket×PR pairs concurrently (capped at 10 in-flight)
-  const pairs = tickets.flatMap(t => t.prLinks.map(pr => ({ ticket: t, pr })))
+  const pairs = deduped
   const CONCURRENCY = 10
 
   async function processPair({ ticket, pr }) {
